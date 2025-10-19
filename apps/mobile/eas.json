@@ -1,0 +1,94 @@
+{
+  "cli": {
+    "version": ">= 3.4.0"
+  },
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      },
+      "ios": {
+        "simulator": true
+      },
+      "channel": "development"
+    },
+    "preview": {
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      },
+      "ios": {
+        "simulator": true
+      },
+      "channel": "preview"
+    },
+    "production": {
+      "ios": {
+        "autoIncrement": {
+          "buildNumber": true,
+          "version": false
+        },
+        "config": {
+          "bundleIdentifier": "com.yabaii.app"
+        }
+      },
+      "android": {
+        "autoIncrement": {
+          "versionCode": true,
+          "versionName": false
+        },
+        "config": {
+          "package": "com.yabaii.app"
+        }
+      },
+      "channel": "production"
+    },
+    "staging": {
+      "ios": {
+        "autoIncrement": {
+          "buildNumber": true,
+          "version": false
+        },
+        "config": {
+          "bundleIdentifier": "com.yabaii.app.staging"
+        }
+      },
+      "android": {
+        "autoIncrement": {
+          "versionCode": true,
+          "versionName": false
+        },
+        "config": {
+          "package": "com.yabaii.app.staging"
+        }
+      },
+      "channel": "staging"
+    }
+  },
+  "submit": {
+    "production": {
+      "ios": {
+        "appleId": "your-apple-id@example.com",
+        "ascAppId": "YOUR_APPLE_APP_ID",
+        "appleTeamId": "YOUR_APPLE_TEAM_ID"
+      },
+      "android": {
+        "serviceAccountKeyPath": "./android-service-account.json",
+        "track": "production"
+      }
+    },
+    "staging": {
+      "ios": {
+        "appleId": "your-apple-id@example.com",
+        "ascAppId": "YOUR_STAGING_APP_ID",
+        "appleTeamId": "YOUR_APPLE_TEAM_ID"
+      },
+      "android": {
+        "serviceAccountKeyPath": "./android-service-account.json",
+        "track": "internal"
+      }
+    }
+  }
+}

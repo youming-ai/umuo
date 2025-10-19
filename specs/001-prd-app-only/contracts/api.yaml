@@ -1,0 +1,1236 @@
+openapi: 3.0.3
+info:
+  title: Yabaii - Japanese Price Comparison App API
+  description: RESTful API for Japanese price comparison mobile application
+  version: 1.0.0
+  contact:
+    name: API Team
+    url: https://yabaii.day
+  license:
+    name: MIT
+
+servers:
+  - url: https://api.yabaii.day/v1
+    description: Production
+  - url: https://staging-api.yabaii.day/v1
+    description: Staging
+  - url: http://localhost:3000/v1
+    description: Development
+
+security:
+  - BearerAuth: []
+  - ApiKeyAuth: []
+
+tags:
+  - name: Auth
+    description: Authentication and user management
+  - name: Search
+    description: Product search and discovery
+  - name: Products
+    description: Product details and information
+  - name: Prices
+    description: Price history and comparisons
+  - name: Alerts
+    description: Price and stock alerts
+  - name: Deals
+    description: Promotional deals and offers
+  - name: Community
+    description: Voting, comments, and social features
+  - name: Recommendations
+    description: AI-powered recommendations
+
+paths:
+  # Authentication endpoints
+  /auth/token/exchange:
+    post:
+      tags: [Auth]
+      summary: Exchange auth token for access token
+      operationId: exchangeToken
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TokenExchangeRequest'
+      responses:
+        '200':
+          description: Token exchange successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenExchangeResponse'
+        '400':
+          description: Invalid request
+        '401':
+          description: Invalid credentials
+
+  /auth/logout:
+    post:
+      tags: [Auth]
+      summary: Logout user and invalidate tokens
+      operationId: logout
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Logout successful
+        '401':
+          description: Unauthorized
+
+  # Search endpoints
+  /search:
+    get:
+      tags: [Search]
+      summary: Search for products
+      operationId: searchProducts
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+        - name: category
+          in: query
+          schema:
+            type: string
+        - name: platform
+          in: query
+          schema:
+            type: string
+        - name: sort
+          in: query
+          schema:
+            type: string
+            enum: [relevance, price_asc, price_desc, rating, newest]
+            default: relevance
+      responses:
+        '200':
+          description: Search results
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SearchResponse'
+
+  /barcode/resolve:
+    get:
+      tags: [Search]
+      summary: Resolve barcode to product
+      operationId: resolveBarcode
+      parameters:
+        - name: code
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum: [JAN, UPC, EAN, ASIN]
+            default: JAN
+      responses:
+        '200':
+          description: Barcode resolved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BarcodeResolveResponse'
+        '404':
+          description: Barcode not found
+
+  # Product endpoints
+  /items/{spuId}:
+    get:
+      tags: [Products]
+      summary: Get product details
+      operationId: getProduct
+      parameters:
+        - name: spuId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Product details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductDetailResponse'
+
+  /items/{spuId}/offers:
+    get:
+      tags: [Products]
+      summary: Get product offers from all platforms
+      operationId: getProductOffers
+      parameters:
+        - name: spuId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: platform
+          in: query
+          schema:
+            type: string
+        - name: condition
+          in: query
+          schema:
+            type: string
+            enum: [new, used, refurbished]
+      responses:
+        '200':
+          description: Product offers
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductOffersResponse'
+
+  # Price endpoints
+  /prices/{spuId}/history:
+    get:
+      tags: [Prices]
+      summary: Get price history for a product
+      operationId: getPriceHistory
+      parameters:
+        - name: spuId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: days
+          in: query
+          schema:
+            type: integer
+            default: 90
+        - name: platform
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Price history
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PriceHistoryResponse'
+
+  /prices/{spuId}/statistics:
+    get:
+      tags: [Prices]
+      summary: Get price statistics for a product
+      operationId: getPriceStatistics
+      parameters:
+        - name: spuId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: days
+          in: query
+          schema:
+            type: integer
+            default: 30
+      responses:
+        '200':
+          description: Price statistics
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PriceStatisticsResponse'
+
+  # Alert endpoints
+  /alerts:
+    get:
+      tags: [Alerts]
+      summary: Get user alerts
+      operationId: getUserAlerts
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: User alerts
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserAlertsResponse'
+
+    post:
+      tags: [Alerts]
+      summary: Create new alert
+      operationId: createAlert
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateAlertRequest'
+      responses:
+        '201':
+          description: Alert created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AlertResponse'
+
+  /alerts/{alertId}:
+    delete:
+      tags: [Alerts]
+      summary: Delete alert
+      operationId: deleteAlert
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: alertId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Alert deleted
+
+  # Deals endpoints
+  /deals:
+    get:
+      tags: [Deals]
+      summary: Get promotional deals
+      operationId: getDeals
+      parameters:
+        - name: sort
+          in: query
+          schema:
+            type: string
+            enum: [trending, new, ending, discount]
+            default: trending
+        - name: category
+          in: query
+          schema:
+            type: string
+        - name: platform
+          in: query
+          schema:
+            type: string
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        '200':
+          description: Deals list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DealsResponse'
+
+    post:
+      tags: [Deals]
+      summary: Submit new deal
+      operationId: submitDeal
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SubmitDealRequest'
+      responses:
+        '201':
+          description: Deal submitted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DealResponse'
+
+  /deals/{dealId}/vote:
+    post:
+      tags: [Deals]
+      summary: Vote on a deal
+      operationId: voteDeal
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: dealId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VoteRequest'
+      responses:
+        '200':
+          description: Vote recorded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VoteResponse'
+
+  # AI endpoints
+  /ai/summarize:
+    post:
+      tags: [Recommendations]
+      summary: Get AI-generated review summary
+      operationId: getReviewSummary
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReviewSummaryRequest'
+      responses:
+        '200':
+          description: Review summary
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReviewSummaryResponse'
+
+  /recommend/{spuId}:
+    get:
+      tags: [Recommendations]
+      summary: Get product recommendations
+      operationId: getRecommendations
+      parameters:
+        - name: spuId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum: [similar, alternative, trending]
+            default: similar
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 10
+      responses:
+        '200':
+          description: Product recommendations
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecommendationsResponse'
+
+  # Community endpoints
+  /comments:
+    get:
+      tags: [Community]
+      summary: Get comments for a target
+      operationId: getComments
+      parameters:
+        - name: targetType
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [product, deal]
+        - name: targetId
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+      responses:
+        '200':
+          description: Comments list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CommentsResponse'
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+
+  schemas:
+    # Authentication schemas
+    TokenExchangeRequest:
+      type: object
+      required:
+        - provider
+        - idToken
+      properties:
+        provider:
+          type: string
+          enum: [apple, google]
+        idToken:
+          type: string
+
+    TokenExchangeResponse:
+      type: object
+      required:
+        - accessToken
+        - refreshToken
+        - user
+      properties:
+        accessToken:
+          type: string
+        refreshToken:
+          type: string
+        expiresIn:
+          type: integer
+        user:
+          $ref: '#/components/schemas/User'
+
+    # Core entities
+    User:
+      type: object
+      required:
+        - id
+        - displayName
+        - language
+        - currency
+      properties:
+        id:
+          type: string
+        email:
+          type: string
+        displayName:
+          type: string
+        avatar:
+          type: string
+        language:
+          type: string
+          enum: [ja, en, zh]
+        currency:
+          type: string
+          default: JPY
+        preferences:
+          $ref: '#/components/schemas/UserPreferences'
+        subscription:
+          $ref: '#/components/schemas/UserSubscription'
+
+    Product:
+      type: object
+      required:
+        - id
+        - name
+        - category
+        - status
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        brand:
+          type: string
+        category:
+          $ref: '#/components/schemas/Category'
+        images:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProductImage'
+        specifications:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProductSpecification'
+        identifiers:
+          $ref: '#/components/schemas/ProductIdentifiers'
+        status:
+          type: string
+          enum: [active, discontinued, out_of_stock]
+
+    ProductOffer:
+      type: object
+      required:
+        - id
+        - productId
+        - platform
+        - price
+        - availability
+        - url
+      properties:
+        id:
+          type: string
+        productId:
+          type: string
+        platform:
+          $ref: '#/components/schemas/Platform'
+        title:
+          type: string
+        price:
+          $ref: '#/components/schemas/Price'
+        availability:
+          $ref: '#/components/schemas/Availability'
+        seller:
+          $ref: '#/components/schemas/Seller'
+        shipping:
+          $ref: '#/components/schemas/ShippingInfo'
+        condition:
+          type: string
+          enum: [new, used, refurbished]
+        url:
+          type: string
+        images:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProductImage'
+        reviews:
+          $ref: '#/components/schemas/ReviewSummary'
+
+    # Response schemas
+    SearchResponse:
+      type: object
+      required:
+        - products
+        - pagination
+      properties:
+        products:
+          type: array
+          items:
+            $ref: '#/components/schemas/Product'
+        pagination:
+          $ref: '#/components/schemas/Pagination'
+        facets:
+          type: array
+          items:
+            $ref: '#/components/schemas/SearchFacet'
+
+    ProductDetailResponse:
+      type: object
+      required:
+        - product
+        - offers
+        - priceHistory
+      properties:
+        product:
+          $ref: '#/components/schemas/Product'
+        offers:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProductOffer'
+        priceHistory:
+          type: array
+          items:
+            $ref: '#/components/schemas/PriceHistory'
+        recommendations:
+          type: array
+          items:
+            $ref: '#/components/schemas/Recommendation'
+
+    PriceHistoryResponse:
+      type: object
+      required:
+        - history
+        - statistics
+      properties:
+        history:
+          type: array
+          items:
+            $ref: '#/components/schemas/PriceHistory'
+        statistics:
+          $ref: '#/components/schemas/PriceStatistics'
+
+    # Request schemas
+    CreateAlertRequest:
+      type: object
+      required:
+        - productId
+        - type
+      properties:
+        productId:
+          type: string
+        platformId:
+          type: string
+        type:
+          type: string
+          enum: [price_drop, price_low, in_stock, any_change]
+        condition:
+          $ref: '#/components/schemas/AlertCondition'
+
+    VoteRequest:
+      type: object
+      required:
+        - value
+      properties:
+        value:
+          type: string
+          enum: [up, down]
+
+    # Common schemas
+    Price:
+      type: object
+      required:
+        - amount
+        - currency
+      properties:
+        amount:
+          type: number
+        currency:
+          type: string
+        originalPrice:
+          type: number
+        discountPercentage:
+          type: number
+
+    Availability:
+      type: object
+      required:
+        - inStock
+      properties:
+        inStock:
+          type: boolean
+        quantity:
+          type: integer
+        estimatedDelivery:
+          type: string
+        stockStatus:
+          type: string
+          enum: [in_stock, low_stock, out_of_stock, pre_order]
+
+    Platform:
+      type: object
+      required:
+        - id
+        - name
+        - domain
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        domain:
+          type: string
+        icon:
+          type: string
+
+    Pagination:
+      type: object
+      required:
+        - page
+        - limit
+        - total
+        - totalPages
+      properties:
+        page:
+          type: integer
+        limit:
+          type: integer
+        total:
+          type: integer
+        totalPages:
+          type: integer
+        hasNext:
+          type: boolean
+        hasPrev:
+          type: boolean
+
+    Category:
+      type: object
+      required:
+        - id
+        - name
+      properties:
+        id:
+          type: string
+        name:
+          type: object
+          additionalProperties:
+            type: string
+        parentId:
+          type: string
+        level:
+          type: integer
+
+    ProductImage:
+      type: object
+      required:
+        - url
+        - width
+        - height
+      properties:
+        url:
+          type: string
+        alt:
+          type: object
+          additionalProperties:
+            type: string
+        width:
+          type: integer
+        height:
+          type: integer
+        order:
+          type: integer
+
+    ProductIdentifiers:
+      type: object
+      properties:
+        jan:
+          type: string
+        upc:
+          type: string
+        ean:
+          type: string
+        asin:
+          type: string
+        sku:
+          type: string
+
+    PriceHistory:
+      type: object
+      required:
+        - productId
+        - platformId
+        - price
+        - recordedAt
+      properties:
+        productId:
+          type: string
+        platformId:
+          type: string
+        price:
+          type: number
+        currency:
+          type: string
+        recordedAt:
+          type: string
+          format: date-time
+
+    # Additional schemas for completeness
+    UserPreferences:
+      type: object
+      properties:
+        notifications:
+          $ref: '#/components/schemas/NotificationSettings'
+        privacy:
+          $ref: '#/components/schemas/PrivacySettings'
+
+    NotificationSettings:
+      type: object
+      properties:
+        priceAlerts:
+          type: boolean
+          default: true
+        dealAlerts:
+          type: boolean
+          default: true
+        communityUpdates:
+          type: boolean
+          default: false
+
+    PrivacySettings:
+      type: object
+      properties:
+        analyticsEnabled:
+          type: boolean
+          default: true
+        personalizationEnabled:
+          type: boolean
+          default: true
+
+    AlertCondition:
+      type: object
+      properties:
+        threshold:
+          type: number
+        percentage:
+          type: number
+        lowestHistorical:
+          type: boolean
+        platformIds:
+          type: array
+          items:
+            type: string
+
+    ReviewSummary:
+      type: object
+      properties:
+        averageRating:
+          type: number
+        totalReviews:
+          type: integer
+        aiSummary:
+          $ref: '#/components/schemas/AISummary'
+
+    AISummary:
+      type: object
+      properties:
+        summary:
+          type: string
+        pros:
+          type: array
+          items:
+            type: string
+        cons:
+          type: array
+          items:
+            type: string
+        confidence:
+          type: number
+
+    Recommendation:
+      type: object
+      properties:
+        productId:
+          type: string
+        type:
+          type: string
+        score:
+          type: number
+        reason:
+          type: string
+
+    # Additional response schemas
+    DealsResponse:
+      type: object
+      required:
+        - deals
+        - pagination
+      properties:
+        deals:
+          type: array
+          items:
+            $ref: '#/components/schemas/Deal'
+        pagination:
+          $ref: '#/components/schemas/Pagination'
+
+    Deal:
+      type: object
+      required:
+        - id
+        - title
+        - type
+        - url
+        - status
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        description:
+          type: string
+        type:
+          type: string
+        discount:
+          $ref: '#/components/schemas/Discount'
+        url:
+          type: string
+        images:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProductImage'
+        startDate:
+          type: string
+          format: date-time
+        endDate:
+          type: string
+          format: date-time
+        status:
+          type: string
+          enum: [active, pending, expired, rejected]
+        communityScore:
+          $ref: '#/components/schemas/CommunityScore'
+
+    Discount:
+      type: object
+      required:
+        - type
+        - value
+      properties:
+        type:
+          type: string
+          enum: [percentage, fixed, buy_one_get_one]
+        value:
+          type: number
+        conditions:
+          type: array
+          items:
+            type: string
+
+    CommunityScore:
+      type: object
+      required:
+        - upvotes
+        - downvotes
+        - totalScore
+      properties:
+        upvotes:
+          type: integer
+        downvotes:
+          type: integer
+        totalScore:
+          type: integer
+        userVote:
+          type: string
+          enum: [up, down]
+
+    # Add remaining required schemas
+    UserSubscription:
+      type: object
+      properties:
+        type:
+          type: string
+          enum: [free, premium]
+        status:
+          type: string
+          enum: [active, canceled, expired]
+        expiresAt:
+          type: string
+          format: date-time
+
+    ProductSpecification:
+      type: object
+      properties:
+        name:
+          type: string
+        value:
+          type: string
+        unit:
+          type: string
+
+    Seller:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        rating:
+          type: number
+        reviewCount:
+          type: integer
+        url:
+          type: string
+
+    ShippingInfo:
+      type: object
+      properties:
+        free:
+          type: boolean
+        cost:
+          type: number
+        estimatedDays:
+          type: integer
+        methods:
+          type: array
+          items:
+            type: string
+
+    SearchFacet:
+      type: object
+      properties:
+        name:
+          type: string
+        values:
+          type: array
+          items:
+            $ref: '#/components/schemas/FacetValue'
+
+    FacetValue:
+      type: object
+      properties:
+        value:
+          type: string
+        count:
+          type: integer
+
+    PriceStatistics:
+      type: object
+      properties:
+        currentPrice:
+          type: number
+        averagePrice:
+          type: number
+        lowestPrice:
+          type: number
+        highestPrice:
+          type: number
+        priceChangePercent:
+          type: number
+        trend:
+          type: string
+          enum: [rising, falling, stable]
+
+    # Request/Response schemas for remaining endpoints
+    BarcodeResolveResponse:
+      type: object
+      properties:
+        product:
+          $ref: '#/components/schemas/Product'
+
+    UserAlertsResponse:
+      type: object
+      properties:
+        alerts:
+          type: array
+          items:
+            $ref: '#/components/schemas/Alert'
+
+    AlertResponse:
+      type: object
+      properties:
+        alert:
+          $ref: '#/components/schemas/Alert'
+
+    Alert:
+      type: object
+      properties:
+        id:
+          type: string
+        productId:
+          type: string
+        platformId:
+          type: string
+        type:
+          type: string
+        condition:
+          $ref: '#/components/schemas/AlertCondition'
+        active:
+          type: boolean
+        triggered:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        triggeredAt:
+          type: string
+          format: date-time
+
+    ProductOffersResponse:
+      type: object
+      properties:
+        offers:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProductOffer'
+
+    SubmitDealRequest:
+      type: object
+      required:
+        - title
+        - url
+        - price
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+        url:
+          type: string
+        price:
+          type: number
+        originalPrice:
+          type: number
+        images:
+          type: array
+          items:
+            type: string
+        category:
+          type: string
+
+    DealResponse:
+      type: object
+      properties:
+        deal:
+          $ref: '#/components/schemas/Deal'
+
+    VoteResponse:
+      type: object
+      properties:
+        vote:
+          $ref: '#/components/schemas/Vote'
+
+    Vote:
+      type: object
+      properties:
+        id:
+          type: string
+        value:
+          type: string
+          enum: [up, down]
+
+    ReviewSummaryRequest:
+      type: object
+      required:
+        - spuId
+      properties:
+        spuId:
+          type: string
+        platformId:
+          type: string
+
+    ReviewSummaryResponse:
+      type: object
+      properties:
+        summary:
+          $ref: '#/components/schemas/AISummary'
+
+    RecommendationsResponse:
+      type: object
+      properties:
+        recommendations:
+          type: array
+          items:
+            $ref: '#/components/schemas/Recommendation'
+
+    CommentsResponse:
+      type: object
+      properties:
+        comments:
+          type: array
+          items:
+            $ref: '#/components/schemas/Comment'
+        pagination:
+          $ref: '#/components/schemas/Pagination'
+
+    Comment:
+      type: object
+      properties:
+        id:
+          type: string
+        userId:
+          type: string
+        content:
+          type: string
+        parentId:
+          type: string
+        status:
+          type: string
+          enum: [active, hidden, deleted]
+        communityScore:
+          $ref: '#/components/schemas/CommunityScore'
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time

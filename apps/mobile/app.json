@@ -1,0 +1,25 @@
+{
+  "expo": {
+    "name": "Yabaii",
+    "slug": "yabaii",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "day.yabaii.mobile"
+    },
+    "android": {
+      "package": "day.yabaii.mobile"
+    },
+    "plugins": [
+      "expo-barcode-scanner",
+      "expo-notifications",
+      "expo-secure-store"
+    ],
+    "scheme": "yabaii"
+  }
+}
