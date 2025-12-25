@@ -1,0 +1,68 @@
+---
+import { Zap } from 'lucide-react';
+import { Button } from '../ui/button';
+import ProductCard from '../ui/ProductCard.jsx';
+
+interface Product {
+  id: string;
+  slug: string;
+  name: string;
+  price: number;
+  originalPrice?: number;
+  platform: string;
+  rating: number;
+  image?: string;
+  images?: string[];
+  brand: string;
+}
+
+interface Props {
+  featuredDeals: Product[];
+}
+
+const { featuredDeals } = Astro.props;
+---
+
+<!-- Featured Deals Section -->
+<section class="py-16 md:py-24 bg-white">
+  <div class="container">
+    <div class="text-center max-w-3xl mx-auto mb-12">
+      <div
+        class="inline-flex items-center px-3 py-1 rounded-full bg-secondary-50 text-secondary-600 text-xs font-bold uppercase tracking-wider mb-4"
+      >
+        <Zap className="w-3 h-3 mr-2" />
+        Trending Now
+      </div>
+      <h2 class="text-3xl md:text-4xl font-extrabold text-gray-900 mb-4">
+        今週のイチオシ目玉商品
+      </h2>
+      <p class="text-gray-600 text-base md:text-lg">
+        AIが解析した、今最も「買いどき」な商品を厳選しました。
+      </p>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-10">
+      {
+        featuredDeals.map((deal, index) => (
+          <div
+            class="animate-slide-up"
+            style={`animation-delay: ${index * 0.1}s`}
+          >
+            <ProductCard product={deal} client:load />
+          </div>
+        ))
+      }
+    </div>
+
+    <div class="mt-12 text-center">
+      <Button
+        asChild
+        variant="outline"
+        size="lg"
+        className="px-12 rounded-2xl border-2 hover:bg-gray-900 hover:border-gray-900 hover:text-white transition-all duration-300"
+      >
+        <a href="/deals"> もっとお得な商品を見る </a>
+      </Button>
+    </div>
+  </div>
+</section>

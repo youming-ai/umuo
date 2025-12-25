@@ -1,0 +1,135 @@
+---
+import {
+  ChevronLeft,
+  ChevronRight,
+  Package,
+  SlidersHorizontal,
+} from 'lucide-react';
+import FilterPanel from '../islands/FilterPanel.jsx';
+import SearchBar from '../islands/SearchBar.jsx';
+import ProductCard from '../ui/ProductCard.jsx';
+import ProductGrid from './ProductGrid.astro';
+
+interface Product {
+  id: string;
+  slug: string;
+  name: string;
+  price: number;
+  originalPrice?: number;
+  platform: string;
+  rating: number;
+  image?: string;
+  images?: string[];
+  brand: string;
+  category: string;
+}
+
+interface Pagination {
+  totalResults: number;
+  totalPages: number;
+  currentPage: number;
+  hasNext: boolean;
+  hasPrev: boolean;
+}
+
+interface Props {
+  initialProducts: Product[];
+  initialPagination: Pagination;
+  availableFilters: {
+    categories: string[];
+    platforms: string[];
+    priceRanges: string[];
+  };
+  searchQuery?: string;
+  initialCategory?: string;
+}
+
+const {
+  initialProducts,
+  initialPagination,
+  availableFilters,
+  searchQuery = '',
+  initialCategory = '',
+} = Astro.props;
+---
+
+<!-- Product Search Section -->
+<section id="products" class="py-16 bg-gray-50/50 border-y border-gray-100">
+  <div class="container">
+    <!-- Search Header -->
+    <div class="bg-white border-b border-gray-100 py-8 -mx-4 sm:-mx-8 px-4 sm:px-8 mb-8 rounded-t-3xl">
+      <div class="text-center mb-8">
+        <h2 class="text-3xl md:text-4xl font-black text-gray-900 mb-4 tracking-tight">
+          {searchQuery ? `「${searchQuery}」の検索結果` : 'すべての商品'}
+        </h2>
+        <p class="text-gray-500 flex items-center justify-center gap-2">
+          <Package className="w-5 h-5 text-primary-500" />
+          <span class="font-bold text-gray-900">{initialPagination.totalResults.toLocaleString()}</span> 件のアイテムが見つかりました
+        </p>
+      </div>
+
+      <!-- Search Bar -->
+      <div class="max-w-3xl mx-auto">
+        <SearchBar
+          client:load
+          placeholder="欲しい商品を検索..."
+          initialQuery={searchQuery}
+          initialCategory={initialCategory}
+        />
+      </div>
+    </div>
+
+    <div class="flex flex-col lg:flex-row gap-8">
+      <!-- Sidebar Filters -->
+      <aside class="lg:w-72 flex-shrink-0">
+        <div class="sticky top-24">
+          <div class="bg-white rounded-3xl shadow-sm border border-gray-100 p-6">
+            <div class="flex items-center gap-3 mb-6">
+              <div class="w-10 h-10 bg-primary-50 rounded-xl flex items-center justify-center">
+                <SlidersHorizontal className="w-5 h-5 text-primary-600" />
+              </div>
+              <h3 class="text-lg font-extrabold text-gray-900">絞り込み</h3>
+            </div>
+
+            <FilterPanel
+              client:load
+              initialFilters={{
+                category: initialCategory,
+                platform: '',
+                minPrice: 0,
+                maxPrice: 1000000,
+                rating: 0,
+              }}
+              onFilterChange={() => {}}
+              availableFilters={availableFilters}
+            />
+          </div>
+
+          <!-- Hint Card -->
+          <div class="bg-gradient-to-br from-primary-600 to-purple-600 rounded-3xl p-6 text-white shadow-xl shadow-primary-500/20 mt-6">
+            <h3 class="font-bold mb-3">AIアドバイス</h3>
+            <p class="text-primary-50 text-sm leading-relaxed opacity-90">
+              価格アラートを設定すると、希望の価格になった時に自動でお知らせします。
+            </p>
+            <a
+              href="/login"
+              class="mt-4 w-full py-3 bg-white/20 hover:bg-white/30 rounded-xl font-bold text-sm transition-colors backdrop-blur-md inline-block text-center"
+            >
+              アラートを設定
+            </a>
+          </div>
+        </div>
+      </aside>
+
+      <!-- Main Results -->
+      <main class="flex-1">
+        <!-- Product Grid -->
+        <ProductGrid
+          products={initialProducts}
+          pagination={initialPagination}
+          client:idle
+        />
+      </main>
+    </div>
+  </div>
+</section>

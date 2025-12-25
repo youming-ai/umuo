@@ -1,66 +1,97 @@
 ---
+import { ArrowLeft, ChevronRight, Home, Search, Zap } from 'lucide-react';
 import BaseLayout from '../layouts/BaseLayout.astro';
-import { Home, Search, ArrowLeft } from 'lucide-react';
 ---
 
 <BaseLayout
-  title="ページが見つかりません - Yabaii"
-  description="お探しのページは見つかりませんでした。トップページに戻るか、検索をお試しください。"
+  title="ページが見つかりません - UMUO"
+  description="お探しのページは見つかりませんでした。"
 >
-  <div class="container py-16">
-    <div class="max-w-2xl mx-auto text-center">
-      {/* 404 Animation/Graphic */}
-      <div class="mb-8">
-        <div class="text-9xl font-bold text-gray-200 mb-4">404</div>
-        <h1 class="text-3xl font-bold text-gray-900 mb-4">ページが見つかりません</h1>
-        <p class="text-lg text-gray-600 mb-8">
-          お探しのページは存在しないか、移動された可能性があります。
-          URLを確認いただくか、下記のリンクからお進みください。
-        </p>
+  <div class="min-h-[80vh] flex items-center justify-center py-24">
+    <div class="container relative">
+      <!-- Background Decorative Elements -->
+      <div
+        class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-4xl h-96 bg-primary-500/10 rounded-full blur-[120px] -z-10 animate-pulse-gentle"
+      >
       </div>
 
-      {/* Error Illustration */}
-      <div class="w-64 h-64 bg-gray-100 rounded-2xl mx-auto mb-8 flex items-center justify-center">
-        <svg class="w-32 h-32 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9.172 16.172a4 4 0 015.656 0M9 12h6m-6-4h6m2 5.291A7.962 7.962 0 0112 15c-2.34 0-4.29-1.009-5.824-2.562M15 6.849a7.968 7.968 0 00-6 0m9-3.042A9.974 9.974 0 0112 3c-4.474 0-8.268 3.12-9.254 7.317M21 12c0 1.34-.262 2.62-.738 3.788M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m-9 9a9 9 0 019-9m0 18a9 9 0 01-9-9" />
-        </svg>
-      </div>
-
-      {/* Action Buttons */}
-      <div class="flex flex-col sm:flex-row gap-4 justify-center mb-8">
-        <a
-          href="/"
-          class="inline-flex items-center justify-center px-6 py-3 bg-blue-600 text-white font-medium rounded-md hover:bg-blue-700 transition-colors"
-        >
-          <Home class="w-5 h-5 mr-2" />
-          トップページに戻る
-        </a>
-        <a
-          href="/search"
-          class="inline-flex items-center justify-center px-6 py-3 border border-gray-300 text-gray-700 font-medium rounded-md hover:bg-gray-50 transition-colors"
-        >
-          <Search class="w-5 h-5 mr-2" />
-          商品を検索する
-        </a>
-      </div>
-
-      {/* Quick Links */}
-      <div class="bg-gray-50 rounded-lg p-6">
-        <h2 class="text-lg font-semibold text-gray-900 mb-4">人気のページ</h2>
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <a href="/search" class="text-blue-600 hover:text-blue-700 text-sm">商品検索</a>
-          <a href="/compare" class="text-blue-600 hover:text-blue-700 text-sm">価格比較</a>
-          <a href="/deals" class="text-blue-600 hover:text-blue-700 text-sm">お得情報</a>
-          <a href="/alerts" class="text-blue-600 hover:text-blue-700 text-sm">価格アラート</a>
+      <div class="max-w-4xl mx-auto text-center relative z-10">
+        <div class="inline-flex items-center gap-4 mb-12">
+          <div class="w-24 h-px bg-gradient-to-r from-transparent to-gray-200">
+          </div>
+          <span
+            class="text-xs font-black text-primary-600 uppercase tracking-[0.5em] animate-fade-in"
+            >Error Code 404</span
+          >
+          <div class="w-24 h-px bg-gradient-to-l from-transparent to-gray-200">
+          </div>
         </div>
-      </div>
 
-      {/* Help Section */}
-      <div class="mt-8 text-sm text-gray-600">
-        <p>このエラーが続く場合は、</p>
-        <a href="/contact" class="text-blue-600 hover:text-blue-700 underline">
-          サポートにお問い合わせください
-        </a>
+        <h1
+          class="text-[12rem] md:text-[20rem] font-black leading-none text-gray-900 tracking-tighter mb-8 animate-slide-up"
+        >
+          404
+        </h1>
+
+        <h2
+          class="text-4xl md:text-6xl font-black text-gray-900 mb-8 tracking-tight animate-slide-up delay-100 italic"
+        >
+          「ヤバい」、<br class="md:hidden" />見つからない。
+        </h2>
+
+        <p
+          class="text-xl text-gray-500 font-medium max-w-lg mx-auto mb-16 animate-slide-up delay-200"
+        >
+          お探しのページは、お得すぎて売り切れたか、<br
+            class="hidden md:block"
+          />
+          もともと存在しない幻のページのようです。
+        </p>
+
+        <div
+          class="flex flex-col sm:flex-row gap-6 justify-center items-center animate-slide-up delay-300"
+        >
+          <a
+            href="/"
+            class="group w-full sm:w-auto h-20 px-12 bg-gray-900 text-white rounded-[1.5rem] font-black flex items-center justify-center gap-4 shadow-2xl shadow-gray-900/20 hover:scale-[1.05] transition-all"
+          >
+            <Home className="w-6 h-6" />
+            トップへ戻る
+          </a>
+          <a
+            href="/search"
+            class="group w-full sm:w-auto h-20 px-12 bg-white text-gray-900 rounded-[1.5rem] font-black flex items-center justify-center gap-4 border border-gray-100 shadow-xl shadow-gray-200/50 hover:bg-gray-50 transition-all hover:scale-[1.05]"
+          >
+            <Search
+              className="w-6 h-6 group-hover:text-primary-600 transition-colors"
+            />
+            商品を探す
+          </a>
+        </div>
+
+        <!-- Quick Links -->
+        <div
+          class="mt-24 grid grid-cols-2 md:grid-cols-4 gap-6 animate-fade-in delay-500"
+        >
+          {
+            ["価格比較", "セール情報", "カテゴリー", "会員登録"].map(
+              (tag, idx) => (
+                <a
+                  href={`/${["compare", "deals", "categories", "profile"][idx]}`}
+                  class="bg-white/50 backdrop-blur-md rounded-2xl p-6 border border-white hover:bg-white hover:border-primary-500 transition-all group"
+                >
+                  <div class="text-xs font-black text-gray-400 uppercase tracking-widest mb-2 group-hover:text-primary-600">
+                    Quick Link
+                  </div>
+                  <div class="text-sm font-black text-gray-900 flex items-center justify-between">
+                    {tag}
+                    <ChevronRight className="w-4 h-4 text-gray-300 group-hover:translate-x-1 transition-transform" />
+                  </div>
+                </a>
+              ),
+            )
+          }
+        </div>
       </div>
     </div>
   </div>

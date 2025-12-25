@@ -1,0 +1,75 @@
+---
+import { Clock } from 'lucide-react';
+import { Button } from '../../components/ui/button';
+import ProductCard from '../../components/ui/ProductCard.jsx';
+/**
+ * Profile History Page
+ * 个人浏览记录页面
+ */
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { mockService } from '../../lib/mock/service';
+
+const mockHistory = mockService.getProducts({
+  searchQuery: '',
+  category: '',
+  sort: 'relevance',
+  page: 1,
+  limit: 6,
+}).products;
+---
+
+<BaseLayout
+  title="閲覧履歴 - UMUO"
+  description="最近見た商品を確認。"
+>
+  <div class="bg-gray-50/50 min-h-screen pb-24">
+    <!-- Header -->
+    <div class="bg-white border-b border-gray-100 py-16">
+      <div class="container">
+        <div class="max-w-3xl">
+          <h1 class="text-5xl md:text-6xl font-black text-gray-900 mb-6 tracking-tighter">
+            閲覧履歴
+          </h1>
+          <p class="text-xl text-gray-500 font-medium">
+            最近チェックした商品を確認できます。
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <div class="container pt-12">
+      <div class="flex justify-between items-center mb-8">
+        <p class="text-gray-500 flex items-center gap-2">
+          <Clock className="w-5 h-5 text-primary-500" />
+          <span class="font-bold text-gray-900">{mockHistory.length}</span> 件の履歴
+        </p>
+        <Button variant="outline" size="sm">
+          履歴をクリア
+        </Button>
+      </div>
+
+      {mockHistory.length > 0 ? (
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+          {mockHistory.map((product) => (
+            <ProductCard product={product} client:load />
+          ))}
+        </div>
+      ) : (
+        <div class="bg-white rounded-[3rem] p-20 text-center border border-gray-100 shadow-sm">
+          <div class="w-24 h-24 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-8">
+            <Clock className="w-10 h-10 text-gray-300" />
+          </div>
+          <h2 class="text-3xl font-black text-gray-900 mb-4">
+            閲覧履歴がありません
+          </h2>
+          <p class="text-gray-500 text-lg mb-10 max-w-md mx-auto">
+            商品を見ると、ここに履歴が表示されます。
+          </p>
+          <Button size="lg" asChild>
+            <a href="/">商品を探す</a>
+          </Button>
+        </div>
+      )}
+    </div>
+  </div>
+</BaseLayout>

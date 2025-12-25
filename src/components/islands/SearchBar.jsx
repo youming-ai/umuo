@@ -1,61 +1,36 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Input, Chip, Spinner } from '@heroui/react';
-import { Search, TrendingUp, Clock } from 'lucide-react';
+import { Clock, Search, TrendingUp, X, Zap } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { Button } from '../ui/button';
+import { Card } from '../ui/card';
+import { Input } from '../ui/input';
 
 const TRENDING_KEYWORDS = [
   'iPhone 15 Pro',
-  'AirPods Pro',
-  'PlayStation 5',
-  'Nintendo Switch',
+  'MacBook Air M2',
   'Sony WH-1000XM5',
-];
-
-const RECENT_SEARCHES = [
-  'iPhone 15 Pro',
-  'Sony ヘッドホン',
   'Nintendo Switch',
+  'AirPods Pro 2',
 ];
 
-export default function SearchBar({ placeholder = "商品名やJANコードで検索...", compact = false }) {
+export default function SearchBar({ placeholder = '欲しい商品を検索...' }) {
   const [query, setQuery] = useState('');
-  const [suggestions, setSuggestions] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const inputRef = useRef(null);
-  const timerRef = useRef(null);
+  const [isFocused, setIsFocused] = useState(false);
+  const searchContainerRef = useRef(null);
 
   useEffect(() => {
-    if (timerRef.current) {
-      clearTimeout(timerRef.current);
-    }
-
-    if (query.length < 2) {
-      setSuggestions([]);
-      return;
-    }
-
-    timerRef.current = setTimeout(async () => {
-      setLoading(true);
-      try {
-        const response = await fetch(`/api/search-suggestions?q=${encodeURIComponent(query)}`);
-        if (response.ok) {
-          const data = await response.json();
-          setSuggestions(data.suggestions || []);
-        }
-      } catch (error) {
-        console.error('検索候補の取得に失敗しました:', error);
-        setSuggestions([]);
-      } finally {
-        setLoading(false);
-      }
-    }, 300);
-
-    return () => {
-      if (timerRef.current) {
-        clearTimeout(timerRef.current);
+    const handleClickOutside = (event) => {
+      if (
+        searchContainerRef.current &&
+        !searchContainerRef.current.contains(event.target)
+      ) {
+        setShowSuggestions(false);
+        setIsFocused(false);
       }
     };
-  }, [query]);
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -64,126 +39,123 @@ export default function SearchBar({ placeholder = "商品名やJANコードで�
     }
   };
 
-  const handleSuggestionClick = (suggestion) => {
-    setQuery(suggestion);
-    setShowSuggestions(false);
-    window.location.href = `/search?q=${encodeURIComponent(suggestion)}`;
-  };
-
   const handleKeywordClick = (keyword) => {
-    setQuery(keyword);
     window.location.href = `/search?q=${encodeURIComponent(keyword)}`;
   };
 
   return (
-    <div className="relative w-full">
-      <form onSubmit={handleSubmit}>
-        <Input
-          ref={inputRef}
-          type="text"
-          placeholder={placeholder}
-          value={query}
-          onValueChange={setQuery}
-          onFocus={() => setShowSuggestions(true)}
-          onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
-          startContent={<Search className="w-4 h-4 text-gray-400" />}
-          endContent={loading && <Spinner size="sm" />}
-          classNames={{
-            input: "text-sm",
-            inputWrapper: "bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 hover:border-primary focus-within:border-primary",
-          }}
-          size={compact ? "sm" : "md"}
-        />
-      </form>
+    <div
+      className="relative w-full max-w-4xl mx-auto z-50"
+      ref={searchContainerRef}
+    >
+      <form onSubmit={handleSubmit} className="relative group">
+        <div
+          className={`
+          relative flex items-center transition-all duration-500 rounded-full overflow-hidden
+          ${isFocused ? 'ring-8 ring-primary-500/10 shadow-2xl shadow-primary-500/20' : 'shadow-lg shadow-gray-200/50'}
+        `}
+        >
+          <div className="absolute left-6 text-gray-400 group-hover:text-primary-500 transition-colors pointer-events-none z-10">
+            <Search
+              className={`w-6 h-6 ${isFocused ? 'text-primary-600' : ''}`}
+            />
+          </div>
 
-      {/* Suggestions Dropdown */}
-      {showSuggestions && (
-        <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-xl z-50 max-h-96 overflow-y-auto">
-          {query.length < 2 ? (
-            <div className="p-4">
-              {/* Trending Keywords */}
-              <div className="mb-4">
-                <div className="flex items-center space-x-2 mb-3">
-                  <TrendingUp className="w-4 h-4 text-primary" />
-                  <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    トレンドワード
-                  </h3>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {TRENDING_KEYWORDS.map((keyword, index) => (
-                    <Chip
-                      key={index}
-                      variant="flat"
-                      color="primary"
-                      size="sm"
-                      className="cursor-pointer hover:bg-primary hover:text-white transition-colors"
-                      onClick={() => handleKeywordClick(keyword)}
-                    >
-                      {keyword}
-                    </Chip>
-                  ))}
-                </div>
-              </div>
+          <Input
+            type="text"
+            className={`
+              w-full h-16 pl-16 pr-32 bg-white border-2 text-lg font-bold text-gray-900 outline-none transition-all rounded-full border-transparent
+              ${isFocused ? 'border-primary-500' : 'hover:border-gray-100'}
+            `}
+            placeholder={placeholder}
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            onFocus={() => {
+              setShowSuggestions(true);
+              setIsFocused(true);
+            }}
+          />
 
-              {/* Recent Searches */}
-              <div>
-                <div className="flex items-center space-x-2 mb-3">
-                  <Clock className="w-4 h-4 text-gray-400" />
-                  <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    最近の検索
-                  </h3>
-                </div>
-                <ul className="space-y-1">
-                  {RECENT_SEARCHES.map((item, index) => (
-                    <li key={index}>
-                      <button
-                        type="button"
-                        onClick={() => handleSuggestionClick(item)}
-                        className="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors flex items-center space-x-3"
-                      >
-                        <Clock className="w-4 h-4 text-gray-400" />
-                        <span className="text-sm text-gray-900 dark:text-gray-100">{item}</span>
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </div>
-          ) : loading ? (
-            <div className="flex items-center justify-center py-8">
-              <Spinner size="sm" />
-              <span className="ml-2 text-sm text-gray-500">検索候補を読み込み中...</span>
-            </div>
-          ) : suggestions.length > 0 ? (
-            <ul className="py-2">
-              {suggestions.map((suggestion, index) => (
-                <li key={index}>
-                  <button
-                    type="button"
-                    onClick={() => handleSuggestionClick(suggestion.text)}
-                    className="w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors flex items-center justify-between"
-                  >
-                    <div className="flex items-center space-x-3">
-                      <Search className="w-4 h-4 text-gray-400" />
-                      <span className="text-sm text-gray-900 dark:text-gray-100">{suggestion.text}</span>
-                    </div>
-                    {suggestion.category && (
-                      <Chip size="sm" variant="flat" color="default">
-                        {suggestion.category}
-                      </Chip>
-                    )}
-                  </button>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <div className="px-4 py-8 text-center text-gray-500">
-              <Search className="w-8 h-8 mx-auto mb-2 text-gray-300" />
-              <p className="text-sm">検索候補が見つかりませんでした</p>
-            </div>
-          )}
+          <div className="absolute right-3 flex items-center gap-2">
+            {query && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                onClick={() => setQuery('')}
+                className="text-gray-400 hover:text-gray-600 rounded-full"
+              >
+                <X className="w-5 h-5" />
+              </Button>
+            )}
+            <Button
+              type="submit"
+              className="px-8 h-10 rounded-full font-black text-sm shadow-lg shadow-primary-500/20"
+            >
+              SEARCH
+            </Button>
+          </div>
         </div>
-      )}
+
+        {/* Quick Suggestions Overlay */}
+        {showSuggestions && (
+          <Card className="absolute top-full left-0 right-0 mt-4 bg-white/95 backdrop-blur-2xl border border-gray-100 rounded-[2.5rem] shadow-2xl p-8 animate-fade-in overflow-hidden z-20">
+            <div className="absolute top-0 right-0 p-8 opacity-5">
+              <Zap className="w-32 h-32" />
+            </div>
+
+            <div className="relative z-10">
+              <div className="flex items-center gap-3 mb-6">
+                <TrendingUp className="w-5 h-5 text-primary-600" />
+                <h3 className="text-xs font-black text-gray-400 uppercase tracking-[0.2em]">
+                  Trending Now
+                </h3>
+              </div>
+
+              <div className="flex flex-wrap gap-3">
+                {TRENDING_KEYWORDS.map((keyword) => (
+                  <Button
+                    key={keyword}
+                    type="button"
+                    variant="secondary"
+                    size="lg"
+                    onClick={() => handleKeywordClick(keyword)}
+                    className="rounded-2xl font-bold text-sm hover:bg-primary-600 hover:text-white transition-all hover:scale-105 active:scale-95 border-transparent hover:shadow-xl hover:shadow-primary-500/20"
+                  >
+                    {keyword}
+                  </Button>
+                ))}
+              </div>
+
+              <div className="mt-10 pt-8 border-t border-gray-100">
+                <div className="flex items-center gap-3 mb-4">
+                  <Clock className="w-5 h-5 text-gray-400" />
+                  <h3 className="text-xs font-black text-gray-400 uppercase tracking-[0.2em]">
+                    Popular Categories
+                  </h3>
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  {['スマートフォン', 'パソコン', 'カメラ', 'オーディオ'].map(
+                    (cat) => (
+                      <Button
+                        key={cat}
+                        type="button"
+                        variant="link"
+                        className="text-left py-2 px-0 h-auto text-sm font-bold text-gray-500 hover:text-primary-600 transition-colors justify-start"
+                        onClick={() => {
+                          window.location.href = `/search?category=${encodeURIComponent(cat)}`;
+                        }}
+                      >
+                        {cat}
+                      </Button>
+                    ),
+                  )}
+                </div>
+              </div>
+            </div>
+          </Card>
+        )}
+      </form>
     </div>
   );
 }

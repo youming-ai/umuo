@@ -1,0 +1,64 @@
+---
+import { Heart, Shield, TrendingUp } from 'lucide-react';
+---
+
+<!-- Features Grid Section -->
+<section class="py-16 md:py-24 bg-gray-50/30">
+  <div class="container">
+    <div class="text-center mb-12">
+      <h2 class="text-3xl md:text-4xl font-extrabold text-gray-900 mb-4">
+        なぜ UMUO が選ばれるのか
+      </h2>
+      <p class="text-gray-600 text-lg max-w-2xl mx-auto">
+        最新の AI 技術で、賢いショッピングをサポートします
+      </p>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+      <!-- Feature 1 -->
+      <div
+        class="relative p-8 md:p-10 rounded-[2.5rem] bg-white border border-gray-100 shadow-sm hover:shadow-2xl transition-all duration-500 group"
+      >
+        <div
+          class="w-16 h-16 bg-primary-100 rounded-2xl flex items-center justify-center mb-8 group-hover:scale-110 group-hover:rotate-3 transition-transform duration-500"
+        >
+          <TrendingUp className="w-8 h-8 text-primary-600" />
+        </div>
+        <h3 class="text-xl md:text-2xl font-bold mb-4">リアルタイム比較</h3>
+        <p class="text-gray-500 leading-relaxed">
+          主要ECサイトの価格をリアルタイムで取得。常に最新の最安値をお届けします。
+        </p>
+      </div>
+
+      <!-- Feature 2 -->
+      <div
+        class="relative p-8 md:p-10 rounded-[2.5rem] bg-white border border-gray-100 shadow-sm hover:shadow-2xl transition-all duration-500 group"
+      >
+        <div
+          class="w-16 h-16 bg-secondary-100 rounded-2xl flex items-center justify-center mb-8 group-hover:scale-110 group-hover:rotate-3 transition-transform duration-500"
+        >
+          <Shield className="w-8 h-8 text-secondary-600" />
+        </div>
+        <h3 class="text-xl md:text-2xl font-bold mb-4">安心の正規品判定</h3>
+        <p class="text-gray-500 leading-relaxed">
+          AIがショップの信頼性を独自に評価。偽物や悪質業者を徹底排除します。
+        </p>
+      </div>
+
+      <!-- Feature 3 -->
+      <div
+        class="relative p-8 md:p-10 rounded-[2.5rem] bg-white border border-gray-100 shadow-sm hover:shadow-2xl transition-all duration-500 group"
+      >
+        <div
+          class="w-16 h-16 bg-purple-100 rounded-2xl flex items-center justify-center mb-8 group-hover:scale-110 group-hover:rotate-3 transition-transform duration-500"
+        >
+          <Heart className="w-8 h-8 text-purple-600" />
+        </div>
+        <h3 class="text-xl md:text-2xl font-bold mb-4">学割・クーポン自動適用</h3>
+        <p class="text-gray-500 leading-relaxed">
+          学割や期間限定クーポン情報を自動で探し出し、実質価格で比較します。
+        </p>
+      </div>
+    </div>
+  </div>
+</section>

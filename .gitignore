@@ -75,3 +75,6 @@ temp/
 # Deployment specific
 .wrangler/
 wrangler.toml.local
+
+# Biome ignore patterns
+src/styles/global.css

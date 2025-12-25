@@ -1,197 +1,83 @@
 ---
+import ProductListModule from '../components/modules/ProductListModule.astro';
+/**
+ * Search Page
+ * 検索ページ - 検索結果を表示
+ */
 import BaseLayout from '../layouts/BaseLayout.astro';
-import SearchBar from '../components/islands/SearchBar.jsx';
-import ProductCard from '../components/ui/ProductCard.astro';
-import FilterPanel from '../components/islands/FilterPanel.jsx';
+import { mockService } from '../lib/mock/service';
 
-const url = Astro.url;
+// Get search query from URL
+const url = new URL(Astro.request.url);
 const searchQuery = url.searchParams.get('q') || '';
 const category = url.searchParams.get('category') || '';
-const page = parseInt(url.searchParams.get('page') || '1');
-const limit = parseInt(url.searchParams.get('limit') || '20');
 
-// Mock data - in real app this would come from API
-const mockProducts = [
-  {
-    id: '1',
-    name: 'iPhone 15 Pro 256GB ナチュラルチタン',
-    description: '最新のiPhone 15 Pro。A17 Proチップ搭載',
-    price: 148800,
-    originalPrice: 159800,
-    discount: 11000,
-    platform: 'Amazon',
-    rating: 4.8,
-    reviewCount: 2341,
-    images: ['/images/products/iphone-15-pro.jpg'],
-    category: '家電',
-    availability: 'in_stock',
-    url: '/products/1',
-    createdAt: '2024-01-15T10:00:00Z',
-    updatedAt: '2024-01-20T15:30:00Z'
-  },
-  {
-    id: '2',
-    name: 'Sony WH-1000XM5 ワイヤレスノイズキャンセリングヘッドホン',
-    description: '业界领先的噪声消除技术',
-    price: 35800,
-    originalPrice: 42900,
-    discount: 7100,
-    platform: '楽天',
-    rating: 4.9,
-    reviewCount: 892,
-    images: ['/images/products/sony-headphones.jpg'],
-    category: '家電',
-    availability: 'in_stock',
-    url: '/products/2',
-    createdAt: '2024-01-10T09:15:00Z',
-    updatedAt: '2024-01-18T14:20:00Z'
-  }
-];
+// Get initial data
+const categories = mockService.getCategories();
+
+// Fetch products based on search query
+const initialProducts = mockService.getProducts({
+  searchQuery,
+  category,
+  sort: 'relevance',
+  page: 1,
+  limit: 12,
+});
 
 const availableFilters = {
-  categories: ['家電', 'ファッション', '食品・飲料', '美容・コスメ', '本・雑誌', 'スポーツ・アウトドア'],
-  platforms: ['Amazon', '楽天', 'Yahoo!ショッピング', 'au PAY マーケット', 'LOHACO'],
-  priceRanges: ['〜1,000円', '1,001円〜5,000円', '5,001円〜10,000円', '10,001円〜30,000円', '30,001円〜']
+  categories: categories.map((c) => c.name),
+  platforms: ['Amazon', '楽天', 'Yahoo!ショッピング'],
+  priceRanges: [
+    '〜10,000円',
+    '10,001円〜50,000円',
+    '50,001円〜100,000円',
+    '100,001円〜',
+  ],
 };
 
-const totalResults = 12847;
-const totalPages = Math.ceil(totalResults / limit);
-const hasMore = page < totalPages;
+// Define metadata for the page
+const metadata = {
+  title: searchQuery
+    ? `「${searchQuery}」の検索結果 - UMUO`
+    : 'すべての商品 - UMUO',
+  description: searchQuery
+    ? `「${searchQuery}」の価格比較・検索結果。Amazon、楽天、Yahoo!ショッピングなど主要ECサイトの価格をリアルタイムで比較。`
+    : 'Amazon、楽天、Yahoo!ショッピングなど主要ECサイトの価格をリアルタイムで比較。',
+};
 ---
 
 <BaseLayout
-  title={`${searchQuery ? `${searchQuery} の検索結果` : '商品検索'} - Yabaii`}
-  description={searchQuery ? `「${searchQuery}」の検索結果です。${totalResults.toLocaleString()}件の商品が見つかりました。` : '商品を検索して最安値を見つけましょう。'}
+  title={metadata.title}
+  description={metadata.description}
 >
-  <div class="container py-8">
-    <div class="flex flex-col lg:flex-row gap-8">
-      <!-- Filter Sidebar -->
-      <aside class="lg:w-64 flex-shrink-0">
-        <div class="bg-white rounded-lg shadow-md p-6 sticky top-24">
-          <h2 class="text-lg font-semibold mb-4">絞り込み検索</h2>
-          <FilterPanel
-            client:load
-            initialFilters={{
-              category: category,
-              platform: '',
-              minPrice: 0,
-              maxPrice: 100000,
-              rating: 0
-            }}
-            availableFilters={availableFilters}
-          />
-        </div>
-      </aside>
+  <!-- Breadcrumb -->
+  <nav class="container py-4" aria-label="パンくずリスト">
+    <ol class="flex items-center gap-2 text-sm">
+      <li>
+        <a href="/" class="text-gray-500 hover:text-gray-700">ホーム</a>
+      </li>
+      <li class="text-gray-400">/</li>
+      <li class="text-gray-900 font-medium">
+        {searchQuery ? `検索: ${searchQuery}` : 'すべての商品'}
+      </li>
+    </ol>
+  </nav>
 
-      <!-- Main Content -->
-      <main class="flex-1">
-        <!-- Search Header -->
-        <div class="mb-6">
-          <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-            <div>
-              <h1 class="text-2xl font-bold text-gray-900 mb-2">
-                {searchQuery ? `"${searchQuery}"の検索結果` : '商品検索'}
-              </h1>
-              <p class="text-gray-600">
-                {totalResults.toLocaleString()}件の商品が見つかりました
-                {category && ` (${category})`}
-              </p>
-            </div>
+  <!-- Product List Module - Search Results -->
+  <ProductListModule
+    initialProducts={initialProducts.products}
+    initialPagination={initialProducts.pagination}
+    availableFilters={availableFilters}
+    searchQuery={searchQuery}
+    initialCategory={category}
+  />
 
-            <!-- Sort Options -->
-            <div class="flex items-center space-x-4">
-              <label for="sort" class="text-sm font-medium text-gray-700">並び順:</label>
-              <select
-                id="sort"
-                class="border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="relevance">関連度順</option>
-                <option value="price_low">価格が低い順</option>
-                <option value="price_high">価格が高い順</option>
-                <option value="rating">評価順</option>
-                <option value="newest">新着順</option>
-              </select>
-            </div>
-          </div>
-
-          <!-- Active Filters -->
-          {category && (
-            <div class="mt-4 flex items-center space-x-2">
-              <span class="text-sm text-gray-500">フィルター:</span>
-              <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
-                {category}
-                <button class="ml-2 hover:text-blue-600">&times;</button>
-              </span>
-            </div>
-          )}
-        </div>
-
-        <!-- Product Grid -->
-        {mockProducts.length > 0 ? (
-          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-            {mockProducts.map((product) => (
-              <ProductCard product={product} />
-            ))}
-          </div>
-        ) : (
-          <div class="text-center py-12">
-            <div class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
-            </div>
-            <h3 class="text-lg font-medium text-gray-900 mb-2">商品が見つかりませんでした</h3>
-            <p class="text-gray-600 mb-4">検索キーワードを変えてみてください。</p>
-            <div class="max-w-md mx-auto">
-              <SearchBar client:load placeholder="他のキーワードで検索" compact />
-            </div>
-          </div>
-        )}
-
-        <!-- Pagination -->
-        {totalPages > 1 && (
-          <div class="flex justify-center">
-            <nav class="flex items-center space-x-2">
-              {page > 1 && (
-                <a
-                  href={`?q=${encodeURIComponent(searchQuery)}&page=${page - 1}`}
-                  class="px-3 py-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
-                >
-                  前へ
-                </a>
-              )}
-
-              {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                const pageNumber = Math.max(1, page - 2) + i;
-                const isCurrent = pageNumber === page;
-
-                return (
-                  <a
-                    key={pageNumber}
-                    href={`?q=${encodeURIComponent(searchQuery)}&page=${pageNumber}`}
-                    class={`px-4 py-2 rounded-md transition-colors ${
-                      isCurrent
-                        ? 'bg-blue-600 text-white'
-                        : 'text-gray-700 hover:bg-gray-100'
-                    }`}
-                  >
-                    {pageNumber}
-                  </a>
-                );
-              })}
-
-              {hasMore && (
-                <a
-                  href={`?q=${encodeURIComponent(searchQuery)}&page=${page + 1}`}
-                  class="px-3 py-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
-                >
-                  次へ
-                </a>
-              )}
-            </nav>
-          </div>
-        )}
-      </main>
-    </div>
-  </div>
+  <!-- Global data for client-side components -->
+  <script define:vars={{ initialProducts: initialProducts.products, initialPagination: initialProducts.pagination, availableFilters, searchQuery, category }}>
+    window.__INITIAL_PRODUCTS__ = initialProducts;
+    window.__INITIAL_PAGINATION__ = initialPagination;
+    window.__AVAILABLE_FILTERS__ = availableFilters;
+    window.__INITIAL_SEARCH_QUERY__ = searchQuery;
+    window.__INITIAL_CATEGORY__ = category;
+  </script>
 </BaseLayout>

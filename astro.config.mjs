@@ -1,13 +1,13 @@
 // @ts-check
-import { defineConfig } from 'astro/config';
-import react from '@astrojs/react';
-import tailwind from '@astrojs/tailwind';
-import sitemap from '@astrojs/sitemap';
 
+import react from '@astrojs/react';
+import sitemap from '@astrojs/sitemap';
+import tailwind from '@astrojs/tailwind';
+import { defineConfig } from 'astro/config';
 
 // https://astro.build/config
 export default defineConfig({
-  site: 'https://yabaii.ai',
+  site: 'https://umuo.ai',
   output: 'static',
   // Cloudflare Pages doesn't require adapter for static sites
   // Uncomment and configure when using Cloudflare Functions:
@@ -18,30 +18,30 @@ export default defineConfig({
   integrations: [
     react({
       jsxImportSource: 'react',
-      jsxRuntime: 'automatic'
+      jsxRuntime: 'automatic',
     }),
     tailwind({
-      applyBaseStyles: false
+      applyBaseStyles: false,
     }),
     sitemap({
       customPages: [
-        'https://yabaii.ai/search',
-        'https://yabaii.ai/compare',
-        'https://yabaii.ai/deals',
-        'https://yabaii.ai/alerts',
-        'https://yabaii.ai/profile'
-      ]
-    })
+        'https://umuo.ai/search',
+        'https://umuo.ai/compare',
+        'https://umuo.ai/deals',
+        'https://umuo.ai/alerts',
+        'https://umuo.ai/profile',
+      ],
+    }),
   ],
   vite: {
     optimizeDeps: {
-      include: ['react', 'react-dom', '@tanstack/react-query', 'zustand']
-    }
+      include: ['react', 'react-dom'],
+    },
   },
   image: {
     service: {
-      entrypoint: 'astro/assets/services/sharp'
+      entrypoint: 'astro/assets/services/sharp',
     },
-    domains: ['yabaii.ai', 'cdn.yabaii.ai', 'images.unsplash.com']
-  }
+    domains: ['umuo.ai', 'cdn.umuo.ai', 'images.unsplash.com'],
+  },
 });

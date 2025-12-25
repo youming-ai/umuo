@@ -1,8 +1,8 @@
-@import 'tailwindcss/base';
-@import 'tailwindcss/components';
-@import 'tailwindcss/utilities';
+@import "tailwindcss/base";
+@import "tailwindcss/components";
+@import "tailwindcss/utilities";
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Sans+JP:wght@300;400;500;600;700&display=swap');
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Sans+JP:wght@300;400;500;600;700&display=swap");
 
 :root {
   --color-primary: 99 102 241;
@@ -46,7 +46,7 @@ body {
 body {
   color: rgb(var(--color-foreground));
   background: rgb(var(--color-background));
-  font-family: 'Inter', 'Noto Sans JP', system-ui, sans-serif;
+  font-family: "Inter", "Noto Sans JP", system-ui, sans-serif;
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -76,66 +76,6 @@ a {
   @apply bg-slate-900/70 border-slate-700/30;
 }
 
-.btn {
-  @apply inline-flex items-center justify-center rounded-xl text-sm font-medium transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none ring-offset-white active:scale-95;
-}
-
-.btn-primary {
-  @apply bg-primary-600 text-white hover:bg-primary-700 shadow-md hover:shadow-lg shadow-primary-500/30;
-}
-
-.btn-secondary {
-  @apply bg-secondary-600 text-white hover:bg-secondary-700 shadow-md hover:shadow-lg shadow-secondary-500/30;
-}
-
-.btn-outline {
-  @apply border-2 border-gray-200 hover:border-primary-600 hover:text-primary-600 bg-transparent;
-}
-
-.btn-ghost {
-  @apply hover:bg-gray-100 hover:text-gray-900;
-}
-
-.btn-sm {
-  @apply h-9 px-4 text-xs;
-}
-
-.btn-lg {
-  @apply h-12 px-8 text-base;
-}
-
-.card {
-  @apply rounded-2xl border border-gray-100 bg-white text-gray-900 shadow-sm transition-all duration-300 hover:shadow-md hover:-translate-y-1;
-}
-
-.card-header {
-  @apply flex flex-col space-y-1.5 p-6;
-}
-
-.card-title {
-  @apply text-xl font-bold leading-none tracking-tight;
-}
-
-.card-description {
-  @apply text-sm text-gray-500;
-}
-
-.card-content {
-  @apply p-6 pt-0;
-}
-
-.card-footer {
-  @apply flex items-center p-6 pt-0;
-}
-
-.input {
-  @apply flex h-11 w-full rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm ring-offset-white file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-gray-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 transition-all duration-200 hover:border-gray-300;
-}
-
-.textarea {
-  @apply flex min-h-[100px] w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm ring-offset-white placeholder:text-gray-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 transition-all duration-200 hover:border-gray-300;
-}
-
 .sr-only {
   position: absolute;
   width: 1px;
@@ -154,6 +94,77 @@ a {
 
 .skeleton {
   @apply animate-pulse rounded-xl bg-gray-200;
+}
+
+/* Animations */
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes float {
+  0% {
+    transform: translateY(0px);
+  }
+
+  50% {
+    transform: translateY(-10px);
+  }
+
+  100% {
+    transform: translateY(0px);
+  }
+}
+
+@keyframes pulse-gentle {
+  0% {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  50% {
+    opacity: 0.8;
+    transform: scale(0.98);
+  }
+
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.6s ease-out forwards;
+}
+
+.animate-slide-up {
+  animation: slide-up 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  opacity: 0;
+}
+
+.animate-float {
+  animation: float 4s ease-in-out infinite;
+}
+
+.animate-pulse-gentle {
+  animation: pulse-gentle 3s ease-in-out infinite;
 }
 
 /* Custom Scrollbar */

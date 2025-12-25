@@ -1,0 +1,245 @@
+---
+import { Bell, Check, Package, Plus, TrendingDown, X } from 'lucide-react';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+
+// Mock user alerts data
+const alerts = [
+  {
+    id: '1',
+    productName: 'iPhone 15 Pro 256GB',
+    currentPrice: 148800,
+    targetPrice: 140000,
+    platform: 'Amazon',
+    status: 'active',
+    createdAt: '2024-01-15',
+    productImage: '/images/products/iphone-15-pro.jpg',
+    url: '/products/iphone-15-pro',
+  },
+  {
+    id: '2',
+    productName: 'Sony WH-1000XM5',
+    currentPrice: 42900,
+    targetPrice: 40000,
+    platform: '楽天',
+    status: 'triggered',
+    createdAt: '2024-01-10',
+    triggeredAt: '2024-01-20',
+    productImage: '/images/products/sony-wh-1000xm5.jpg',
+    url: '/products/sony-wh-1000xm5',
+  },
+  {
+    id: '3',
+    productName: 'MacBook Air M2',
+    currentPrice: 154800,
+    targetPrice: 150000,
+    platform: 'Yahoo!ショッピング',
+    status: 'active',
+    createdAt: '2024-01-12',
+    productImage: '/images/products/macbook-air-m2.jpg',
+    url: '/products/macbook-air-m2',
+  },
+];
+
+const activeAlerts = alerts.filter((alert) => alert.status === 'active');
+const triggeredAlerts = alerts.filter((alert) => alert.status === 'triggered');
+---
+
+<BaseLayout
+  title="価格アラート - UMUO"
+  description="設定した価格アラートを管理。商品の価格が目標価格に達したら通知を受け取れます。">
+  <div class="container py-8 max-w-6xl">
+    {/* Header */}
+    <div class="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div>
+        <h1 class="text-3xl font-bold text-gray-900 mb-2">価格アラート</h1>
+        <p class="text-gray-600">商品の価格を監視し、目標価格に達したら通知します</p>
+      </div>
+      <button class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+        <Plus className="w-5 h-5 mr-2" />
+        新規アラート
+      </button>
+    </div>
+
+    {/* Statistics */}
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+      <div class="bg-white rounded-lg shadow-sm p-6 text-center">
+        <div class="text-3xl font-bold text-blue-600 mb-1">{activeAlerts.length}</div>
+        <div class="text-sm text-gray-600">監視中</div>
+      </div>
+      <div class="bg-white rounded-lg shadow-sm p-6 text-center">
+        <div class="text-3xl font-bold text-green-600 mb-1">{triggeredAlerts.length}</div>
+        <div class="text-sm text-gray-600">通知済み</div>
+      </div>
+      <div class="bg-white rounded-lg shadow-sm p-6 text-center">
+        <div class="text-3xl font-bold text-purple-600 mb-1">¥8,500</div>
+        <div class="text-sm text-gray-600">総節約額</div>
+      </div>
+    </div>
+
+    {/* Active Alerts */}
+    {activeAlerts.length > 0 && (
+      <div class="mb-8">
+        <h2 class="text-xl font-semibold text-gray-900 mb-4 flex items-center">
+          <Bell className="w-5 h-5 mr-2 text-blue-600" />
+          監視中のアラート ({activeAlerts.length})
+        </h2>
+
+        <div class="bg-white rounded-lg shadow-sm overflow-hidden">
+          <div class="overflow-x-auto">
+            <table class="w-full">
+              <thead class="bg-gray-50">
+                <tr>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">商品</th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">現在価格</th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">目標価格</th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">差額</th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">設定日</th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">操作</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-gray-200">
+                {activeAlerts.map((alert) => {
+                  const difference = alert.currentPrice - alert.targetPrice;
+                  const percentage = Math.round((difference / alert.currentPrice) * 100);
+
+                  return (
+                    <tr class="hover:bg-gray-50">
+                      <td class="px-6 py-4">
+                        <div class="flex items-center">
+                          <div class="w-12 h-12 bg-gray-200 rounded-lg mr-3 flex-shrink-0">
+                            <!-- Product image placeholder -->
+                          </div>
+                          <div>
+                            <a href={alert.url} class="text-sm font-medium text-gray-900 hover:text-blue-600">
+                              {alert.productName}
+                            </a>
+                            <div class="text-xs text-gray-500">{alert.platform}</div>
+                          </div>
+                        </div>
+                      </td>
+                      <td class="px-6 py-4">
+                        <div class="text-sm font-medium text-gray-900">¥{alert.currentPrice.toLocaleString()}</div>
+                      </td>
+                      <td class="px-6 py-4">
+                        <div class="text-sm font-medium text-green-600">¥{alert.targetPrice.toLocaleString()}</div>
+                      </td>
+                      <td class="px-6 py-4">
+                        <div class="flex items-center text-sm">
+                          <TrendingDown className="w-4 h-4 text-green-600 mr-1" />
+                          <span class="font-medium text-green-600">¥{difference.toLocaleString()}</span>
+                          <span class="text-gray-500 ml-1">({percentage}%)</span>
+                        </div>
+                      </td>
+                      <td class="px-6 py-4">
+                        <div class="text-sm text-gray-500">{new Date(alert.createdAt).toLocaleDateString('ja-JP')}</div>
+                      </td>
+                      <td class="px-6 py-4">
+                        <div class="flex items-center space-x-2">
+                          <button class="text-blue-600 hover:text-blue-700 text-sm font-medium">編集</button>
+                          <button class="text-red-600 hover:text-red-700 text-sm font-medium">削除</button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    )}
+
+    {/* Triggered Alerts */}
+    {triggeredAlerts.length > 0 && (
+      <div class="mb-8">
+        <h2 class="text-xl font-semibold text-gray-900 mb-4 flex items-center">
+          <Check className="w-5 h-5 mr-2 text-green-600" />
+          通知済みアラート ({triggeredAlerts.length})
+        </h2>
+
+        <div class="bg-white rounded-lg shadow-sm overflow-hidden">
+          <div class="overflow-x-auto">
+            <table class="w-full">
+              <thead class="bg-gray-50">
+                <tr>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">商品</th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">目標価格</th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">達成価格</th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">節約額</th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">通知日</th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">操作</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-gray-200">
+                {triggeredAlerts.map((alert) => {
+                  const savings = alert.targetPrice - alert.currentPrice;
+
+                  return (
+                    <tr class="hover:bg-gray-50">
+                      <td class="px-6 py-4">
+                        <div class="flex items-center">
+                          <div class="w-12 h-12 bg-gray-200 rounded-lg mr-3 flex-shrink-0">
+                            <!-- Product image placeholder -->
+                          </div>
+                          <div>
+                            <a href={alert.url} class="text-sm font-medium text-gray-900 hover:text-blue-600">
+                              {alert.productName}
+                            </a>
+                            <div class="text-xs text-gray-500">{alert.platform}</div>
+                          </div>
+                        </div>
+                      </td>
+                      <td class="px-6 py-4">
+                        <div class="text-sm text-gray-900">¥{alert.targetPrice.toLocaleString()}</div>
+                      </td>
+                      <td class="px-6 py-4">
+                        <div class="text-sm font-medium text-green-600">¥{alert.currentPrice.toLocaleString()}</div>
+                      </td>
+                      <td class="px-6 py-4">
+                        <div class="text-sm font-medium text-green-600">¥{savings.toLocaleString()}</div>
+                      </td>
+                      <td class="px-6 py-4">
+                        <div class="text-sm text-gray-500">{new Date(alert.triggeredAt || alert.createdAt).toLocaleDateString('ja-JP')}</div>
+                      </td>
+                      <td class="px-6 py-4">
+                        <div class="flex items-center space-x-2">
+                          <button class="text-blue-600 hover:text-blue-700 text-sm font-medium">もう一度監視</button>
+                          <button class="text-gray-600 hover:text-gray-700 text-sm font-medium">削除</button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    )}
+
+    {/* Empty State */}
+    {activeAlerts.length === 0 && triggeredAlerts.length === 0 && (
+      <div class="text-center py-12">
+        <div class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+          <Bell className="w-8 h-8 text-gray-400" />
+        </div>
+        <h3 class="text-lg font-medium text-gray-900 mb-2">アラートが設定されていません</h3>
+        <p class="text-gray-600 mb-4">商品の価格アラートを設定して、お得なタイミングを見逃さないようにしましょう。</p>
+        <button class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+          <Plus className="w-5 h-5 mr-2" />
+          最初のアラートを設定
+        </button>
+      </div>
+    )}
+
+    {/* Tips */}
+    <div class="bg-blue-50 rounded-lg p-6">
+      <h3 class="text-lg font-semibold text-blue-900 mb-3">価格アラートのヒント</h3>
+      <ul class="space-y-2 text-sm text-blue-800">
+        <li>• 目標価格は現在価格より少し低めに設定すると、通知を受け取る確率が上がります</li>
+        <li>• 季節商品や新作は発売から3-6ヶ月後に価格が下がる傾向があります</li>
+        <li>• プライムデーやブラックフライデーなどのセール期間に合わせてアラートを設定するのもおすすめです</li>
+      </ul>
+    </div>
+  </div>
+</BaseLayout>

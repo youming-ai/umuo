@@ -1,9 +1,8 @@
 ---
-import "../styles/global.css";
-import Header from "../components/layout/Header.astro";
-import Footer from "../components/layout/Footer.astro";
-import Providers from "../components/Providers.jsx";
-import BottomNav from "../components/islands/BottomNav.jsx";
+import '../styles/global.css';
+import BottomNav from '../components/islands/BottomNav.jsx';
+import Footer from '../components/layout/Footer.astro';
+import Header from '../components/layout/Header.astro';
 
 export interface Props {
   title: string;
@@ -14,12 +13,15 @@ export interface Props {
 }
 
 const {
-  title = "Yabaii - 日本価格比較アプリ",
-  description = "お得な商品を見つけましょう。日本最大級の価格比較サイト。",
-  image = "/images/og-image.jpg",
-  url = "https://yabaii.ai",
-  type = "website",
+  title = 'UMUO - 日本価格比較アプリ',
+  description = 'お得な商品を見つけましょう。日本最大級の価格比較サイト。',
+  image = '/images/og-image.svg',
+  url = 'https://umuo.ai',
+  type = 'website',
 } = Astro.props;
+
+// Get GA_ID from environment
+const gaId = import.meta.env.PUBLIC_GA_ID;
 ---
 
 <!doctype html>
@@ -28,6 +30,13 @@ const {
     <meta charset="UTF-8" />
     <meta name="description" content={description} />
     <meta name="viewport" content="width=device-width" />
+
+    <!-- Content Security Policy -->
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.googletagmanager.com https://www.google-analytics.com; img-src 'self' https: data:; style-src 'self' 'unsafe-inline'; font-src 'self' https://fonts.googleapis.com https://fonts.gstatic.com; connect-src 'self' https://api.umuo.day https://www.google-analytics.com;"
+    />
+
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
@@ -54,48 +63,47 @@ const {
 
     <!-- DNS prefetch for third-party domains -->
     <link rel="dns-prefetch" href="//images.unsplash.com" />
-    <link rel="dns-prefetch" href="//cdn.yabaii.ai" />
+    <link rel="dns-prefetch" href="//cdn.umuo.ai" />
 
     <title>{title}</title>
   </head>
   <body
     class="min-h-screen flex flex-col bg-gray-50 text-gray-900 font-sans antialiased selection:bg-primary-500 selection:text-white"
   >
-    <Providers client:only="react">
-      <Header />
+    <Header />
 
-      <main class="flex-1 relative overflow-hidden">
-        <!-- Background Elements -->
-        <div class="absolute inset-0 -z-10 overflow-hidden">
-          <div
-            class="absolute top-0 left-1/4 w-96 h-96 bg-primary-200/30 rounded-full blur-3xl mix-blend-multiply animate-float"
-          >
-          </div>
-          <div
-            class="absolute bottom-0 right-1/4 w-96 h-96 bg-secondary-200/30 rounded-full blur-3xl mix-blend-multiply animate-float"
-            style="animation-delay: 1s;"
-          >
-          </div>
+    <main class="flex-1 relative overflow-hidden">
+      <!-- Background Elements -->
+      <div class="absolute inset-0 -z-10 overflow-hidden">
+        <div
+          class="absolute top-0 left-1/4 w-96 h-96 bg-primary-200/30 rounded-full blur-3xl mix-blend-multiply animate-float"
+        >
         </div>
+        <div
+          class="absolute bottom-0 right-1/4 w-96 h-96 bg-secondary-200/30 rounded-full blur-3xl mix-blend-multiply animate-float"
+          style="animation-delay: 1s;"
+        >
+        </div>
+      </div>
 
-        <slot />
-      </main>
+      <slot />
+    </main>
 
-      <Footer />
-      <BottomNav client:load />
-    </Providers>
+    <Footer />
+    <BottomNav client:load />
 
     <!-- Analytics -->
-    <script is:inline>
-      // Google Analytics (placeholder)
-      if (typeof gtag === "undefined") {
-        window.dataLayer = window.dataLayer || [];
-        function gtag() {
-          dataLayer.push(arguments);
+    {gaId && (
+      <script is:inline define:vars={{ gaId }}>
+        if (typeof gtag === "undefined") {
+          window.dataLayer = window.dataLayer || [];
+          function gtag() {
+            dataLayer.push(arguments);
+          }
+          gtag("js", new Date());
+          gtag("config", gaId);
         }
-        gtag("js", new Date());
-        gtag("config", "GA_MEASUREMENT_ID");
-      }
-    </script>
+      </script>
+    )}
   </body>
 </html>

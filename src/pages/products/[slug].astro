@@ -1,0 +1,468 @@
+---
+import {
+  AlertTriangle,
+  ArrowDownRight,
+  BarChart3,
+  Building,
+  ChevronRight,
+  Clock,
+  ExternalLink,
+  Heart,
+  Info,
+  Package,
+  Share2,
+  Shield,
+  ShoppingCart,
+  Star,
+  TrendingDown,
+  Truck,
+  Zap,
+} from 'lucide-react';
+import { Button } from '../../components/ui/button';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { mockService } from '../../lib/mock/service';
+
+export async function getStaticPaths() {
+  const products = mockService.getProducts({ limit: 100 }).products;
+  return products.map((product) => ({
+    params: { slug: product.slug },
+    props: { product },
+  }));
+}
+
+const { slug } = Astro.params;
+const product = mockService.getProductBySlug(slug as string);
+
+if (!product) {
+  return Astro.redirect('/404');
+}
+
+const priceHistory = mockService.getPriceHistory(product.id);
+const lowestPrice = Math.min(
+  ...(product.retailers?.map((r) => r.price) || [product.price]),
+);
+const highestPrice = Math.max(
+  ...(product.retailers?.map((r) => r.price) || [product.price]),
+);
+const savings = highestPrice - lowestPrice;
+const priceDrop = product.originalPrice
+  ? Math.round(
+      ((product.originalPrice - product.price) / product.originalPrice) * 100,
+    )
+  : 0;
+---
+
+<BaseLayout
+  title={`${product.name} - UMUO 最安値比較`}
+  description={`${product.name}の最安値を比較。${product.retailers?.length || 0}店舗の価格をリアルタイムでチェック。現在の最安値は¥${lowestPrice.toLocaleString()}。`}
+>
+  <!-- Structured Data (JSON-LD) for SEO -->
+  <script type="application/ld+json" define:vars={{ product, lowestPrice, highestPrice }}>
+    {
+      "@context": "https://schema.org/",
+      "@type": "Product",
+      "name": product.name,
+      "description": product.description,
+      "image": product.images?.[0],
+      "brand": {
+        "@type": "Brand",
+        "name": product.brand
+      },
+      "category": product.category,
+      "offers": {
+        "@type": "AggregateOffer",
+        "lowPrice": lowestPrice,
+        "highPrice": highestPrice,
+        "priceCurrency": "JPY",
+        "offerCount": product.retailers?.length || 0,
+        "offers": product.retailers?.map(shop => ({
+          "@type": "Offer",
+          "price": shop.price,
+          "priceCurrency": "JPY",
+          "availability": shop.availability === 'in_stock' ? 'https://schema.org/InStock' : 'https://schema.org/LimitedAvailability',
+          "seller": {
+            "@type": "Organization",
+            "name": shop.platform
+          },
+          "url": shop.url
+        }))
+      },
+      "aggregateRating": product.rating ? {
+        "@type": "AggregateRating",
+        "ratingValue": product.rating,
+        "reviewCount": product.reviewCount,
+        "bestRating": 5,
+        "worstRating": 1
+      } : undefined
+    }
+  </script>
+  <!-- Background Decorations -->
+  <div class="fixed inset-0 pointer-events-none -z-10 overflow-hidden">
+    <div
+      class="absolute top-[-10%] right-[-10%] w-[500px] h-[500px] bg-primary-100/30 rounded-full blur-[120px]"
+    >
+    </div>
+    <div
+      class="absolute bottom-[-10%] left-[-10%] w-[500px] h-[500px] bg-purple-100/30 rounded-full blur-[120px]"
+    >
+    </div>
+  </div>
+
+  <div class="container py-12">
+    <!-- Breadcrumb -->
+    <nav class="mb-12">
+      <ol class="flex items-center gap-3 text-sm font-bold">
+        <li>
+          <a
+            href="/"
+            class="text-gray-400 hover:text-primary-600 transition-colors"
+            >ホーム</a
+          >
+        </li>
+        <ChevronRight className="w-4 h-4 text-gray-300" />
+        <li>
+          <a
+            href={`/search?category=${encodeURIComponent(product.category)}`}
+            class="text-gray-400 hover:text-primary-600 transition-colors"
+            >{product.category}</a
+          >
+        </li>
+        <ChevronRight className="w-4 h-4 text-gray-300" />
+        <li class="text-gray-900 line-clamp-1">{product.name}</li>
+      </ol>
+    </nav>
+
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-12">
+      <!-- Left Column: Media & Details -->
+      <div class="lg:col-span-8 space-y-12">
+        <!-- Main Product Card -->
+        <div
+          class="bg-white/80 backdrop-blur-2xl rounded-[3rem] p-8 md:p-12 shadow-2xl shadow-gray-200/50 border border-white"
+        >
+          <div class="flex flex-col md:flex-row gap-12">
+            <!-- Image Gallery -->
+            <div class="md:w-1/2 space-y-6">
+              <div
+                class="aspect-square rounded-[2.5rem] overflow-hidden bg-gray-50 border border-gray-100 group relative"
+              >
+                <img
+                  id="main-image"
+                  src={product.images[0]}
+                  alt={product.name}
+                  class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                />
+                <div class="absolute top-6 left-6 flex flex-col gap-3">
+                  <div
+                    class="bg-black/80 backdrop-blur-md text-white px-4 py-2 rounded-2xl text-xs font-black tracking-widest uppercase"
+                  >
+                    {product.brand}
+                  </div>
+                  {
+                    priceDrop > 0 && (
+                      <div class="bg-red-500 text-white px-4 py-2 rounded-2xl text-xs font-black tracking-widest animate-pulse-gentle shadow-xl shadow-red-500/20">
+                        {priceDrop}% OFF
+                      </div>
+                    )
+                  }
+                </div>
+              </div>
+
+              <div class="grid grid-cols-4 gap-4">
+                {
+                  product.images.map((img, i) => (
+                    <button
+                      class={`aspect-square rounded-2xl overflow-hidden border-2 transition-all hover:scale-105 active:scale-95 ${i === 0 ? "border-primary-500" : "border-transparent"}`}
+                    >
+                      <img
+                        src={img}
+                        alt=""
+                        class="w-full h-full object-cover"
+                      />
+                    </button>
+                  ))
+                }
+              </div>
+            </div>
+
+            <!-- Basic Info -->
+            <div class="md:w-1/2 flex flex-col">
+              <div class="flex justify-between items-start mb-6">
+                <span
+                  class="text-xs font-black text-primary-600 uppercase tracking-[0.2em]"
+                  >Authentic Product</span
+                >
+                <div class="flex gap-2">
+                  <button
+                    class="w-10 h-10 rounded-xl bg-gray-50 flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 transition-all"
+                  >
+                    <Heart className="w-5 h-5" />
+                  </button>
+                  <button
+                    class="w-10 h-10 rounded-xl bg-gray-50 flex items-center justify-center text-gray-400 hover:text-primary-600 hover:bg-primary-50 transition-all"
+                  >
+                    <Share2 className="w-5 h-5" />
+                  </button>
+                </div>
+              </div>
+
+              <h1
+                class="text-3xl md:text-4xl font-black text-gray-900 mb-6 leading-tight tracking-tight"
+              >
+                {product.name}
+              </h1>
+
+              <div class="flex items-center gap-6 mb-8">
+                <div
+                  class="flex items-center gap-1.5 bg-yellow-400/10 px-3 py-1.5 rounded-xl"
+                >
+                  <Star className="w-4 h-4 text-yellow-500 fill-yellow-500" />
+                  <span class="font-black text-yellow-700"
+                    >{product.rating}</span
+                  >
+                </div>
+                <span class="text-sm font-bold text-gray-400"
+                  >{product.reviewCount.toLocaleString()} Reviews</span
+                >
+              </div>
+
+              <!-- Price Box -->
+              <div
+                class="bg-gray-900 text-white rounded-[2.5rem] p-8 mb-8 relative overflow-hidden shadow-2xl shadow-gray-900/20"
+              >
+                <div
+                  class="absolute -top-12 -right-12 w-32 h-32 bg-primary-500 rounded-full blur-[60px] opacity-40"
+                >
+                </div>
+                <div class="relative z-10">
+                  <span
+                    class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2 block"
+                    >Current Lowest Price</span
+                  >
+                  <div class="flex items-baseline gap-3">
+                    <span class="text-5xl font-black leading-none"
+                      >¥{lowestPrice.toLocaleString()}</span
+                    >
+                    {
+                      product.originalPrice && (
+                        <span class="text-xl text-gray-500 line-through font-medium">
+                          ¥{product.originalPrice.toLocaleString()}
+                        </span>
+                      )
+                    }
+                  </div>
+                  {
+                    savings > 0 && (
+                      <div class="mt-4 flex items-center gap-2 text-success-400 font-bold text-sm">
+                        <ArrowDownRight className="w-5 h-5" />
+                        Save ¥{savings.toLocaleString()} compared to highest
+                        price
+                      </div>
+                    )
+                  }
+                </div>
+              </div>
+
+              <div class="grid grid-cols-2 gap-4 mt-auto">
+                <Button size="lg" className="rounded-2xl h-16 text-lg">
+                  <ShoppingCart className="w-5 h-5 mr-2" />
+                  最安値で購入
+                </Button>
+                <Button
+                  variant="ghost"
+                  className="bg-gray-100 hover:bg-gray-200 text-gray-900 border-none transition-all rounded-2xl h-16 font-bold"
+                >
+                  <BarChart3 className="w-5 h-5 mr-2" />
+                  比較する
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- AI Summary -->
+        {
+          product.aiSummary && (
+            <div class="bg-gradient-to-br from-primary-600 via-primary-700 to-purple-800 rounded-[3rem] p-10 md:p-16 text-white shadow-2xl shadow-primary-900/20 relative overflow-hidden">
+              <div class="absolute top-0 right-0 p-12 opacity-10">
+                <Zap className="w-64 h-64" />
+              </div>
+              <div class="relative z-10">
+                <div class="flex items-center gap-4 mb-10">
+                  <div class="w-12 h-12 bg-white/20 backdrop-blur-md rounded-2xl flex items-center justify-center">
+                    <Zap className="w-6 h-6 text-white fill-white" />
+                  </div>
+                  <h2 class="text-3xl font-black">AI 徹底解析レポート</h2>
+                </div>
+
+                <div class="grid md:grid-cols-2 gap-12">
+                  <div class="space-y-6">
+                    <h3 class="flex items-center gap-2 font-black text-xl text-green-300">
+                      <div class="w-2 h-8 bg-green-400 rounded-full mr-1" />
+                      👍 メリット
+                    </h3>
+                    <ul class="space-y-4">
+                      {product.aiSummary.pros.map((pro) => (
+                        <li class="flex items-start gap-3 bg-white/5 p-4 rounded-2xl backdrop-blur-sm">
+                          <Zap className="w-4 h-4 text-green-400 flex-shrink-0 mt-1" />
+                          <span class="font-bold leading-relaxed">{pro}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                  <div class="space-y-6">
+                    <h3 class="flex items-center gap-2 font-black text-xl text-red-300">
+                      <div class="w-2 h-8 bg-red-400 rounded-full mr-1" />
+                      ⚠️ デメリット
+                    </h3>
+                    <ul class="space-y-4">
+                      {product.aiSummary.cons.map((con) => (
+                        <li class="flex items-start gap-3 bg-white/5 p-4 rounded-2xl backdrop-blur-sm">
+                          <AlertTriangle className="w-4 h-4 text-red-400 flex-shrink-0 mt-1" />
+                          <span class="font-bold leading-relaxed">{con}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+
+                <div class="mt-12 pt-10 border-t border-white/10">
+                  <h3 class="font-black text-xl mb-4">AIの結論</h3>
+                  <p class="text-xl font-medium leading-relaxed opacity-90">
+                    {product.aiSummary.conclusion}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )
+        }
+
+        <!-- Specifications -->
+        <div
+          class="bg-white rounded-[3rem] p-12 shadow-xl shadow-gray-200/50 border border-gray-100"
+        >
+          <h2 class="text-3xl font-black text-gray-900 mb-10">商品スペック</h2>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {
+              Object.entries(product.specifications).map(([key, value]) => (
+                <div class="flex justify-between items-center py-5 border-b border-gray-50 px-2 group hover:bg-gray-50/50 rounded-xl transition-all">
+                  <span class="text-gray-400 font-bold uppercase tracking-wider text-xs">
+                    {key}
+                  </span>
+                  <span class="text-gray-900 font-black">{value}</span>
+                </div>
+              ))
+            }
+          </div>
+        </div>
+      </div>
+
+      <!-- Right Column: Retailers & Alerts -->
+      <div class="lg:col-span-4 space-y-8">
+        <!-- Retailers List -->
+        <div
+          class="bg-white rounded-[3rem] p-8 shadow-2xl shadow-gray-200/50 border border-gray-100 sticky top-24"
+        >
+          <div class="flex items-center justify-between mb-8">
+            <h2 class="text-2xl font-black text-gray-900">ショップ比較</h2>
+            <div
+              class="bg-primary-50 text-primary-600 px-3 py-1 rounded-xl text-xs font-black"
+            >
+              LIVE
+            </div>
+          </div>
+
+          <div class="space-y-4">
+            {
+              product.retailers
+                ?.sort((a, b) => a.price - b.price)
+                .map((shop, i) => (
+                  <div
+                    class={`relative group overflow-hidden rounded-[2rem] p-6 transition-all duration-300 ${i === 0 ? "bg-primary-600 text-white shadow-xl shadow-primary-500/30" : "bg-gray-50 hover:bg-gray-100 text-gray-900"}`}
+                  >
+                    {i === 0 && (
+                      <div class="absolute -top-6 -right-6 w-24 h-24 bg-white/10 rounded-full blur-2xl" />
+                    )}
+
+                    <div class="flex justify-between items-start mb-4">
+                      <div class="flex flex-col">
+                        <span
+                          class={`text-xs font-bold uppercase tracking-widest mb-1 ${i === 0 ? "text-primary-100" : "text-gray-400"}`}
+                        >
+                          {shop.platform}
+                        </span>
+                        <span class="text-2xl font-black">
+                          ¥{shop.price.toLocaleString()}
+                        </span>
+                      </div>
+                      {i === 0 && (
+                        <div class="bg-white text-primary-700 px-3 py-1 rounded-xl text-[10px] font-black tracking-tighter uppercase shadow-lg">
+                          Rank #1
+                        </div>
+                      )}
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4 mb-6">
+                      <div
+                        class={`flex items-center gap-2 text-[10px] font-bold ${i === 0 ? "text-primary-100" : "text-gray-500"}`}
+                      >
+                        <Truck className="w-3.5 h-3.5" />
+                        {shop.shipping === 0
+                          ? "送料無料"
+                          : `送料 ¥${shop.shipping}`}
+                      </div>
+                      <div
+                        class={`flex items-center gap-2 text-[10px] font-bold ${i === 0 ? "text-primary-100" : "text-gray-500"}`}
+                      >
+                        <Shield className="w-3.5 h-3.5" />
+                        {shop.availability === "in_stock"
+                          ? "在庫あり"
+                          : "残りわずか"}
+                      </div>
+                    </div>
+
+                    <a
+                      href={shop.url}
+                      target="_blank"
+                      class={`w-full py-4 rounded-2xl flex items-center justify-center gap-2 font-black transition-all ${i === 0 ? "bg-white text-primary-700 hover:scale-[1.02]" : "bg-gray-900 text-white hover:bg-black"}`}
+                    >
+                      ショップへ行く
+                      <ExternalLink className="w-4 h-4" />
+                    </a>
+                  </div>
+                ))
+            }
+          </div>
+
+          <!-- Price Alert Card -->
+          <div class="mt-8 pt-8 border-t border-gray-100">
+            <div class="bg-purple-50 rounded-[2rem] p-6 text-purple-900">
+              <div class="flex items-center gap-3 mb-4">
+                <div
+                  class="w-10 h-10 bg-purple-600 text-white rounded-xl flex items-center justify-center"
+                >
+                  <Clock className="w-5 h-5" />
+                </div>
+                <h3 class="font-black">価格変更を通知</h3>
+              </div>
+              <p class="text-sm font-bold opacity-70 mb-6">
+                値下がりした瞬間にプッシュ通知でお知らせ！
+              </p>
+              <div class="flex gap-2">
+                <input
+                  type="number"
+                  placeholder="希望価格"
+                  class="flex-1 bg-white border border-purple-100 rounded-xl px-4 text-sm font-bold outline-none focus:ring-2 focus:ring-purple-500"
+                />
+                <button
+                  class="bg-purple-600 text-white font-black px-6 py-3 rounded-xl hover:bg-purple-700 transition-all active:scale-95 shadow-lg shadow-purple-200"
+                >
+                  設定
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</BaseLayout>

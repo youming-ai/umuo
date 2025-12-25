@@ -1,0 +1,71 @@
+---
+interface Category {
+  id: string;
+  name: string;
+  icon: string;
+  count: number;
+  subcategories: string[];
+}
+
+interface Props {
+  categories: Category[];
+}
+
+const { categories } = Astro.props;
+---
+
+<!-- Categories Section -->
+<section id="categories" class="py-16 bg-white relative">
+  <div class="container">
+    <div
+      class="flex flex-col md:flex-row justify-between items-center md:items-end mb-12 gap-4"
+    >
+      <div class="text-center md:text-left">
+        <h2 class="text-3xl md:text-4xl font-extrabold text-gray-900 mb-2">
+          カテゴリーで探す
+        </h2>
+        <p class="text-gray-500">欲しいアイテムを最短で見つける</p>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 md:gap-6">
+      {
+        categories.map((category) => (
+          <a
+            href="#products"
+            data-category={category.name}
+            class="category-card group relative p-6 md:p-8 rounded-[2rem] bg-gray-50/50 border border-transparent hover:border-primary-200 hover:bg-white hover:shadow-xl hover:shadow-primary-500/5 transition-all duration-300 text-center"
+          >
+            <div class="text-4xl md:text-5xl mb-4 md:mb-6 group-hover:scale-110 group-hover:-rotate-12 transition-transform duration-300 filter drop-shadow-md">
+              {category.icon}
+            </div>
+            <h3 class="font-bold text-gray-900 mb-2 text-sm md:text-base">
+              {category.name}
+            </h3>
+            <span class="text-xs md:text-sm font-semibold text-primary-600/60 group-hover:text-primary-600 transition-colors">
+              {category.count.toLocaleString()}件
+            </span>
+          </a>
+        ))
+      }
+    </div>
+  </div>
+</section>
+
+<script>
+  // Category click handler - will communicate with ProductSearchSection
+  document.querySelectorAll('.category-card').forEach(card => {
+    card.addEventListener('click', (e) => {
+      e.preventDefault();
+      const category = card.getAttribute('data-category');
+
+      // Dispatch custom event for ProductSearchSection to listen to
+      window.dispatchEvent(new CustomEvent('category-selected', {
+        detail: { category }
+      }));
+
+      // Scroll to products section
+      document.getElementById('products')?.scrollIntoView({ behavior: 'smooth' });
+    });
+  });
+</script>

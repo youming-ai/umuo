@@ -1,288 +1,199 @@
 ---
-import BaseLayout from '../layouts/BaseLayout.astro';
+/**
+ * Deals Page
+ * 特惠页面 - 限时折扣和促销商品
+ */
+import { Clock, Filter, Gift, Percent, Zap } from 'lucide-react';
 import SearchBar from '../components/islands/SearchBar.jsx';
-import ProductCard from '../components/ui/ProductCard.astro';
-import { TrendingUp, Clock, Tag, Filter } from 'lucide-react';
+import { Button } from '../components/ui/button';
+import ProductCard from '../components/ui/ProductCard.jsx';
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { mockService } from '../lib/mock/service';
 
-// Mock deals data
-const featuredDeals = [
-  {
-    id: '1',
-    title: 'iPhone 15 Pro 256GB ナチュラルチタン',
-    originalPrice: 159800,
-    currentPrice: 129800,
-    discount: 30000,
-    discountPercent: 19,
-    platform: 'Amazon',
-    image: '/images/products/iphone-15-pro.jpg',
-    rating: 4.8,
-    reviewCount: 2341,
-    url: '/products/1',
-    category: '家電',
-    endTime: '2024-12-31T23:59:59Z',
-    featured: true,
-    couponCode: 'IPHONE15OFF'
-  },
-  {
-    id: '2',
-    title: 'Sony WH-1000XM5 ワイヤレスノイズキャンセリングヘッドホン',
-    originalPrice: 42900,
-    currentPrice: 35800,
-    discount: 7100,
-    discountPercent: 17,
-    platform: '楽天',
-    image: '/images/products/sony-headphones.jpg',
-    rating: 4.9,
-    reviewCount: 892,
-    url: '/products/2',
-    category: '家電',
-    endTime: '2024-12-15T23:59:59Z',
-    featured: true
-  },
-  {
-    id: '3',
-    title: 'Nintendo Switch OLED 本体セット',
-    originalPrice: 37980,
-    currentPrice: 32980,
-    discount: 5000,
-    discountPercent: 13,
-    platform: 'Yahoo!ショッピング',
-    image: '/images/products/nintendo-switch.jpg',
-    rating: 4.7,
-    reviewCount: 1234,
-    url: '/products/3',
-    category: 'ゲーム',
-    endTime: '2024-12-25T23:59:59Z',
-    featured: true
-  }
-];
-
-const categories = [
-  { name: 'すべて', count: 234 },
-  { name: '家電', count: 87 },
-  { name: 'ファッション', count: 45 },
-  { name: '食品・飲料', count: 32 },
-  { name: 'ゲーム', count: 28 },
-  { name: '美容・コスメ', count: 42 }
-];
-
-const timeLeft = (endDate) => {
-  const now = new Date();
-  const end = new Date(endDate);
-  const diff = end - now;
-
-  if (diff <= 0) return '終了';
-
-  const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-  const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-
-  if (days > 0) return `残り${days}日`;
-  if (hours > 0) return `残り${hours}時間`;
-  return '終了間近';
-};
+const featuredDeals = mockService.getFeaturedDeals();
+const categories = mockService.getCategories();
 ---
 
 <BaseLayout
-  title="特別セール・お得な情報 - Yabaii"
+  title="特別セール・お得な情報 - UMUO"
   description="限定割引、タイムセール、クーポン情報など、お得な買い物情報をご紹介。最大70%OFFの特別価格を見逃さないでください。"
 >
-  <div class="container py-8">
-    {/* Header */}
-    <div class="text-center mb-10">
-      <div class="flex items-center justify-center mb-4">
-        <Tag class="w-8 h-8 text-red-600 mr-2" />
-        <h1 class="text-4xl font-bold text-gray-900">今日のお得な情報</h1>
-      </div>
-      <p class="text-xl text-gray-600 max-w-3xl mx-auto mb-8">
-        限定割引、タイムセール、クーポン情報など、見逃せないお得な買い物情報を毎日更新。
-        最大70%OFFの特別価格で購入しよう！
-      </p>
-
-      {/* Search */}
-      <div class="max-w-2xl mx-auto mb-8">
-        <SearchBar client:load placeholder="お得な商品を検索..." />
-      </div>
-
-      {/* Stats */}
-      <div class="grid grid-cols-2 md:grid-cols-4 gap-6 max-w-4xl mx-auto mb-12">
-        <div class="text-center">
-          <div class="text-3xl font-bold text-blue-600 mb-1">234</div>
-          <div class="text-sm text-gray-600">本日のセール</div>
-        </div>
-        <div class="text-center">
-          <div class="text-3xl font-bold text-green-600 mb-1">平均42%OFF</div>
-          <div class="text-sm text-gray-600">平均割引率</div>
-        </div>
-        <div class="text-center">
-          <div class="text-3xl font-bold text-purple-600 mb-1">12</div>
-          <div class="text-sm text-gray-600">終了間近</div>
-        </div>
-        <div class="text-center">
-          <div class="text-3xl font-bold text-red-600 mb-1">5</div>
-          <div class="text-sm text-gray-600">限定クーポン</div>
-        </div>
+  <!-- Deals Hero -->
+  <section class="relative pt-24 pb-32 overflow-hidden bg-gray-900">
+    <div class="absolute inset-0 opacity-20">
+      <div
+        class="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_50%_120%,rgba(59,130,246,0.5),transparent_50%)]"
+      >
       </div>
     </div>
+    <div class="container relative z-10 text-center">
+      <div
+        class="inline-flex items-center px-4 py-2 rounded-full bg-red-500/10 text-red-500 text-sm font-black mb-8 animate-pulse-gentle border border-red-500/20"
+      >
+        <Zap className="w-4 h-4 mr-2 fill-red-500" />
+        HOT DEALS TODAY
+      </div>
+      <h1
+        class="text-5xl md:text-7xl font-black text-white mb-8 tracking-tighter"
+      >
+        今日一番の<br class="md:hidden" />「ヤバい」を。<br />
+        <span
+          class="text-transparent bg-clip-text bg-gradient-to-r from-red-500 via-orange-500 to-yellow-500"
+        >
+          最大 70% OFF
+        </span>
+      </h1>
+      <p class="text-xl text-gray-400 mb-12 max-w-2xl mx-auto font-medium">
+        AIが主要ECサイトから割引率の高い商品を24時間リアルタイムで抽出。<br />
+        掘り出し物を逃さずチェック。
+      </p>
+      <div class="max-w-xl mx-auto">
+        <SearchBar client:load placeholder="セール商品を検索..." />
+      </div>
+    </div>
+  </section>
 
-    <div class="flex flex-col lg:flex-row gap-8">
-      {/* Sidebar */}
-      <aside class="lg:w-64 flex-shrink-0">
-        <div class="bg-white rounded-lg shadow-md p-6 sticky top-24">
-          {/* Categories */}
-          <div class="mb-8">
-            <h3 class="font-semibold text-gray-900 mb-4 flex items-center">
-              <Filter class="w-4 h-4 mr-2" />
-              カテゴリー
+  <div class="container py-24">
+    <div class="flex flex-col lg:flex-row gap-16">
+      <!-- Sidebar -->
+      <aside class="lg:w-80 flex-shrink-0">
+        <div class="sticky top-24 space-y-8">
+          <div
+            class="bg-white rounded-[2.5rem] shadow-xl shadow-gray-100 p-8 border border-gray-100"
+          >
+            <h3
+              class="text-xl font-black text-gray-900 mb-8 flex items-center gap-3"
+            >
+              <Filter className="w-6 h-6 text-primary-600" />
+              絞り込み
             </h3>
-            <ul class="space-y-2">
-              {categories.map((category) => (
-                <li key={category.name}>
-                  <button class="w-full text-left px-3 py-2 text-sm rounded-md hover:bg-gray-50 transition-colors flex justify-between items-center">
-                    <span class="text-gray-700">{category.name}</span>
-                    <span class="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
-                      {category.count}
-                    </span>
+
+            <div class="space-y-6">
+              <div>
+                <span
+                  class="text-xs font-black text-gray-400 uppercase tracking-widest mb-4 block"
+                  >Categories</span
+                >
+                <div class="flex flex-col gap-2">
+                  <button
+                    class="flex items-center justify-between p-4 rounded-2xl bg-gray-900 text-white font-bold transition-all shadow-lg shadow-gray-900/10"
+                  >
+                    <span>すべて</span>
+                    <span class="text-xs opacity-50">{featuredDeals.length}</span>
                   </button>
-                </li>
-              ))}
-            </ul>
+                  {
+                    categories.map((cat) => (
+                      <button class="flex items-center justify-between p-4 rounded-2xl bg-white text-gray-600 font-bold border border-gray-100 hover:bg-gray-50 transition-all">
+                        <span>{cat.name}</span>
+                        <span class="text-xs text-gray-400">{cat.count}</span>
+                      </button>
+                    ))
+                  }
+                </div>
+              </div>
+
+              <div class="pt-6 border-t border-gray-100">
+                <span
+                  class="text-xs font-black text-gray-400 uppercase tracking-widest mb-4 block"
+                  >Sort By</span
+                >
+                <select
+                  class="w-full h-14 bg-gray-50 border-none rounded-2xl px-6 font-bold text-gray-900 focus:ring-2 focus:ring-primary-500 appearance-none"
+                >
+                  <option>割引率の高い順</option>
+                  <option>価格の安い順</option>
+                  <option>終了間近</option>
+                  <option>おすすめ順</option>
+                </select>
+              </div>
+            </div>
           </div>
 
-          {/* Sort Options */}
-          <div class="mb-8">
-            <h3 class="font-semibold text-gray-900 mb-4">並び順</h3>
-            <select class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-              <option value="discount">割引率が高い順</option>
-              <option value="ending_soon">終了間近</option>
-              <option value="price_low">価格が低い順</option>
-              <option value="popular">人気順</option>
-            </select>
-          </div>
-
-          {/* Alert Signup */}
-          <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
-            <h4 class="font-semibold text-blue-900 mb-2">お得情報アラート</h4>
-            <p class="text-sm text-blue-700 mb-3">
-              新着セール情報をメールでお知らせします
-            </p>
-            <button class="w-full px-3 py-2 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700 transition-colors">
-              無料登録
-            </button>
+          <!-- Alert Premium -->
+          <div
+            class="bg-gradient-to-br from-red-600 to-orange-600 rounded-[2.5rem] p-8 text-white shadow-2xl shadow-red-500/20 relative overflow-hidden"
+          >
+            <div
+              class="absolute -top-12 -right-12 w-32 h-32 bg-white/10 rounded-full blur-2xl"
+            >
+            </div>
+            <div class="relative z-10">
+              <Gift className="w-12 h-12 mb-6" />
+              <h3 class="text-2xl font-black mb-3">限定クーポン入手</h3>
+              <p
+                class="text-red-100 text-sm font-bold opacity-80 leading-relaxed mb-8"
+              >
+                会員登録で、Amazonや楽天で使えるシークレットクーポンを定期的にお届けします。
+              </p>
+              <Button
+                asChild
+                class="w-full py-4 bg-white text-red-600 rounded-[1.5rem] font-black hover:scale-[1.02] transition-transform shadow-xl"
+              >
+                <a href="/register">無料で会員登録</a>
+              </Button>
+            </div>
           </div>
         </div>
       </aside>
 
-      {/* Main Content */}
+      <!-- Main Results -->
       <main class="flex-1">
-        {/* Featured Deals */}
-        <section class="mb-12">
-          <div class="flex items-center justify-between mb-6">
-            <h2 class="text-2xl font-bold text-gray-900 flex items-center">
-              <TrendingUp class="w-6 h-6 text-red-600 mr-2" />
-              今週の注目セール
-            </h2>
-            <span class="text-sm text-gray-500">
-              {featuredDeals.length}件のお得な情報
-            </span>
+        <div class="flex items-center justify-between mb-12">
+          <h2 class="text-3xl font-black text-gray-900 flex items-center gap-4">
+            <Percent className="w-8 h-8 text-red-500" />
+            期間限定セール
+          </h2>
+          <div
+            class="flex items-center gap-2 text-sm font-bold text-gray-400 uppercase tracking-widest"
+          >
+            <div class="flex items-center gap-2">
+              Live updating
+              <span class="flex h-2 w-2 relative">
+                <span
+                  class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"
+                ></span>
+                <span class="relative inline-flex rounded-full h-2 w-2 bg-red-500"
+                ></span>
+              </span>
+            </div>
           </div>
+        </div>
 
-          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {featuredDeals.map((deal) => (
-              <div key={deal.id} class="bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow overflow-hidden group">
-                {/* Deal Badge */}
-                <div class="relative">
-                  <div class="absolute top-2 left-2 z-10 bg-red-600 text-white text-xs font-bold px-2 py-1 rounded-full">
-                    {deal.discountPercent}% OFF
-                  </div>
-                  {deal.endTime && (
-                    <div class="absolute top-2 right-2 z-10 bg-black bg-opacity-75 text-white text-xs px-2 py-1 rounded-full flex items-center">
-                      <Clock class="w-3 h-3 mr-1" />
-                      {timeLeft(deal.endTime)}
-                    </div>
-                  )}
+        <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-2 gap-8 mb-16">
+          {
+            featuredDeals.map((product) => (
+              <ProductCard product={product} client:load />
+            ))
+          }
+        </div>
 
-                  {/* Image Placeholder */}
-                  <div class="aspect-video bg-gray-200 group-hover:scale-105 transition-transform"></div>
-                </div>
-
-                <div class="p-4">
-                  <div class="flex justify-between items-start mb-2">
-                    <h3 class="font-semibold text-gray-900 text-sm line-clamp-2 group-hover:text-blue-600 transition-colors">
-                      <a href={deal.url} class="hover:underline">
-                        {deal.title}
-                      </a>
-                    </h3>
-                  </div>
-
-                  <div class="flex items-center justify-between mb-3">
-                    <div class="flex items-center space-x-1">
-                      <span class="text-yellow-400">★</span>
-                      <span class="text-sm text-gray-600">{deal.rating}</span>
-                      <span class="text-xs text-gray-400">({deal.reviewCount})</span>
-                    </div>
-                    <span class="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
-                      {deal.platform}
-                    </span>
-                  </div>
-
-                  <div class="mb-3">
-                    <div class="flex items-baseline space-x-2">
-                      <span class="text-gray-400 line-through text-sm">
-                        ¥{deal.originalPrice.toLocaleString()}
-                      </span>
-                      <span class="text-2xl font-bold text-red-600">
-                        ¥{deal.currentPrice.toLocaleString()}
-                      </span>
-                    </div>
-                    <div class="text-sm text-green-600 font-semibold">
-                      ¥{deal.discount.toLocaleString()} お得
-                    </div>
-                  </div>
-
-                  {/* Coupon Code */}
-                  {deal.couponCode && (
-                    <div class="bg-yellow-50 border border-yellow-200 rounded-md p-2 mb-3">
-                      <div class="flex items-center justify-between">
-                        <span class="text-xs font-semibold text-yellow-800">クーポンコード:</span>
-                        <code class="text-xs bg-yellow-100 text-yellow-900 px-2 py-1 rounded">
-                          {deal.couponCode}
-                        </code>
-                      </div>
-                    </div>
-                  )}
-
-                  <div class="flex space-x-2">
-                    <a
-                      href={deal.url}
-                      class="flex-1 inline-flex items-center justify-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 transition-colors"
-                    >
-                      購入する
-                    </a>
-                    <button class="px-4 py-2 border border-gray-300 text-gray-700 text-sm rounded-md hover:bg-gray-50 transition-colors">
-                      比較
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ))}
+        <!-- Newsletter Premium -->
+        <section
+          class="relative bg-gray-900 rounded-[3.5rem] p-12 md:p-20 overflow-hidden text-center"
+        >
+          <div
+            class="absolute inset-0 bg-gradient-to-br from-primary-600/20 to-purple-600/20"
+          >
           </div>
-        </section>
-
-        {/* Newsletter */}
-        <section class="bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl p-8 text-center text-white">
-          <h3 class="text-2xl font-bold mb-4">お得情報を見逃さない</h3>
-          <p class="mb-6 max-w-2xl mx-auto">
-            毎日新しいセール情報や限定クーポンをお届け。登録無料で最新のお得情報をゲット！
-          </p>
-          <div class="flex flex-col sm:flex-row gap-4 max-w-md mx-auto">
-            <input
-              type="email"
-              placeholder="メールアドレスを入力"
-              class="flex-1 px-4 py-3 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-white"
-            />
-            <button class="px-6 py-3 bg-white text-blue-600 font-semibold rounded-md hover:bg-gray-100 transition-colors">
-              無料登録
-            </button>
+          <div class="relative z-10 max-w-2xl mx-auto">
+            <h3 class="text-4xl font-black text-white mb-6 tracking-tight">
+              ヤバいお得情報、<br />見逃してませんか？
+            </h3>
+            <p class="text-gray-400 text-lg mb-12 leading-relaxed">
+              セールが終わる前に通知を受け取ろう。毎日10時にお得なサマリーを配信中。
+            </p>
+            <div class="flex flex-col sm:flex-row gap-4">
+              <input
+                type="email"
+                placeholder="メールアドレス"
+                class="flex-1 h-16 bg-white/10 border-2 border-white/10 rounded-2xl px-8 text-white font-bold outline-none focus:border-primary-500 transition-colors placeholder:text-gray-500"
+              />
+              <Button
+                class="h-16 px-10 bg-white text-black font-black rounded-2xl hover:bg-primary-500 hover:text-white transition-all active:scale-95 shadow-xl shadow-white/5"
+              >
+                登録する
+              </Button>
+            </div>
           </div>
         </section>
       </main>

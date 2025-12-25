@@ -159,7 +159,12 @@ export interface Deal {
 
 // Analytics types
 export interface AnalyticsEvent {
-  type: 'search' | 'product_view' | 'click' | 'alert_created' | 'comparison_created';
+  type:
+    | 'search'
+    | 'product_view'
+    | 'click'
+    | 'alert_created'
+    | 'comparison_created';
   data: Record<string, any>;
   timestamp: string;
   userId?: string;

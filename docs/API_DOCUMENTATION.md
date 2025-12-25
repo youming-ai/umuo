@@ -1,13 +1,13 @@
-# Yabaii API Documentation
+# UMUO API Documentation
 
 ## Overview
 
-The Yabaii API is a RESTful API that provides price comparison and product search services for the Japanese market. It aggregates data from multiple e-commerce platforms to help users find the best deals.
+The UMUO API is a RESTful API that provides price comparison and product search services for the Japanese market. It aggregates data from multiple e-commerce platforms to help users find the best deals.
 
 ## Base URL
 
-- **Production**: `https://api.yabaii.day`
-- **Staging**: `https://staging-api.yabaii.day`
+- **Production**: `https://api.umuo.day`
+- **Staging**: `https://staging-api.umuo.day`
 - **Development**: `http://localhost:3001`
 
 ## Authentication
@@ -575,14 +575,14 @@ Cache headers are included in responses:
 ### JavaScript/TypeScript
 
 ```bash
-npm install @yabaii/api-client
+npm install @umuo/api-client
 ```
 
 ```typescript
-import { YabaiiAPI } from '@yabaii/api-client';
+import { UMUOAPI } from '@umuo/api-client';
 
-const api = new YabaiiAPI({
-  baseURL: 'https://api.yabaii.day',
+const api = new UMUOAPI({
+  baseURL: 'https://api.umuo.day',
   apiKey: 'your-api-key'
 });
 
@@ -596,14 +596,14 @@ const results = await api.search.products({
 ### Python
 
 ```bash
-pip install yabaii-python
+pip install umuo-python
 ```
 
 ```python
-from yabaii import YabaiiAPI
+from umuo import UMUOAPI
 
-api = YabaiiAPI(
-    base_url='https://api.yabaii.day',
+api = UMUOAPI(
+    base_url='https://api.umuo.day',
     api_key='your-api-key'
 )
 
@@ -653,10 +653,10 @@ Configure webhooks to receive real-time notifications:
 
 ## Support
 
-- **Documentation**: https://docs.yabaii.day
-- **API Status**: https://status.yabaii.day
-- **Support Email**: api-support@yabaii.day
-- **Developer Discord**: https://discord.gg/yabaii
+- **Documentation**: https://docs.umuo.day
+- **API Status**: https://status.umuo.day
+- **Support Email**: api-support@umuo.day
+- **Developer Discord**: https://discord.gg/umuo
 
 ## Changelog
 

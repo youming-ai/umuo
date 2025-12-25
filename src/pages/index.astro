@@ -1,221 +1,79 @@
 ---
+import CTASection from '../components/home/CTASection.astro';
+import FeaturedDealsSection from '../components/home/FeaturedDealsSection.astro';
+import FeaturesSection from '../components/home/FeaturesSection.astro';
+/**
+ * Home Page
+ * 首页 - 整合分类、搜索、商品展示等功能
+ */
+import HomePageHero from '../components/home/HomePageHero.astro';
+import CategoryGrid from '../components/modules/CategoryGrid.astro';
+import ProductListModule from '../components/modules/ProductListModule.astro';
 import BaseLayout from '../layouts/BaseLayout.astro';
-import ProductCard from '../components/ui/ProductCard.jsx';
-import { Search, TrendingUp, ShoppingBag, Star, ArrowRight } from 'lucide-react';
+import { mockService } from '../lib/mock/service';
 
-const categories = [
-  { name: '家電', icon: '📱', count: '15,234' },
-  { name: 'ファッション', icon: '👕', count: '23,456' },
-  { name: '食品・飲料', icon: '🍱', count: '8,901' },
-  { name: '美容・コスメ', icon: '💄', count: '12,345' },
-  { name: '本・雑誌', icon: '📚', count: '5,678' },
-  { name: 'スポーツ・アウトドア', icon: '⚽', count: '9,012' },
-];
+// Get initial data
+const categories = mockService.getCategories();
+const featuredDeals = mockService.getFeaturedDeals();
+const initialProducts = mockService.getProducts({
+  searchQuery: '',
+  category: '',
+  sort: 'relevance',
+  page: 1,
+  limit: 12,
+});
 
-const featuredDeals = [
-  {
-    id: '1',
-    title: 'iPhone 15 Pro',
-    originalPrice: '148,800',
-    currentPrice: '129,800',
-    discount: '13%',
-    platform: 'Amazon',
-    image: '/images/products/iphone-15-pro.jpg',
-    rating: 4.8,
-    url: '/products/1'
-  },
-  {
-    id: '2',
-    title: 'Sony WH-1000XM5',
-    originalPrice: '42,900',
-    currentPrice: '35,800',
-    discount: '17%',
-    platform: '楽天',
-    image: '/images/products/sony-headphones.jpg',
-    rating: 4.9,
-    url: '/products/2'
-  },
-  {
-    id: '3',
-    title: 'Nintendo Switch',
-    originalPrice: '32,978',
-    currentPrice: '29,800',
-    discount: '10%',
-    platform: 'Yahoo!ショッピング',
-    image: '/images/products/nintendo-switch.jpg',
-    rating: 4.7,
-    url: '/products/3'
-  }
-];
+const availableFilters = {
+  categories: categories.map((c) => c.name),
+  platforms: ['Amazon', '楽天', 'Yahoo!ショッピング'],
+  priceRanges: [
+    '〜10,000円',
+    '10,001円〜50,000円',
+    '50,001円〜100,000円',
+    '100,001円〜',
+  ],
+};
+
+// Define metadata for the page
+const metadata = {
+  title: 'UMUO - 賢い買い物、スマートな価格比較',
+  description:
+    'Amazon、楽天、Yahoo!ショッピングなど主要ECサイトの価格をリアルタイムで比較。',
+};
 ---
 
-<BaseLayout title="Yabaii - 学生・社会人のための賢い価格比較" description="Amazon、楽天、Yahoo!ショッピングなど主要ECサイトの価格をリアルタイムで比較。学生や社会人のためのスマートな買い物アシスタント。">
+<BaseLayout
+  title="UMUO - 賢い買い物、スマートな価格比較"
+  description="Amazon、楽天、Yahoo!ショッピングなど主要ECサイトの価格をリアルタイムで比較。"
+>
   <!-- Hero Section -->
-  <section class="relative pt-20 pb-32 overflow-hidden">
-    <div class="container relative z-10">
-      <div class="text-center max-w-4xl mx-auto">
-        <div class="inline-flex items-center px-4 py-2 rounded-full bg-primary-50 text-primary-700 text-sm font-medium mb-8 animate-fade-in">
-          <span class="flex h-2 w-2 rounded-full bg-primary-600 mr-2"></span>
-          賢い買い物、始めよう
-        </div>
-        <h1 class="text-5xl md:text-7xl font-bold text-gray-900 mb-6 tracking-tight animate-slide-up">
-          欲しいものを、<br/>
-          <span class="text-transparent bg-clip-text bg-gradient-to-r from-primary-600 to-secondary-600">
-            一番安く、スマートに。
-          </span>
-        </h1>
-        <p class="text-xl text-gray-600 mb-10 max-w-2xl mx-auto leading-relaxed animate-slide-up" style="animation-delay: 0.1s;">
-          Yabaiiは、学生や忙しい社会人のための次世代価格比較アプリ。<br/>
-          Amazon、楽天、Yahoo!など、主要サイトの最安値を一瞬で見つけます。
-        </p>
-        <div class="flex flex-col sm:flex-row items-center justify-center gap-4 animate-slide-up" style="animation-delay: 0.2s;">
-          <a href="/search" class="btn btn-primary btn-lg w-full sm:w-auto group">
-            <Search class="w-5 h-5 mr-2 group-hover:scale-110 transition-transform" />
-            商品を検索する
-          </a>
-          <a href="/deals" class="btn btn-ghost btn-lg w-full sm:w-auto">
-            人気ランキングを見る
-            <ArrowRight class="w-5 h-5 ml-2" />
-          </a>
-        </div>
-      </div>
-    </div>
-  </section>
+  <HomePageHero />
 
-  <!-- Features Section -->
-  <section class="py-20 bg-white/50 backdrop-blur-sm">
-    <div class="container">
-      <div class="text-center mb-16">
-        <h2 class="text-3xl font-bold text-gray-900 mb-4">なぜYabaiiなのか？</h2>
-        <p class="text-gray-600 max-w-2xl mx-auto">
-          ただの価格比較ではありません。あなたのライフスタイルに合わせた<br/>
-          最適なショッピング体験を提供します。
-        </p>
-      </div>
-      
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
-        <div class="glass p-8 rounded-2xl hover:bg-white transition-colors duration-300 group">
-          <div class="w-14 h-14 bg-primary-100 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
-            <TrendingUp class="w-7 h-7 text-primary-600" />
-          </div>
-          <h3 class="text-xl font-bold text-gray-900 mb-3">リアルタイム最安値</h3>
-          <p class="text-gray-600 leading-relaxed">
-            AIが24時間365日価格を監視。値下がりした瞬間にお知らせするので、
-            もう買い時を逃しません。
-          </p>
-        </div>
+  <!-- Categories Grid Module - Top Section -->
+  <CategoryGrid categories={categories} />
 
-        <div class="glass p-8 rounded-2xl hover:bg-white transition-colors duration-300 group">
-          <div class="w-14 h-14 bg-secondary-100 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
-            <ShoppingBag class="w-7 h-7 text-secondary-600" />
-          </div>
-          <h3 class="text-xl font-bold text-gray-900 mb-3">学生・社会人特化</h3>
-          <p class="text-gray-600 leading-relaxed">
-            教科書、ガジェット、日用品など、
-            学生や若手社会人がよく買う商品を重点的にカバー。
-          </p>
-        </div>
+  <!-- Product List Module - Search, Filters, Products -->
+  <ProductListModule
+    initialProducts={initialProducts.products}
+    initialPagination={initialProducts.pagination}
+    availableFilters={availableFilters}
+    searchQuery=""
+    initialCategory=""
+  />
 
-        <div class="glass p-8 rounded-2xl hover:bg-white transition-colors duration-300 group">
-          <div class="w-14 h-14 bg-purple-100 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
-            <Star class="w-7 h-7 text-purple-600" />
-          </div>
-          <h3 class="text-xl font-bold text-gray-900 mb-3">AIレビュー要約</h3>
-          <p class="text-gray-600 leading-relaxed">
-            膨大なレビューを読む時間はもう不要。
-            AIがメリット・デメリットを3行で要約します。
-          </p>
-        </div>
-      </div>
-    </div>
-  </section>
+  <!-- Featured Deals -->
+  <FeaturedDealsSection featuredDeals={featuredDeals} />
 
-  <!-- Categories Section -->
-  <section class="py-20">
-    <div class="container">
-      <div class="flex justify-between items-end mb-12">
-        <div>
-          <h2 class="text-3xl font-bold text-gray-900 mb-2">人気カテゴリー</h2>
-          <p class="text-gray-600">今トレンドのアイテムをチェック</p>
-        </div>
-        <a href="/categories" class="text-primary-600 font-medium hover:text-primary-700 flex items-center group">
-          すべて見る
-          <ArrowRight class="w-4 h-4 ml-1 group-hover:translate-x-1 transition-transform" />
-        </a>
-      </div>
-
-      <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-6">
-        {categories.map((category) => (
-          <a
-            href={`/search?category=${encodeURIComponent(category.name)}`}
-            class="group bg-white border border-gray-100 p-6 rounded-2xl shadow-sm hover:shadow-md hover:border-primary-200 transition-all duration-300 text-center"
-          >
-            <div class="text-4xl mb-4 group-hover:scale-110 transition-transform duration-300 filter drop-shadow-sm">{category.icon}</div>
-            <h3 class="font-bold text-gray-900 mb-1 group-hover:text-primary-600 transition-colors">{category.name}</h3>
-            <p class="text-xs text-gray-500 font-medium bg-gray-50 inline-block px-2 py-1 rounded-full">{category.count}</p>
-          </a>
-        ))}
-      </div>
-    </div>
-  </section>
-
-  <!-- Featured Deals Section -->
-  <section class="py-20 bg-gray-50/50">
-    <div class="container">
-      <div class="text-center mb-12">
-        <h2 class="text-3xl font-bold text-gray-900 mb-4">今週の注目アイテム</h2>
-        <p class="text-gray-600">
-          価格が大幅に下がった人気商品をピックアップ
-        </p>
-      </div>
-
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
-        {featuredDeals.map((deal) => (
-          <ProductCard product={deal} client:load />
-        ))}
-      </div>
-      
-      <div class="mt-12 text-center">
-        <a href="/deals" class="btn btn-outline btn-lg">
-          もっと見る
-        </a>
-      </div>
-    </div>
-  </section>
+  <!-- Features Grid -->
+  <FeaturesSection />
 
   <!-- CTA Section -->
-  <section class="py-20">
-    <div class="container">
-      <div class="relative rounded-3xl overflow-hidden bg-gray-900 px-6 py-20 text-center sm:px-12 lg:px-20">
-        <!-- Background Gradient -->
-        <div class="absolute inset-0 bg-gradient-to-br from-gray-900 via-gray-800 to-primary-900 opacity-90"></div>
-        <div class="absolute -top-24 -left-24 w-96 h-96 bg-primary-500 rounded-full blur-3xl opacity-20"></div>
-        <div class="absolute -bottom-24 -right-24 w-96 h-96 bg-secondary-500 rounded-full blur-3xl opacity-20"></div>
-        
-        <div class="relative z-10 max-w-2xl mx-auto">
-          <h2 class="text-3xl font-bold tracking-tight text-white sm:text-4xl mb-6">
-            賢い買い物で、<br/>もっと自由な時間を。
-          </h2>
-          <p class="mx-auto mt-6 max-w-xl text-lg text-gray-300 mb-10">
-            登録は無料。価格アラートやAI分析など、<br/>
-            すべての機能がすぐに使えます。
-          </p>
-          <div class="flex flex-col sm:flex-row items-center justify-center gap-4">
-            <a
-              href="/register"
-              class="btn btn-primary btn-lg w-full sm:w-auto"
-            >
-              無料で始める
-            </a>
-            <a
-              href="/about"
-              class="btn btn-outline text-white border-white hover:bg-white hover:text-gray-900 btn-lg w-full sm:w-auto"
-            >
-              詳しく見る
-            </a>
-          </div>
-        </div>
-      </div>
-    </div>
-  </section>
+  <CTASection />
+
+  <!-- Global data for client-side components -->
+  <script define:vars={{ initialProducts: initialProducts.products, initialPagination: initialProducts.pagination, availableFilters }}>
+    window.__INITIAL_PRODUCTS__ = initialProducts;
+    window.__INITIAL_PAGINATION__ = initialPagination;
+    window.__AVAILABLE_FILTERS__ = availableFilters;
+  </script>
 </BaseLayout>
