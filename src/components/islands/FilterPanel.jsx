@@ -71,13 +71,14 @@ export default function FilterPanel({
   return (
     <div className="space-y-8">
       {/* Clear Filters */}
+      {/* Clear Filters */}
       {hasActiveFilters && (
         <div className="flex justify-end">
           <Button
             variant="ghost"
             size="sm"
             onClick={clearAllFilters}
-            className="text-primary-600 hover:text-primary-700 h-auto p-0 font-bold"
+            className="text-muted-foreground hover:text-foreground h-auto p-0 font-bold"
           >
             <X className="w-3.5 h-3.5 mr-1" />
             すべてクリア
@@ -92,13 +93,13 @@ export default function FilterPanel({
           onClick={() => toggleSection('category')}
           className="flex justify-between items-center w-full group"
         >
-          <span className="text-sm font-bold text-gray-900 group-hover:text-primary-600 transition-colors uppercase tracking-widest text-[0.7rem]">
+          <span className="text-sm font-bold text-foreground group-hover:text-primary transition-colors uppercase tracking-widest text-[0.7rem]">
             カテゴリー
           </span>
           {expandedSections.category ? (
-            <ChevronUp className="w-4 h-4 text-gray-400 group-hover:text-primary-600" />
+            <ChevronUp className="w-4 h-4 text-muted-foreground group-hover:text-primary" />
           ) : (
-            <ChevronDown className="w-4 h-4 text-gray-400 group-hover:text-primary-600" />
+            <ChevronDown className="w-4 h-4 text-muted-foreground group-hover:text-primary" />
           )}
         </button>
 
@@ -107,7 +108,7 @@ export default function FilterPanel({
             {availableFilters.categories.map((category) => (
               <label
                 key={category}
-                className="flex items-center group cursor-pointer py-1.5 px-2 rounded-lg hover:bg-gray-50 transition-colors"
+                className="flex items-center group cursor-pointer py-1.5 px-2 rounded-lg hover:bg-accent transition-colors"
               >
                 <input
                   type="radio"
@@ -117,10 +118,10 @@ export default function FilterPanel({
                   onChange={(e) =>
                     handleFilterChange('category', e.target.value)
                   }
-                  className="w-4 h-4 text-primary-600 focus:ring-primary-500 border-gray-300 transition-all rounded-full"
+                  className="w-4 h-4 text-primary focus:ring-ring border-input transition-all rounded-full"
                 />
                 <span
-                  className={`ml-3 text-sm transition-colors ${filters.category === category ? 'text-primary-700 font-bold' : 'text-gray-600 group-hover:text-gray-900'}`}
+                  className={`ml-3 text-sm transition-colors ${filters.category === category ? 'text-primary font-bold' : 'text-muted-foreground group-hover:text-foreground'}`}
                 >
                   {category}
                 </span>
@@ -137,13 +138,13 @@ export default function FilterPanel({
           onClick={() => toggleSection('platform')}
           className="flex justify-between items-center w-full group"
         >
-          <span className="text-sm font-bold text-gray-900 group-hover:text-primary-600 transition-colors uppercase tracking-widest text-[0.7rem]">
+          <span className="text-sm font-bold text-foreground group-hover:text-primary transition-colors uppercase tracking-widest text-[0.7rem]">
             プラットフォーム
           </span>
           {expandedSections.platform ? (
-            <ChevronUp className="w-4 h-4 text-gray-400 group-hover:text-primary-600" />
+            <ChevronUp className="w-4 h-4 text-muted-foreground group-hover:text-primary" />
           ) : (
-            <ChevronDown className="w-4 h-4 text-gray-400 group-hover:text-primary-600" />
+            <ChevronDown className="w-4 h-4 text-muted-foreground group-hover:text-primary" />
           )}
         </button>
 
@@ -152,7 +153,7 @@ export default function FilterPanel({
             {availableFilters.platforms.map((platform) => (
               <label
                 key={platform}
-                className="flex items-center group cursor-pointer py-1.5 px-2 rounded-lg hover:bg-gray-50 transition-colors"
+                className="flex items-center group cursor-pointer py-1.5 px-2 rounded-lg hover:bg-accent transition-colors"
               >
                 <input
                   type="radio"
@@ -162,10 +163,10 @@ export default function FilterPanel({
                   onChange={(e) =>
                     handleFilterChange('platform', e.target.value)
                   }
-                  className="w-4 h-4 text-primary-600 focus:ring-primary-500 border-gray-300 transition-all rounded-full"
+                  className="w-4 h-4 text-primary focus:ring-ring border-input transition-all rounded-full"
                 />
                 <span
-                  className={`ml-3 text-sm transition-colors ${filters.platform === platform ? 'text-primary-700 font-bold' : 'text-gray-600 group-hover:text-gray-900'}`}
+                  className={`ml-3 text-sm transition-colors ${filters.platform === platform ? 'text-primary font-bold' : 'text-muted-foreground group-hover:text-foreground'}`}
                 >
                   {platform}
                 </span>
@@ -182,13 +183,13 @@ export default function FilterPanel({
           onClick={() => toggleSection('price')}
           className="flex justify-between items-center w-full group"
         >
-          <span className="text-sm font-bold text-gray-900 group-hover:text-primary-600 transition-colors uppercase tracking-widest text-[0.7rem]">
+          <span className="text-sm font-bold text-foreground group-hover:text-primary transition-colors uppercase tracking-widest text-[0.7rem]">
             価格帯
           </span>
           {expandedSections.price ? (
-            <ChevronUp className="w-4 h-4 text-gray-400 group-hover:text-primary-600" />
+            <ChevronUp className="w-4 h-4 text-muted-foreground group-hover:text-primary" />
           ) : (
-            <ChevronDown className="w-4 h-4 text-gray-400 group-hover:text-primary-600" />
+            <ChevronDown className="w-4 h-4 text-muted-foreground group-hover:text-primary" />
           )}
         </button>
 
@@ -196,7 +197,7 @@ export default function FilterPanel({
           <div className="pt-2 space-y-4">
             <div className="flex items-center gap-2">
               <div className="relative flex-1">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-bold text-xs">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground font-bold text-xs">
                   ¥
                 </span>
                 <Input
@@ -213,12 +214,12 @@ export default function FilterPanel({
                     );
                     handleFilterChange('minPrice', value);
                   }}
-                  className="pl-7 h-10 rounded-xl bg-white border-gray-100"
+                  className="pl-7 h-10 rounded-xl bg-background border-input text-foreground"
                 />
               </div>
-              <span className="text-gray-300">〜</span>
+              <span className="text-muted-foreground">〜</span>
               <div className="relative flex-1">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-bold text-xs">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground font-bold text-xs">
                   ¥
                 </span>
                 <Input
@@ -235,7 +236,7 @@ export default function FilterPanel({
                     );
                     handleFilterChange('maxPrice', value);
                   }}
-                  className="pl-7 h-10 rounded-xl bg-white border-gray-100"
+                  className="pl-7 h-10 rounded-xl bg-background border-input text-foreground"
                 />
               </div>
             </div>
@@ -260,7 +261,7 @@ export default function FilterPanel({
                       handleFilterChange('minPrice', min);
                       handleFilterChange('maxPrice', max);
                     }}
-                    className="justify-start text-xs font-bold text-gray-500 hover:text-primary-600 hover:bg-primary-50 rounded-lg px-3"
+                    className="justify-start text-xs font-bold text-muted-foreground hover:text-foreground hover:bg-accent rounded-lg px-3"
                   >
                     {range}
                   </Button>
@@ -293,7 +294,7 @@ export default function FilterPanel({
             {[4, 3, 2, 1].map((rating) => (
               <label
                 key={rating}
-                className="flex items-center group cursor-pointer py-1.5 px-2 rounded-lg hover:bg-gray-50 transition-colors"
+                className="flex items-center group cursor-pointer py-1.5 px-2 rounded-lg hover:bg-accent transition-colors"
               >
                 <input
                   type="radio"
@@ -303,7 +304,7 @@ export default function FilterPanel({
                   onChange={(e) =>
                     handleFilterChange('rating', parseInt(e.target.value, 10))
                   }
-                  className="w-4 h-4 text-primary-600 focus:ring-primary-500 border-gray-300 transition-all rounded-full"
+                  className="w-4 h-4 text-primary focus:ring-ring border-input transition-all rounded-full"
                 />
                 <div className="ml-3 flex items-center gap-1.5">
                   <div className="flex">
@@ -311,13 +312,13 @@ export default function FilterPanel({
                       return (
                         <Star
                           key={i}
-                          className={`w-3.5 h-3.5 ${i < rating ? 'text-yellow-400 fill-current' : 'text-gray-200 fill-current'}`}
+                          className={`w-3.5 h-3.5 ${i < rating ? 'text-primary fill-primary' : 'text-muted fill-muted'}`}
                         />
                       );
                     })}
                   </div>
                   <span
-                    className={`text-xs transition-colors ${filters.rating === rating ? 'text-primary-700 font-bold' : 'text-gray-500 group-hover:text-gray-900'}`}
+                    className={`text-xs transition-colors ${filters.rating === rating ? 'text-foreground font-bold' : 'text-muted-foreground group-hover:text-foreground'}`}
                   >
                     {rating}以上
                   </span>

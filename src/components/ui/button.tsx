@@ -3,12 +3,12 @@ import { cn } from '../../lib/utils';
 
 interface ButtonVariants {
   variant?:
-    | 'default'
-    | 'destructive'
-    | 'outline'
-    | 'secondary'
-    | 'ghost'
-    | 'link';
+  | 'default'
+  | 'destructive'
+  | 'outline'
+  | 'secondary'
+  | 'ghost'
+  | 'link';
   size?: 'default' | 'sm' | 'lg' | 'xl' | 'icon';
 }
 
@@ -22,16 +22,16 @@ const buttonVariants = ({
 
   const variants = {
     default:
-      'border-transparent bg-primary-600 text-white shadow-sm hover:bg-primary-700 active:scale-[0.98]',
+      'border-transparent bg-primary text-primary-foreground shadow hover:bg-primary/90 active:scale-[0.98]',
     destructive:
-      'border-transparent bg-red-600 text-white shadow-sm hover:bg-red-700 active:scale-[0.98]',
+      'border-transparent bg-destructive text-destructive-foreground shadow-sm hover:bg-destructive/90 active:scale-[0.98]',
     outline:
-      'border-gray-200 bg-white text-gray-900 shadow-sm hover:bg-gray-50 active:scale-[0.98]',
+      'border-input bg-background text-foreground shadow-sm hover:bg-accent hover:text-accent-foreground active:scale-[0.98]',
     secondary:
-      'border-transparent bg-gray-100 text-gray-900 hover:bg-gray-200 active:scale-[0.98]',
+      'border-transparent bg-secondary text-secondary-foreground hover:bg-secondary/80 active:scale-[0.98]',
     ghost:
-      'border-transparent text-gray-600 hover:bg-gray-100 hover:text-gray-900',
-    link: 'border-transparent text-primary-600 underline-offset-4 hover:underline',
+      'border-transparent text-foreground hover:bg-accent hover:text-accent-foreground',
+    link: 'border-transparent text-primary underline-offset-4 hover:underline',
   };
 
   const sizes = {
@@ -47,7 +47,7 @@ const buttonVariants = ({
 
 export interface ButtonProps
   extends React.ButtonHTMLAttributes<HTMLButtonElement>,
-    ButtonVariants {
+  ButtonVariants {
   asChild?: boolean;
 }
 

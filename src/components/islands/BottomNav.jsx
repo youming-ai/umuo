@@ -1,4 +1,4 @@
-import { Home, Scale, ShoppingBag, User } from 'lucide-react';
+import { Scale, ShoppingBag, User } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 export default function BottomNav() {
@@ -25,7 +25,6 @@ export default function BottomNav() {
   }, []);
 
   const navItems = [
-    { name: 'ホーム', icon: Home, href: '/', active: currentPath === '/' },
     {
       name: '比較',
       icon: Scale,
@@ -55,11 +54,10 @@ export default function BottomNav() {
             <a
               key={item.name}
               href={item.href}
-              className={`flex flex-col items-center justify-center h-14 rounded-xl transition-colors ${
-                item.active
-                  ? 'text-primary-600 bg-primary-50'
-                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
-              }`}
+              className={`flex flex-col items-center justify-center h-14 rounded-xl transition-colors ${item.active
+                ? 'text-primary-600 bg-primary-50'
+                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                }`}
               aria-current={item.active ? 'page' : undefined}
             >
               <Icon className="w-5 h-5 mb-1" />

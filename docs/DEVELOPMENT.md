@@ -268,4 +268,36 @@ export async function getStaticPaths() {
 
 ---
 
-*最后更新: 2024-12-23*
+
+## Deployments
+
+### Cloudflare Pages
+
+1. **Build Project**: `bun run build` (output: `dist/`)
+2. **Deploy**:
+   - **Git Integration (Recommended)**: Connect GitHub repo to Cloudflare Pages.
+     - Build command: `bun run build`
+     - Output directory: `dist`
+     - Node.js version: `18` (or compatible)
+   - **Wrangler CLI**: `wrangler pages deploy dist --project-name umuo`
+
+### Environment Variables
+
+Configure in Cloudflare Pages settings:
+```bash
+NODE_ENV=production
+```
+
+## Route Structure
+
+| Path | Description | Type |
+|------|-------------|------|
+| `/` | Home Page | Static |
+| `/search` | Search Page | Static + Client Search |
+| `/compare` | Comparison Page | Static + Client Interaction |
+| `/products/[slug]` | Product Detail | Dynamic (getStaticPaths) |
+| `/categories/[category]` | Category Detail | Dynamic (getStaticPaths) |
+| `/api/*` | API Endpoints | Server/Static Functions |
+
+For a complete list of routes, refer to the `src/pages` directory structure.
+

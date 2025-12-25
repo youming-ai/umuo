@@ -1,45 +1,37 @@
 ---
-import { ArrowRight, Search, Zap } from 'lucide-react';
-import { Button } from '../ui/button';
+import { ArrowRight, Search, Zap } from "lucide-react";
+import { Button } from "../ui/button";
 ---
 
 <!-- Hero Section -->
-<section
-  class="relative pt-16 pb-24 overflow-hidden bg-gradient-to-b from-white to-gray-50/50"
->
+<section class="relative pt-16 pb-24 overflow-hidden bg-background">
   <div class="container relative z-10">
     <div class="flex flex-col items-center gap-8 text-center">
       <div
-        class="inline-flex items-center px-4 py-2 rounded-full bg-primary-50 text-primary-700 text-sm font-semibold animate-fade-in"
+        class="inline-flex items-center px-4 py-2 rounded-full bg-secondary text-secondary-foreground text-sm font-semibold animate-fade-in"
       >
-        <Zap className="w-4 h-4 mr-2 text-primary-600 fill-primary-600" />
+        <Zap className="w-4 h-4 mr-2" />
         AIが最安値を24時間監視中
       </div>
       <h1
-        class="text-4xl md:text-6xl font-extrabold text-gray-900 tracking-tight leading-[1.1]"
+        class="text-4xl md:text-6xl font-extrabold text-foreground tracking-tight leading-[1.1]"
       >
         欲しいものを、<br />
-        <span
-          class="text-transparent bg-clip-text bg-gradient-to-r from-primary-600 via-purple-600 to-secondary-600"
-        >
-          圧倒的に安く手に入れる。
-        </span>
+        <span class="text-foreground"> 圧倒的に安く手に入れる。 </span>
       </h1>
       <p
-        class="text-lg text-gray-600 max-w-2xl leading-relaxed animate-slide-up"
+        class="text-lg text-muted-foreground max-w-2xl leading-relaxed animate-slide-up"
       >
         UMUOは、Amazon、楽天、Yahoo!の価格を一瞬で比較。<br
           class="hidden md:block"
         />
         学生や社会人のための、最強のショッピングアシスタントです。
       </p>
-      <div
-        class="flex flex-col sm:flex-row items-center justify-center gap-4"
-      >
+      <div class="flex flex-col sm:flex-row items-center justify-center gap-4">
         <Button
           asChild
           size="lg"
-          className="w-full sm:w-auto group rounded-2xl shadow-xl shadow-primary-500/20"
+          className="w-full sm:w-auto group rounded-2xl shadow-sm"
         >
           <a href="#products">
             <Search
@@ -52,7 +44,7 @@ import { Button } from '../ui/button';
           asChild
           variant="outline"
           size="lg"
-          className="w-full sm:w-auto rounded-2xl bg-white/50 backdrop-blur-sm"
+          className="w-full sm:w-auto rounded-2xl bg-background/50 backdrop-blur-sm"
         >
           <a href="/deals">
             セール情報をチェック

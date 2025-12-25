@@ -1,16 +1,16 @@
 ---
-import ProductListModule from '../components/modules/ProductListModule.astro';
+import ProductListModule from "../components/modules/ProductListModule.astro";
 /**
  * Search Page
  * 検索ページ - 検索結果を表示
  */
-import BaseLayout from '../layouts/BaseLayout.astro';
-import { mockService } from '../lib/mock/service';
+import BaseLayout from "../layouts/BaseLayout.astro";
+import { mockService } from "../lib/mock/service";
 
 // Get search query from URL
 const url = new URL(Astro.request.url);
-const searchQuery = url.searchParams.get('q') || '';
-const category = url.searchParams.get('category') || '';
+const searchQuery = url.searchParams.get("q") || "";
+const category = url.searchParams.get("category") || "";
 
 // Get initial data
 const categories = mockService.getCategories();
@@ -19,19 +19,19 @@ const categories = mockService.getCategories();
 const initialProducts = mockService.getProducts({
   searchQuery,
   category,
-  sort: 'relevance',
+  sort: "relevance",
   page: 1,
   limit: 12,
 });
 
 const availableFilters = {
   categories: categories.map((c) => c.name),
-  platforms: ['Amazon', '楽天', 'Yahoo!ショッピング'],
+  platforms: ["Amazon", "楽天", "Yahoo!ショッピング"],
   priceRanges: [
-    '〜10,000円',
-    '10,001円〜50,000円',
-    '50,001円〜100,000円',
-    '100,001円〜',
+    "〜10,000円",
+    "10,001円〜50,000円",
+    "50,001円〜100,000円",
+    "100,001円〜",
   ],
 };
 
@@ -39,26 +39,20 @@ const availableFilters = {
 const metadata = {
   title: searchQuery
     ? `「${searchQuery}」の検索結果 - UMUO`
-    : 'すべての商品 - UMUO',
+    : "すべての商品 - UMUO",
   description: searchQuery
     ? `「${searchQuery}」の価格比較・検索結果。Amazon、楽天、Yahoo!ショッピングなど主要ECサイトの価格をリアルタイムで比較。`
-    : 'Amazon、楽天、Yahoo!ショッピングなど主要ECサイトの価格をリアルタイムで比較。',
+    : "Amazon、楽天、Yahoo!ショッピングなど主要ECサイトの価格をリアルタイムで比較。",
 };
 ---
 
-<BaseLayout
-  title={metadata.title}
-  description={metadata.description}
->
+<BaseLayout title={metadata.title} description={metadata.description}>
   <!-- Breadcrumb -->
   <nav class="container py-4" aria-label="パンくずリスト">
     <ol class="flex items-center gap-2 text-sm">
-      <li>
-        <a href="/" class="text-gray-500 hover:text-gray-700">ホーム</a>
-      </li>
       <li class="text-gray-400">/</li>
       <li class="text-gray-900 font-medium">
-        {searchQuery ? `検索: ${searchQuery}` : 'すべての商品'}
+        {searchQuery ? `検索: ${searchQuery}` : "すべての商品"}
       </li>
     </ol>
   </nav>
@@ -73,7 +67,15 @@ const metadata = {
   />
 
   <!-- Global data for client-side components -->
-  <script define:vars={{ initialProducts: initialProducts.products, initialPagination: initialProducts.pagination, availableFilters, searchQuery, category }}>
+  <script
+    define:vars={{
+      initialProducts: initialProducts.products,
+      initialPagination: initialProducts.pagination,
+      availableFilters,
+      searchQuery,
+      category,
+    }}
+  >
     window.__INITIAL_PRODUCTS__ = initialProducts;
     window.__INITIAL_PAGINATION__ = initialPagination;
     window.__AVAILABLE_FILTERS__ = availableFilters;

@@ -68,22 +68,14 @@ const gaId = import.meta.env.PUBLIC_GA_ID;
     <title>{title}</title>
   </head>
   <body
-    class="min-h-screen flex flex-col bg-gray-50 text-gray-900 font-sans antialiased selection:bg-primary-500 selection:text-white"
+    class="min-h-screen flex flex-col bg-background text-foreground font-sans antialiased selection:bg-primary selection:text-primary-foreground"
   >
     <Header />
 
     <main class="flex-1 relative overflow-hidden">
       <!-- Background Elements -->
-      <div class="absolute inset-0 -z-10 overflow-hidden">
-        <div
-          class="absolute top-0 left-1/4 w-96 h-96 bg-primary-200/30 rounded-full blur-3xl mix-blend-multiply animate-float"
-        >
-        </div>
-        <div
-          class="absolute bottom-0 right-1/4 w-96 h-96 bg-secondary-200/30 rounded-full blur-3xl mix-blend-multiply animate-float"
-          style="animation-delay: 1s;"
-        >
-        </div>
+      <div class="absolute inset-0 -z-10 overflow-hidden pointer-events-none">
+        {/* Minimalist faint texture or gradient could go here if needed, but keeping clean for now */}
       </div>
 
       <slot />

@@ -196,13 +196,13 @@ export default function InteractiveProductGrid() {
     <div>
       {/* Results Count */}
       <div className="flex justify-between items-center mb-6">
-        <span className="text-sm text-gray-400 font-medium uppercase tracking-widest">
+        <span className="text-sm text-muted-foreground font-medium uppercase tracking-widest">
           Displaying {products.length} of {pagination.totalResults} results
         </span>
 
         {/* Sort Dropdown */}
         <select
-          className="h-12 bg-white border border-gray-100 rounded-2xl px-6 text-sm font-bold text-gray-900 focus:ring-2 focus:ring-primary-500 shadow-sm outline-none appearance-none cursor-pointer"
+          className="h-12 bg-card border border-border rounded-2xl px-6 text-sm font-bold text-foreground focus:ring-2 focus:ring-ring shadow-sm outline-none appearance-none cursor-pointer"
           onChange={(e) => handleSortChange(e.target.value)}
         >
           <option value="relevance">おすすめ順</option>
@@ -227,7 +227,7 @@ export default function InteractiveProductGrid() {
             <button
               type="button"
               onClick={() => handlePageChange(pagination.currentPage - 1)}
-              className="w-12 h-12 rounded-2xl bg-white border border-gray-100 flex items-center justify-center hover:bg-primary-50 hover:text-primary-600 transition-all shadow-sm group"
+              className="w-12 h-12 rounded-2xl bg-card border border-border flex items-center justify-center hover:bg-accent hover:text-foreground transition-all shadow-sm group"
             >
               <ChevronLeft className="w-5 h-5 group-hover:-translate-x-0.5 transition-transform" />
             </button>
@@ -241,11 +241,10 @@ export default function InteractiveProductGrid() {
                   type="button"
                   key={pNum}
                   onClick={() => handlePageChange(pNum)}
-                  className={`w-12 h-12 rounded-2xl flex items-center justify-center font-bold text-sm transition-all ${
-                    isActive
-                      ? 'bg-primary-600 text-white shadow-xl shadow-primary-500/30 ring-4 ring-primary-500/10'
-                      : 'bg-white border border-gray-100 text-gray-400 hover:border-primary-200 hover:text-primary-600'
-                  }`}
+                  className={`w-12 h-12 rounded-2xl flex items-center justify-center font-bold text-sm transition-all ${isActive
+                      ? 'bg-primary text-primary-foreground shadow-md ring-2 ring-ring'
+                      : 'bg-card border border-border text-muted-foreground hover:border-foreground hover:text-foreground'
+                    }`}
                 >
                   {pNum}
                 </button>
@@ -257,7 +256,7 @@ export default function InteractiveProductGrid() {
             <button
               type="button"
               onClick={() => handlePageChange(pagination.currentPage + 1)}
-              className="w-12 h-12 rounded-2xl bg-white border border-gray-100 flex items-center justify-center hover:bg-primary-50 hover:text-primary-600 transition-all shadow-sm group"
+              className="w-12 h-12 rounded-2xl bg-card border border-border flex items-center justify-center hover:bg-accent hover:text-foreground transition-all shadow-sm group"
             >
               <ChevronRight className="w-5 h-5 group-hover:translate-x-0.5 transition-transform" />
             </button>

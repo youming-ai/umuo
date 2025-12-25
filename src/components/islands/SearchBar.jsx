@@ -12,8 +12,11 @@ const TRENDING_KEYWORDS = [
   'AirPods Pro 2',
 ];
 
-export default function SearchBar({ placeholder = '欲しい商品を検索...' }) {
-  const [query, setQuery] = useState('');
+export default function SearchBar({
+  placeholder = '欲しい商品を検索...',
+  initialQuery = '',
+}) {
+  const [query, setQuery] = useState(initialQuery);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
   const searchContainerRef = useRef(null);
@@ -52,20 +55,20 @@ export default function SearchBar({ placeholder = '欲しい商品を検索...' 
         <div
           className={`
           relative flex items-center transition-all duration-500 rounded-full overflow-hidden
-          ${isFocused ? 'ring-8 ring-primary-500/10 shadow-2xl shadow-primary-500/20' : 'shadow-lg shadow-gray-200/50'}
+          ${isFocused ? 'ring-2 ring-ring shadow-lg' : 'shadow-sm border border-input'}
         `}
         >
-          <div className="absolute left-6 text-gray-400 group-hover:text-primary-500 transition-colors pointer-events-none z-10">
+          <div className="absolute left-6 text-muted-foreground group-hover:text-foreground transition-colors pointer-events-none z-10">
             <Search
-              className={`w-6 h-6 ${isFocused ? 'text-primary-600' : ''}`}
+              className={`w-6 h-6 ${isFocused ? 'text-primary' : ''}`}
             />
           </div>
 
           <Input
             type="text"
             className={`
-              w-full h-16 pl-16 pr-32 bg-white border-2 text-lg font-bold text-gray-900 outline-none transition-all rounded-full border-transparent
-              ${isFocused ? 'border-primary-500' : 'hover:border-gray-100'}
+              w-full h-16 pl-16 pr-32 bg-background border-none text-lg font-bold text-foreground outline-none transition-all rounded-full 
+              placeholder:text-muted-foreground
             `}
             placeholder={placeholder}
             value={query}
@@ -83,14 +86,14 @@ export default function SearchBar({ placeholder = '欲しい商品を検索...' 
                 variant="ghost"
                 size="icon"
                 onClick={() => setQuery('')}
-                className="text-gray-400 hover:text-gray-600 rounded-full"
+                className="text-muted-foreground hover:text-foreground rounded-full"
               >
                 <X className="w-5 h-5" />
               </Button>
             )}
             <Button
               type="submit"
-              className="px-8 h-10 rounded-full font-black text-sm shadow-lg shadow-primary-500/20"
+              className="px-8 h-10 rounded-full font-black text-sm shadow-sm"
             >
               SEARCH
             </Button>
@@ -99,15 +102,15 @@ export default function SearchBar({ placeholder = '欲しい商品を検索...' 
 
         {/* Quick Suggestions Overlay */}
         {showSuggestions && (
-          <Card className="absolute top-full left-0 right-0 mt-4 bg-white/95 backdrop-blur-2xl border border-gray-100 rounded-[2.5rem] shadow-2xl p-8 animate-fade-in overflow-hidden z-20">
+          <Card className="absolute top-full left-0 right-0 mt-4 bg-card/95 backdrop-blur-2xl border border-border rounded-[2rem] shadow-xl p-8 animate-fade-in overflow-hidden z-20">
             <div className="absolute top-0 right-0 p-8 opacity-5">
               <Zap className="w-32 h-32" />
             </div>
 
             <div className="relative z-10">
               <div className="flex items-center gap-3 mb-6">
-                <TrendingUp className="w-5 h-5 text-primary-600" />
-                <h3 className="text-xs font-black text-gray-400 uppercase tracking-[0.2em]">
+                <TrendingUp className="w-5 h-5 text-primary" />
+                <h3 className="text-xs font-black text-muted-foreground uppercase tracking-[0.2em]">
                   Trending Now
                 </h3>
               </div>
@@ -120,17 +123,17 @@ export default function SearchBar({ placeholder = '欲しい商品を検索...' 
                     variant="secondary"
                     size="lg"
                     onClick={() => handleKeywordClick(keyword)}
-                    className="rounded-2xl font-bold text-sm hover:bg-primary-600 hover:text-white transition-all hover:scale-105 active:scale-95 border-transparent hover:shadow-xl hover:shadow-primary-500/20"
+                    className="rounded-2xl font-bold text-sm hover:bg-primary hover:text-primary-foreground transition-all hover:scale-105 active:scale-95 border-transparent shadow-sm"
                   >
                     {keyword}
                   </Button>
                 ))}
               </div>
 
-              <div className="mt-10 pt-8 border-t border-gray-100">
+              <div className="mt-10 pt-8 border-t border-border">
                 <div className="flex items-center gap-3 mb-4">
-                  <Clock className="w-5 h-5 text-gray-400" />
-                  <h3 className="text-xs font-black text-gray-400 uppercase tracking-[0.2em]">
+                  <Clock className="w-5 h-5 text-muted-foreground" />
+                  <h3 className="text-xs font-black text-muted-foreground uppercase tracking-[0.2em]">
                     Popular Categories
                   </h3>
                 </div>
@@ -141,7 +144,7 @@ export default function SearchBar({ placeholder = '欲しい商品を検索...' 
                         key={cat}
                         type="button"
                         variant="link"
-                        className="text-left py-2 px-0 h-auto text-sm font-bold text-gray-500 hover:text-primary-600 transition-colors justify-start"
+                        className="text-left py-2 px-0 h-auto text-sm font-bold text-muted-foreground hover:text-primary transition-colors justify-start"
                         onClick={() => {
                           window.location.href = `/search?category=${encodeURIComponent(cat)}`;
                         }}

@@ -77,4 +77,3 @@ temp/
 wrangler.toml.local
 
 # Biome ignore patterns
-src/styles/global.css

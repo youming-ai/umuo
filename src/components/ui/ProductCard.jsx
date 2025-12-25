@@ -23,10 +23,10 @@ function ProductCard({ product }) {
   };
 
   return (
-    <Card className="group overflow-hidden border-gray-100 hover:border-primary-200 hover:shadow-xl hover:shadow-primary-500/5 transition-all duration-500">
+    <Card className="group overflow-hidden border-border hover:border-foreground/20 hover:shadow-lg transition-all duration-500 bg-card">
       <a href={`/products/${product.slug}`} className="block">
         {/* Image Header */}
-        <div className="relative overflow-hidden aspect-[4/3] bg-gray-50">
+        <div className="relative overflow-hidden aspect-[4/3] bg-muted/20">
           <img
             src={imageSrc}
             alt={product.name || 'Product image'}
@@ -43,40 +43,40 @@ function ProductCard({ product }) {
           {/* Discount Badge */}
           {discountPercentage > 0 && (
             <div className="absolute top-3 right-3 z-20">
-              <Badge variant="destructive">{discountPercentage}% OFF</Badge>
+              <Badge variant="destructive" className="bg-foreground text-background hover:bg-foreground/90">{discountPercentage}% OFF</Badge>
             </div>
           )}
         </div>
 
         <CardContent className="p-5">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest text-[0.65rem]">
+            <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest text-[0.65rem]">
               {product.brand || ''}
             </span>
-            <div className="flex items-center text-yellow-500">
-              <Star className="w-3 h-3 fill-current mr-1" />
-              <span className="text-xs font-bold text-gray-700">
+            <div className="flex items-center text-foreground">
+              <Star className="w-3 h-3 fill-current mr-1 text-foreground" />
+              <span className="text-xs font-bold text-muted-foreground">
                 {product.rating || 0}
               </span>
             </div>
           </div>
 
-          <h3 className="font-bold text-lg leading-snug mb-2 line-clamp-2 h-14 group-hover:text-primary-600 transition-colors">
+          <h3 className="font-bold text-lg leading-snug mb-2 line-clamp-2 h-14 group-hover:text-primary transition-colors text-foreground">
             {product.name}
           </h3>
 
           <div className="flex flex-col gap-1 mt-4">
             <div className="flex items-baseline gap-2">
-              <span className="text-2xl font-black text-gray-900">
+              <span className="text-2xl font-black text-foreground">
                 ¥{formatPrice(product.price)}
               </span>
               {product.originalPrice > product.price && (
-                <span className="text-sm text-gray-400 line-through font-medium">
+                <span className="text-sm text-muted-foreground line-through font-medium">
                   ¥{formatPrice(product.originalPrice)}
                 </span>
               )}
             </div>
-            <p className="text-[10px] font-bold text-green-600 uppercase tracking-tighter">
+            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-tighter">
               在庫あり
             </p>
           </div>

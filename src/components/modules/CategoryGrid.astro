@@ -19,14 +19,16 @@ const { categories } = Astro.props;
 ---
 
 <!-- Category Grid Module -->
-<section id="category-grid" class="py-16 bg-white relative">
+<section id="category-grid" class="py-16 bg-background relative">
   <div class="container">
-    <div class="flex flex-col md:flex-row justify-between items-center md:items-end mb-12 gap-4">
+    <div
+      class="flex flex-col md:flex-row justify-between items-center md:items-end mb-12 gap-4"
+    >
       <div class="text-center md:text-left">
-        <h2 class="text-3xl md:text-4xl font-extrabold text-gray-900 mb-2">
+        <h2 class="text-3xl md:text-4xl font-extrabold text-foreground mb-2">
           カテゴリーで探す
         </h2>
-        <p class="text-gray-500">欲しいアイテムを最短で見つける</p>
+        <p class="text-muted-foreground">欲しいアイテムを最短で見つける</p>
       </div>
     </div>
 
@@ -35,15 +37,15 @@ const { categories } = Astro.props;
         categories.map((category) => (
           <button
             data-category={category.name}
-            class="category-card group relative p-6 md:p-8 rounded-[2rem] bg-gray-50/50 border border-transparent hover:border-primary-200 hover:bg-white hover:shadow-xl hover:shadow-primary-500/5 transition-all duration-300 text-center cursor-pointer"
+            class="category-card group relative p-6 md:p-8 rounded-[2rem] bg-secondary/30 border border-transparent hover:border-border hover:bg-card hover:shadow-lg transition-all duration-300 text-center cursor-pointer"
           >
-            <div class="text-4xl md:text-5xl mb-4 md:mb-6 group-hover:scale-110 group-hover:-rotate-12 transition-transform duration-300 filter drop-shadow-md">
+            <div class="text-4xl md:text-5xl mb-4 md:mb-6 group-hover:scale-110 group-hover:-rotate-12 transition-transform duration-300 filter drop-shadow-sm">
               {category.icon}
             </div>
-            <h3 class="font-bold text-gray-900 mb-2 text-sm md:text-base">
+            <h3 class="font-bold text-foreground mb-2 text-sm md:text-base">
               {category.name}
             </h3>
-            <span class="text-xs md:text-sm font-semibold text-primary-600/60 group-hover:text-primary-600 transition-colors">
+            <span class="text-xs md:text-sm font-semibold text-muted-foreground group-hover:text-foreground transition-colors">
               {category.count.toLocaleString()}件
             </span>
           </button>
@@ -55,17 +57,21 @@ const { categories } = Astro.props;
 
 <script>
   // Category click handler - dispatch event for product list module
-  document.querySelectorAll('.category-card').forEach(card => {
-    card.addEventListener('click', () => {
-      const category = card.getAttribute('data-category');
+  document.querySelectorAll(".category-card").forEach((card) => {
+    card.addEventListener("click", () => {
+      const category = card.getAttribute("data-category");
 
       // Dispatch custom event for ProductListModule to listen to
-      window.dispatchEvent(new CustomEvent('category-selected', {
-        detail: { category }
-      }));
+      window.dispatchEvent(
+        new CustomEvent("category-selected", {
+          detail: { category },
+        }),
+      );
 
       // Scroll to products section
-      document.getElementById('product-list-module')?.scrollIntoView({ behavior: 'smooth' });
+      document
+        .getElementById("product-list-module")
+        ?.scrollIntoView({ behavior: "smooth" });
     });
   });
 </script>

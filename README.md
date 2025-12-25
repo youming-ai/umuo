@@ -30,7 +30,6 @@ UMUOは、Amazon、楽天、Yahoo!ショッピングなど主要ECサイトの�
 | パッケージ管理 | Bun |
 | デプロイ | Cloudflare Pages |
 | 言語 | TypeScript (Strict Mode) |
-| 状態管理 | Zustand + TanStack Query |
 
 ## 🚀 クイックスタート
 
@@ -130,9 +129,7 @@ src/
 詳細なドキュメントは [docs/](./docs/) フォルダをご覧ください：
 
 - [API ドキュメント](./docs/API_DOCUMENTATION.md)
-- [ルーティング構造](./docs/ROUTES_DOCUMENTATION.md)
-- [開発ガイド](./docs/DEVELOPMENT.md)
-- [デプロイガイド](./docs/DEPLOYMENT.md)
+- [開発・デプロイガイド](./docs/DEVELOPMENT.md)
 
 ## 🤝 貢献
 

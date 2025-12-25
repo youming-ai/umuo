@@ -7,7 +7,6 @@ export default function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   const menuItems = [
-    { name: 'ホーム', href: '/' },
     { name: '比較', href: '/compare' },
     { name: 'お得', href: '/deals' },
   ];
