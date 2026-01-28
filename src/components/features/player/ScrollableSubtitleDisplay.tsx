@@ -191,8 +191,9 @@ const ScrollableSubtitleDisplay = React.memo<ScrollableSubtitleDisplayProps>(
           })) as Token[];
         }
 
-        if (segment.text) {
-          const tokens = segment.text.split(/\s+/).filter(Boolean);
+        const tokenBaseText = segment.normalizedText || segment.text;
+        if (tokenBaseText) {
+          const tokens = tokenBaseText.split(/\s+/).filter(Boolean);
 
           if (tokens.length > 1) {
             return tokens.map((word) => ({ word })) as Token[];

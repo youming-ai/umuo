@@ -16,7 +16,7 @@ export const metadata: Metadata = {
   title: "影子跟读",
   description: "Web-based language shadowing learning application",
   manifest: "/manifest.json",
-  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || "https://umuo.app"),
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || "https://shadowing-learning.vercel.app"),
   openGraph: {
     type: "website",
     locale: "zh_CN",
