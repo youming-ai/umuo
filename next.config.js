@@ -5,12 +5,14 @@ const nextConfig = {
   images: {
     remotePatterns: [
       {
-        protocol: "https",
+        protocol: "http",
         hostname: "localhost",
+        port: "3000",
+        pathname: "/api/placeholder/**",
       },
       {
         protocol: "https",
-        hostname: "umuo.app",
+        hostname: "shadowing-learning.vercel.app",
       },
       {
         protocol: "https",

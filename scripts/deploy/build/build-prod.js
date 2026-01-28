@@ -583,17 +583,17 @@ class ProductionBuild extends BuildOptimizer {
         nextSteps:
           validation.criticalIssues.length === 0
             ? [
-                "Deploy to production",
-                "Run post-deployment validation",
-                "Monitor Core Web Vitals",
-                "Set up performance alerts",
-                "Review user experience metrics",
-              ]
+              "Deploy to production",
+              "Run post-deployment validation",
+              "Monitor Core Web Vitals",
+              "Set up performance alerts",
+              "Review user experience metrics",
+            ]
             : [
-                "Fix critical issues before deployment",
-                "Re-run production build",
-                "Validate all performance metrics",
-              ],
+              "Fix critical issues before deployment",
+              "Re-run production build",
+              "Validate all performance metrics",
+            ],
       },
     };
 
@@ -659,8 +659,8 @@ class ProductionBuild extends BuildOptimizer {
    * Extract deployment URL from Vercel output
    */
   extractDeploymentUrl(output) {
-    const urlMatch = output.match(/https:\/\/umuo\.app/);
-    return urlMatch ? urlMatch[0] : "https://umuo.app";
+    const urlMatch = output.match(/https:\/\/shadowing-learning\.vercel\.app/);
+    return urlMatch ? urlMatch[0] : "https://shadowing-learning.vercel.app";
   }
 }
 

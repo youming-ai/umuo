@@ -1,8 +1,8 @@
 {
-  "name": "umuo-app",
+  "name": "shadowing-learning",
   "version": "1.0.0",
   "description": "A language learning application focused on shadowing practice with AI-powered audio transcription",
-  "private": true,
+  "private": false,
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -13,7 +13,8 @@
     "test": "vitest",
     "test:run": "vitest run",
     "test:coverage": "vitest run --coverage",
-    "clean": "rm -rf .next node_modules/.cache"
+    "clean": "rm -rf .next node_modules/.cache",
+    "prepare": "husky"
   },
   "keywords": [
     "language-learning",
@@ -31,8 +32,8 @@
     "japanese",
     "english"
   ],
-  "author": "umuo.app Team",
-  "license": "ISC",
+  "author": "Shadowing Learning Team",
+  "license": "MIT",
   "engines": {
     "node": ">=20.0.0",
     "pnpm": ">=9.0.0"
@@ -78,6 +79,7 @@
     "@vitest/coverage-v8": "^4.0.15",
     "autoprefixer": "^10.4.22",
     "fake-indexeddb": "^6.2.5",
+    "husky": "^9.1.7",
     "jsdom": "^27.2.0",
     "postcss": "^8.5.6",
     "tailwindcss": "3.4.0",
