@@ -34,7 +34,8 @@ export function useLeaders(comp: string) {
       const res = await fetch(`/api/${comp}/leaders`, { signal });
       if (signal.aborted) return;
       if (!res.ok) throw new Error('Failed to load leaders');
-      const data = (await res.json()) as Leader[];
+      const raw = await res.json();
+      const data = Array.isArray(raw) ? (raw as Leader[]) : [];
       if (signal.aborted) return;
       cacheRef.current = { data, ts: Date.now() };
       setLeaders(data);

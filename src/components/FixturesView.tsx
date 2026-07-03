@@ -1,16 +1,30 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { StandingsData } from '../adapters/types';
 import { COMPETITIONS } from '../competitions';
+import { useLeaders } from '../hooks/useLeaders';
 import { useT } from '../i18n';
-import type { CompMatch, Stage, TopScorer } from '../types';
+import type { CompMatch, Leader, Stage, TopScorer } from '../types';
 import { navigate, pathFor, type Section, useRouter } from '../utils/router';
 import BracketView from './BracketView';
 import ConferenceStandings from './ConferenceStandings';
+import LeadersView from './LeadersView';
 import MatchCard from './MatchCard';
 import StandingsView from './StandingsView';
-import TopScorersView from './TopScorersView';
 
 const KNOWN_STAGES: Stage[] = ['group', 'r32', 'r16', 'qf', 'sf', 'third', 'final'];
+
+// World Cup keeps its scoreboard-sourced TopScorer[]; normalize it to the
+// shared Leader[] shape at the render boundary (data path unchanged).
+function scorersToLeaders(scorers: TopScorer[]): Leader[] {
+  return scorers.map((s, i) => ({
+    rank: i + 1,
+    name: s.name,
+    teamName: s.teamName,
+    teamLogo: s.teamFlag,
+    displayValue: String(s.goals),
+    value: s.goals,
+  }));
+}
 
 // Quick filter: which match statuses to show. Tournament-stage chips below
 // further narrow by stage; this is a coarser "is the match still to play or
@@ -39,6 +53,11 @@ export default function FixturesView({
   const groups = standings.kind === 'soccer' ? standings.groups : [];
   const competition = COMPETITIONS[comp];
   const shape = competition?.shape ?? 'tournament';
+  const leadersSource = competition?.leadersSource;
+  // Hooks must run unconditionally. useLeaders always fetches /api/<comp>/leaders,
+  // but we only READ its result on the pipeline branch below; scoreboard comps
+  // (World Cup) map their `scorers` prop instead and ignore `pipeline`.
+  const pipeline = useLeaders(comp);
   const caps = competition?.capabilities;
   const effectiveSection: Section =
     (section === 'bracket' && caps && !caps.bracket) ||
@@ -168,7 +187,21 @@ export default function FixturesView({
     <div className="ds-page">
       <div className="ds-page-inner">
         {effectiveSection === 'scorers' ? (
-          <TopScorersView scorers={scorers} />
+          leadersSource === 'pipeline' ? (
+            <LeadersView
+              leaders={pipeline.leaders}
+              statLabelKey={
+                competition?.sport === 'basketball' ? 'leaders.points' : 'scorers.goals'
+              }
+              empty={t('scorers.empty')}
+            />
+          ) : (
+            <LeadersView
+              leaders={scorersToLeaders(scorers)}
+              statLabelKey="scorers.goals"
+              empty={t('scorers.empty')}
+            />
+          )
         ) : effectiveSection === 'bracket' ? (
           <BracketView groups={groups} matches={matches} />
         ) : (

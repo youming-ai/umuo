@@ -1,11 +1,24 @@
 import { useT } from '../i18n';
-import type { TopScorer } from '../types';
+import type { Leader } from '../types';
 
-export default function TopScorersView({ scorers }: { scorers: TopScorer[] }) {
+// Season leaderboard (eng.1 goals / nba points, and — via a TopScorer→Leader
+// map at the call site — the World Cup scorers). Rows are NOT clickable
+// (spec §2: no player-page nav from the board). `statLabelKey` picks the value
+// column header (scorers.goals / leaders.points); `empty` is the empty-state
+// message.
+export default function LeadersView({
+  leaders,
+  statLabelKey,
+  empty,
+}: {
+  leaders: Leader[];
+  statLabelKey: string;
+  empty: string;
+}) {
   const t = useT();
 
-  if (scorers.length === 0) {
-    return <p className="font-mono text-xs tracking-wider text-chalkdim">{t('scorers.empty')}</p>;
+  if (leaders.length === 0) {
+    return <p className="font-mono text-xs tracking-wider text-chalkdim">{empty}</p>;
   }
 
   return (
@@ -33,48 +46,46 @@ export default function TopScorersView({ scorers }: { scorers: TopScorer[] }) {
               {t('scorers.team')}
             </th>
             <th scope="col" className="text-right font-medium px-3 py-2 w-16">
-              {t('scorers.goals')}
+              {t(statLabelKey)}
             </th>
           </tr>
         </thead>
         <tbody>
-          {scorers.map((s, i) => {
-            const rank = i + 1;
-            const isLeader = rank === 1;
+          {leaders.map((l) => {
+            const isLeader = l.rank === 1;
             return (
               <tr
-                // eslint-disable-next-line react/no-array-index-key
-                key={s.athleteId}
+                key={l.rank}
                 className={`border-b border-overlay/5 last:border-b-0 ${isLeader ? 'bg-pitch/5' : ''}`}
               >
-                <td className="px-3 py-2 font-mono tabular-nums text-chalkdim">{rank}</td>
+                <td className="px-3 py-2 font-mono tabular-nums text-chalkdim">{l.rank}</td>
                 <td className="px-3 py-2 font-display text-chalk truncate max-w-0">
-                  {s.name}
+                  {l.name}
                   <span className="flex items-center gap-1 sm:hidden ds-caption text-chalkdim/70">
-                    {s.teamFlag && (
+                    {l.teamLogo && (
                       <img
-                        src={s.teamFlag}
+                        src={l.teamLogo}
                         alt=""
                         className="w-3.5 h-2.5 object-cover rounded-micro shrink-0"
                       />
                     )}
-                    <span className="truncate">{s.teamName}</span>
+                    <span className="truncate">{l.teamName}</span>
                   </span>
                 </td>
                 <td className="px-3 py-2 font-mono text-[11px] text-chalkdim truncate max-w-0 hidden sm:table-cell">
                   <span className="flex items-center gap-1.5">
-                    {s.teamFlag && (
+                    {l.teamLogo && (
                       <img
-                        src={s.teamFlag}
+                        src={l.teamLogo}
                         alt=""
                         className="w-4 h-3 object-cover rounded-micro shrink-0"
                       />
                     )}
-                    <span className="truncate">{s.teamName}</span>
+                    <span className="truncate">{l.teamName}</span>
                   </span>
                 </td>
                 <td className="px-3 py-2 font-mono text-base sm:text-lg font-bold text-chalk tabular-nums text-right">
-                  {s.goals}
+                  {l.displayValue}
                 </td>
               </tr>
             );
