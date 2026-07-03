@@ -18,8 +18,21 @@ export function useCompetition(comp: string) {
     ts: number;
   } | null>(null);
   const initialRef = useRef(true);
+  const compRef = useRef(comp);
 
   const fetchAll = useCallback(async () => {
+    // On a competition change, drop the previous comp's cache + displayed state
+    // so we never serve one competition's matches/standings/scorers on another's
+    // tab, and never suppress the new comp's fetch error against a stale cache.
+    // Guarded by compRef so same-comp polls/refetches keep their SWR behavior.
+    if (compRef.current !== comp) {
+      compRef.current = comp;
+      cacheRef.current = null;
+      initialRef.current = true;
+      setMatches([]);
+      setStandings({ kind: 'soccer', groups: [] });
+      setScorers([]);
+    }
     // stale-while-revalidate: show cached data immediately on subsequent fetches
     if (cacheRef.current && !initialRef.current) {
       setMatches(cacheRef.current.matches);
