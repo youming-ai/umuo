@@ -16,9 +16,21 @@ export function useLeaders(comp: string | null) {
   const abortRef = useRef<AbortController | null>(null);
   const cacheRef = useRef<{ data: Leader[]; ts: number } | null>(null);
   const initialRef = useRef(true);
+  // Tracks which comp the cache/initial-load state above belongs to. When
+  // `comp` changes (e.g. FixturesView re-renders eng.1 → nba on the same hook
+  // instance), the previous comp's cache must never be served for the new
+  // comp, and a new-comp failure must not be suppressed against it — reset to
+  // a clean initial-load state per comp (Finding 1).
+  const compRef = useRef<string | null>(null);
 
   const fetchData = useCallback(async () => {
     if (!comp) return;
+    if (compRef.current !== comp) {
+      compRef.current = comp;
+      cacheRef.current = null;
+      initialRef.current = true;
+      setLeaders([]);
+    }
     if (cacheRef.current && !initialRef.current) {
       setLeaders(cacheRef.current.data);
       setLoading(false);

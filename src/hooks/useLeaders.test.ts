@@ -1,5 +1,6 @@
 import { renderHook, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Leader } from '../types';
 import { useLeaders } from './useLeaders';
 
 const fetchMock = vi.fn();
@@ -63,5 +64,27 @@ describe('useLeaders', () => {
     expect(result.current.leaders).toEqual([]);
     expect(result.current.loading).toBe(false);
     expect(result.current.error).toBeNull();
+  });
+
+  // Finding 1: navigating eng.1 → nba on the SAME hook instance (FixturesView
+  // re-renders with a new comp) must not republish eng.1's cached leaders,
+  // and must not suppress a real nba failure against that stale cache.
+  it('does not leak the previous comp cache and fails closed when the new comp errors', async () => {
+    fetchMock.mockResolvedValueOnce({ ok: true, json: async () => sample });
+    const { result, rerender } = renderHook(
+      ({ comp }: { comp: string | null }) => useLeaders(comp),
+      {
+        initialProps: { comp: 'eng.1' },
+      },
+    );
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.leaders).toEqual(sample);
+
+    fetchMock.mockRejectedValueOnce(new Error('nba network down'));
+    rerender({ comp: 'nba' });
+
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.leaders).toEqual([] as Leader[]);
+    expect(result.current.error).toBe('nba network down');
   });
 });

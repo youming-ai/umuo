@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, within } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { ConferenceTable } from '../adapters/types';
 import { LanguageProvider } from '../i18n';
 import type { CompMatch, TopScorer, WCGroup } from '../types';
@@ -325,4 +325,51 @@ it('does not fetch the leaders pipeline for a scoreboard-sourced comp (World Cup
   );
   expect(fetchMock).not.toHaveBeenCalled();
   vi.unstubAllGlobals();
+});
+
+// Finding 3: a pipeline comp (eng.1) must show loading/error affordances
+// instead of the empty-scorers copy when useLeaders hasn't resolved yet or
+// has failed — the empty state must only represent a real, known-empty board.
+describe('FixturesView pipeline leaders loading/error states', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('shows a loading state before the pipeline leaders first resolve', () => {
+    setPath('/eng.1');
+    // fetch never resolves within this test — stays in first-load loading.
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() => new Promise(() => {})),
+    );
+    render(
+      <LanguageProvider>
+        <FixturesView
+          section="scorers"
+          matches={[]}
+          standings={{ kind: 'soccer', groups: [] }}
+          scorers={[]}
+        />
+      </LanguageProvider>,
+    );
+    expect(screen.getByText('Loading…')).toBeInTheDocument();
+    expect(screen.queryByText('No goals scored yet')).not.toBeInTheDocument();
+  });
+
+  it('shows a retryable error state when the pipeline leaders fetch fails', async () => {
+    setPath('/eng.1');
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, json: async () => ({}) }));
+    render(
+      <LanguageProvider>
+        <FixturesView
+          section="scorers"
+          matches={[]}
+          standings={{ kind: 'soccer', groups: [] }}
+          scorers={[]}
+        />
+      </LanguageProvider>,
+    );
+    expect(await screen.findByRole('button', { name: 'Retry' })).toBeInTheDocument();
+    expect(screen.queryByText('No goals scored yet')).not.toBeInTheDocument();
+  });
 });

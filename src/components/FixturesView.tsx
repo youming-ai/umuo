@@ -189,17 +189,34 @@ export default function FixturesView({
       <div className="ds-page-inner">
         {effectiveSection === 'scorers' ? (
           leadersSource === 'pipeline' ? (
-            <LeadersView
-              leaders={pipeline.leaders}
-              statLabelKey={
-                competition?.sport === 'basketball' ? 'leaders.points' : 'scorers.goals'
-              }
-              titleKey={competition?.sport === 'basketball' ? 'leaders.title' : 'scorers.title'}
-              subtitleKey={
-                competition?.sport === 'basketball' ? 'leaders.subtitle' : 'scorers.subtitle'
-              }
-              empty={t('scorers.empty')}
-            />
+            pipeline.loading && pipeline.leaders.length === 0 ? (
+              <p className="font-mono text-xs tracking-[0.3em] text-pitch animate-pulse motion-reduce:animate-none">
+                {t('common.loading')}
+              </p>
+            ) : pipeline.error && pipeline.leaders.length === 0 ? (
+              <div className="flex flex-col items-start gap-3">
+                <p className="font-mono text-xs tracking-wider text-chalkdim">{pipeline.error}</p>
+                <button
+                  type="button"
+                  onClick={pipeline.refetch}
+                  className="px-4 py-2 bg-pitch text-onaccent font-display font-semibold tracking-wide hover:brightness-110 transition"
+                >
+                  {t('common.retry')}
+                </button>
+              </div>
+            ) : (
+              <LeadersView
+                leaders={pipeline.leaders}
+                statLabelKey={
+                  competition?.sport === 'basketball' ? 'leaders.points' : 'scorers.goals'
+                }
+                titleKey={competition?.sport === 'basketball' ? 'leaders.title' : 'scorers.title'}
+                subtitleKey={
+                  competition?.sport === 'basketball' ? 'leaders.subtitle' : 'scorers.subtitle'
+                }
+                empty={t('scorers.empty')}
+              />
+            )
           ) : (
             <LeadersView
               leaders={scorersToLeaders(scorers)}

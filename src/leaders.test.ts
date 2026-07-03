@@ -137,6 +137,29 @@ describe('assembleLeaders', () => {
     expect(await assembleLeaders(fetchImpl, eplCfg)).toEqual([]);
   });
 
+  // Finding 2: a primary-doc failure must THROW (not swallow to []), so the
+  // Worker's cachedProducer/runCached can serve-stale instead of overwriting
+  // a valid stale leaderboard with an empty one.
+  it('throws when the primary leaders-doc fetch is not ok (does not swallow to [])', async () => {
+    const fetchImpl = makeFetch({ [LEADERS_URL]: '__404__' });
+    await expect(assembleLeaders(fetchImpl, eplCfg)).rejects.toThrow();
+  });
+
+  it('throws when the primary leaders-doc response is not valid JSON', async () => {
+    const fetchImpl = vi.fn(async (input: RequestInfo | URL) => {
+      if (String(input) === LEADERS_URL) {
+        return {
+          ok: true,
+          json: async () => {
+            throw new SyntaxError('Unexpected token');
+          },
+        } as unknown as Response;
+      }
+      throw new Error(`unexpected url: ${String(input)}`);
+    }) as unknown as typeof fetch;
+    await expect(assembleLeaders(fetchImpl, eplCfg)).rejects.toThrow();
+  });
+
   it('builds the core.api URL from the config (sport/league/season/type)', async () => {
     const fetchImpl = makeFetch();
     await assembleLeaders(fetchImpl, eplCfg);

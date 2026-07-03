@@ -235,7 +235,14 @@ describe('serveLeaders', () => {
   it('returns HIT with the stored Leader[] when fresh', async () => {
     const now = Date.now();
     const cached = JSON.stringify([
-      { rank: 1, name: 'L. James', teamName: 'Lakers', teamLogo: '', displayValue: '30.2', value: 30.2 },
+      {
+        rank: 1,
+        name: 'L. James',
+        teamName: 'Lakers',
+        teamLogo: '',
+        displayValue: '30.2',
+        value: 30.2,
+      },
     ]);
     const env = mockEnv({ body: cached, at: now - 60_000 }, 'nba:leaders'); // fresh is 3600s
     const res = await serveLeaders(NBA, env as unknown as Env, mockCtx());
@@ -265,7 +272,32 @@ describe('serveLeaders', () => {
 
   it('serves a STALE stored copy when the producer throws', async () => {
     fetchMock.mockRejectedValue(new Error('core.api down'));
-    const stale = JSON.stringify([{ rank: 1, name: 'x', teamName: '', teamLogo: '', displayValue: '1', value: 1 }]);
+    const stale = JSON.stringify([
+      { rank: 1, name: 'x', teamName: '', teamLogo: '', displayValue: '1', value: 1 },
+    ]);
+    const env = mockEnv({ body: stale, at: Date.now() - 7_200_000 }, 'nba:leaders'); // stale (fresh 3600s)
+    const res = await serveLeaders(NBA, env as unknown as Env, mockCtx());
+    expect(res.status).toBe(200);
+    expect(res.headers.get('x-cache')).toBe('STALE');
+    expect(await res.text()).toBe(stale);
+  });
+
+  // Finding 2: a primary leaders-doc failure (bad HTTP status from the core.api
+  // leaders doc) must serve the STALE stored copy, not overwrite it with an
+  // empty board. This only holds because assembleLeaders now THROWS on a
+  // primary-doc failure instead of swallowing it to [] (src/leaders.test.ts).
+  it('serves STALE (never an empty overwrite) when the primary leaders-doc fetch is not ok', async () => {
+    fetchMock.mockResolvedValue({ ok: false, status: 503, json: async () => ({}) });
+    const stale = JSON.stringify([
+      {
+        rank: 1,
+        name: 'L. James',
+        teamName: 'Lakers',
+        teamLogo: '',
+        displayValue: '30.2',
+        value: 30.2,
+      },
+    ]);
     const env = mockEnv({ body: stale, at: Date.now() - 7_200_000 }, 'nba:leaders'); // stale (fresh 3600s)
     const res = await serveLeaders(NBA, env as unknown as Env, mockCtx());
     expect(res.status).toBe(200);

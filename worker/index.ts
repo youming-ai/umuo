@@ -203,25 +203,16 @@ export async function serveSummary(
   );
 }
 
-// Probe the leaders document first; if it fails, throw so cachedProducer can
-// serve a stale copy (assembleLeaders swallows failures and returns [], which
-// would otherwise cache an empty board over a transient outage). On success we
-// hand the same fetch to assembleLeaders (its own cheap re-fetch of the doc is
-// coalesced upstream and negligible vs the ref fan-out).
-async function leadersProducer(cfg: Parameters<typeof assembleLeaders>[1]): Promise<unknown> {
-  const url = `https://sports.core.api.espn.com/v2/sports/${cfg.sport}/leagues/${cfg.league}/seasons/${cfg.season}/types/${cfg.type}/leaders`;
-  const probe = await fetch(url, { signal: AbortSignal.timeout(10_000) });
-  if (!probe.ok) throw new Error(`leaders upstream ${probe.status}`);
-  return assembleLeaders(fetch, cfg);
-}
-
 // Season leaders (eng.1 goals / nba points): aggregated by assembleLeaders from
 // ESPN's core.api (leaders doc + athlete/team $ref fan-out). We cache the
 // PRODUCT (a Leader[]) via cachedProducer — not a single URL — so all the
 // sub-requests collapse into one cached payload. Season stats change slowly:
-// fresh 1h, keep 24h. The producer lets an upstream failure bubble so
-// serve-stale can cover an outage (assembleLeaders itself never throws, so we
-// probe the leaders doc first and rethrow on a bad response).
+// fresh 1h, keep 24h. assembleLeaders throws on a primary-doc failure (bad
+// HTTP status or unparseable JSON), which lets serve-stale cover an outage
+// instead of overwriting a valid stale leaderboard with an empty one
+// (Finding 2) — only per-row $ref resolution failures degrade silently inside
+// assembleLeaders. No separate probe/double-fetch: assembleLeaders is called
+// directly.
 export async function serveLeaders(
   comp: Competition,
   env: Env,
@@ -237,7 +228,14 @@ export async function serveLeaders(
     category: map.category,
     topN: 15,
   };
-  return cachedProducer(`${comp.key}:leaders`, () => leadersProducer(cfg), 3600, 86400, env, ctx);
+  return cachedProducer(
+    `${comp.key}:leaders`,
+    () => assembleLeaders(fetch, cfg),
+    3600,
+    86400,
+    env,
+    ctx,
+  );
 }
 
 export default {

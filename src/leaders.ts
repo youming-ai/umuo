@@ -80,14 +80,15 @@ export async function assembleLeaders(
 ): Promise<Leader[]> {
   const url = `${CORE}/sports/${cfg.sport}/leagues/${cfg.league}/seasons/${cfg.season}/types/${cfg.type}/leaders`;
 
-  let payload: Record<string, unknown>;
-  try {
-    const res = await fetchImpl(url);
-    if (!res.ok) return [];
-    payload = obj(await res.json());
-  } catch {
-    return [];
-  }
+  // Primary-doc failures (bad HTTP status or unparseable JSON) THROW rather
+  // than degrading to [] — an empty result here is indistinguishable from a
+  // legitimately empty leaderboard, and the Worker relies on this throwing so
+  // it can serve a stale cached copy instead of overwriting it with an empty
+  // one (Finding 2). Only per-row $ref resolution failures degrade silently
+  // (see resolveRefs) — those are row-local, not primary-doc failures.
+  const res = await fetchImpl(url);
+  if (!res.ok) throw new Error(`leaders upstream ${res.status}`);
+  const payload = obj(await res.json());
 
   const category = arr(payload.categories)
     .map(obj)
