@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, expect, it, vi } from 'vitest';
 import { LanguageProvider } from '../i18n';
-import type { Match, CompMatch } from '../types';
+import type { CompMatch, Match } from '../types';
 import MatchDetailPage from './MatchDetailPage';
 
 const liveStream: Match = {

@@ -1,7 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { LanguageProvider } from '../i18n';
-import type { ScorerEntry, WCGroup, CompMatch } from '../types';
+import type { CompMatch, ScorerEntry, WCGroup } from '../types';
 import PlayerPage from './PlayerPage';
 
 function scorer(

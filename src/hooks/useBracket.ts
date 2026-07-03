@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { type BracketMatch, type BracketSlot, ROUNDS, SEEDING } from '../data/bracketSeeding';
-import type { WCGroup, CompMatch } from '../types';
+import type { CompMatch, WCGroup } from '../types';
 
 // One resolved bracket cell. Either we have a real team (label + id)
 // or a TBD placeholder (when the seed is not yet qualified, or the

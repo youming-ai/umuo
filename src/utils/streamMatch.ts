@@ -1,4 +1,4 @@
-import type { Match, CompMatch } from '../types';
+import type { CompMatch, Match } from '../types';
 import { slugify } from './helpers';
 
 // ESPN and ppv.to spell some nations differently (ESPN uses "Türkiye",

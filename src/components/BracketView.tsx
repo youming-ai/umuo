@@ -1,7 +1,7 @@
 import { Fragment } from 'react';
 import { type ResolvedBracketMatch, type ResolvedTeam, useBracket } from '../hooks/useBracket';
 import { useT } from '../i18n';
-import type { WCGroup, CompMatch } from '../types';
+import type { CompMatch, WCGroup } from '../types';
 import { navigate, pathFor, useRouter } from '../utils/router';
 
 // Visual (top-to-bottom) ordering of match indices within each round, so the

@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ADAPTERS } from '../adapters';
+import { getAdapter } from '../adapters';
 import type { StandingsData } from '../adapters/types';
-import { COMPETITIONS } from '../competitions';
 import type { CompMatch, TopScorer } from '../types';
 
 export function useCompetition(comp: string) {
@@ -47,9 +46,7 @@ export function useCompetition(comp: string) {
       if (!sbRes.ok || !stRes.ok) throw new Error('Failed to load World Cup data');
       const [sbJson, stJson] = await Promise.all([sbRes.json(), stRes.json()]);
 
-      const sport = COMPETITIONS[comp].sport;
-      const adapter = ADAPTERS[sport];
-      if (!adapter) throw new Error(`No adapter for sport: ${sport}`);
+      const adapter = getAdapter(comp);
       const { matches: ms, standings: sd, scorers: sc } = adapter.transform(sbJson, stJson);
 
       if (signal.aborted) return;

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { Match, CompMatch } from '../types';
+import type { CompMatch, Match } from '../types';
 import { indexStreams, isStreamLive, liveStreamForMatch, streamForMatch } from './streamMatch';
 
 function wc(partial: Partial<CompMatch> = {}): CompMatch {
