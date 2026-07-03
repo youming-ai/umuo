@@ -19,10 +19,14 @@ export interface Competition {
   capabilities: {
     bracket: boolean;
     scorers: boolean;
-    leaders: boolean;
     lineups: boolean;
     boxscore: boolean;
   };
+  // Where the scorers/leaders tab gets its data. 'scoreboard' = aggregated
+  // from the scoreboard's per-team leaders (World Cup, unchanged). 'pipeline'
+  // = server-side assembleLeaders over ESPN core.api (eng.1 goals / nba
+  // points). Omit for comps with no leaders tab.
+  leadersSource?: 'scoreboard' | 'pipeline';
 }
 
 export const COMPETITIONS: Record<string, Competition> = {
@@ -35,7 +39,8 @@ export const COMPETITIONS: Record<string, Competition> = {
     dates: '20260611-20260719',
     standingsLevel: 3,
     shape: 'tournament',
-    capabilities: { bracket: true, scorers: true, leaders: false, lineups: true, boxscore: false },
+    capabilities: { bracket: true, scorers: true, lineups: true, boxscore: false },
+    leadersSource: 'scoreboard',
   },
   'eng.1': {
     key: 'eng.1',
@@ -47,11 +52,11 @@ export const COMPETITIONS: Record<string, Competition> = {
     shape: 'season',
     capabilities: {
       bracket: false,
-      scorers: false,
-      leaders: false,
+      scorers: true,
       lineups: true,
       boxscore: false,
     },
+    leadersSource: 'pipeline',
   },
   nba: {
     key: 'nba',
@@ -64,11 +69,11 @@ export const COMPETITIONS: Record<string, Competition> = {
     shape: 'season',
     capabilities: {
       bracket: false,
-      scorers: false,
-      leaders: false,
+      scorers: true,
       lineups: false,
       boxscore: true,
     },
+    leadersSource: 'pipeline',
   },
 };
 

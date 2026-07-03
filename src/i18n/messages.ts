@@ -40,6 +40,7 @@ const en: Dict = {
   'fixtures.standings': 'Standings',
   'fixtures.results': 'Results',
   'fixtures.scorers': 'Scorers',
+  'fixtures.leaders': 'Scoring Leaders',
   'fixtures.bracket': 'Bracket',
   'nav.mainLabel': 'Main navigation',
   'bracket.tbd': 'TBD',
@@ -106,6 +107,7 @@ const en: Dict = {
   'scorers.player': 'Player',
   'scorers.team': 'Team',
   'scorers.goals': 'G',
+  'leaders.points': 'PTS',
   'scorers.empty': 'No goals scored yet',
 };
 
@@ -145,6 +147,7 @@ const zh: Dict = {
   'fixtures.standings': '积分榜',
   'fixtures.results': '已结束',
   'fixtures.scorers': '射手榜',
+  'fixtures.leaders': '得分榜',
   'fixtures.bracket': '淘汰赛',
   'nav.mainLabel': '主导航',
   'bracket.tbd': '待定',
@@ -211,6 +214,7 @@ const zh: Dict = {
   'scorers.player': '球员',
   'scorers.team': '球队',
   'scorers.goals': '进球',
+  'leaders.points': '得分',
   'scorers.empty': '暂无进球',
 };
 
@@ -250,6 +254,7 @@ const ja: Dict = {
   'fixtures.standings': '順位表',
   'fixtures.results': '終了',
   'fixtures.scorers': '得点ランキング',
+  'fixtures.leaders': '得点ランキング',
   'fixtures.bracket': 'トーナメント',
   'nav.mainLabel': 'メインナビゲーション',
   'bracket.tbd': '未定',
@@ -316,6 +321,7 @@ const ja: Dict = {
   'scorers.player': '選手',
   'scorers.team': 'チーム',
   'scorers.goals': '得',
+  'leaders.points': '得点',
   'scorers.empty': 'まだゴールはありません',
 };
 
@@ -355,6 +361,7 @@ const ko: Dict = {
   'fixtures.standings': '순위표',
   'fixtures.results': '종료',
   'fixtures.scorers': '득점 순위',
+  'fixtures.leaders': '득점 순위',
   'fixtures.bracket': '토너먼트',
   'nav.mainLabel': '기본 탐색',
   'bracket.tbd': '미정',
@@ -421,6 +428,7 @@ const ko: Dict = {
   'scorers.player': '선수',
   'scorers.team': '팀',
   'scorers.goals': '골',
+  'leaders.points': '득점',
   'scorers.empty': '아직 골이 없습니다',
 };
 
