@@ -1,4 +1,4 @@
-import type { Sport } from '../competitions';
+import { COMPETITIONS, type Sport } from '../competitions';
 import { basketballAdapter } from './basketball';
 import { soccerAdapter } from './soccer';
 import type { SportAdapter } from './types';
@@ -13,3 +13,12 @@ export const ADAPTERS: Partial<Record<Sport, SportAdapter>> & {
   soccer: soccerAdapter,
   basketball: basketballAdapter,
 };
+
+// Resolve the adapter for a competition via its registered sport — the single
+// lookup+guard shared by useCompetition and useMatchDetail.
+export function getAdapter(comp: string): SportAdapter {
+  const sport = COMPETITIONS[comp].sport;
+  const adapter = ADAPTERS[sport];
+  if (!adapter) throw new Error(`No adapter for sport: ${sport}`);
+  return adapter;
+}

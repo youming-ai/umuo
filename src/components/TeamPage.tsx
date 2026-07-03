@@ -1,5 +1,5 @@
 import { useT } from '../i18n';
-import type { TopScorer, WCGroup, CompMatch, WCStanding } from '../types';
+import type { CompMatch, TopScorer, WCGroup, WCStanding } from '../types';
 import { navigate, pathFor, useRouter } from '../utils/router';
 import MatchCard from './MatchCard';
 

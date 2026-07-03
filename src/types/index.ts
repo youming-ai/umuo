@@ -70,7 +70,7 @@ export interface CompMatch {
   venue: string; // "Estadio Azteca · Mexico City" or '' when unknown
   // URL-friendly identifier (home-vs-away, lowercased, hyphenated). Used
   // by the /match/[slug] route to deep-link directly to a match detail
-  // page. Derived in useWorldCup from the team names via slugify().
+  // page. Derived in the soccer adapter from the team names via slugify().
   slug: string;
   // NBA uses ESPN's status.type.shortDetail ("Final" / "Q4 2:14" / "OT");
   // soccer leaves this unset and keeps using the progress/finishType logic
@@ -152,7 +152,7 @@ export interface TopScorer {
   athleteId: string;
   name: string;
   teamId: string;
-  teamName: string; // resolved via the team name cache inside useWorldCup
+  teamName: string; // resolved via the team name cache inside the soccer adapter
   teamFlag: string; // team crest URL, resolved from the standings feed
   goals: number;
 }

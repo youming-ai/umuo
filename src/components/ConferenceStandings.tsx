@@ -5,7 +5,7 @@ export default function ConferenceStandings({ conferences }: { conferences: Conf
   const t = useT();
 
   if (conferences.length === 0) {
-    return <p className="font-mono text-xs tracking-wider text-chalkdim">{t('standings.empty')}</p>;
+    return <p className="font-mono text-xs tracking-wider text-chalkdim">{t('common.empty')}</p>;
   }
 
   return (

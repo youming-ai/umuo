@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { StandingsData } from '../adapters/types';
 import { COMPETITIONS } from '../competitions';
 import { useT } from '../i18n';
-import type { Stage, TopScorer, CompMatch } from '../types';
+import type { CompMatch, Stage, TopScorer } from '../types';
 import { navigate, pathFor, type Section, useRouter } from '../utils/router';
 import BracketView from './BracketView';
 import ConferenceStandings from './ConferenceStandings';

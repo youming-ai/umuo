@@ -2,7 +2,7 @@ import { fireEvent, render, screen, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import type { ConferenceTable } from '../adapters/types';
 import { LanguageProvider } from '../i18n';
-import type { WCGroup, CompMatch } from '../types';
+import type { CompMatch, WCGroup } from '../types';
 import * as router from '../utils/router';
 import FixturesView from './FixturesView';
 

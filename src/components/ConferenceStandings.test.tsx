@@ -60,6 +60,6 @@ describe('ConferenceStandings', () => {
         <ConferenceStandings conferences={[]} />
       </LanguageProvider>,
     );
-    expect(screen.getByText('Standings appear once the group stage kicks off')).toBeInTheDocument();
+    expect(screen.getByText('No results found')).toBeInTheDocument();
   });
 });

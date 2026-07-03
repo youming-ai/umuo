@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { WCGroup, CompMatch } from '../types';
+import type { CompMatch, WCGroup } from '../types';
 import { assignThirds, winnerOf } from './useBracket';
 
 const LETTERS = 'ABCDEFGHIJKL'.split('');
