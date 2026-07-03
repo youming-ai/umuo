@@ -71,3 +71,14 @@ it('hides bracket but shows scorers (leaders pipeline) for a season league (eng.
   expect(screen.queryByText('Bracket')).not.toBeInTheDocument();
   expect(screen.getByText('Scorers')).toBeInTheDocument();
 });
+
+it('shows "Scoring Leaders" (not "Scorers") for a basketball comp (nba)', () => {
+  setPath('/nba');
+  render(
+    <LanguageProvider>
+      <Header section="matches" />
+    </LanguageProvider>,
+  );
+  expect(screen.getByText('Scoring Leaders')).toBeInTheDocument();
+  expect(screen.queryByText('Scorers')).not.toBeInTheDocument();
+});

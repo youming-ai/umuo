@@ -8,10 +8,18 @@ function renderView(
   leaders: Leader[],
   statLabelKey = 'scorers.goals',
   empty = 'No goals scored yet',
+  titleKey?: string,
+  subtitleKey?: string,
 ) {
   return render(
     <LanguageProvider>
-      <LeadersView leaders={leaders} statLabelKey={statLabelKey} empty={empty} />
+      <LeadersView
+        leaders={leaders}
+        statLabelKey={statLabelKey}
+        titleKey={titleKey}
+        subtitleKey={subtitleKey}
+        empty={empty}
+      />
     </LanguageProvider>,
   );
 }
@@ -64,5 +72,19 @@ describe('LeadersView', () => {
     renderView(rows);
     expect(screen.queryByRole('button')).not.toBeInTheDocument();
     expect(screen.queryByRole('link')).not.toBeInTheDocument();
+  });
+
+  it('defaults to the soccer title/subtitle when titleKey/subtitleKey are omitted', () => {
+    renderView(rows);
+    // Title renders twice (visible heading + sr-only <caption>).
+    expect(screen.getAllByText('Top Scorers').length).toBeGreaterThan(0);
+    expect(screen.getByText('Golden Boot race')).toBeInTheDocument();
+  });
+
+  it('renders the passed titleKey/subtitleKey (basketball → Scoring Leaders)', () => {
+    renderView(rows, 'leaders.points', 'No stats yet', 'leaders.title', 'leaders.subtitle');
+    expect(screen.getAllByText('Scoring Leaders').length).toBeGreaterThan(0);
+    expect(screen.getByText("Points per the season's top scorers")).toBeInTheDocument();
+    expect(screen.queryByText('Top Scorers')).not.toBeInTheDocument();
   });
 });

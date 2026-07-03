@@ -4,18 +4,21 @@ import type { Leader } from '../types';
 // Season leaders (eng.1 goals / nba points) from the server-side pipeline
 // (/api/<comp>/leaders → Worker cachedProducer → assembleLeaders). Only called
 // when COMPETITIONS[comp].leadersSource === 'pipeline' (the World Cup keeps its
-// scoreboard-sourced scorers). Same SWR + visibility-gated polling +
-// AbortController pattern as useStreams; season stats change slowly so we poll
-// at 60s.
-export function useLeaders(comp: string) {
+// scoreboard-sourced scorers). `comp` is `string | null` (mirrors
+// useMatchDetail's `eventId: string | null`) — the caller passes null for
+// scoreboard-sourced comps so this never fetches or polls for a result that
+// would be discarded. Same SWR + visibility-gated polling + AbortController
+// pattern as useStreams; season stats change slowly so we poll at 60s.
+export function useLeaders(comp: string | null) {
   const [leaders, setLeaders] = useState<Leader[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!!comp);
   const [error, setError] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   const cacheRef = useRef<{ data: Leader[]; ts: number } | null>(null);
   const initialRef = useRef(true);
 
   const fetchData = useCallback(async () => {
+    if (!comp) return;
     if (cacheRef.current && !initialRef.current) {
       setLeaders(cacheRef.current.data);
       setLoading(false);
@@ -54,6 +57,7 @@ export function useLeaders(comp: string) {
   }, [comp]);
 
   useEffect(() => {
+    if (!comp) return;
     fetchData();
     const onVisibility = () => {
       if (document.visibilityState === 'visible') fetchData();
@@ -67,7 +71,7 @@ export function useLeaders(comp: string) {
       clearInterval(id);
       document.removeEventListener('visibilitychange', onVisibility);
     };
-  }, [fetchData]);
+  }, [comp, fetchData]);
 
   return { leaders, loading, error, refetch: fetchData };
 }

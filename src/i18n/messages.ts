@@ -108,6 +108,8 @@ const en: Dict = {
   'scorers.team': 'Team',
   'scorers.goals': 'G',
   'leaders.points': 'PTS',
+  'leaders.title': 'Scoring Leaders',
+  'leaders.subtitle': "Points per the season's top scorers",
   'scorers.empty': 'No goals scored yet',
 };
 
@@ -215,6 +217,8 @@ const zh: Dict = {
   'scorers.team': '球队',
   'scorers.goals': '进球',
   'leaders.points': '得分',
+  'leaders.title': '得分榜',
+  'leaders.subtitle': '本赛季得分领跑者',
   'scorers.empty': '暂无进球',
 };
 
@@ -322,6 +326,8 @@ const ja: Dict = {
   'scorers.team': 'チーム',
   'scorers.goals': '得',
   'leaders.points': '得点',
+  'leaders.title': '得点ランキング',
+  'leaders.subtitle': '今シーズンの得点上位選手',
   'scorers.empty': 'まだゴールはありません',
 };
 
@@ -429,6 +435,8 @@ const ko: Dict = {
   'scorers.team': '팀',
   'scorers.goals': '골',
   'leaders.points': '득점',
+  'leaders.title': '득점 순위',
+  'leaders.subtitle': '이번 시즌 득점 상위 선수',
   'scorers.empty': '아직 골이 없습니다',
 };
 

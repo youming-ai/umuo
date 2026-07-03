@@ -293,4 +293,36 @@ it('renders scoreboard-sourced scorers as a leaders board (World Cup)', () => {
   // value cell shows the goal count as displayValue
   const cells = screen.getAllByRole('cell').filter((c) => c.className.includes('font-bold'));
   expect(cells.map((c) => c.textContent)).toEqual(['4']);
+  // Top Scorers / Golden Boot copy for soccer, not the basketball leaders copy.
+  expect(screen.getAllByText('Top Scorers').length).toBeGreaterThan(0);
+});
+
+// World Cup's leadersSource is 'scoreboard' — the pipeline fetch is unused
+// there, so useLeaders(null) must never hit the network (Finding 2).
+it('does not fetch the leaders pipeline for a scoreboard-sourced comp (World Cup)', () => {
+  setPath('/fifa.world');
+  const fetchMock = vi.fn();
+  vi.stubGlobal('fetch', fetchMock);
+  const scorers: TopScorer[] = [
+    {
+      athleteId: '1',
+      name: 'Erling Haaland',
+      teamId: '464',
+      teamName: 'Norway',
+      teamFlag: '',
+      goals: 4,
+    },
+  ];
+  render(
+    <LanguageProvider>
+      <FixturesView
+        section="scorers"
+        matches={[]}
+        standings={{ kind: 'soccer', groups: [] }}
+        scorers={scorers}
+      />
+    </LanguageProvider>,
+  );
+  expect(fetchMock).not.toHaveBeenCalled();
+  vi.unstubAllGlobals();
 });

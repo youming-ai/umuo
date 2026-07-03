@@ -54,10 +54,11 @@ export default function FixturesView({
   const competition = COMPETITIONS[comp];
   const shape = competition?.shape ?? 'tournament';
   const leadersSource = competition?.leadersSource;
-  // Hooks must run unconditionally. useLeaders always fetches /api/<comp>/leaders,
-  // but we only READ its result on the pipeline branch below; scoreboard comps
-  // (World Cup) map their `scorers` prop instead and ignore `pipeline`.
-  const pipeline = useLeaders(comp);
+  // Hooks must run unconditionally, but we only fetch when this comp actually
+  // reads the pipeline result below; scoreboard comps (World Cup) map their
+  // `scorers` prop instead, so passing null skips the fetch/poll entirely
+  // (mirrors useMatchDetail's eventId: string | null gating).
+  const pipeline = useLeaders(leadersSource === 'pipeline' ? comp : null);
   const caps = competition?.capabilities;
   const effectiveSection: Section =
     (section === 'bracket' && caps && !caps.bracket) ||
@@ -193,12 +194,18 @@ export default function FixturesView({
               statLabelKey={
                 competition?.sport === 'basketball' ? 'leaders.points' : 'scorers.goals'
               }
+              titleKey={competition?.sport === 'basketball' ? 'leaders.title' : 'scorers.title'}
+              subtitleKey={
+                competition?.sport === 'basketball' ? 'leaders.subtitle' : 'scorers.subtitle'
+              }
               empty={t('scorers.empty')}
             />
           ) : (
             <LeadersView
               leaders={scorersToLeaders(scorers)}
               statLabelKey="scorers.goals"
+              titleKey="scorers.title"
+              subtitleKey="scorers.subtitle"
               empty={t('scorers.empty')}
             />
           )

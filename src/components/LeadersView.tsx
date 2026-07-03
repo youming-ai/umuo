@@ -4,15 +4,20 @@ import type { Leader } from '../types';
 // Season leaderboard (eng.1 goals / nba points, and — via a TopScorer→Leader
 // map at the call site — the World Cup scorers). Rows are NOT clickable
 // (spec §2: no player-page nav from the board). `statLabelKey` picks the value
-// column header (scorers.goals / leaders.points); `empty` is the empty-state
-// message.
+// column header (scorers.goals / leaders.points); `titleKey`/`subtitleKey`
+// pick the sport-appropriate heading copy (soccer "Top Scorers" vs basketball
+// "Scoring Leaders"); `empty` is the empty-state message.
 export default function LeadersView({
   leaders,
   statLabelKey,
+  titleKey = 'scorers.title',
+  subtitleKey = 'scorers.subtitle',
   empty,
 }: {
   leaders: Leader[];
   statLabelKey: string;
+  titleKey?: string;
+  subtitleKey?: string;
   empty: string;
 }) {
   const t = useT();
@@ -24,16 +29,14 @@ export default function LeadersView({
   return (
     <div className="space-y-card">
       <div className="flex items-baseline justify-between gap-3">
-        <h3 className="font-display font-bold text-lg text-chalk tracking-wide">
-          {t('scorers.title')}
-        </h3>
+        <h3 className="font-display font-bold text-lg text-chalk tracking-wide">{t(titleKey)}</h3>
         <span className="ds-caption uppercase tracking-[0.2em] text-chalkdim/60">
-          {t('scorers.subtitle')}
+          {t(subtitleKey)}
         </span>
       </div>
 
       <table className="w-full text-sm border border-line/30 bg-panel/85 rounded-card overflow-hidden shadow-panel backdrop-blur-sm">
-        <caption className="sr-only">{t('scorers.title')}</caption>
+        <caption className="sr-only">{t(titleKey)}</caption>
         <thead className="text-chalkdim ds-caption uppercase tracking-[0.18em]">
           <tr className="border-b border-overlay/5 bg-overlay/[0.02]">
             <th scope="col" className="text-left font-medium px-3 py-2 w-10">

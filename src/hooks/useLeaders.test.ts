@@ -56,4 +56,12 @@ describe('useLeaders', () => {
     await waitFor(() => expect(result.current.loading).toBe(false));
     expect(result.current.error).toBe('network');
   });
+
+  it('does not fetch and returns empty when comp is null (scoreboard-sourced comps)', () => {
+    const { result } = renderHook(() => useLeaders(null));
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(result.current.leaders).toEqual([]);
+    expect(result.current.loading).toBe(false);
+    expect(result.current.error).toBeNull();
+  });
 });
