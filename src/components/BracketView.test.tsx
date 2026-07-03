@@ -7,6 +7,7 @@ import BracketView from './BracketView';
 function standing(overrides: {
   teamId: string;
   name: string;
+  flag?: string;
   pts?: number;
   gd?: number;
   gf?: number;
@@ -14,7 +15,7 @@ function standing(overrides: {
   return {
     teamId: overrides.teamId,
     name: overrides.name,
-    flag: '',
+    flag: overrides.flag ?? '',
     mp: 0,
     w: 0,
     d: 0,
@@ -73,6 +74,21 @@ describe('BracketView', () => {
     // Verify that 1A and 1B cells (M79 / M85) are filled.
     expect(screen.getAllByText('Mexico').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Canada').length).toBeGreaterThan(0);
+  });
+
+  it('shows flags only — the country name is in the crest alt text, not visible copy', () => {
+    render(
+      <LanguageProvider>
+        <BracketView
+          groups={[group('A', [standing({ teamId: '203', name: 'Mexico', flag: 'mex.png', pts: 9 })])]}
+          matches={[]}
+        />
+      </LanguageProvider>,
+    );
+    // Crest carries the country name as accessible alt text...
+    expect(screen.getAllByAltText('Mexico').length).toBeGreaterThan(0);
+    // ...but the name is NOT rendered as visible text (flags-only bracket).
+    expect(screen.queryByText('Mexico')).not.toBeInTheDocument();
   });
 
   it('renders match labels (M73, M89, M104) correctly', () => {
