@@ -127,11 +127,12 @@ export default function BracketView({
   const thirdPlace = resolved.find((m) => m.round === '3rd');
 
   return (
-    // Fits the container width — no horizontal scroll. Columns flex to share
-    // the width; connectors keep a fixed thin width. Each R32 side is only 8
+    // Scrolls horizontally when it can't fit (mobile): the tree keeps a min
+    // width so cells stay comfortably sized rather than squished, and columns
+    // flex to fill any extra width on wider screens. Each R32 side is only 8
     // cells tall, so the tree is far shorter than the old single-direction one.
-    <div className="w-full">
-      <div className="flex flex-col py-2">
+    <div className="overflow-x-auto no-scrollbar -mx-4 px-4">
+      <div className="flex flex-col py-2 min-w-[600px]">
         {/* Headings */}
         <div className="flex gap-0 items-center border-b border-line/20 pb-2 mb-2">
           {COLUMNS.map((col, idx) => (
@@ -245,14 +246,19 @@ function BracketCell({
   );
 }
 
+// Flags-only: the crest is the identifier; the country name lives in alt/title
+// for screen readers + hover. Falls back to the label text only when the crest
+// is unknown, so a flagless resolved team is never rendered blank.
 function TeamLabel({ team }: { team: ResolvedTeam }) {
-  return (
-    <>
-      {team.flag && (
-        <img src={team.flag} alt="" className="w-3.5 h-2.5 object-cover rounded-micro shrink-0" />
-      )}
-      <span className="truncate">{team.label}</span>
-    </>
+  return team.flag ? (
+    <img
+      src={team.flag}
+      alt={team.label}
+      title={team.label}
+      className="w-6 h-4 object-cover rounded-micro shrink-0"
+    />
+  ) : (
+    <span className="truncate">{team.label}</span>
   );
 }
 
