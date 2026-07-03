@@ -261,6 +261,26 @@ describe('useCompetition', () => {
     expect(result.current.error).toBe('Failed to load World Cup data');
   });
 
+  it('fails closed on a competition switch: no stale cross-comp data, error not suppressed', async () => {
+    // First comp loads successfully.
+    fetchMock.mockResolvedValueOnce(ok(scoreboard)).mockResolvedValueOnce(ok(standings));
+    const { result, rerender } = renderHook(({ comp }) => useCompetition(comp), {
+      initialProps: { comp: 'fifa.world' },
+    });
+    await waitFor(() => expect(result.current.matches.length).toBeGreaterThan(0));
+
+    // Switch to a different competition whose fetch fails. The stale fifa.world
+    // cache must NOT be served, and the new comp's error must NOT be suppressed.
+    fetchMock.mockReset();
+    fetchMock.mockRejectedValue(new TypeError('nba down'));
+    rerender({ comp: 'nba' });
+
+    await waitFor(() => expect(result.current.error).toBeTruthy());
+    expect(result.current.matches).toEqual([]);
+    expect(result.current.scorers).toEqual([]);
+    expect(result.current.standings).toEqual({ kind: 'soccer', groups: [] });
+  });
+
   it('sets error when fetch throws (network failure)', async () => {
     fetchMock.mockRejectedValue(new TypeError('Network error'));
     const { result } = renderHook(() => useCompetition('fifa.world'));
