@@ -156,3 +156,18 @@ export interface TopScorer {
   teamFlag: string; // team crest URL, resolved from the standings feed
   goals: number;
 }
+
+// A single leaderboard row for the season leaders pipeline (eng.1 goals /
+// nba points). Unlike TopScorer (tournament scoreboard aggregation, kept for
+// the World Cup), this is assembled server-side from ESPN's core.api leaders
+// endpoint + athlete/team $ref fan-out. `displayValue` is ESPN's own format
+// ("27" / "30.2") so we sidestep the total-vs-per-game question; `value` is
+// the numeric sort key. Rows are NOT clickable (no player-page nav).
+export interface Leader {
+  rank: number; // 1-based, sorted by value desc
+  name: string; // athlete displayName ('' if the ref failed to resolve)
+  teamName: string; // '' if unknown
+  teamLogo: string; // team crest URL, '' if unknown
+  displayValue: string; // ESPN raw display, e.g. "27" or "30.2"
+  value: number; // numeric value for sorting
+}
