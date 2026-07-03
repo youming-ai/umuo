@@ -61,7 +61,7 @@ it('shows bracket and scorers tabs for the World Cup', () => {
   expect(screen.getByText('Scorers')).toBeInTheDocument();
 });
 
-it('hides bracket and scorers tabs for a season league (eng.1)', () => {
+it('hides bracket but shows scorers (leaders pipeline) for a season league (eng.1)', () => {
   setPath('/eng.1');
   render(
     <LanguageProvider>
@@ -69,5 +69,16 @@ it('hides bracket and scorers tabs for a season league (eng.1)', () => {
     </LanguageProvider>,
   );
   expect(screen.queryByText('Bracket')).not.toBeInTheDocument();
+  expect(screen.getByText('Scorers')).toBeInTheDocument();
+});
+
+it('shows "Scoring Leaders" (not "Scorers") for a basketball comp (nba)', () => {
+  setPath('/nba');
+  render(
+    <LanguageProvider>
+      <Header section="matches" />
+    </LanguageProvider>,
+  );
+  expect(screen.getByText('Scoring Leaders')).toBeInTheDocument();
   expect(screen.queryByText('Scorers')).not.toBeInTheDocument();
 });

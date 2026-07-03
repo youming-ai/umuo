@@ -2,10 +2,52 @@
 
 import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vitest/config';
-import { buildUrl, COMPETITIONS } from './src/competitions';
+import { buildUrl, COMPETITIONS, seasonForDate } from './src/competitions';
+import { assembleLeaders, LEADERS_BY_SPORT } from './src/leaders';
+
+// dev only: /api/<key>/leaders can't be a URL rewrite (it aggregates several
+// upstream core.api requests into one Leader[]). Intercept it here and run the
+// SAME assembleLeaders the Worker uses — no second implementation, no drift.
+// No caching in dev (that's the Worker's job in prod; see worker/index.ts).
+function leadersDevMiddleware(): import('vite').Plugin {
+  return {
+    name: 'leaders-dev-middleware',
+    configureServer(server) {
+      server.middlewares.use(async (req, res, next) => {
+        const url = new URL(req.url ?? '', 'http://localhost');
+        const m = url.pathname.match(/^\/api\/([^/]+)\/leaders$/);
+        if (!m) return next();
+        const comp = COMPETITIONS[m[1]];
+        const map = comp && LEADERS_BY_SPORT[comp.sport];
+        if (!comp || !map) {
+          res.statusCode = 404;
+          res.end('Not found');
+          return;
+        }
+        try {
+          const leaders = await assembleLeaders(globalThis.fetch, {
+            sport: comp.sport,
+            league: comp.league,
+            season: seasonForDate(comp.sport, new Date()),
+            type: map.type,
+            category: map.category,
+            topN: 15,
+          });
+          res.setHeader('content-type', 'application/json; charset=utf-8');
+          res.end(JSON.stringify(leaders));
+        } catch (err) {
+          console.error('[vite] leaders middleware failed:', err);
+          res.statusCode = 502;
+          res.setHeader('content-type', 'application/json; charset=utf-8');
+          res.end('{"error":"leaders unavailable"}');
+        }
+      });
+    },
+  };
+}
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), leadersDevMiddleware()],
   server: {
     allowedHosts: ['umuo.app', '.umuo.app'],
     // dev only: no Worker locally, so forward /api/<key>/* straight to ESPN, mirroring

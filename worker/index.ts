@@ -1,6 +1,13 @@
 /// <reference types="@cloudflare/workers-types" />
 
-import { type Competition, COMPETITIONS, type Resource, buildUrl } from '../src/competitions';
+import {
+  type Competition,
+  COMPETITIONS,
+  type Resource,
+  buildUrl,
+  seasonForDate,
+} from '../src/competitions';
+import { assembleLeaders, LEADERS_BY_SPORT } from '../src/leaders';
 
 // Edge cache for the upstream data APIs. The SPA calls same-origin /api/*; this
 // Worker fetches the third-party source and caches the body in KV, so the page
@@ -74,9 +81,13 @@ export function json(body: string, status: number, cache: string): Response {
 // `Body is unusable: Body has already been read`.
 const inflight = new Map<string, Promise<CachedResult>>();
 
-async function cached(
+// Shared cache/coalesce/serve-stale core. `produce` returns the body STRING to
+// cache (a URL fetch for `cached`, JSON.stringify(producer()) for
+// `cachedProducer`). Both entry points share this so there's exactly one copy
+// of the KV + in-flight coalescing + serve-stale-on-outage logic.
+async function runCached(
   cacheKey: string,
-  url: string,
+  produce: () => Promise<string>,
   fresh: number,
   keep: number,
   env: Env,
@@ -98,17 +109,7 @@ async function cached(
 
   const promise = (async (): Promise<CachedResult> => {
     try {
-      const res = await fetchWithRetry(url, {
-        headers: {
-          'user-agent':
-            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-          accept: 'application/json, text/plain, */*',
-          'accept-language': 'en-US,en;q=0.9',
-        },
-        signal: AbortSignal.timeout(10_000),
-      });
-      if (!res.ok) throw new Error(`upstream ${res.status}`);
-      const body = await res.text();
+      const body = await produce();
       ctx.waitUntil(
         env.CACHE.put(cacheKey, JSON.stringify({ body, at: now } satisfies Entry), {
           expirationTtl: keep,
@@ -116,7 +117,7 @@ async function cached(
       );
       return { body, status: 200, cache: stored ? 'REVALIDATED' : 'MISS' };
     } catch (err) {
-      console.error(`[worker] fetch failed for ${cacheKey}:`, err);
+      console.error(`[worker] produce failed for ${cacheKey}:`, err);
       if (stored) return { body: stored.body, status: 200, cache: 'STALE' };
       return { body: '{"error":"upstream unavailable"}', status: 502, cache: 'MISS' };
     } finally {
@@ -127,6 +128,51 @@ async function cached(
   inflight.set(cacheKey, promise);
   const result = await promise;
   return json(result.body, result.status, result.cache);
+}
+
+// Cache a single upstream URL fetch (scoreboard/standings/summary).
+async function cached(
+  cacheKey: string,
+  url: string,
+  fresh: number,
+  keep: number,
+  env: Env,
+  ctx: ExecutionContext,
+): Promise<Response> {
+  return runCached(
+    cacheKey,
+    async () => {
+      const res = await fetchWithRetry(url, {
+        headers: {
+          'user-agent':
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+          accept: 'application/json, text/plain, */*',
+          'accept-language': 'en-US,en;q=0.9',
+        },
+        signal: AbortSignal.timeout(10_000),
+      });
+      if (!res.ok) throw new Error(`upstream ${res.status}`);
+      return res.text();
+    },
+    fresh,
+    keep,
+    env,
+    ctx,
+  );
+}
+
+// Cache the RESULT of an arbitrary async producer (e.g. assembleLeaders, which
+// aggregates several upstream requests into a Leader[]). Same KV/coalescing/
+// serve-stale semantics as `cached`, but the producer decides what to fetch.
+async function cachedProducer(
+  cacheKey: string,
+  producer: () => Promise<unknown>,
+  fresh: number,
+  keep: number,
+  env: Env,
+  ctx: ExecutionContext,
+): Promise<Response> {
+  return runCached(cacheKey, async () => JSON.stringify(await producer()), fresh, keep, env, ctx);
 }
 
 export async function serve(
@@ -157,18 +203,56 @@ export async function serveSummary(
   );
 }
 
+// Season leaders (eng.1 goals / nba points): aggregated by assembleLeaders from
+// ESPN's core.api (leaders doc + athlete/team $ref fan-out). We cache the
+// PRODUCT (a Leader[]) via cachedProducer — not a single URL — so all the
+// sub-requests collapse into one cached payload. Season stats change slowly:
+// fresh 1h, keep 24h. assembleLeaders throws on a primary-doc failure (bad
+// HTTP status or unparseable JSON), which lets serve-stale cover an outage
+// instead of overwriting a valid stale leaderboard with an empty one
+// (Finding 2) — only per-row $ref resolution failures degrade silently inside
+// assembleLeaders. No separate probe/double-fetch: assembleLeaders is called
+// directly.
+export async function serveLeaders(
+  comp: Competition,
+  env: Env,
+  ctx: ExecutionContext,
+): Promise<Response> {
+  const map = LEADERS_BY_SPORT[comp.sport];
+  if (!map) return json('{"error":"leaders not supported for this sport"}', 400, 'MISS');
+  const cfg = {
+    sport: comp.sport,
+    league: comp.league,
+    season: seasonForDate(comp.sport, new Date()),
+    type: map.type,
+    category: map.category,
+    topN: 15,
+  };
+  return cachedProducer(
+    `${comp.key}:leaders`,
+    () => assembleLeaders(fetch, cfg),
+    3600,
+    86400,
+    env,
+    ctx,
+  );
+}
+
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
-    const m = url.pathname.match(/^\/api\/([^/]+)\/(scoreboard|standings|summary)$/);
+    const m = url.pathname.match(/^\/api\/([^/]+)\/(scoreboard|standings|summary|leaders)$/);
     if (m) {
       if (!Object.hasOwn(COMPETITIONS, m[1])) return new Response('Not found', { status: 404 });
       const comp = COMPETITIONS[m[1]];
-      const resource = m[2] as Resource;
+      const resource = m[2];
       if (resource === 'summary') {
         return serveSummary(comp, url.searchParams.get('event') ?? '', env, ctx);
       }
-      return serve(comp, resource, env, ctx);
+      if (resource === 'leaders') {
+        return serveLeaders(comp, env, ctx);
+      }
+      return serve(comp, resource as 'scoreboard' | 'standings', env, ctx);
     }
     if (url.pathname.startsWith('/api/')) return new Response('Not found', { status: 404 });
     return env.ASSETS.fetch(request); // static assets + SPA fallback

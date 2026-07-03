@@ -1,16 +1,30 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { StandingsData } from '../adapters/types';
 import { COMPETITIONS } from '../competitions';
+import { useLeaders } from '../hooks/useLeaders';
 import { useT } from '../i18n';
-import type { CompMatch, Stage, TopScorer } from '../types';
+import type { CompMatch, Leader, Stage, TopScorer } from '../types';
 import { navigate, pathFor, type Section, useRouter } from '../utils/router';
 import BracketView from './BracketView';
 import ConferenceStandings from './ConferenceStandings';
+import LeadersView from './LeadersView';
 import MatchCard from './MatchCard';
 import StandingsView from './StandingsView';
-import TopScorersView from './TopScorersView';
 
 const KNOWN_STAGES: Stage[] = ['group', 'r32', 'r16', 'qf', 'sf', 'third', 'final'];
+
+// World Cup keeps its scoreboard-sourced TopScorer[]; normalize it to the
+// shared Leader[] shape at the render boundary (data path unchanged).
+function scorersToLeaders(scorers: TopScorer[]): Leader[] {
+  return scorers.map((s, i) => ({
+    rank: i + 1,
+    name: s.name,
+    teamName: s.teamName,
+    teamLogo: s.teamFlag,
+    displayValue: String(s.goals),
+    value: s.goals,
+  }));
+}
 
 // Quick filter: which match statuses to show. Tournament-stage chips below
 // further narrow by stage; this is a coarser "is the match still to play or
@@ -39,6 +53,12 @@ export default function FixturesView({
   const groups = standings.kind === 'soccer' ? standings.groups : [];
   const competition = COMPETITIONS[comp];
   const shape = competition?.shape ?? 'tournament';
+  const leadersSource = competition?.leadersSource;
+  // Hooks must run unconditionally, but we only fetch when this comp actually
+  // reads the pipeline result below; scoreboard comps (World Cup) map their
+  // `scorers` prop instead, so passing null skips the fetch/poll entirely
+  // (mirrors useMatchDetail's eventId: string | null gating).
+  const pipeline = useLeaders(leadersSource === 'pipeline' ? comp : null);
   const caps = competition?.capabilities;
   const effectiveSection: Section =
     (section === 'bracket' && caps && !caps.bracket) ||
@@ -168,7 +188,44 @@ export default function FixturesView({
     <div className="ds-page">
       <div className="ds-page-inner">
         {effectiveSection === 'scorers' ? (
-          <TopScorersView scorers={scorers} />
+          leadersSource === 'pipeline' ? (
+            pipeline.loading && pipeline.leaders.length === 0 ? (
+              <p className="font-mono text-xs tracking-[0.3em] text-pitch animate-pulse motion-reduce:animate-none">
+                {t('common.loading')}
+              </p>
+            ) : pipeline.error && pipeline.leaders.length === 0 ? (
+              <div className="flex flex-col items-start gap-3">
+                <p className="font-mono text-xs tracking-wider text-chalkdim">{pipeline.error}</p>
+                <button
+                  type="button"
+                  onClick={pipeline.refetch}
+                  className="px-4 py-2 bg-pitch text-onaccent font-display font-semibold tracking-wide hover:brightness-110 transition"
+                >
+                  {t('common.retry')}
+                </button>
+              </div>
+            ) : (
+              <LeadersView
+                leaders={pipeline.leaders}
+                statLabelKey={
+                  competition?.sport === 'basketball' ? 'leaders.points' : 'scorers.goals'
+                }
+                titleKey={competition?.sport === 'basketball' ? 'leaders.title' : 'scorers.title'}
+                subtitleKey={
+                  competition?.sport === 'basketball' ? 'leaders.subtitle' : 'scorers.subtitle'
+                }
+                empty={t('scorers.empty')}
+              />
+            )
+          ) : (
+            <LeadersView
+              leaders={scorersToLeaders(scorers)}
+              statLabelKey="scorers.goals"
+              titleKey="scorers.title"
+              subtitleKey="scorers.subtitle"
+              empty={t('scorers.empty')}
+            />
+          )
         ) : effectiveSection === 'bracket' ? (
           <BracketView groups={groups} matches={matches} />
         ) : (

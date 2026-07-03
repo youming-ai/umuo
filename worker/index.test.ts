@@ -2,7 +2,7 @@
 // @vitest-environment node
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import worker, { type Env, json, serve, serveSummary } from './index';
+import worker, { type Env, json, serve, serveLeaders, serveSummary } from './index';
 import { COMPETITIONS } from '../src/competitions';
 
 const WC = COMPETITIONS['fifa.world'];
@@ -222,6 +222,90 @@ describe('serveSummary', () => {
   });
 });
 
+describe('serveLeaders', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  // nba is a pipeline comp; season is derived at request time. We assert cache
+  // semantics via the KV mock (HIT/MISS/STALE), not the exact upstream URLs —
+  // assembleLeaders itself is unit-tested in src/leaders.test.ts.
+  const NBA = COMPETITIONS.nba;
+
+  it('returns HIT with the stored Leader[] when fresh', async () => {
+    const now = Date.now();
+    const cached = JSON.stringify([
+      {
+        rank: 1,
+        name: 'L. James',
+        teamName: 'Lakers',
+        teamLogo: '',
+        displayValue: '30.2',
+        value: 30.2,
+      },
+    ]);
+    const env = mockEnv({ body: cached, at: now - 60_000 }, 'nba:leaders'); // fresh is 3600s
+    const res = await serveLeaders(NBA, env as unknown as Env, mockCtx());
+    expect(res.status).toBe(200);
+    expect(res.headers.get('x-cache')).toBe('HIT');
+    expect(await res.text()).toBe(cached);
+    expect(fetchMock).not.toHaveBeenCalled(); // fresh HIT never runs the producer
+  });
+
+  it('runs the producer and caches its result on a MISS', async () => {
+    // The producer (assembleLeaders) fetches the leaders doc then athlete/team
+    // refs. Canned: an empty categories payload → assembleLeaders returns [].
+    fetchMock.mockResolvedValue({ ok: true, json: async () => ({ categories: [] }) });
+    const env = mockEnv(null, 'nba:leaders');
+    const ctx = mockCtx();
+    const res = await serveLeaders(NBA, env as unknown as Env, ctx);
+    expect(res.status).toBe(200);
+    expect(res.headers.get('x-cache')).toBe('MISS');
+    expect(await res.text()).toBe('[]');
+    expect(ctx.waitUntil).toHaveBeenCalled();
+    expect((env.CACHE as ReturnType<typeof mockEnv>['CACHE']).put).toHaveBeenCalledWith(
+      'nba:leaders',
+      expect.any(String),
+      expect.objectContaining({ expirationTtl: expect.any(Number) }),
+    );
+  });
+
+  it('serves a STALE stored copy when the producer throws', async () => {
+    fetchMock.mockRejectedValue(new Error('core.api down'));
+    const stale = JSON.stringify([
+      { rank: 1, name: 'x', teamName: '', teamLogo: '', displayValue: '1', value: 1 },
+    ]);
+    const env = mockEnv({ body: stale, at: Date.now() - 7_200_000 }, 'nba:leaders'); // stale (fresh 3600s)
+    const res = await serveLeaders(NBA, env as unknown as Env, mockCtx());
+    expect(res.status).toBe(200);
+    expect(res.headers.get('x-cache')).toBe('STALE');
+    expect(await res.text()).toBe(stale);
+  });
+
+  // Finding 2: a primary leaders-doc failure (bad HTTP status from the core.api
+  // leaders doc) must serve the STALE stored copy, not overwrite it with an
+  // empty board. This only holds because assembleLeaders now THROWS on a
+  // primary-doc failure instead of swallowing it to [] (src/leaders.test.ts).
+  it('serves STALE (never an empty overwrite) when the primary leaders-doc fetch is not ok', async () => {
+    fetchMock.mockResolvedValue({ ok: false, status: 503, json: async () => ({}) });
+    const stale = JSON.stringify([
+      {
+        rank: 1,
+        name: 'L. James',
+        teamName: 'Lakers',
+        teamLogo: '',
+        displayValue: '30.2',
+        value: 30.2,
+      },
+    ]);
+    const env = mockEnv({ body: stale, at: Date.now() - 7_200_000 }, 'nba:leaders'); // stale (fresh 3600s)
+    const res = await serveLeaders(NBA, env as unknown as Env, mockCtx());
+    expect(res.status).toBe(200);
+    expect(res.headers.get('x-cache')).toBe('STALE');
+    expect(await res.text()).toBe(stale);
+  });
+});
+
 describe('fetch routing', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -262,6 +346,28 @@ describe('fetch routing', () => {
     expect(res.status).toBe(200);
     expect(res.headers.get('x-cache')).toBe('MISS');
     expect(await res.text()).toBe('{"events":[]}');
+  });
+
+  it('routes a known competition leaders through serveLeaders', async () => {
+    fetchMock.mockResolvedValue({ ok: true, json: async () => ({ categories: [] }) });
+    const env = mockEnv(null, 'nba:leaders');
+    const res = await worker.fetch(
+      new Request('https://x/api/nba/leaders'),
+      env as unknown as Env,
+      mockCtx(),
+    );
+    expect(res.status).toBe(200);
+    expect(await res.text()).toBe('[]');
+  });
+
+  it('404s on leaders for an unknown competition key', async () => {
+    const env = mockEnv(null);
+    const res = await worker.fetch(
+      new Request('https://x/api/nope/leaders'),
+      env as unknown as Env,
+      mockCtx(),
+    );
+    expect(res.status).toBe(404);
   });
 
   it('404s on an unknown /api/ path', async () => {

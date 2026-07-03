@@ -1,8 +1,8 @@
 import { fireEvent, render, screen, within } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { ConferenceTable } from '../adapters/types';
 import { LanguageProvider } from '../i18n';
-import type { CompMatch, WCGroup } from '../types';
+import type { CompMatch, TopScorer, WCGroup } from '../types';
 import * as router from '../utils/router';
 import FixturesView from './FixturesView';
 
@@ -264,4 +264,112 @@ it('renders conference standings and hides stage chips for a basketball season c
   expect(screen.getByText('Boston Celtics')).toBeInTheDocument();
   // season shape → no stage filter chips (no lone "Group stage")
   expect(screen.queryByRole('button', { name: 'Group stage' })).not.toBeInTheDocument();
+});
+
+// scoreboard-sourced (World Cup): scorers prop is mapped to Leader rows.
+it('renders scoreboard-sourced scorers as a leaders board (World Cup)', () => {
+  setPath('/fifa.world');
+  const scorers: TopScorer[] = [
+    {
+      athleteId: '1',
+      name: 'Erling Haaland',
+      teamId: '464',
+      teamName: 'Norway',
+      teamFlag: '',
+      goals: 4,
+    },
+  ];
+  render(
+    <LanguageProvider>
+      <FixturesView
+        section="scorers"
+        matches={[]}
+        standings={{ kind: 'soccer', groups: [] }}
+        scorers={scorers}
+      />
+    </LanguageProvider>,
+  );
+  expect(screen.getByText('Erling Haaland')).toBeInTheDocument();
+  // value cell shows the goal count as displayValue
+  const cells = screen.getAllByRole('cell').filter((c) => c.className.includes('font-bold'));
+  expect(cells.map((c) => c.textContent)).toEqual(['4']);
+  // Top Scorers / Golden Boot copy for soccer, not the basketball leaders copy.
+  expect(screen.getAllByText('Top Scorers').length).toBeGreaterThan(0);
+});
+
+// World Cup's leadersSource is 'scoreboard' — the pipeline fetch is unused
+// there, so useLeaders(null) must never hit the network (Finding 2).
+it('does not fetch the leaders pipeline for a scoreboard-sourced comp (World Cup)', () => {
+  setPath('/fifa.world');
+  const fetchMock = vi.fn();
+  vi.stubGlobal('fetch', fetchMock);
+  const scorers: TopScorer[] = [
+    {
+      athleteId: '1',
+      name: 'Erling Haaland',
+      teamId: '464',
+      teamName: 'Norway',
+      teamFlag: '',
+      goals: 4,
+    },
+  ];
+  render(
+    <LanguageProvider>
+      <FixturesView
+        section="scorers"
+        matches={[]}
+        standings={{ kind: 'soccer', groups: [] }}
+        scorers={scorers}
+      />
+    </LanguageProvider>,
+  );
+  expect(fetchMock).not.toHaveBeenCalled();
+  vi.unstubAllGlobals();
+});
+
+// Finding 3: a pipeline comp (eng.1) must show loading/error affordances
+// instead of the empty-scorers copy when useLeaders hasn't resolved yet or
+// has failed — the empty state must only represent a real, known-empty board.
+describe('FixturesView pipeline leaders loading/error states', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('shows a loading state before the pipeline leaders first resolve', () => {
+    setPath('/eng.1');
+    // fetch never resolves within this test — stays in first-load loading.
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() => new Promise(() => {})),
+    );
+    render(
+      <LanguageProvider>
+        <FixturesView
+          section="scorers"
+          matches={[]}
+          standings={{ kind: 'soccer', groups: [] }}
+          scorers={[]}
+        />
+      </LanguageProvider>,
+    );
+    expect(screen.getByText('Loading…')).toBeInTheDocument();
+    expect(screen.queryByText('No goals scored yet')).not.toBeInTheDocument();
+  });
+
+  it('shows a retryable error state when the pipeline leaders fetch fails', async () => {
+    setPath('/eng.1');
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, json: async () => ({}) }));
+    render(
+      <LanguageProvider>
+        <FixturesView
+          section="scorers"
+          matches={[]}
+          standings={{ kind: 'soccer', groups: [] }}
+          scorers={[]}
+        />
+      </LanguageProvider>,
+    );
+    expect(await screen.findByRole('button', { name: 'Retry' })).toBeInTheDocument();
+    expect(screen.queryByText('No goals scored yet')).not.toBeInTheDocument();
+  });
 });

@@ -28,6 +28,11 @@ describe('registry', () => {
     expect(COMPETITIONS[DEFAULT_COMPETITION]).toBeDefined();
     expect(COMPETITIONS[DEFAULT_COMPETITION].sport).toBe('soccer');
   });
+
+  it('marks the World Cup as scoreboard-sourced scorers', () => {
+    expect(COMPETITIONS['fifa.world'].leadersSource).toBe('scoreboard');
+    expect(COMPETITIONS['fifa.world'].capabilities.scorers).toBe(true);
+  });
 });
 
 describe('eng.1 (season-shape league)', () => {
@@ -39,9 +44,10 @@ describe('eng.1 (season-shape league)', () => {
     expect(pl.shape).toBe('season');
   });
 
-  it('hides bracket and scorers via capabilities', () => {
+  it('hides bracket but exposes scorers (leaders pipeline)', () => {
     expect(pl.capabilities.bracket).toBe(false);
-    expect(pl.capabilities.scorers).toBe(false);
+    expect(pl.capabilities.scorers).toBe(true);
+    expect(pl.leadersSource).toBe('pipeline');
   });
 
   it('builds a standings URL with no level and a scoreboard URL with no dates', () => {
@@ -81,14 +87,14 @@ describe('nba (season-shape basketball)', () => {
     expect(nba.label).toBe('comp.nba');
   });
 
-  it('exposes only the boxscore capability', () => {
+  it('exposes boxscore and scorers capabilities', () => {
     expect(nba.capabilities).toEqual({
       bracket: false,
-      scorers: false,
-      leaders: false,
+      scorers: true,
       lineups: false,
       boxscore: true,
     });
+    expect(nba.leadersSource).toBe('pipeline');
   });
 
   it('builds NBA URLs: basketball path, derived season, no level, no dates', () => {

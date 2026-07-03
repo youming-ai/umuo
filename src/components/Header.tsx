@@ -49,19 +49,27 @@ export default function Header({ section }: { section?: Section }) {
               aria-label={t('nav.mainLabel')}
               className="ds-segmented max-w-full overflow-x-auto no-scrollbar"
             >
-              {visibleTabs.map(({ section: s, labelKey }) => (
-                <button
-                  key={s}
-                  type="button"
-                  onClick={() => navigate(pathFor({ kind: 'section', comp, section: s }))}
-                  aria-pressed={section === s}
-                  className={`whitespace-nowrap ds-seg-tab ${
-                    section === s ? 'ds-seg-tab-active' : 'ds-seg-tab-inactive'
-                  }`}
-                >
-                  {t(labelKey)}
-                </button>
-              ))}
+              {visibleTabs.map(({ section: s, labelKey }) => {
+                // The scorers tab reads "Scoring Leaders" for basketball comps
+                // (points, not goals) — sport-aware label, same tab/section.
+                const label =
+                  s === 'scorers' && COMPETITIONS[comp]?.sport === 'basketball'
+                    ? 'fixtures.leaders'
+                    : labelKey;
+                return (
+                  <button
+                    key={s}
+                    type="button"
+                    onClick={() => navigate(pathFor({ kind: 'section', comp, section: s }))}
+                    aria-pressed={section === s}
+                    className={`whitespace-nowrap ds-seg-tab ${
+                      section === s ? 'ds-seg-tab-active' : 'ds-seg-tab-inactive'
+                    }`}
+                  >
+                    {t(label)}
+                  </button>
+                );
+              })}
             </nav>
           </div>
 
