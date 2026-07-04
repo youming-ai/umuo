@@ -160,7 +160,7 @@ export function useStreams() {
     try {
       // Both sources fingerprint-block datacenter requests, so they're fetched
       // directly from the browser (they allow CORS), never through the Worker.
-      const load = async <T,>(url: string, parse: (data: T) => Match[]): Promise<Match[]> => {
+      const load = async <T>(url: string, parse: (data: T) => Match[]): Promise<Match[]> => {
         const res = await fetch(url, { signal });
         if (!res.ok) throw new Error('Failed to fetch streams');
         return parse((await res.json()) as T);

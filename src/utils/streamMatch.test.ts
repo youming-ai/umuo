@@ -101,11 +101,27 @@ describe('liveStreamForMatch', () => {
 
   it('returns null when the matched stream is not live yet', () => {
     const s = stream({ startsAt: now / 1000 + 3600 });
-    expect(liveStreamForMatch(wc(), indexStreams([s]), now)).toBeNull();
+    expect(liveStreamForMatch(wc({ status: 'upcoming' }), indexStreams([s]), now)).toBeNull();
   });
 
   it('returns null for a finished fixture even with a live stream', () => {
     const s = stream({ alwaysLive: true });
     expect(liveStreamForMatch(wc({ status: 'finished' }), indexStreams([s]), now)).toBeNull();
+  });
+
+  it('returns the matched stream regardless of startsAt/endsAt when the match is live', () => {
+    const futureStream = stream({ startsAt: now / 1000 + 3600 });
+    const pastStream = stream({ endsAt: now / 1000 - 3600 });
+    expect(liveStreamForMatch(wc({ status: 'live' }), indexStreams([futureStream]), now)).toBe(
+      futureStream,
+    );
+    expect(liveStreamForMatch(wc({ status: 'live' }), indexStreams([pastStream]), now)).toBe(
+      pastStream,
+    );
+  });
+
+  it('returns the matched stream within the 30-minute pre-match buffer for upcoming matches', () => {
+    const s = stream({ startsAt: now / 1000 + 900 }); // starts in 15 minutes
+    expect(liveStreamForMatch(wc({ status: 'upcoming' }), indexStreams([s]), now)).toBe(s);
   });
 });

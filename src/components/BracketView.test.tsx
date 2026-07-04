@@ -80,7 +80,9 @@ describe('BracketView', () => {
     render(
       <LanguageProvider>
         <BracketView
-          groups={[group('A', [standing({ teamId: '203', name: 'Mexico', flag: 'mex.png', pts: 9 })])]}
+          groups={[
+            group('A', [standing({ teamId: '203', name: 'Mexico', flag: 'mex.png', pts: 9 })]),
+          ]}
           matches={[]}
         />
       </LanguageProvider>,

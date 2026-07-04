@@ -140,7 +140,9 @@ describe('useStreams (football only)', () => {
     },
     {
       category: '24/7',
-      events: [{ name: 'ABC', streams: [{ name: 'ABC', url: 'https://vileembeds.pages.dev/abc' }] }],
+      events: [
+        { name: 'ABC', streams: [{ name: 'ABC', url: 'https://vileembeds.pages.dev/abc' }] },
+      ],
     },
   ];
 

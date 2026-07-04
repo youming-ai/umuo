@@ -55,7 +55,8 @@ export function streamForMatch(match: CompMatch, bySlug: Map<string, Match>): Ma
 // `!= null` so a literal 0 is treated as a real (1970) boundary, not "unset".
 export function isStreamLive(stream: Match, now: number): boolean {
   if (stream.alwaysLive) return true;
-  const start = stream.startsAt != null ? stream.startsAt * 1000 : null;
+  // Allow pre-match streams to show up to 30 minutes before startsAt
+  const start = stream.startsAt != null ? stream.startsAt * 1000 - 30 * 60 * 1000 : null;
   const end = stream.endsAt != null ? stream.endsAt * 1000 : null;
   if (start != null && now < start) return false;
   if (end != null && now >= end) return false;
@@ -71,5 +72,9 @@ export function liveStreamForMatch(
   now: number,
 ): Match | null {
   const s = streamForMatch(match, bySlug);
-  return s && isStreamLive(s, now) ? s : null;
+  if (!s) return null;
+  // If ESPN reports the match is currently live, bypass all stream timing checks
+  // to prevent streams from disappearing during overtime, penalties, or delays.
+  if (match.status === 'live') return s;
+  return isStreamLive(s, now) ? s : null;
 }
