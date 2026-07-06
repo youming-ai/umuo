@@ -18,7 +18,8 @@ export interface NewsParams {
 export function newsParamsFromQuery(q: URLSearchParams): NewsParams {
   const params: NewsParams = {};
   const limit = Number(q.get('limit'));
-  if (Number.isFinite(limit) && limit > 0) params.limit = Math.min(Math.floor(limit), 50);
+  if (Number.isFinite(limit) && limit > 0)
+    params.limit = Math.min(Math.max(Math.floor(limit), 1), 50);
   const sport = q.get('sport');
   if (sport) params.sport = sport;
   const leagues = q.get('leagues');

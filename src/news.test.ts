@@ -9,12 +9,17 @@ describe('newsParamsFromQuery', () => {
     expect(newsParamsFromQuery(new URLSearchParams('limit=200')).limit).toBe(50);
     expect(newsParamsFromQuery(new URLSearchParams('limit=7.9')).limit).toBe(7);
   });
+  it('clamps a positive sub-1 limit up to the lower bound of 1', () => {
+    expect(newsParamsFromQuery(new URLSearchParams('limit=0.5')).limit).toBe(1);
+  });
   it('ignores a non-positive or non-numeric limit', () => {
     expect(newsParamsFromQuery(new URLSearchParams('limit=0')).limit).toBeUndefined();
     expect(newsParamsFromQuery(new URLSearchParams('limit=abc')).limit).toBeUndefined();
   });
   it('whitelists only sport/leagues/team and drops anything else', () => {
-    const p = newsParamsFromQuery(new URLSearchParams('sport=soccer&leagues=eng.1&team=che&evil=1'));
+    const p = newsParamsFromQuery(
+      new URLSearchParams('sport=soccer&leagues=eng.1&team=che&evil=1'),
+    );
     expect(p).toEqual({ sport: 'soccer', leagues: 'eng.1', team: 'che' });
   });
 });
