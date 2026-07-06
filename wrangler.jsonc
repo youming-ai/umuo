@@ -1,6 +1,6 @@
 {
   // Static SPA + a Worker that edge-caches the upstream data APIs in KV.
-  "name": "cup",
+  "name": "umuo",
   "compatibility_date": "2026-06-24",
   "main": "worker/index.ts",
   "observability": {

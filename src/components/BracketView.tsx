@@ -44,7 +44,7 @@ const COLUMNS: Col[] = [
 // parents → one child); the bigger side holds the parents, so the right-flowing
 // half is drawn mirrored. Equal sizes (SF ↔ Final) = one straight line.
 function Connector({ leftCount, rightCount }: { leftCount: number; rightCount: number }) {
-  const cls = 'w-3 h-full shrink-0 stroke-line/30 py-2';
+  const cls = 'w-3 h-full shrink-0 stroke-line/60 py-2';
   if (leftCount === rightCount) {
     return (
       <svg
@@ -83,6 +83,7 @@ function Connector({ leftCount, rightCount }: { leftCount: number; rightCount: n
       preserveAspectRatio="none"
       fill="none"
       strokeWidth="1.5"
+      strokeLinejoin="round"
       aria-hidden="true"
     >
       {paths}
@@ -132,13 +133,13 @@ export default function BracketView({
     // flex to fill any extra width on wider screens. Each R32 side is only 8
     // cells tall, so the tree is far shorter than the old single-direction one.
     <div className="overflow-x-auto no-scrollbar -mx-4 px-4">
-      <div className="flex flex-col py-2 min-w-[600px]">
+      <div className="flex flex-col py-2 w-full min-w-[900px]">
         {/* Headings */}
         <div className="flex gap-0 items-center border-b border-line/20 pb-2 mb-2">
           {COLUMNS.map((col, idx) => (
             <Fragment key={col.key}>
               {idx > 0 && <div className="w-3 shrink-0" />}
-              <h3 className="flex-1 min-w-0 text-center ds-caption uppercase tracking-[0.14em] text-chalkdim">
+              <h3 className="flex-1 min-w-0 truncate text-center text-[11px] font-medium uppercase tracking-[0.12em] text-chalkdim">
                 {t(`bracket.${col.round}`)}
               </h3>
             </Fragment>
@@ -146,7 +147,7 @@ export default function BracketView({
         </div>
 
         {/* Tree: left half → central Final (+ 3rd place) ← right half */}
-        <div className="flex gap-0 items-stretch h-[640px] relative">
+        <div className="flex gap-0 items-stretch h-[800px] relative">
           {COLUMNS.map((col, idx) => (
             <Fragment key={col.key}>
               {idx > 0 && (
@@ -162,10 +163,10 @@ export default function BracketView({
                 // push the Final off-center).
                 <div className="flex flex-col justify-center items-center h-full flex-1 min-w-0 py-1">
                   <div className="relative w-full">
-                    {finalMatch && <BracketCell match={finalMatch} comp={comp} t={t} />}
+                    {finalMatch && <BracketCell match={finalMatch} comp={comp} t={t} emphasis />}
                     {thirdPlace && (
-                      <div className="absolute top-full inset-x-0 mt-4">
-                        <h3 className="ds-caption uppercase tracking-[0.18em] text-chalkdim/70 mb-1 text-center">
+                      <div className="absolute top-full inset-x-0 mt-5">
+                        <h3 className="text-[9px] uppercase tracking-[0.12em] text-chalkdim/60 mb-1 text-center">
                           {t('bracket.3rd')}
                         </h3>
                         <BracketCell match={thirdPlace} comp={comp} t={t} />
@@ -188,10 +189,12 @@ function BracketCell({
   match,
   comp,
   t,
+  emphasis = false,
 }: {
   match: ResolvedBracketMatch;
   comp: string;
   t: (k: string) => string;
+  emphasis?: boolean; // the Final — the tree's focal cell
 }) {
   const onClick = () => {
     if (match.match) {
@@ -199,50 +202,40 @@ function BracketCell({
     }
   };
   return (
+    // No hard frame — just a near-invisible tray (the app's accepted elevation
+    // idiom) that bounds the two flags as one match and gives the connector
+    // lines a real edge to meet. The loser fades so the winner reads off flags
+    // alone. The Final gets the pitch-green focal treatment.
     <button
       type="button"
       onClick={onClick}
       disabled={!match.match}
-      className="w-full rounded-card border border-line bg-panel px-1.5 py-1 text-left transition-all duration-200 hover:border-pitch focus:outline-none disabled:cursor-default disabled:hover:border-line shadow-panel"
+      aria-label={match.label}
+      className={`w-full flex flex-col items-center gap-0.5 rounded-xl px-2 py-1.5 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-pitch disabled:cursor-default ${
+        emphasis
+          ? 'bg-pitch/10 ring-1 ring-inset ring-pitch/30 hover:bg-pitch/[0.18]'
+          : 'bg-white/[0.045] hover:bg-white/[0.09] disabled:hover:bg-white/[0.045]'
+      }`}
     >
-      <div className="flex items-center justify-between ds-caption text-chalkdim/60 mb-0.5">
-        <span>{match.label}</span>
-        {match.match && match.match.status === 'finished' && <span className="text-pitch">FT</span>}
-        {match.match && match.match.status === 'live' && <span className="text-live">LIVE</span>}
-      </div>
-      <div className="flex items-center justify-between my-0.5 w-full min-w-0">
-        <div
-          className={`flex items-center gap-1 font-display text-[11px] min-w-0 truncate ${
-            match.winner === 'home' ? 'text-chalk font-bold' : 'text-chalk'
-          }`}
-        >
-          {match.home ? <TeamLabel team={match.home} /> : <TBD t={t} />}
-        </div>
-        {match.match && match.match.homeScore != null && (
-          <span
-            className={`text-[11px] tabular-nums shrink-0 ml-1.5 ${match.winner === 'home' ? 'text-chalk font-bold' : 'text-chalkdim'}`}
-          >
-            {match.match.homeScore}
-          </span>
-        )}
-      </div>
-      <div className="flex items-center justify-between w-full min-w-0">
-        <div
-          className={`flex items-center gap-1 font-display text-[11px] min-w-0 truncate ${
-            match.winner === 'away' ? 'text-chalk font-bold' : 'text-chalk'
-          }`}
-        >
-          {match.away ? <TeamLabel team={match.away} /> : <TBD t={t} />}
-        </div>
-        {match.match && match.match.awayScore != null && (
-          <span
-            className={`text-[11px] tabular-nums shrink-0 ml-1.5 ${match.winner === 'away' ? 'text-chalk font-bold' : 'text-chalkdim'}`}
-          >
-            {match.match.awayScore}
-          </span>
-        )}
-      </div>
+      <TeamFlag team={match.home} loser={match.winner === 'away'} t={t} />
+      <TeamFlag team={match.away} loser={match.winner === 'home'} t={t} />
     </button>
+  );
+}
+
+function TeamFlag({
+  team,
+  loser,
+  t,
+}: {
+  team: ResolvedTeam | null | undefined;
+  loser: boolean;
+  t: (k: string) => string;
+}) {
+  return (
+    <div className={`min-w-0 truncate font-display text-[11px] text-chalk ${loser ? 'opacity-40' : ''}`}>
+      {team ? <TeamLabel team={team} /> : <TBD t={t} />}
+    </div>
   );
 }
 
@@ -255,7 +248,7 @@ function TeamLabel({ team }: { team: ResolvedTeam }) {
       src={team.flag}
       alt={team.label}
       title={team.label}
-      className="w-6 h-4 object-cover rounded-micro shrink-0"
+      className="w-14 h-9 object-cover rounded-micro shrink-0"
     />
   ) : (
     <span className="truncate">{team.label}</span>

@@ -237,12 +237,13 @@ function transform(
   }
 
   // --- top scorers (tournament-level) ---
-  // Each competitor in each event has a `leaders` array; we want the
-  // "goals" entry (ESPN emits two duplicate entries named "goals" and
-  // "goalsLeaders" — take the first matching one). Aggregate across all
-  // events, dedupe by athlete id, keep the highest goal count (a player
-  // may appear under multiple matches). Resolve team display name from
-  // the team map built from the standings feed.
+  // Count EVERY scoring play, so any player who scores ranks — not just each
+  // team's single ESPN "leader" (the old source listed one leader per team per
+  // match, silently dropping everyone else). We reuse the goals already parsed
+  // onto each match (homeScorers/awayScorers from competition.details), one
+  // ScorerEntry per goal, and tally per athlete across the whole tournament.
+  // Own goals don't count toward the scorer; penalties do. Team name/flag come
+  // from the standings map, falling back to the match's own values.
   const teamMap = new Map<string, string>();
   const teamFlagMap = new Map<string, string>();
   for (const g of gr) {
@@ -252,38 +253,31 @@ function transform(
     }
   }
   const scorerMap = new Map<string, TopScorer>();
-  for (const rawEvent of arr(obj(sbJson).events)) {
-    const comp = obj(arr(obj(rawEvent).competitions)[0]);
-    for (const rawComp of arr(comp.competitors)) {
-      const c = obj(rawComp);
-      for (const cat of arr(c.leaders)) {
-        const catObj = obj(cat);
-        if (str(catObj.name) !== 'goals') continue;
-        for (const rawLeader of arr(catObj.leaders)) {
-          const l = obj(rawLeader);
-          const a = obj(l.athlete);
-          const id = str(a.id);
-          if (!id) continue;
-          const goals = Number(l.value) || 0;
-          const teamId = str(obj(a.team).id);
-          const existing = scorerMap.get(id);
-          if (!existing || goals > existing.goals) {
-            scorerMap.set(id, {
-              athleteId: id,
-              name: str(a.displayName) || str(a.shortName),
-              teamId,
-              teamName: teamMap.get(teamId) || '',
-              teamFlag: teamFlagMap.get(teamId) || str(obj(a.team).logo),
-              goals,
-            });
-          }
+  for (const m of ms) {
+    const sides = [
+      { entries: m.homeScorers, teamId: m.homeId, name: m.homeName, flag: m.homeFlag },
+      { entries: m.awayScorers, teamId: m.awayId, name: m.awayName, flag: m.awayFlag },
+    ];
+    for (const side of sides) {
+      for (const e of side.entries) {
+        if (e.tag === ' (OG)') continue; // own goal → credited to the team, not this player
+        const existing = scorerMap.get(e.playerId);
+        if (existing) {
+          existing.goals += 1;
+        } else {
+          scorerMap.set(e.playerId, {
+            athleteId: e.playerId,
+            name: e.name,
+            teamId: side.teamId,
+            teamName: teamMap.get(side.teamId) || side.name,
+            teamFlag: teamFlagMap.get(side.teamId) || side.flag,
+            goals: 1,
+          });
         }
-        break; // one goals category is enough
       }
     }
   }
   const sc: TopScorer[] = [...scorerMap.values()]
-    .filter((s) => s.goals > 0)
     .sort((a, b) => b.goals - a.goals || a.name.localeCompare(b.name))
     .slice(0, 50);
 
