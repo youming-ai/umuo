@@ -46,5 +46,6 @@ export function newsFresh(p: NewsParams): number {
 
 // Stable KV key: same filters → same key regardless of original query order.
 export function newsCacheKey(p: NewsParams): string {
-  return `news:${p.sport ?? ''}:${p.leagues ?? ''}:${p.team ?? ''}:${p.limit ?? 20}`;
+  const enc = (s?: string) => (s ? encodeURIComponent(s) : '');
+  return `news:${enc(p.sport)}:${enc(p.leagues)}:${enc(p.team)}:${p.limit ?? 20}`;
 }

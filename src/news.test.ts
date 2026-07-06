@@ -49,4 +49,9 @@ describe('newsCacheKey', () => {
     expect(newsCacheKey({})).toBe('news::::20');
     expect(newsCacheKey({ leagues: 'nba', limit: 10 })).toBe('news::nba::10');
   });
+  it('encodes components so colon-bearing inputs stay injective', () => {
+    expect(newsCacheKey({ sport: 'a:', team: 'b' })).not.toBe(
+      newsCacheKey({ sport: 'a', leagues: ':', team: 'b' }),
+    );
+  });
 });
