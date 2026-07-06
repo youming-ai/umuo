@@ -142,7 +142,43 @@ describe('soccerAdapter.transform', () => {
     expect(groupA.standings[0].pts).toBe(3);
     expect(groupA.standings[0].gd).toBe(2);
 
-    expect(scorers).toEqual([]); // no leaders[] in this fixture
+    // Every scoring play ranks — both Mexico goals, penalty included, sorted
+    // by goals then name. (The old leaders-based source only kept one per team.)
+    expect(scorers).toEqual([
+      { athleteId: '4577', name: 'H. Lozano', teamId: '1', teamName: 'Mexico', teamFlag: 'mex.png', goals: 1 },
+      { athleteId: '4579', name: 'R. Jiménez', teamId: '1', teamName: 'Mexico', teamFlag: 'mex.png', goals: 1 },
+    ]);
+  });
+
+  it('tallies goals per player across the tournament and excludes own goals', () => {
+    const sb = {
+      events: [
+        {
+          id: 'e1',
+          date: '2026-06-13T19:00Z',
+          season: { slug: 'group-stage' },
+          competitions: [
+            {
+              status: { type: { state: 'post' } },
+              competitors: [
+                { homeAway: 'home', score: '2', team: { id: '1', displayName: 'A', logo: 'a.png' } },
+                { homeAway: 'away', score: '1', team: { id: '2', displayName: 'B', logo: 'b.png' } },
+              ],
+              details: [
+                { scoringPlay: true, clock: { displayValue: "10'" }, type: { text: 'Goal' }, team: { id: '1' }, athletesInvolved: [{ id: 'x', displayName: 'Player X' }] },
+                { scoringPlay: true, clock: { displayValue: "50'" }, type: { text: 'Goal' }, team: { id: '1' }, athletesInvolved: [{ id: 'x', displayName: 'Player X' }] },
+                { scoringPlay: true, clock: { displayValue: "70'" }, type: { text: 'Own Goal' }, team: { id: '1' }, athletesInvolved: [{ id: 'y', displayName: 'Player Y' }] },
+              ],
+            },
+          ],
+        },
+      ],
+    };
+    const { scorers } = soccerAdapter.transform(sb, {});
+    // Player X's two goals sum to 2; the own goal never puts Player Y on the board.
+    expect(scorers).toEqual([
+      { athleteId: 'x', name: 'Player X', teamId: '1', teamName: 'A', teamFlag: 'a.png', goals: 2 },
+    ]);
   });
 
   it('captures penalty-shootout score and finishType for a pens match', () => {

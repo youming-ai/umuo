@@ -99,9 +99,10 @@ describe('BracketView', () => {
         <BracketView groups={[]} matches={[]} />
       </LanguageProvider>,
     );
-    expect(screen.getByText('M73')).toBeInTheDocument();
-    expect(screen.getByText('M89')).toBeInTheDocument();
-    expect(screen.getByText('M104')).toBeInTheDocument();
+    // Flags-only cells: the M-label is the button's accessible name, not visible text.
+    expect(screen.getByRole('button', { name: 'M73' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'M89' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'M104' })).toBeInTheDocument();
   });
 
   it('does not navigate on cell click when no CompMatch is attached', () => {
