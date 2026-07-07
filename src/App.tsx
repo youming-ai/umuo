@@ -1,6 +1,7 @@
 import { lazy, type ReactNode, Suspense, useCallback, useEffect, useMemo } from 'react';
 import Footer from './components/Footer';
 import Header from './components/Header';
+import MarqueeScoreboard from './components/MarqueeScoreboard';
 import MatchDetailPage from './components/MatchDetailPage';
 import NewsView from './components/NewsView';
 import PlayerPage from './components/PlayerPage';
@@ -179,6 +180,7 @@ export default function App() {
     // (classic scrollbar) and mobile (overlay) with no per-platform padding hack.
     <div className="flex flex-col h-dvh overflow-y-auto [scrollbar-gutter:stable_both-edges] bg-night">
       <Header section={route.kind === 'section' ? route.section : undefined} />
+      {route.kind === 'section' && <MarqueeScoreboard matches={wc.matches} comp={route.comp} />}
       <div className="flex-1 flex flex-col">{content}</div>
       {(route.kind === 'section' || route.kind === 'news') && <Footer />}
     </div>
