@@ -27,7 +27,7 @@ export type Route =
   | { kind: 'match'; comp: string; slug: string }
   | { kind: 'team'; comp: string; teamId: string }
   | { kind: 'player'; comp: string; athleteId: string }
-  | { kind: 'news'; comp: string; scope: NewsScope };
+  | { kind: 'news'; comp: string; scope: NewsScope }; // comp is nominal (DEFAULT_COMPETITION); pathFor ignores it for news URLs — present only so route.comp is valid on every kind
 
 // section → path suffix under /<comp> (matches is the competition root).
 const SECTION_SUFFIX: Record<Section, string> = {

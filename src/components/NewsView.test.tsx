@@ -53,4 +53,27 @@ describe('NewsView', () => {
     renderView();
     await waitFor(() => expect(screen.getByText('No news right now')).toBeInTheDocument());
   });
+
+  it('renders a non-link card when the article url is missing', async () => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        headlines: [
+          {
+            id: 9,
+            headline: 'No link here',
+            description: 'd',
+            published: '2026-07-07T00:00:00Z',
+            byline: 'ESPN',
+            images: [],
+            links: {},
+            categories: [],
+          },
+        ],
+      }),
+    });
+    renderView();
+    await waitFor(() => expect(screen.getByText('No link here')).toBeInTheDocument());
+    expect(screen.queryByRole('link', { name: /No link here/ })).not.toBeInTheDocument();
+  });
 });

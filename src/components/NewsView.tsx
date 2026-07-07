@@ -55,8 +55,8 @@ export default function NewsView({ scope }: { scope: NewsScope }) {
         <p className="ds-caption text-chalkdim py-12 text-center">{t('news.empty')}</p>
       ) : (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {items.map((item) => (
-            <NewsCard key={item.id} item={item} />
+          {items.map((item, i) => (
+            <NewsCard key={item.id || `news-${i}`} item={item} />
           ))}
         </div>
       )}
@@ -65,32 +65,43 @@ export default function NewsView({ scope }: { scope: NewsScope }) {
 }
 
 function NewsCard({ item }: { item: NewsItem }) {
+  const external = item.link.startsWith('https://');
+  const body = (
+    <>
+      {item.imageUrl && (
+        <img
+          src={item.imageUrl}
+          alt=""
+          className="w-full aspect-video object-cover"
+          loading="lazy"
+        />
+      )}
+      <div className="p-3">
+        <h3 className="font-display font-semibold text-sm text-chalk leading-snug line-clamp-2">
+          {item.headline}
+        </h3>
+        {item.description && (
+          <p className="mt-1 font-body text-xs text-chalkdim line-clamp-2">{item.description}</p>
+        )}
+        {item.byline && <p className="mt-2 ds-caption text-chalkdim/70">{item.byline}</p>}
+      </div>
+    </>
+  );
+
   return (
     <article className="ds-glass rounded-card shadow-panel overflow-hidden flex flex-col">
-      <a
-        href={item.link}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="block hover:opacity-95 transition"
-      >
-        {item.imageUrl && (
-          <img
-            src={item.imageUrl}
-            alt=""
-            className="w-full aspect-video object-cover"
-            loading="lazy"
-          />
-        )}
-        <div className="p-3">
-          <h3 className="font-display font-semibold text-sm text-chalk leading-snug line-clamp-2">
-            {item.headline}
-          </h3>
-          {item.description && (
-            <p className="mt-1 font-body text-xs text-chalkdim line-clamp-2">{item.description}</p>
-          )}
-          {item.byline && <p className="mt-2 ds-caption text-chalkdim/70">{item.byline}</p>}
-        </div>
-      </a>
+      {external ? (
+        <a
+          href={item.link}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="block hover:opacity-95 transition"
+        >
+          {body}
+        </a>
+      ) : (
+        <div className="block hover:opacity-95 transition">{body}</div>
+      )}
       {item.tags.length > 0 && (
         <div className="px-3 pb-3 flex flex-wrap gap-1.5">
           {item.tags.map((tag, i) => (
