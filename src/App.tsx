@@ -2,6 +2,7 @@ import { lazy, type ReactNode, Suspense, useCallback, useEffect, useMemo } from 
 import Footer from './components/Footer';
 import Header from './components/Header';
 import MatchDetailPage from './components/MatchDetailPage';
+import NewsView from './components/NewsView';
 import PlayerPage from './components/PlayerPage';
 import TeamPage from './components/TeamPage';
 import { useCompetition } from './hooks/useCompetition';
@@ -108,7 +109,7 @@ export default function App() {
   // missing, so a cold-loaded shared link never flashes 404.
   let content: ReactNode;
   if (route.kind === 'news') {
-    content = <Loading />; // Task 5 replaces this with <NewsView scope={route.scope} />
+    content = <NewsView scope={route.scope} />;
   } else if (route.kind === 'section') {
     content = wc.loading ? (
       <Loading />
@@ -179,7 +180,7 @@ export default function App() {
     <div className="flex flex-col h-dvh overflow-y-auto [scrollbar-gutter:stable_both-edges] bg-night">
       <Header section={route.kind === 'section' ? route.section : undefined} />
       <div className="flex-1 flex flex-col">{content}</div>
-      {route.kind === 'section' && <Footer />}
+      {(route.kind === 'section' || route.kind === 'news') && <Footer />}
     </div>
   );
 }

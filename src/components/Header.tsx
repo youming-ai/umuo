@@ -70,6 +70,18 @@ export default function Header({ section }: { section?: Section }) {
                   </button>
                 );
               })}
+              <button
+                type="button"
+                onClick={() =>
+                  navigate(pathFor({ kind: 'news', comp: route.comp, scope: { by: 'all' } }))
+                }
+                aria-pressed={route.kind === 'news'}
+                className={`whitespace-nowrap ds-seg-tab ${
+                  route.kind === 'news' ? 'ds-seg-tab-active' : 'ds-seg-tab-inactive'
+                }`}
+              >
+                {t('news.title')}
+              </button>
             </nav>
           </div>
 
