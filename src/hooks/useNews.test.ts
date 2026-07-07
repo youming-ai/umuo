@@ -6,6 +6,7 @@ const fetchMock = vi.fn();
 
 beforeEach(() => {
   vi.stubGlobal('fetch', fetchMock);
+  vi.spyOn(console, 'error').mockImplementation(() => {});
   fetchMock.mockReset();
 });
 afterEach(() => {
@@ -51,5 +52,21 @@ describe('useNews', () => {
     await waitFor(() => expect(result.current.loading).toBe(false));
     expect(result.current.error).toBe('Failed to load news');
     expect(result.current.items).toEqual([]);
+  });
+
+  it('builds the query for the sport scope', async () => {
+    fetchMock.mockResolvedValue({ ok: true, json: async () => ({ headlines: [] }) });
+    renderHook(() => useNews({ by: 'sport', sport: 'soccer' }));
+    await waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith('/api/news?sport=soccer', expect.any(Object)),
+    );
+  });
+
+  it('builds the query for the team scope', async () => {
+    fetchMock.mockResolvedValue({ ok: true, json: async () => ({ headlines: [] }) });
+    renderHook(() => useNews({ by: 'team', team: 'lal' }));
+    await waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith('/api/news?team=lal', expect.any(Object)),
+    );
   });
 });

@@ -12,8 +12,9 @@ function scopeToQuery(s: NewsScope): string {
 }
 
 // News feed for the current scope. Same SWR + visibility-gated polling +
-// AbortController idiom as useLeaders; news changes moderately, so poll 120s
-// (matches the Worker's global-news fresh window). Resets cache when the scope
+// AbortController idiom as useLeaders; news changes moderately. Poll every 120s
+// (the global feed's fresh window; filtered feeds are fresher-capped at 300s, so
+// this just re-hits the edge cache — acceptable). Resets cache when the scope
 // changes so one scope's feed never flashes on another.
 export function useNews(scope: NewsScope) {
   const query = scopeToQuery(scope);
@@ -52,14 +53,17 @@ export function useNews(scope: NewsScope) {
       if (signal.aborted) return;
       const data = parseNewsFeed(json);
       cacheRef.current = { data, ts: Date.now() };
-      initialRef.current = false;
       setItems(data);
       setError(null);
     } catch (err) {
       if (signal.aborted || (err instanceof Error && err.name === 'AbortError')) return;
+      console.error('[useNews] fetch failed:', err);
       if (!cacheRef.current) setError('Failed to load news');
     } finally {
-      if (!signal.aborted) setLoading(false);
+      if (!signal.aborted) {
+        setLoading(false);
+        initialRef.current = false;
+      }
     }
   }, [query]);
 
