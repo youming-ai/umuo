@@ -10,6 +10,7 @@ export default function MarqueeScoreboard({
   matches: CompMatch[];
   comp: string;
 }) {
+  const t = useT();
   const items = marqueeMatches(matches, Date.now());
   if (items.length === 0) return null;
 
@@ -19,21 +20,36 @@ export default function MarqueeScoreboard({
   const row = [...items, ...items];
 
   return (
-    <div className="border-b border-line/20 bg-night overflow-x-auto no-scrollbar">
+    <section
+      aria-label={t('nav.scoreboard')}
+      className="border-b border-line/20 bg-night overflow-x-auto no-scrollbar"
+    >
       <div className="marquee-track flex w-max gap-2 px-page-x md:px-page-x-md py-2">
-        {row.map((match, i) => (
-          <Chip
-            key={`${match.id}-${i < items.length ? 'first' : 'copy'}`}
-            match={match}
-            comp={comp}
-          />
-        ))}
+        {row.map((match, i) => {
+          const decorative = i >= items.length;
+          return (
+            <Chip
+              key={`${match.id}-${decorative ? 'copy' : 'first'}`}
+              match={match}
+              comp={comp}
+              decorative={decorative}
+            />
+          );
+        })}
       </div>
-    </div>
+    </section>
   );
 }
 
-function Chip({ match, comp }: { match: CompMatch; comp: string }) {
+function Chip({
+  match,
+  comp,
+  decorative = false,
+}: {
+  match: CompMatch;
+  comp: string;
+  decorative?: boolean;
+}) {
   const t = useT();
   const onClick = () => navigate(pathFor({ kind: 'match', comp, slug: match.slug }));
   const time = match.kickoff?.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) ?? '';
@@ -54,6 +70,8 @@ function Chip({ match, comp }: { match: CompMatch; comp: string }) {
     <button
       type="button"
       onClick={onClick}
+      aria-hidden={decorative || undefined}
+      tabIndex={decorative ? -1 : undefined}
       aria-label={`${match.homeName} v ${match.awayName}`}
       className="shrink-0 w-40 rounded-card border border-line bg-panel px-2 py-1 text-left transition-colors hover:border-pitch focus:outline-none focus-visible:ring-2 focus-visible:ring-pitch"
     >

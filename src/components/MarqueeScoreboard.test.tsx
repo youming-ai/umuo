@@ -50,4 +50,9 @@ describe('MarqueeScoreboard', () => {
     expect(spy).toHaveBeenCalledWith(null, '', '/fifa.world/match/mexico-vs-brazil-L');
     spy.mockRestore();
   });
+
+  it('marks the duplicated seamless-scroll chips as decorative (one accessible button per match)', () => {
+    renderBar([m('L', 'live', new Date())]);
+    expect(screen.getAllByRole('button', { name: /Mexico.*Brazil/ })).toHaveLength(1);
+  });
 });
