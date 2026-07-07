@@ -1,5 +1,6 @@
 import { act, render } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { DEFAULT_COMPETITION } from '../competitions';
 import { canonicalPath, navigate, parseRoute, pathFor, useRouter } from './router';
 
 const MATCHES = { kind: 'section', comp: 'fifa.world', section: 'matches' } as const;
@@ -207,17 +208,24 @@ describe('navigate', () => {
 
 describe('news routes', () => {
   it('parses the news scopes from the path', () => {
-    expect(parseRoute('/news')).toEqual({ kind: 'news', scope: { by: 'all' } });
+    expect(parseRoute('/news')).toEqual({
+      kind: 'news',
+      comp: DEFAULT_COMPETITION,
+      scope: { by: 'all' },
+    });
     expect(parseRoute('/news/soccer')).toEqual({
       kind: 'news',
+      comp: DEFAULT_COMPETITION,
       scope: { by: 'sport', sport: 'soccer' },
     });
     expect(parseRoute('/news/league/nba')).toEqual({
       kind: 'news',
+      comp: DEFAULT_COMPETITION,
       scope: { by: 'league', league: 'nba' },
     });
     expect(parseRoute('/news/team/lal')).toEqual({
       kind: 'news',
+      comp: DEFAULT_COMPETITION,
       scope: { by: 'team', team: 'lal' },
     });
   });
@@ -229,12 +237,17 @@ describe('news routes', () => {
       { by: 'league', league: 'eng.1' } as const,
       { by: 'team', team: 'che' } as const,
     ]) {
-      expect(parseRoute(pathFor({ kind: 'news', scope }))).toEqual({ kind: 'news', scope });
+      const route = { kind: 'news', comp: DEFAULT_COMPETITION, scope } as const;
+      expect(parseRoute(pathFor(route))).toEqual(route);
     }
   });
 
   it('falls back to the all scope for an unknown news shape', () => {
-    expect(parseRoute('/news/league')).toEqual({ kind: 'news', scope: { by: 'all' } });
+    expect(parseRoute('/news/league')).toEqual({
+      kind: 'news',
+      comp: DEFAULT_COMPETITION,
+      scope: { by: 'all' },
+    });
   });
 });
 

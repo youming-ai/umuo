@@ -27,7 +27,7 @@ export type Route =
   | { kind: 'match'; comp: string; slug: string }
   | { kind: 'team'; comp: string; teamId: string }
   | { kind: 'player'; comp: string; athleteId: string }
-  | { kind: 'news'; scope: NewsScope };
+  | { kind: 'news'; comp: string; scope: NewsScope };
 
 // section → path suffix under /<comp> (matches is the competition root).
 const SECTION_SUFFIX: Record<Section, string> = {
@@ -49,26 +49,27 @@ function safeDecode(segment: string): string | null {
 
 // News is cross-competition (no comp prefix). Parse the segments AFTER `news`.
 function parseNews(seg: string[]): Route {
-  if (seg.length === 0) return { kind: 'news', scope: { by: 'all' } };
+  if (seg.length === 0) return { kind: 'news', comp: DEFAULT_COMPETITION, scope: { by: 'all' } };
   if (seg[0] === 'league') {
     if (seg[1]) {
       const league = safeDecode(seg[1]);
-      if (league) return { kind: 'news', scope: { by: 'league', league } };
+      if (league)
+        return { kind: 'news', comp: DEFAULT_COMPETITION, scope: { by: 'league', league } };
     }
-    return { kind: 'news', scope: { by: 'all' } };
+    return { kind: 'news', comp: DEFAULT_COMPETITION, scope: { by: 'all' } };
   }
   if (seg[0] === 'team') {
     if (seg[1]) {
       const team = safeDecode(seg[1]);
-      if (team) return { kind: 'news', scope: { by: 'team', team } };
+      if (team) return { kind: 'news', comp: DEFAULT_COMPETITION, scope: { by: 'team', team } };
     }
-    return { kind: 'news', scope: { by: 'all' } };
+    return { kind: 'news', comp: DEFAULT_COMPETITION, scope: { by: 'all' } };
   }
   if (seg.length === 1) {
     const sport = safeDecode(seg[0]!);
-    if (sport) return { kind: 'news', scope: { by: 'sport', sport } };
+    if (sport) return { kind: 'news', comp: DEFAULT_COMPETITION, scope: { by: 'sport', sport } };
   }
-  return { kind: 'news', scope: { by: 'all' } };
+  return { kind: 'news', comp: DEFAULT_COMPETITION, scope: { by: 'all' } };
 }
 
 // Parse the view segments (everything AFTER the competition prefix) into a

@@ -107,7 +107,9 @@ export default function App() {
   // schedule fetch (and surface its error) before deciding anything is
   // missing, so a cold-loaded shared link never flashes 404.
   let content: ReactNode;
-  if (route.kind === 'section') {
+  if (route.kind === 'news') {
+    content = <Loading />; // Task 5 replaces this with <NewsView scope={route.scope} />
+  } else if (route.kind === 'section') {
     content = wc.loading ? (
       <Loading />
     ) : wc.error ? (
