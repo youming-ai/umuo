@@ -145,8 +145,22 @@ describe('soccerAdapter.transform', () => {
     // Every scoring play ranks — both Mexico goals, penalty included, sorted
     // by goals then name. (The old leaders-based source only kept one per team.)
     expect(scorers).toEqual([
-      { athleteId: '4577', name: 'H. Lozano', teamId: '1', teamName: 'Mexico', teamFlag: 'mex.png', goals: 1 },
-      { athleteId: '4579', name: 'R. Jiménez', teamId: '1', teamName: 'Mexico', teamFlag: 'mex.png', goals: 1 },
+      {
+        athleteId: '4577',
+        name: 'H. Lozano',
+        teamId: '1',
+        teamName: 'Mexico',
+        teamFlag: 'mex.png',
+        goals: 1,
+      },
+      {
+        athleteId: '4579',
+        name: 'R. Jiménez',
+        teamId: '1',
+        teamName: 'Mexico',
+        teamFlag: 'mex.png',
+        goals: 1,
+      },
     ]);
   });
 
@@ -161,13 +175,39 @@ describe('soccerAdapter.transform', () => {
             {
               status: { type: { state: 'post' } },
               competitors: [
-                { homeAway: 'home', score: '2', team: { id: '1', displayName: 'A', logo: 'a.png' } },
-                { homeAway: 'away', score: '1', team: { id: '2', displayName: 'B', logo: 'b.png' } },
+                {
+                  homeAway: 'home',
+                  score: '2',
+                  team: { id: '1', displayName: 'A', logo: 'a.png' },
+                },
+                {
+                  homeAway: 'away',
+                  score: '1',
+                  team: { id: '2', displayName: 'B', logo: 'b.png' },
+                },
               ],
               details: [
-                { scoringPlay: true, clock: { displayValue: "10'" }, type: { text: 'Goal' }, team: { id: '1' }, athletesInvolved: [{ id: 'x', displayName: 'Player X' }] },
-                { scoringPlay: true, clock: { displayValue: "50'" }, type: { text: 'Goal' }, team: { id: '1' }, athletesInvolved: [{ id: 'x', displayName: 'Player X' }] },
-                { scoringPlay: true, clock: { displayValue: "70'" }, type: { text: 'Own Goal' }, team: { id: '1' }, athletesInvolved: [{ id: 'y', displayName: 'Player Y' }] },
+                {
+                  scoringPlay: true,
+                  clock: { displayValue: "10'" },
+                  type: { text: 'Goal' },
+                  team: { id: '1' },
+                  athletesInvolved: [{ id: 'x', displayName: 'Player X' }],
+                },
+                {
+                  scoringPlay: true,
+                  clock: { displayValue: "50'" },
+                  type: { text: 'Goal' },
+                  team: { id: '1' },
+                  athletesInvolved: [{ id: 'x', displayName: 'Player X' }],
+                },
+                {
+                  scoringPlay: true,
+                  clock: { displayValue: "70'" },
+                  type: { text: 'Own Goal' },
+                  team: { id: '1' },
+                  athletesInvolved: [{ id: 'y', displayName: 'Player Y' }],
+                },
               ],
             },
           ],

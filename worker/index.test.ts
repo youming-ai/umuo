@@ -2,7 +2,7 @@
 // @vitest-environment node
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import worker, { type Env, json, serve, serveLeaders, serveSummary } from './index';
+import worker, { type Env, json, serve, serveLeaders, serveNews, serveSummary } from './index';
 import { COMPETITIONS } from '../src/competitions';
 
 const WC = COMPETITIONS['fifa.world'];
@@ -378,5 +378,58 @@ describe('fetch routing', () => {
       mockCtx(),
     );
     expect(res.status).toBe(404);
+  });
+});
+
+describe('serveNews', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('proxies the global feed with default limit and stores under a news key', async () => {
+    fetchMock.mockResolvedValue(new Response('{"headlines":[]}', { status: 200 }));
+    const env = mockEnv(null);
+    const ctx = mockCtx();
+    const res = await serveNews(new URLSearchParams(''), env as unknown as Env, ctx);
+    expect(res.status).toBe(200);
+    expect(await res.text()).toBe('{"headlines":[]}');
+    expect(fetchMock.mock.calls[0][0]).toBe(
+      'https://now.core.api.espn.com/v1/sports/news?limit=20',
+    );
+    expect(env.CACHE.put).toHaveBeenCalledWith(
+      'news::::20',
+      expect.any(String),
+      expect.objectContaining({ expirationTtl: 86400 }),
+    );
+  });
+
+  it('forwards the league filter and keys the cache distinctly', async () => {
+    fetchMock.mockResolvedValue(new Response('{"headlines":[]}', { status: 200 }));
+    const env = mockEnv(null);
+    const ctx = mockCtx();
+    await serveNews(new URLSearchParams('leagues=nba&limit=10'), env as unknown as Env, ctx);
+    const calledUrl = fetchMock.mock.calls[0][0] as string;
+    expect(calledUrl).toContain('leagues=nba');
+    expect(calledUrl).toContain('limit=10');
+    expect(env.CACHE.put).toHaveBeenCalledWith(
+      'news::nba::10',
+      expect.any(String),
+      expect.objectContaining({ expirationTtl: 86400 }),
+    );
+  });
+
+  it('routes GET /api/news through the fetch handler', async () => {
+    fetchMock.mockResolvedValue(new Response('{"headlines":[]}', { status: 200 }));
+    const env = mockEnv(null);
+    const ctx = mockCtx();
+    const res = await worker.fetch(
+      new Request('https://x/api/news?sport=soccer'),
+      env as unknown as Env,
+      ctx,
+    );
+    expect(res.status).toBe(200);
+    const calledUrl = fetchMock.mock.calls[0][0] as string;
+    expect(calledUrl).toContain('now.core.api.espn.com');
+    expect(calledUrl).toContain('sport=soccer');
   });
 });

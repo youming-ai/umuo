@@ -24,9 +24,17 @@ graph TD
 
 ### 1.2 后端边缘代理 (Cloudflare Worker)
 * **资源转发与跨域**：Worker 部署在边缘节点，代理 `/api/:comp/*` 请求至 ESPN API，消除前端跨域（CORS）问题。
-* **SWR 缓存机制**：在 Cloudflare KV 中存储原始 JSON 数据，根据资源类型配置不同的 TTL（Scoreboard 为 60 秒，Standings 为 300 秒，Summary 为 30 秒，Leaders 为 1 小时），提供快速的边缘 HIT 响应。
-* **并发请求合并 (Request Coalescing)**：使用内存 `Map` 对同一时间内发往相同 ESPN 端点的请求进行合并，确保多个用户同时访问时，仅向 ESPN 服务端发起一次 Fetch 请求，有效减轻上游接口负载并提升系统高并发表现。
+* **边缘 TTL 缓存**：在 Cloudflare KV 中存储原始 JSON，按资源类型配置 `fresh`/`keep` 两级 TTL（Scoreboard fresh 60 秒、Standings 300 秒、Summary 30 秒、Leaders 1 小时；`keep` 统一 1 天）。`fresh` 窗口内直接命中返回，过期后同步向上游 revalidate。注意：**Worker 层是"TTL 缓存 + 陈旧兜底"，并非严格意义的 SWR** —— "先返回陈旧、后台异步刷新"的 SWR 语义在前端 Hook 层（§1.1）。
+* **并发请求合并 (Request Coalescing)**：用模块级内存 `Map` 对同一端点的在途请求做惊群保护，`fresh` 过期瞬间的并发只触发一次上游 Fetch，其余搭车共享结果。注意：Cloudflare Worker 跑在多个边缘节点、每节点多个 V8 isolate 且**内存互不共享**，故合并仅在**单个 isolate 内**生效；真正把上游流量压到最低的是上面的 KV `fresh` 缓存窗口，合并只是其边界上的补充优化。
 * **容灾降级**：当上游 ESPN 服务端发生 5xx 错误时，Worker 自动在后台重试；若接口彻底不可用，则直接向客户端下发 KV 中已过期的 STALE 缓存，确保服务的连续性。
+
+### 1.3 已知约束与运营注意事项
+以下是架构固有的约束与需要在部署侧处理的事项，代码无法单独消除，特此记录并给出处置建议：
+
+* **数据源单点依赖**：全部赛事数据依赖 ESPN 的**非官方 site API**（无契约、无 SLA，结构随时可能变更）。代码用防御式 `obj()/arr()/str()` 解析吸收字段漂移，但整体不可用时只能靠 `keep`（1 天）内的 STALE 缓存兜底。**建议**：监控上游可用性；关键赛事期间可临时拉长 `keep`。
+* **直播源脆弱性**：直播依赖第三方聚合站（当前 `ppv.st`），受法律与可用性双重影响 —— 前身 `ppv.to` 已于 2026-07 被执法查封。系统仅通过 `isTrustedStreamUrl` 白名单在渲染 iframe 前做安全隔离（防 XSS/恶意重定向），但**源本身不受控**，随时可能失效。切换新源时只需更新 `src/utils/streamSources.ts` 白名单。
+* **公开 API 无鉴权 / 需在边缘侧限流**：`/api/:comp/:resource` 完全公开，KV 缓存保护了 ESPN 上游，但**不保护 Worker 自身**——端点可被高频刷取，消耗 Cloudflare 请求与 KV 读额度。**建议**：在 Cloudflare 控制台配置 **Rate Limiting Rules / WAF**（按客户端 IP 限流），这是正确的处置层；不建议在应用代码内做 Referer 校验（易伪造、且会误伤去除 Referer 的合法用户，属于虚假安全感）。
+* **KV 写入额度与成本**：`fresh` 过期触发的 revalidate 会写一次 KV（`at` 时间戳必须刷新以维持缓存窗口，故无法靠"内容去重"省写）。高流量下 Scoreboard（`fresh` 60 秒）单键每天最多写 ~1440 次，叠加多赛事/多资源后**很容易超出 KV 免费层 1000 writes/day**。**建议**：按实际流量评估，必要时拉长 `fresh`（牺牲实时性换写入量）或启用 KV 付费层（$0.50/百万写）。
 
 ---
 
@@ -79,7 +87,7 @@ graph TD
 ## 3. 本地开发与构建指令
 
 ### 3.1 基础配置
-* **运行时**：Bun
+* **本地工具链**：Bun（用于依赖安装、dev、build、test）。注意：**Bun 只是本地工具链，不是生产运行时** —— 生产环境代码运行在 Cloudflare Workers 的 `workerd`（V8 isolate）上，受其约束（无 Node/Bun API、无持久共享内存、有 CPU 时间与子请求上限）。这也是 §1.2 中"内存 Map 合并仅限单 isolate"的根本原因。
 * **依赖安装**：
   ```bash
   bun install

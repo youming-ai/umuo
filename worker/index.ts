@@ -8,6 +8,7 @@ import {
   seasonForDate,
 } from '../src/competitions';
 import { assembleLeaders, LEADERS_BY_SPORT } from '../src/leaders';
+import { buildNewsUrl, newsCacheKey, newsFresh, newsParamsFromQuery } from '../src/news';
 
 // Edge cache for the upstream data APIs. The SPA calls same-origin /api/*; this
 // Worker fetches the third-party source and caches the body in KV, so the page
@@ -238,9 +239,26 @@ export async function serveLeaders(
   );
 }
 
+// Global/sport/league/team news feed (ESPN "now" core API). Transparent JSON
+// proxy: whitelist the query, fetch upstream, KV-cache the raw body under a
+// stable news key. Filtered feeds change slower than the global firehose, so
+// newsFresh() gives them a longer fresh window (PRD §5). keep is 1 day, matching
+// the other resources.
+export async function serveNews(
+  q: URLSearchParams,
+  env: Env,
+  ctx: ExecutionContext,
+): Promise<Response> {
+  const params = newsParamsFromQuery(q);
+  return cached(newsCacheKey(params), buildNewsUrl(params), newsFresh(params), 86400, env, ctx);
+}
+
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
+    if (url.pathname === '/api/news') {
+      return serveNews(url.searchParams, env, ctx);
+    }
     const m = url.pathname.match(/^\/api\/([^/]+)\/(scoreboard|standings|summary|leaders)$/);
     if (m) {
       if (!Object.hasOwn(COMPETITIONS, m[1])) return new Response('Not found', { status: 404 });

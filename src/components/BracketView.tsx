@@ -233,7 +233,9 @@ function TeamFlag({
   t: (k: string) => string;
 }) {
   return (
-    <div className={`min-w-0 truncate font-display text-[11px] text-chalk ${loser ? 'opacity-40' : ''}`}>
+    <div
+      className={`min-w-0 truncate font-display text-[11px] text-chalk ${loser ? 'opacity-40' : ''}`}
+    >
       {team ? <TeamLabel team={team} /> : <TBD t={t} />}
     </div>
   );
