@@ -111,6 +111,13 @@ const en: Dict = {
   'leaders.title': 'Scoring Leaders',
   'leaders.subtitle': "Points per the season's top scorers",
   'scorers.empty': 'No goals scored yet',
+  'news.title': 'News',
+  'news.all': 'All',
+  'news.soccer': 'Soccer',
+  'news.basketball': 'Basketball',
+  'news.nba': 'NBA',
+  'news.eng1': 'Premier League',
+  'news.empty': 'No news right now',
 };
 
 const zh: Dict = {
@@ -220,6 +227,13 @@ const zh: Dict = {
   'leaders.title': '得分榜',
   'leaders.subtitle': '本赛季得分领跑者',
   'scorers.empty': '暂无进球',
+  'news.title': '新闻',
+  'news.all': '全部',
+  'news.soccer': '足球',
+  'news.basketball': '篮球',
+  'news.nba': 'NBA',
+  'news.eng1': '英超',
+  'news.empty': '暂无新闻',
 };
 
 const ja: Dict = {
@@ -329,6 +343,13 @@ const ja: Dict = {
   'leaders.title': '得点ランキング',
   'leaders.subtitle': '今シーズンの得点上位選手',
   'scorers.empty': 'まだゴールはありません',
+  'news.title': 'ニュース',
+  'news.all': 'すべて',
+  'news.soccer': 'サッカー',
+  'news.basketball': 'バスケットボール',
+  'news.nba': 'NBA',
+  'news.eng1': 'プレミアリーグ',
+  'news.empty': '現在ニュースはありません',
 };
 
 const ko: Dict = {
@@ -438,6 +459,13 @@ const ko: Dict = {
   'leaders.title': '득점 순위',
   'leaders.subtitle': '이번 시즌 득점 상위 선수',
   'scorers.empty': '아직 골이 없습니다',
+  'news.title': '뉴스',
+  'news.all': '전체',
+  'news.soccer': '축구',
+  'news.basketball': '농구',
+  'news.nba': 'NBA',
+  'news.eng1': '프리미어리그',
+  'news.empty': '현재 뉴스가 없습니다',
 };
 
 export const messages: Record<Lang, Dict> = { en, zh, ja, ko };
