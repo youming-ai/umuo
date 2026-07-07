@@ -64,7 +64,7 @@ export function parseNewsFeed(json: unknown): NewsItem[] {
       published: str(h.published),
       byline: str(h.byline),
       imageUrl: str(obj(arr(h.images)[0]).url),
-      link: str(obj(obj(obj(h.links).web).href ? obj(h.links).web : {}).href),
+      link: str(obj(obj(h.links).web).href),
       tags: tagsFrom(h.categories),
     };
   });

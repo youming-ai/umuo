@@ -13,10 +13,25 @@ const feed = {
       links: { web: { href: 'https://www.espn.com/story/1' } },
       categories: [
         { type: 'contributor', description: 'ESPN Staff Profile' },
-        { type: 'team', teamId: 289200, description: 'Wests Tigers', team: { id: 289200, abbreviation: 'WES' } },
+        {
+          type: 'team',
+          teamId: 289200,
+          description: 'Wests Tigers',
+          team: { id: 289200, abbreviation: 'WES' },
+        },
         { type: 'athlete', athleteId: 31870, description: 'Max Kepler', athlete: { id: 31870 } },
-        { type: 'league', leagueId: 8370, description: 'National Rugby League', league: { id: 8370, abbreviation: 'NRL' } },
-        { type: 'team', teamId: 289200, description: 'Wests Tigers', team: { id: 289200, abbreviation: 'WES' } },
+        {
+          type: 'league',
+          leagueId: 8370,
+          description: 'National Rugby League',
+          league: { id: 8370, abbreviation: 'NRL' },
+        },
+        {
+          type: 'team',
+          teamId: 289200,
+          description: 'Wests Tigers',
+          team: { id: 289200, abbreviation: 'WES' },
+        },
       ],
     },
   ],
@@ -47,7 +62,16 @@ describe('parseNewsFeed', () => {
     expect(parseNewsFeed(null)).toEqual([]);
     expect(parseNewsFeed({})).toEqual([]);
     expect(parseNewsFeed({ headlines: [{}] })).toEqual([
-      { id: '', headline: '', description: '', published: '', byline: '', imageUrl: '', link: '', tags: [] },
+      {
+        id: '',
+        headline: '',
+        description: '',
+        published: '',
+        byline: '',
+        imageUrl: '',
+        link: '',
+        tags: [],
+      },
     ]);
   });
 
