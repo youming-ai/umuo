@@ -205,6 +205,39 @@ describe('navigate', () => {
   });
 });
 
+describe('news routes', () => {
+  it('parses the news scopes from the path', () => {
+    expect(parseRoute('/news')).toEqual({ kind: 'news', scope: { by: 'all' } });
+    expect(parseRoute('/news/soccer')).toEqual({
+      kind: 'news',
+      scope: { by: 'sport', sport: 'soccer' },
+    });
+    expect(parseRoute('/news/league/nba')).toEqual({
+      kind: 'news',
+      scope: { by: 'league', league: 'nba' },
+    });
+    expect(parseRoute('/news/team/lal')).toEqual({
+      kind: 'news',
+      scope: { by: 'team', team: 'lal' },
+    });
+  });
+
+  it('round-trips scope → path → scope', () => {
+    for (const scope of [
+      { by: 'all' } as const,
+      { by: 'sport', sport: 'basketball' } as const,
+      { by: 'league', league: 'eng.1' } as const,
+      { by: 'team', team: 'che' } as const,
+    ]) {
+      expect(parseRoute(pathFor({ kind: 'news', scope }))).toEqual({ kind: 'news', scope });
+    }
+  });
+
+  it('falls back to the all scope for an unknown news shape', () => {
+    expect(parseRoute('/news/league')).toEqual({ kind: 'news', scope: { by: 'all' } });
+  });
+});
+
 describe('useRouter', () => {
   function Harness({ onReady }: { onReady: (r: ReturnType<typeof useRouter>) => void }) {
     onReady(useRouter());
