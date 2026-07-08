@@ -32,32 +32,29 @@ function group(letter: string, teams: ReturnType<typeof standing>[]): WCGroup {
 }
 
 describe('BracketView', () => {
-  it('renders the symmetric round columns (both sides + Final + 3rd)', () => {
+  it('renders the radial disc with the cup at its centre', () => {
     render(
       <LanguageProvider>
         <BracketView groups={[]} matches={[]} />
       </LanguageProvider>,
     );
-    // Symmetric layout: R32/R16/QF/SF each appear on both sides (8 headers)
-    // + the central Final (1) + the 3rd-place heading (1) → 10 headers.
-    const headers = screen.getAllByRole('heading', { level: 3 });
-    expect(headers).toHaveLength(10);
+    // The whole knockout is one labelled figure (the trophy is decorative).
+    expect(screen.getByRole('img', { name: 'Final' })).toBeInTheDocument();
+    expect(screen.getByText('🏆')).toBeInTheDocument();
   });
 
-  it('renders TBD placeholders for all slots when no data is provided', () => {
+  it('shows TBD in the 3rd-place chip before any team has qualified', () => {
     render(
       <LanguageProvider>
         <BracketView groups={[]} matches={[]} />
       </LanguageProvider>,
     );
-    // Each TBD cell has at least 2 'TBD' placeholders (home + away), so
-    // 30 matches × 2 = 60. Use a generous count to allow for exact-text
-    // matching — any cell has at least 2 TBDs.
-    const tbd = screen.getAllByText('TBD');
-    expect(tbd.length).toBeGreaterThanOrEqual(60);
+    // With no data every rim slot is a quiet waypoint dot; the only visible
+    // copy is the 3rd-place chip's two TBD placeholders.
+    expect(screen.getAllByText('TBD')).toHaveLength(2);
   });
 
-  it('resolves R32 place slots from standings (1A, 2B, 3rd place)', () => {
+  it('resolves R32 place slots from standings', () => {
     const groups: WCGroup[] = [
       group('A', [standing({ teamId: '203', name: 'Mexico', pts: 9 })]),
       group('B', [standing({ teamId: '224', name: 'Canada', pts: 6 })]),
@@ -67,16 +64,12 @@ describe('BracketView', () => {
         <BracketView groups={groups} matches={[]} />
       </LanguageProvider>,
     );
-    // M73 = 2A vs 2B → Mexico (1st) appears in the 1A slot (M79), and
-    // Canada (1st) appears in the 1B slot (M85). For the M73 row
-    // (2A vs 2B), the standings haven't filled in runners-up yet, so
-    // TBD is expected.
-    // Verify that 1A and 1B cells (M79 / M85) are filled.
-    expect(screen.getAllByText('Mexico').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('Canada').length).toBeGreaterThan(0);
+    // Mexico wins group A (1A slot, M79) and Canada group B (1B slot, M85).
+    expect(screen.getAllByLabelText('Mexico').length).toBeGreaterThan(0);
+    expect(screen.getAllByLabelText('Canada').length).toBeGreaterThan(0);
   });
 
-  it('shows flags only — the country name is in the crest alt text, not visible copy', () => {
+  it('shows crests, with the country name as the accessible label, not visible copy', () => {
     render(
       <LanguageProvider>
         <BracketView
@@ -87,36 +80,24 @@ describe('BracketView', () => {
         />
       </LanguageProvider>,
     );
-    // Crest carries the country name as accessible alt text...
-    expect(screen.getAllByAltText('Mexico').length).toBeGreaterThan(0);
-    // ...but the name is NOT rendered as visible text (flags-only bracket).
+    // Name reaches assistive tech via the node's label...
+    expect(screen.getAllByLabelText('Mexico').length).toBeGreaterThan(0);
+    // ...but is never rendered as visible text on the disc.
     expect(screen.queryByText('Mexico')).not.toBeInTheDocument();
   });
 
-  it('renders match labels (M73, M89, M104) correctly', () => {
-    render(
-      <LanguageProvider>
-        <BracketView groups={[]} matches={[]} />
-      </LanguageProvider>,
-    );
-    // Flags-only cells: the M-label is the button's accessible name, not visible text.
-    expect(screen.getByRole('button', { name: 'M73' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'M89' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'M104' })).toBeInTheDocument();
-  });
-
-  it('does not navigate on cell click when no CompMatch is attached', () => {
-    // jsdom's window.location is read-only; just verify clicking a TBD
-    // cell doesn't crash and the click handler is a no-op.
+  it('does not navigate from a slot that has no match attached', () => {
     const spy = vi.spyOn(window.history, 'pushState');
     render(
       <LanguageProvider>
         <BracketView groups={[]} matches={[]} />
       </LanguageProvider>,
     );
-    const firstButton = screen.getAllByRole('button')[0];
-    expect(firstButton).toBeDisabled();
-    fireEvent.click(firstButton);
+    // The 3rd-place chip is the one always-present control; with no data it is
+    // disabled and clicking it is a no-op.
+    const chip = screen.getByRole('button');
+    expect(chip).toBeDisabled();
+    fireEvent.click(chip);
     expect(spy).not.toHaveBeenCalled();
   });
 });
