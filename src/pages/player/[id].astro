@@ -1,0 +1,58 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import PlayerPageIsland from '../../components/PlayerPageIsland';
+import { getCompetitionView } from '../../data/api';
+import { COMPETITIONS, DEFAULT_COMPETITION } from '../../competitions';
+import type { CompMatch, ScorerEntry } from '../../types';
+
+const { id } = Astro.params;
+if (!id) {
+  return new Response('Not found', { status: 404 });
+}
+// /player/:id is a legacy unprefixed path — always resolve under the default
+// competition, matching parseRoute's fallback logic.
+const competition = COMPETITIONS[DEFAULT_COMPETITION]!;
+const env = Astro.locals.runtime.env;
+const ctx = Astro.locals.runtime.ctx as Parameters<typeof getCompetitionView>[2];
+const view = await getCompetitionView(competition, env, ctx);
+
+const scorer = view.scorers.find((s) => s.athleteId === id);
+const playerName = scorer?.name ?? 'Player not found';
+---
+
+<Layout title={`StreamCup — ${playerName}`}>
+  <main class="ds-page">
+    <div class="ds-page-inner">
+
+      {scorer ? (
+        <div>
+          <h1 class="font-display font-bold text-3xl text-chalk tracking-wide">
+            {scorer.name}
+          </h1>
+          <div class="flex items-center gap-3 mt-1">
+            {scorer.teamName && (
+              <span class="font-mono text-[11px] uppercase tracking-[0.18em] text-chalkdim/60">
+                {scorer.teamName}
+              </span>
+            )}
+            <span class="font-mono text-[11px] text-chalkdim/60">
+              {scorer.goals} goals
+            </span>
+          </div>
+        </div>
+      ) : (
+        <p class="font-mono text-xs text-chalkdim p-card text-center">Player not found</p>
+      )}
+
+      <!-- Island: takes over for goals timeline, team nav link, back button, stats -->
+      <PlayerPageIsland
+        athleteId={id}
+        groups={view.standings.kind === 'soccer' ? view.standings.groups : []}
+        matches={view.matches}
+        scorers={view.scorers}
+        client:only="react"
+      />
+
+    </div>
+  </main>
+</Layout>
