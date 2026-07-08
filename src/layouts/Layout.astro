@@ -1,5 +1,11 @@
 ---
 import '../index.css';
+
+interface Props {
+  title?: string;
+}
+
+const { title = 'StreamCup — World Cup 2026 live streams & fixtures' } = Astro.props;
 ---
 <!doctype html>
 <html lang="en">
@@ -13,7 +19,7 @@ import '../index.css';
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="StreamCup" />
-    <title>StreamCup — World Cup 2026 live streams &amp; fixtures</title>
+    <title>{title}</title>
     <meta name="description" content="Watch World Cup 2026 football live streams and follow every fixture, group standings, and result — one fast, no-clutter hub." />
     <meta name="robots" content="index, follow" />
     <link rel="canonical" href="https://cup.umuo.app/" />

@@ -8,6 +8,9 @@ import {
 } from '../competitions';
 import { assembleLeaders, LEADERS_BY_SPORT } from '../leaders';
 import { buildNewsUrl, newsCacheKey, newsFresh, newsParamsFromQuery } from '../news';
+import { parseNewsFeed } from '../newsFeed';
+import type { NewsItem } from '../types';
+import type { NewsParams } from '../news';
 
 // Edge cache for the upstream data APIs. The SPA calls same-origin /api/*; the
 // Worker fetches the third-party source and caches the body in KV. Now lifted
@@ -251,4 +254,29 @@ export async function serveNews(
 ): Promise<Response> {
   const params = newsParamsFromQuery(q);
   return cached(newsCacheKey(params), buildNewsUrl(params), newsFresh(params), 86400, env, ctx);
+}
+
+// Compose serveNews + parseNewsFeed into one SSR-friendly call. Returns the
+// already-parsed NewsItem[] ready to render. Empty array on any failure
+// (non-ok, JSON error, upstream {"error":...}). Used by the Astro news pages.
+export async function fetchNewsItems(
+  params: NewsParams,
+  env: Env,
+  ctx: ExecutionContext,
+): Promise<NewsItem[]> {
+  const q = new URLSearchParams();
+  if (params.limit !== undefined) q.set('limit', String(params.limit));
+  if (params.sport) q.set('sport', params.sport);
+  if (params.leagues) q.set('leagues', params.leagues);
+  if (params.team) q.set('team', params.team);
+  const res = await serveNews(q, env, ctx);
+  if (!res.ok) return [];
+  try {
+    const body = await res.text();
+    const json: unknown = JSON.parse(body);
+    if (json && typeof json === 'object' && 'error' in json) return [];
+    return parseNewsFeed(json);
+  } catch {
+    return [];
+  }
 }

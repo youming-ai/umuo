@@ -16,14 +16,20 @@ function scopeToQuery(s: NewsScope): string {
 // (the global feed's fresh window; filtered feeds are fresher-capped at 300s, so
 // this just re-hits the edge cache — acceptable). Resets cache when the scope
 // changes so one scope's feed never flashes on another.
-export function useNews(scope: NewsScope) {
+export function useNews(
+  scope: NewsScope,
+  initialData?: NewsItem[],
+) {
   const query = scopeToQuery(scope);
-  const [items, setItems] = useState<NewsItem[]>([]);
-  const [loading, setLoading] = useState(true);
+  const seeded = !!initialData && initialData.length > 0;
+  const [items, setItems] = useState<NewsItem[]>(initialData ?? []);
+  const [loading, setLoading] = useState(!seeded);
   const [error, setError] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
-  const cacheRef = useRef<{ data: NewsItem[]; ts: number } | null>(null);
-  const initialRef = useRef(true);
+  const cacheRef = useRef<{ data: NewsItem[]; ts: number } | null>(
+    seeded ? { data: initialData, ts: Date.now() } : null,
+  );
+  const initialRef = useRef(!seeded);
   const queryRef = useRef(query);
 
   const fetchData = useCallback(async () => {
@@ -68,6 +74,21 @@ export function useNews(scope: NewsScope) {
   }, [query]);
 
   useEffect(() => {
+    if (!initialRef.current) {
+      // already seeded with initialData; skip the first fetch and start polling
+      const onVisible = () => {
+        if (document.visibilityState === 'visible') fetchData();
+      };
+      const id = setInterval(() => {
+        if (document.visibilityState === 'visible') fetchData();
+      }, 120_000);
+      document.addEventListener('visibilitychange', onVisible);
+      return () => {
+        abortRef.current?.abort();
+        clearInterval(id);
+        document.removeEventListener('visibilitychange', onVisible);
+      };
+    }
     fetchData();
     const onVisible = () => {
       if (document.visibilityState === 'visible') fetchData();

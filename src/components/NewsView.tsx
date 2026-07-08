@@ -5,9 +5,9 @@ import { navigate, pathFor } from '../utils/router';
 import { useNews } from '../hooks/useNews';
 import { DEFAULT_COMPETITION } from '../competitions';
 
-export default function NewsView({ scope }: { scope: NewsScope }) {
+export default function NewsView({ scope, initialData }: { scope: NewsScope; initialData?: NewsItem[] }) {
   const t = useT();
-  const { items, loading, error, refetch } = useNews(scope);
+  const { items, loading, error, refetch } = useNews(scope, initialData);
   const activePath = pathFor({ kind: 'news', comp: DEFAULT_COMPETITION, scope });
 
   return (
