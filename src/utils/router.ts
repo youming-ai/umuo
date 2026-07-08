@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { COMPETITIONS, DEFAULT_COMPETITION } from '../competitions';
+import type { NewsScope } from '../types';
 
 // One-route-fits-all router built on the History API. No react-router /
 // wouter dep — the surface area is small enough that a single module is
@@ -25,7 +26,8 @@ export type Route =
   | { kind: 'section'; comp: string; section: Section }
   | { kind: 'match'; comp: string; slug: string }
   | { kind: 'team'; comp: string; teamId: string }
-  | { kind: 'player'; comp: string; athleteId: string };
+  | { kind: 'player'; comp: string; athleteId: string }
+  | { kind: 'news'; comp: string; scope: NewsScope }; // comp is nominal (DEFAULT_COMPETITION); pathFor ignores it for news URLs — present only so route.comp is valid on every kind
 
 // section → path suffix under /<comp> (matches is the competition root).
 const SECTION_SUFFIX: Record<Section, string> = {
@@ -43,6 +45,31 @@ function safeDecode(segment: string): string | null {
   } catch {
     return null;
   }
+}
+
+// News is cross-competition (no comp prefix). Parse the segments AFTER `news`.
+function parseNews(seg: string[]): Route {
+  if (seg.length === 0) return { kind: 'news', comp: DEFAULT_COMPETITION, scope: { by: 'all' } };
+  if (seg[0] === 'league') {
+    if (seg[1]) {
+      const league = safeDecode(seg[1]);
+      if (league)
+        return { kind: 'news', comp: DEFAULT_COMPETITION, scope: { by: 'league', league } };
+    }
+    return { kind: 'news', comp: DEFAULT_COMPETITION, scope: { by: 'all' } };
+  }
+  if (seg[0] === 'team') {
+    if (seg[1]) {
+      const team = safeDecode(seg[1]);
+      if (team) return { kind: 'news', comp: DEFAULT_COMPETITION, scope: { by: 'team', team } };
+    }
+    return { kind: 'news', comp: DEFAULT_COMPETITION, scope: { by: 'all' } };
+  }
+  if (seg.length === 1) {
+    const sport = safeDecode(seg[0]!);
+    if (sport) return { kind: 'news', comp: DEFAULT_COMPETITION, scope: { by: 'sport', sport } };
+  }
+  return { kind: 'news', comp: DEFAULT_COMPETITION, scope: { by: 'all' } };
 }
 
 // Parse the view segments (everything AFTER the competition prefix) into a
@@ -73,6 +100,7 @@ export function parseRoute(pathname: string): Route {
   // Normalise: strip query and trailing slash, split into non-empty segments.
   const path = pathname.split('?')[0]?.replace(/\/+$/, '') || '/';
   const seg = path.split('/').filter(Boolean);
+  if (seg[0] === 'news') return parseNews(seg.slice(1));
   // First segment is the competition when it's a known key; otherwise the
   // whole path is a legacy (pre-multi-comp) link under the default competition.
   if (seg.length > 0 && Object.hasOwn(COMPETITIONS, seg[0]!)) {
@@ -82,6 +110,13 @@ export function parseRoute(pathname: string): Route {
 }
 
 export function pathFor(route: Route): string {
+  if (route.kind === 'news') {
+    const s = route.scope;
+    if (s.by === 'sport') return `/news/${encodeURIComponent(s.sport)}`;
+    if (s.by === 'league') return `/news/league/${encodeURIComponent(s.league)}`;
+    if (s.by === 'team') return `/news/team/${encodeURIComponent(s.team)}`;
+    return '/news';
+  }
   const prefix = `/${route.comp}`;
   switch (route.kind) {
     case 'section':

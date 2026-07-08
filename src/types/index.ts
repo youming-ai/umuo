@@ -171,3 +171,33 @@ export interface Leader {
   displayValue: string; // ESPN raw display, e.g. "27" or "30.2"
   value: number; // numeric value for sorting
 }
+
+// --- news (Phase 2) ---
+// What the news feed is scoped to. Drives both the /api/news query and the
+// /news/... route. NOTE: /api/news only filters by sport/leagues/team — there
+// is no athlete filter (see NewsTag).
+export type NewsScope =
+  | { by: 'all' }
+  | { by: 'sport'; sport: string }
+  | { by: 'league'; league: string }
+  | { by: 'team'; team: string };
+
+// An entity parsed from a headline's ESPN `categories`. `team` (lowercase
+// abbreviation) is set only for kind 'team' — that's the only kind /api/news
+// can filter on, so it's the only clickable Tag.
+export interface NewsTag {
+  kind: 'team' | 'athlete' | 'league';
+  label: string;
+  team?: string;
+}
+
+export interface NewsItem {
+  id: string;
+  headline: string;
+  description: string;
+  published: string; // ISO
+  byline: string;
+  imageUrl: string; // '' when the headline has no image
+  link: string; // external espn.com article URL (links.web.href)
+  tags: NewsTag[];
+}

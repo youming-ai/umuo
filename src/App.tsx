@@ -1,7 +1,9 @@
 import { lazy, type ReactNode, Suspense, useCallback, useEffect, useMemo } from 'react';
 import Footer from './components/Footer';
 import Header from './components/Header';
+import MarqueeScoreboard from './components/MarqueeScoreboard';
 import MatchDetailPage from './components/MatchDetailPage';
+import NewsView from './components/NewsView';
 import PlayerPage from './components/PlayerPage';
 import TeamPage from './components/TeamPage';
 import { useCompetition } from './hooks/useCompetition';
@@ -107,7 +109,9 @@ export default function App() {
   // schedule fetch (and surface its error) before deciding anything is
   // missing, so a cold-loaded shared link never flashes 404.
   let content: ReactNode;
-  if (route.kind === 'section') {
+  if (route.kind === 'news') {
+    content = <NewsView scope={route.scope} />;
+  } else if (route.kind === 'section') {
     content = wc.loading ? (
       <Loading />
     ) : wc.error ? (
@@ -176,8 +180,9 @@ export default function App() {
     // (classic scrollbar) and mobile (overlay) with no per-platform padding hack.
     <div className="flex flex-col h-dvh overflow-y-auto [scrollbar-gutter:stable_both-edges] bg-night">
       <Header section={route.kind === 'section' ? route.section : undefined} />
+      {route.kind === 'section' && <MarqueeScoreboard matches={wc.matches} comp={route.comp} />}
       <div className="flex-1 flex flex-col">{content}</div>
-      {route.kind === 'section' && <Footer />}
+      {(route.kind === 'section' || route.kind === 'news') && <Footer />}
     </div>
   );
 }

@@ -43,6 +43,7 @@ const en: Dict = {
   'fixtures.leaders': 'Scoring Leaders',
   'fixtures.bracket': 'Bracket',
   'nav.mainLabel': 'Main navigation',
+  'nav.scoreboard': 'Scoreboard',
   'bracket.tbd': 'TBD',
   'bracket.R32': 'Round of 32',
   'bracket.R16': 'Round of 16',
@@ -111,6 +112,13 @@ const en: Dict = {
   'leaders.title': 'Scoring Leaders',
   'leaders.subtitle': "Points per the season's top scorers",
   'scorers.empty': 'No goals scored yet',
+  'news.title': 'News',
+  'news.all': 'All',
+  'news.soccer': 'Soccer',
+  'news.basketball': 'Basketball',
+  'news.nba': 'NBA',
+  'news.eng1': 'Premier League',
+  'news.empty': 'No news right now',
 };
 
 const zh: Dict = {
@@ -152,6 +160,7 @@ const zh: Dict = {
   'fixtures.leaders': '得分榜',
   'fixtures.bracket': '淘汰赛',
   'nav.mainLabel': '主导航',
+  'nav.scoreboard': '比分',
   'bracket.tbd': '待定',
   'bracket.R32': '1/16 决赛',
   'bracket.R16': '1/8 决赛',
@@ -220,6 +229,13 @@ const zh: Dict = {
   'leaders.title': '得分榜',
   'leaders.subtitle': '本赛季得分领跑者',
   'scorers.empty': '暂无进球',
+  'news.title': '新闻',
+  'news.all': '全部',
+  'news.soccer': '足球',
+  'news.basketball': '篮球',
+  'news.nba': 'NBA',
+  'news.eng1': '英超',
+  'news.empty': '暂无新闻',
 };
 
 const ja: Dict = {
@@ -261,6 +277,7 @@ const ja: Dict = {
   'fixtures.leaders': '得点ランキング',
   'fixtures.bracket': 'トーナメント',
   'nav.mainLabel': 'メインナビゲーション',
+  'nav.scoreboard': 'スコアボード',
   'bracket.tbd': '未定',
   'bracket.R32': 'ラウンド32',
   'bracket.R16': 'ラウンド16',
@@ -329,6 +346,13 @@ const ja: Dict = {
   'leaders.title': '得点ランキング',
   'leaders.subtitle': '今シーズンの得点上位選手',
   'scorers.empty': 'まだゴールはありません',
+  'news.title': 'ニュース',
+  'news.all': 'すべて',
+  'news.soccer': 'サッカー',
+  'news.basketball': 'バスケットボール',
+  'news.nba': 'NBA',
+  'news.eng1': 'プレミアリーグ',
+  'news.empty': '現在ニュースはありません',
 };
 
 const ko: Dict = {
@@ -370,6 +394,7 @@ const ko: Dict = {
   'fixtures.leaders': '득점 순위',
   'fixtures.bracket': '토너먼트',
   'nav.mainLabel': '기본 탐색',
+  'nav.scoreboard': '스코어보드',
   'bracket.tbd': '미정',
   'bracket.R32': '32강',
   'bracket.R16': '16강',
@@ -438,6 +463,13 @@ const ko: Dict = {
   'leaders.title': '득점 순위',
   'leaders.subtitle': '이번 시즌 득점 상위 선수',
   'scorers.empty': '아직 골이 없습니다',
+  'news.title': '뉴스',
+  'news.all': '전체',
+  'news.soccer': '축구',
+  'news.basketball': '농구',
+  'news.nba': 'NBA',
+  'news.eng1': '프리미어리그',
+  'news.empty': '현재 뉴스가 없습니다',
 };
 
 export const messages: Record<Lang, Dict> = { en, zh, ja, ko };
