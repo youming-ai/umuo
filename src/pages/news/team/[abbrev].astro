@@ -1,6 +1,6 @@
 ---
 import Layout from '../../../layouts/Layout.astro';
-import NewsView from '../../../components/NewsView';
+import NewsIsland from '../../../components/NewsIsland';
 import NewsPageShell from '../../../components/NewsPageShell.astro';
 import { fetchNewsItems } from '../../../data/api';
 import type { NewsScope } from '../../../types';
@@ -13,5 +13,5 @@ const items = await fetchNewsItems({ limit: 20, team }, env, ctx);
 ---
 <Layout title={`StreamCup — News — team ${team}`}>
   <NewsPageShell scope={scope} items={items} title={`News — team ${team}`} />
-  <NewsView scope={scope} initialData={items} client:only="react" />
+  <NewsIsland scope={scope} initialData={items} client:only="react" />
 </Layout>

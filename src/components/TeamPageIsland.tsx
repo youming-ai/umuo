@@ -2,6 +2,7 @@ import { useCallback } from 'react';
 import type { CompMatch, TopScorer, WCGroup } from '../types';
 import { useRouter, navigate, pathFor } from '../utils/router';
 import TeamPage from './TeamPage';
+import AppProviders from './AppProviders';
 
 // Thin island wrapper. Sets up onBack (navigate to /:comp matches) and
 // passes all SSR-fetched data through to the existing TeamPage. The
@@ -27,12 +28,8 @@ export default function TeamPageIsland({
   );
 
   return (
-    <TeamPage
-      teamId={teamId}
-      groups={groups}
-      matches={matches}
-      scorers={scorers}
-      onBack={onBack}
-    />
+    <AppProviders>
+      <TeamPage teamId={teamId} groups={groups} matches={matches} scorers={scorers} onBack={onBack} />
+    </AppProviders>
   );
 }

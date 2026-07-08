@@ -6,6 +6,7 @@ import { useCompetition } from '../hooks/useCompetition';
 import { useLeaders } from '../hooks/useLeaders';
 import { useStreams } from '../hooks/useStreams';
 import FixturesView from './FixturesView';
+import AppProviders from './AppProviders';
 import type { Section } from '../utils/router';
 import { indexStreams, liveStreamForMatch } from '../utils/streamMatch';
 
@@ -49,14 +50,16 @@ export default function CompetitionIsland({
   }, [matches, streamIndex]);
 
   return (
-    <FixturesView
-      section={section}
-      matches={matches}
-      standings={standings}
-      scorers={scorers}
-      watchableSlugs={watchableSlugs}
-      // Pass pipeline leaders so FixturesView skips its internal useLeaders fetch.
-      pipelineLeaders={leaders}
-    />
+    <AppProviders>
+      <FixturesView
+        section={section}
+        matches={matches}
+        standings={standings}
+        scorers={scorers}
+        watchableSlugs={watchableSlugs}
+        // Pass pipeline leaders so FixturesView skips its internal useLeaders fetch.
+        pipelineLeaders={leaders}
+      />
+    </AppProviders>
   );
 }

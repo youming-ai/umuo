@@ -6,6 +6,7 @@ import { useRouter, navigate, pathFor } from '../utils/router';
 import { useStreams } from '../hooks/useStreams';
 import { indexStreams, liveStreamForMatch } from '../utils/streamMatch';
 import MatchDetailPage from './MatchDetailPage';
+import AppProviders from './AppProviders';
 
 // The match-detail island. Wraps <MatchDetailPage> with the SSR-seeded data
 // and computes the stream / back action on the client (where useRouter +
@@ -36,11 +37,13 @@ export default function MatchDetailIsland({
   }, [match, streamIndex]);
 
   return (
-    <MatchDetailPage
-      match={match}
-      stream={stream}
-      onBack={backHome}
-      initialDetail={initialDetail}
-    />
+    <AppProviders>
+      <MatchDetailPage
+        match={match}
+        stream={stream}
+        onBack={backHome}
+        initialDetail={initialDetail}
+      />
+    </AppProviders>
   );
 }

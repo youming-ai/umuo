@@ -130,19 +130,6 @@ export function pathFor(route: Route): string {
   }
 }
 
-// The canonical (competition-prefixed) URL for a pathname, or null if it's
-// already canonical. Legacy unprefixed links resolve to a real route via
-// parseRoute; this is what lets App redirect them to their prefixed form so
-// shared deep links stay consistent once multiple competitions exist.
-export function canonicalPath(pathname: string): string | null {
-  // Compares path only; a query string is intentionally dropped on redirect
-  // (routes carry no query — parseRoute already ignores `?…`), so a rewrite
-  // never loops on an unmatched query.
-  const normalized = pathname.split('?')[0]?.replace(/\/+$/, '') || '/';
-  const canonical = pathFor(parseRoute(pathname));
-  return canonical === normalized ? null : canonical;
-}
-
 // pushState/replaceState do NOT emit `popstate`, so `useRouter` can't see a
 // programmatic navigation on its own. Every `navigate()` dispatches this event
 // and the hook re-parses on it — that's what keeps any caller (FixturesView,
