@@ -3,12 +3,22 @@ import { getAdapter } from '../adapters';
 import type { StandingsData } from '../adapters/types';
 import type { CompMatch, TopScorer } from '../types';
 
-export function useCompetition(comp: string) {
+export function useCompetition(
+  comp: string,
+  initialData?: {
+    matches: CompMatch[];
+    standings: StandingsData;
+    scorers: TopScorer[];
+  },
+) {
   const BASE = `/api/${comp}`;
-  const [matches, setMatches] = useState<CompMatch[]>([]);
-  const [standings, setStandings] = useState<StandingsData>({ kind: 'soccer', groups: [] });
-  const [scorers, setScorers] = useState<TopScorer[]>([]);
-  const [loading, setLoading] = useState(true);
+  const seeded = !!initialData && initialData.matches.length > 0;
+  const [matches, setMatches] = useState<CompMatch[]>(initialData?.matches ?? []);
+  const [standings, setStandings] = useState<StandingsData>(
+    initialData?.standings ?? { kind: 'soccer', groups: [] },
+  );
+  const [scorers, setScorers] = useState<TopScorer[]>(initialData?.scorers ?? []);
+  const [loading, setLoading] = useState(!seeded);
   const [error, setError] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   const cacheRef = useRef<{
@@ -16,7 +26,7 @@ export function useCompetition(comp: string) {
     standings: StandingsData;
     scorers: TopScorer[];
     ts: number;
-  } | null>(null);
+  } | null>(seeded ? { ...initialData, ts: Date.now() } : null);
   const initialRef = useRef(true);
   const compRef = useRef(comp);
 
@@ -32,6 +42,16 @@ export function useCompetition(comp: string) {
       setMatches([]);
       setStandings({ kind: 'soccer', groups: [] });
       setScorers([]);
+    }
+    // If we have seed data and this is the first call for this comp (no
+    // comp change just happened), the seed IS the first-paint data — mark
+    // initialRef false and skip the actual fetch. The comp-change path
+    // above already cleared the seed (cacheRef = null) and reset
+    // initialRef = true, so a real comp change with no seed for the new
+    // comp falls through to the fetch below.
+    if (initialRef.current && cacheRef.current) {
+      initialRef.current = false;
+      return;
     }
     // stale-while-revalidate: show cached data immediately on subsequent fetches
     if (cacheRef.current && !initialRef.current) {
@@ -83,14 +103,13 @@ export function useCompetition(comp: string) {
 
   useEffect(() => {
     fetchAll();
-    // Poll every 30s when tab is visible, pause when hidden
     const onVisibility = () => {
       if (document.visibilityState === 'visible') fetchAll();
     };
-    document.addEventListener('visibilitychange', onVisibility);
     const id = setInterval(() => {
       if (document.visibilityState === 'visible') fetchAll();
     }, 30_000);
+    document.addEventListener('visibilitychange', onVisibility);
     return () => {
       abortRef.current?.abort();
       clearInterval(id);

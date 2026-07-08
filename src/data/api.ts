@@ -1,5 +1,7 @@
 /// <reference types="@cloudflare/workers-types" />
 
+import { getAdapter } from '../adapters';
+import type { StandingsData } from '../adapters/types';
 import {
   type Competition,
   type Resource,
@@ -9,7 +11,7 @@ import {
 import { assembleLeaders, LEADERS_BY_SPORT } from '../leaders';
 import { buildNewsUrl, newsCacheKey, newsFresh, newsParamsFromQuery } from '../news';
 import { parseNewsFeed } from '../newsFeed';
-import type { NewsItem } from '../types';
+import type { CompMatch, Leader, NewsItem, TopScorer } from '../types';
 import type { NewsParams } from '../news';
 
 // Edge cache for the upstream data APIs. The SPA calls same-origin /api/*; the
@@ -276,6 +278,58 @@ export async function fetchNewsItems(
     const json: unknown = JSON.parse(body);
     if (json && typeof json === 'object' && 'error' in json) return [];
     return parseNewsFeed(json);
+  } catch {
+    return [];
+  }
+}
+
+// Compose serve(scoreboard) + serve(standings) + the sport adapter into one
+// ready-to-render CompetitionView. Used by the Astro competition pages to
+// seed the island's useCompetition hook. Empty shape on any failure path.
+export interface CompetitionView {
+  matches: CompMatch[];
+  standings: StandingsData;
+  scorers: TopScorer[];
+}
+
+const EMPTY_COMPETITION_VIEW: CompetitionView = {
+  matches: [],
+  standings: { kind: 'soccer', groups: [] },
+  scorers: [],
+};
+
+export async function getCompetitionView(
+  comp: Competition,
+  env: Env,
+  ctx: ExecutionContext,
+): Promise<CompetitionView> {
+  try {
+    const [sbRes, stRes] = await Promise.all([
+      serve(comp, 'scoreboard', env, ctx),
+      serve(comp, 'standings', env, ctx),
+    ]);
+    if (!sbRes.ok || !stRes.ok) return EMPTY_COMPETITION_VIEW;
+    const [sbJson, stJson] = await Promise.all([sbRes.json(), stRes.json()]);
+    return getAdapter(comp.key).transform(sbJson, stJson);
+  } catch {
+    return EMPTY_COMPETITION_VIEW;
+  }
+}
+
+// Compose serveLeaders → Leader[] (the same cachedProducer + assembleLeaders
+// pipeline the worker uses, but returning the parsed array directly).
+// Used by the Astro scorers page for comps with leadersSource === 'pipeline'
+// (NBA, eng.1). Empty array on any failure path.
+export async function getPipelineLeaders(
+  comp: Competition,
+  env: Env,
+  ctx: ExecutionContext,
+): Promise<Leader[]> {
+  try {
+    const res = await serveLeaders(comp, env, ctx);
+    if (!res.ok) return [];
+    const raw: unknown = await res.json();
+    return Array.isArray(raw) ? (raw as Leader[]) : [];
   } catch {
     return [];
   }

@@ -39,6 +39,7 @@ export default function FixturesView({
   standings,
   scorers,
   watchableSlugs = NO_WATCHABLE,
+  pipelineLeaders,
 }: {
   section: Section;
   matches: CompMatch[];
@@ -46,6 +47,10 @@ export default function FixturesView({
   scorers: TopScorer[];
   // Slugs of matches with a ppv.to stream live right now (resolved in App).
   watchableSlugs?: ReadonlySet<string>;
+  // Optional pre-warmed pipeline leaders (from the SSR pass). When provided
+  // and leadersSource === 'pipeline', used in place of useLeaders so the
+  // first paint shows the SSR data with no fetch.
+  pipelineLeaders?: Leader[];
 }) {
   const t = useT();
   const { route } = useRouter();
@@ -54,11 +59,9 @@ export default function FixturesView({
   const competition = COMPETITIONS[comp];
   const shape = competition?.shape ?? 'tournament';
   const leadersSource = competition?.leadersSource;
-  // Hooks must run unconditionally, but we only fetch when this comp actually
-  // reads the pipeline result below; scoreboard comps (World Cup) map their
-  // `scorers` prop instead, so passing null skips the fetch/poll entirely
-  // (mirrors useMatchDetail's eventId: string | null gating).
-  const pipeline = useLeaders(leadersSource === 'pipeline' ? comp : null);
+  // Hooks must run unconditionally. When pipelineLeaders is provided, the
+  // hook is gated to a no-op (comp: null) so the island doesn't double-fetch.
+  const pipeline = useLeaders(pipelineLeaders ? null : leadersSource === 'pipeline' ? comp : null, pipelineLeaders);
   const caps = competition?.capabilities;
   const effectiveSection: Section =
     (section === 'bracket' && caps && !caps.bracket) ||

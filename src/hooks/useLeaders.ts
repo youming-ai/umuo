@@ -9,19 +9,22 @@ import type { Leader } from '../types';
 // scoreboard-sourced comps so this never fetches or polls for a result that
 // would be discarded. Same SWR + visibility-gated polling + AbortController
 // pattern as useStreams; season stats change slowly so we poll at 60s.
-export function useLeaders(comp: string | null) {
-  const [leaders, setLeaders] = useState<Leader[]>([]);
-  const [loading, setLoading] = useState(!!comp);
+export function useLeaders(comp: string | null, initialData?: Leader[]) {
+  const seeded = !!initialData && initialData.length > 0;
+  const [leaders, setLeaders] = useState<Leader[]>(initialData ?? []);
+  const [loading, setLoading] = useState(!!comp && !seeded);
   const [error, setError] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
-  const cacheRef = useRef<{ data: Leader[]; ts: number } | null>(null);
+  const cacheRef = useRef<{ data: Leader[]; ts: number } | null>(
+    seeded ? { data: initialData, ts: Date.now() } : null,
+  );
   const initialRef = useRef(true);
   // Tracks which comp the cache/initial-load state above belongs to. When
   // `comp` changes (e.g. FixturesView re-renders eng.1 → nba on the same hook
   // instance), the previous comp's cache must never be served for the new
   // comp, and a new-comp failure must not be suppressed against it — reset to
   // a clean initial-load state per comp (Finding 1).
-  const compRef = useRef<string | null>(null);
+  const compRef = useRef<string | null>(comp);
 
   const fetchData = useCallback(async () => {
     if (!comp) return;
@@ -30,6 +33,16 @@ export function useLeaders(comp: string | null) {
       cacheRef.current = null;
       initialRef.current = true;
       setLeaders([]);
+    }
+    // If we have seed data and this is the first call for this comp (no
+    // comp change just happened), the seed IS the first-paint data — mark
+    // initialRef false and skip the actual fetch. The comp-change path
+    // above already cleared the seed (cacheRef = null) and reset
+    // initialRef = true, so a real comp change with no seed for the new
+    // comp falls through to the fetch below.
+    if (initialRef.current && cacheRef.current) {
+      initialRef.current = false;
+      return;
     }
     if (cacheRef.current && !initialRef.current) {
       setLeaders(cacheRef.current.data);
@@ -74,10 +87,10 @@ export function useLeaders(comp: string | null) {
     const onVisibility = () => {
       if (document.visibilityState === 'visible') fetchData();
     };
-    document.addEventListener('visibilitychange', onVisibility);
     const id = setInterval(() => {
       if (document.visibilityState === 'visible') fetchData();
     }, 60_000);
+    document.addEventListener('visibilitychange', onVisibility);
     return () => {
       abortRef.current?.abort();
       clearInterval(id);

@@ -1,0 +1,28 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import CompetitionIsland from '../../components/CompetitionIsland';
+import { getCompetitionView, getPipelineLeaders } from '../../data/api';
+import { COMPETITIONS } from '../../competitions';
+
+const { comp } = Astro.params;
+if (!comp || !Object.hasOwn(COMPETITIONS, comp)) {
+  return new Response('Not found', { status: 404 });
+}
+const competition = COMPETITIONS[comp]!;
+const env = Astro.locals.runtime.env;
+const ctx = Astro.locals.runtime.ctx as Parameters<typeof getCompetitionView>[2];
+const initialData = await getCompetitionView(competition, env, ctx);
+const initialPipelineLeaders =
+  competition.leadersSource === 'pipeline' ? await getPipelineLeaders(competition, env, ctx) : undefined;
+---
+<Layout title={`StreamCup — ${comp} — Scorers`}>
+  <main>
+    <CompetitionIsland
+      comp={comp}
+      section="scorers"
+      initialData={initialData}
+      initialPipelineLeaders={initialPipelineLeaders}
+      client:only="react"
+    />
+  </main>
+</Layout>
