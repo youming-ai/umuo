@@ -9,18 +9,19 @@ interface Props {
 const { comp, active } = Astro.props;
 const caps = COMPETITIONS[comp]?.capabilities;
 
-// Section links for the active competition, gated by capabilities. Real <a>
-// navigation (each section is its own Astro page — client pushState can't swap
-// the SSR page). ponytail: static labels, see Header note.
 const items: { section: Section; label: string; href: string }[] = [
   { section: 'matches', label: 'Matches', href: `/${comp}` },
-  ...(caps?.scorers ? [{ section: 'scorers' as Section, label: 'Scorers', href: `/${comp}/scorers` }] : []),
-  ...(caps?.bracket ? [{ section: 'bracket' as Section, label: 'Bracket', href: `/${comp}/bracket` }] : []),
+  ...(caps?.scorers
+    ? [{ section: 'scorers' as Section, label: 'Scorers', href: `/${comp}/scorers` }]
+    : []),
+  ...(caps?.bracket
+    ? [{ section: 'bracket' as Section, label: 'Bracket', href: `/${comp}/bracket` }]
+    : []),
 ];
 ---
 <nav
   aria-label="Sections"
-  class="flex gap-1 overflow-x-auto no-scrollbar lg:flex-col lg:overflow-visible lg:sticky lg:top-[4.5rem]"
+  class="flex gap-1 overflow-x-auto no-scrollbar lg:flex-col lg:overflow-visible lg:sticky lg:top-[6.25rem]"
 >
   {items.map((it) => (
     <a

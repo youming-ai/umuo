@@ -14,9 +14,20 @@ function scopeHref(s: NewsScope): string {
 function isActive(current: NewsScope, candidate: NewsScope): boolean {
   if (current.by !== candidate.by) return false;
   if (current.by === 'all') return candidate.by === 'all';
-  if (current.by === 'sport') return candidate.by === 'sport' && (current as { sport: string }).sport === (candidate as { sport: string }).sport;
-  if (current.by === 'league') return candidate.by === 'league' && (current as { league: string }).league === (candidate as { league: string }).league;
-  return candidate.by === 'team' && (current as { team: string }).team === (candidate as { team: string }).team;
+  if (current.by === 'sport')
+    return (
+      candidate.by === 'sport' &&
+      (current as { sport: string }).sport === (candidate as { sport: string }).sport
+    );
+  if (current.by === 'league')
+    return (
+      candidate.by === 'league' &&
+      (current as { league: string }).league === (candidate as { league: string }).league
+    );
+  return (
+    candidate.by === 'team' &&
+    (current as { team: string }).team === (candidate as { team: string }).team
+  );
 }
 
 interface Props {
@@ -27,7 +38,7 @@ interface Props {
 
 const { scope, items, title } = Astro.props;
 ---
-<main class="w-full px-page-x md:px-page-x-md py-page-y">
+<main class="max-w-6xl mx-auto w-full px-page-x md:px-page-x-md py-page-y">
   <h1 class="font-display font-bold text-2xl text-chalk tracking-wide mb-4">{title}</h1>
 
   <nav

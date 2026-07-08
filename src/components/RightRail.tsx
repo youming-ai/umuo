@@ -1,7 +1,7 @@
 import { useT } from '../i18n';
 import type { CompMatch, TopScorer, Match } from '../types';
 import type { StandingsData } from '../adapters/types';
-import { navigate, pathFor, useRouter } from '../utils/router';
+import { pathFor, useRouter } from '../utils/router';
 import { liveStreamForMatch } from '../utils/streamMatch';
 import { useMemo, useState } from 'react';
 import { Tv, ListOrdered, Award } from 'lucide-react';
@@ -68,7 +68,7 @@ export default function RightRail({
       {/* 1. Live Streams Section */}
       <div className="ds-glass p-4 flex flex-col gap-3">
         <h3 className="text-xs font-mono tracking-widest text-chalkdim/60 uppercase px-1 flex items-center gap-2">
-          <Tv className="w-3.5 h-3.5 text-red-500 animate-pulse" />
+          <Tv className="w-3.5 h-3.5 text-live animate-pulse" />
           <span>{t('live.streams') || 'Live Streams'}</span>
         </h3>
         {liveMatches.length === 0 ? (
@@ -78,14 +78,13 @@ export default function RightRail({
         ) : (
           <div className="flex flex-col gap-2">
             {liveMatches.map((m) => (
-              <button
+              <a
                 key={m.id}
-                type="button"
-                onClick={() => navigate(pathFor({ kind: 'match', comp: activeComp, slug: m.slug }))}
-                className="flex flex-col gap-1.5 p-2 rounded-card bg-white/5 border border-white/5 hover:bg-white/10 hover:border-white/10 text-left transition-all duration-200"
+                href={pathFor({ kind: 'match', comp: activeComp, slug: m.slug })}
+                className="flex flex-col gap-1.5 p-2 rounded-card bg-overlay/5 border border-line/25 hover:bg-overlay/10 hover:border-line/50 text-left transition-all duration-200"
               >
                 <div className="flex items-center justify-between w-full">
-                  <span className="text-[10px] font-mono uppercase bg-red-500/10 text-red-500 px-1.5 py-0.5 rounded-micro font-bold">
+                  <span className="text-[10px] font-mono uppercase bg-live/10 text-live px-1.5 py-0.5 rounded-micro font-bold">
                     {m.status === 'live' ? m.progress?.displayClock || 'LIVE' : 'STREAM LIVE'}
                   </span>
                   {m.progress?.displayClock === 'HT' && (
@@ -104,7 +103,7 @@ export default function RightRail({
                     </div>
                   )}
                 </div>
-              </button>
+              </a>
             ))}
           </div>
         )}
@@ -120,7 +119,7 @@ export default function RightRail({
         {standings.kind === 'soccer' && standings.groups.length > 0 && (
           <div className="flex flex-col gap-2">
             {standings.groups.length > 1 && (
-              <div className="flex gap-1 overflow-x-auto no-scrollbar py-0.5 border-b border-white/5 mb-1">
+              <div className="flex gap-1 overflow-x-auto no-scrollbar py-0.5 border-b border-line/25 mb-1">
                 {standings.groups.slice(0, 4).map((g, idx) => (
                   <button
                     key={g.name}
@@ -128,7 +127,7 @@ export default function RightRail({
                     onClick={() => setSoccerGroupIndex(idx)}
                     className={`px-2 py-0.5 rounded-micro text-[10px] font-mono uppercase transition-all ${
                       soccerGroupIndex === idx
-                        ? 'bg-white/10 text-chalk font-bold'
+                        ? 'bg-overlay/10 text-chalk font-bold'
                         : 'text-chalkdim/60 hover:text-chalk'
                     }`}
                   >
@@ -145,7 +144,7 @@ export default function RightRail({
                 .map((row, idx) => (
                   <div
                     key={row.teamId}
-                    className="flex items-center justify-between text-xs py-0.5 px-1 rounded-micro hover:bg-white/5"
+                    className="flex items-center justify-between text-xs py-0.5 px-1 rounded-micro hover:bg-overlay/5"
                   >
                     <div className="flex items-center gap-2 max-w-[70%] truncate">
                       <span className="font-mono text-chalkdim/50 w-3">{idx + 1}</span>
@@ -153,7 +152,7 @@ export default function RightRail({
                         <img
                           src={row.flag}
                           alt=""
-                          className="w-4 h-3.5 object-cover rounded-micro border border-white/10"
+                          className="w-4 h-3.5 object-cover rounded-micro border border-line/30"
                           loading="lazy"
                         />
                       )}
@@ -168,7 +167,7 @@ export default function RightRail({
 
         {standings.kind === 'basketball' && standings.conferences.length > 0 && (
           <div className="flex flex-col gap-2">
-            <div className="flex gap-1 border-b border-white/5 mb-1 pb-1">
+            <div className="flex gap-1 border-b border-line/25 mb-1 pb-1">
               {standings.conferences.map((conf) => {
                 const confKey = conf.name.toLowerCase().includes('east') ? 'eastern' : 'western';
                 return (
@@ -178,7 +177,7 @@ export default function RightRail({
                     onClick={() => setNbaConf(confKey)}
                     className={`flex-1 text-center py-0.5 rounded-micro text-[10px] font-mono uppercase transition-all ${
                       nbaConf === confKey
-                        ? 'bg-white/10 text-chalk font-bold'
+                        ? 'bg-overlay/10 text-chalk font-bold'
                         : 'text-chalkdim/60 hover:text-chalk'
                     }`}
                   >
@@ -201,7 +200,7 @@ export default function RightRail({
                 .map((row, idx) => (
                   <div
                     key={row.teamId}
-                    className="flex items-center justify-between text-xs py-0.5 px-1 rounded-micro hover:bg-white/5"
+                    className="flex items-center justify-between text-xs py-0.5 px-1 rounded-micro hover:bg-overlay/5"
                   >
                     <div className="flex items-center gap-2 max-w-[75%] truncate">
                       <span className="font-mono text-chalkdim/50 w-3">{idx + 1}</span>

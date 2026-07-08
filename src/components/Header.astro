@@ -9,16 +9,13 @@ const { comp } = Astro.props;
 const path = Astro.url.pathname;
 const onNews = path === '/news' || path.startsWith('/news/');
 
-// ponytail: static display names — Astro (SSR) can't run the React i18n hook,
-// same tradeoff NewsPageShell already makes. Add real i18n if the header ever
-// needs to translate at the edge.
 const NAMES: Record<string, string> = {
   'fifa.world': 'World Cup',
   'eng.1': 'Premier League',
   nba: 'NBA',
 };
 ---
-<header class="sticky top-0 z-40 border-b border-line/30 bg-panel/85 backdrop-blur-md">
+<header class="border-b border-line/30 bg-panel/85 backdrop-blur-md">
   <div class="flex items-center gap-4 px-page-x md:px-page-x-md h-14">
     <a href="/" class="font-display font-bold text-lg tracking-wide text-chalk shrink-0">
       Stream<span class="text-pitch">Cup</span>

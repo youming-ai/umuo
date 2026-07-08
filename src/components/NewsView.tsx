@@ -5,13 +5,19 @@ import { navigate, pathFor } from '../utils/router';
 import { useNews } from '../hooks/useNews';
 import { DEFAULT_COMPETITION } from '../competitions';
 
-export default function NewsView({ scope, initialData }: { scope: NewsScope; initialData?: NewsItem[] }) {
+export default function NewsView({
+  scope,
+  initialData,
+}: {
+  scope: NewsScope;
+  initialData?: NewsItem[];
+}) {
   const t = useT();
   const { items, loading, error, refetch } = useNews(scope, initialData);
   const activePath = pathFor({ kind: 'news', comp: DEFAULT_COMPETITION, scope });
 
   return (
-    <div className="w-full px-page-x md:px-page-x-md py-page-y">
+    <div className="max-w-6xl mx-auto w-full px-page-x md:px-page-x-md py-page-y">
       {/* Category-nav strip */}
       <nav
         aria-label={t('news.title')}
