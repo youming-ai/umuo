@@ -1,7 +1,7 @@
 /// <reference types="@cloudflare/workers-types" />
 
 import { getAdapter } from '../adapters';
-import type { StandingsData } from '../adapters/types';
+import type { MatchDetail, StandingsData } from '../adapters/types';
 import {
   type Competition,
   type Resource,
@@ -332,5 +332,46 @@ export async function getPipelineLeaders(
     return Array.isArray(raw) ? (raw as Leader[]) : [];
   } catch {
     return [];
+  }
+}
+
+// Find a CompMatch by its URL slug, fetching only the scoreboard (not
+// standings — the adapter handles empty standings gracefully). Used by
+// the Astro match-detail page to validate the URL AND get the match's
+// event ID for the summary call. Returns null if the slug isn't found
+// or the upstream fails.
+export async function getCompMatchBySlug(
+  comp: Competition,
+  slug: string,
+  env: Env,
+  ctx: ExecutionContext,
+): Promise<CompMatch | null> {
+  try {
+    const res = await serve(comp, 'scoreboard', env, ctx);
+    if (!res.ok) return null;
+    const sbJson: unknown = await res.json();
+    const view = getAdapter(comp.key).transform(sbJson, {});
+    return view.matches.find((m) => m.slug === slug) ?? null;
+  } catch {
+    return null;
+  }
+}
+
+// Fetch + transform the ESPN summary into a MatchDetail. Wraps
+// serveSummary + the sport adapter's transformSummary. Returns null on
+// any failure path (non-ok, json error, adapter error).
+export async function getMatchSummary(
+  comp: Competition,
+  eventId: string,
+  env: Env,
+  ctx: ExecutionContext,
+): Promise<MatchDetail | null> {
+  try {
+    const res = await serveSummary(comp, eventId, env, ctx);
+    if (!res.ok) return null;
+    const json: unknown = await res.json();
+    return getAdapter(comp.key).transformSummary(json);
+  } catch {
+    return null;
   }
 }

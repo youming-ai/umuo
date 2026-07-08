@@ -1,6 +1,7 @@
 import { type KeyboardEvent as ReactKeyboardEvent, useEffect, useState } from 'react';
 import { useMatchDetail } from '../hooks/useMatchDetail';
 import { useT } from '../i18n';
+import type { MatchDetail } from '../adapters/types';
 import type { CompMatch, Match } from '../types';
 import { useRouter } from '../utils/router';
 import BoxscoreTab from './matchdetail/BoxscoreTab';
@@ -58,6 +59,7 @@ export default function MatchDetailPage({
   match,
   stream,
   onBack,
+  initialDetail,
 }: {
   match: CompMatch;
   // The matching ppv.to stream, already resolved AND liveness-filtered in App
@@ -65,10 +67,11 @@ export default function MatchDetailPage({
   // App means this component stays deterministic given its props.
   stream?: Match | null;
   onBack: () => void;
+  initialDetail?: MatchDetail | null;
 }) {
   const t = useT();
   const { route } = useRouter();
-  const { detail, loading, error, reload } = useMatchDetail(match.id, route.comp);
+  const { detail, loading, error, reload } = useMatchDetail(match.id, route.comp, initialDetail);
   const [tab, setTab] = useState<Tab>('stats');
   const [iframeUrl, setIframeUrl] = useState('');
 
