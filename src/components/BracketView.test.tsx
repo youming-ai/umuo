@@ -106,9 +106,16 @@ describe('BracketView', () => {
   });
 
   it('does not navigate on cell click when no CompMatch is attached', () => {
-    // jsdom's window.location is read-only; just verify clicking a TBD
-    // cell doesn't crash and the click handler is a no-op.
-    const spy = vi.spyOn(window.history, 'pushState');
+    // navigate() does a real window.location.assign/replace now; stub both
+    // so a false-negative (button not actually disabled) doesn't try to
+    // make jsdom perform a real navigation.
+    const assign = vi.fn();
+    const replace = vi.fn();
+    Object.defineProperty(window, 'location', {
+      value: { ...window.location, assign, replace },
+      writable: true,
+      configurable: true,
+    });
     render(
       <LanguageProvider>
         <BracketView groups={[]} matches={[]} />
@@ -117,6 +124,7 @@ describe('BracketView', () => {
     const firstButton = screen.getAllByRole('button')[0];
     expect(firstButton).toBeDisabled();
     fireEvent.click(firstButton);
-    expect(spy).not.toHaveBeenCalled();
+    expect(assign).not.toHaveBeenCalled();
+    expect(replace).not.toHaveBeenCalled();
   });
 });

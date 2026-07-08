@@ -180,12 +180,14 @@ export default function TeamPage({ teamId, groups, matches, scorers, onBack }: T
             </h2>
             <ul className="space-y-2 ds-glass p-card">
               {ownScorers.map((s) => (
-                <li
-                  key={s.athleteId}
-                  className="flex items-center justify-between font-mono text-xs"
-                >
-                  <span className="font-display text-sm text-chalk">{s.name}</span>
-                  <span className="tabular-nums text-chalk">{s.goals}</span>
+                <li key={s.athleteId}>
+                  <a
+                    href={pathFor({ kind: 'player', comp, athleteId: s.athleteId })}
+                    className="flex items-center justify-between font-mono text-xs hover:text-pitch transition-colors"
+                  >
+                    <span className="font-display text-sm text-chalk">{s.name}</span>
+                    <span className="tabular-nums text-chalk">{s.goals}</span>
+                  </a>
                 </li>
               ))}
             </ul>

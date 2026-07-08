@@ -3,7 +3,7 @@ import { useMatchDetail } from '../hooks/useMatchDetail';
 import { useT } from '../i18n';
 import type { MatchDetail } from '../adapters/types';
 import type { CompMatch, Match } from '../types';
-import { useRouter } from '../utils/router';
+import { pathFor, useRouter } from '../utils/router';
 import BoxscoreTab from './matchdetail/BoxscoreTab';
 import LineupTab from './matchdetail/LineupTab';
 import PlayByPlayTab from './matchdetail/PlayByPlayTab';
@@ -148,7 +148,10 @@ export default function MatchDetailPage({
 
           <div className="flex items-center justify-between w-full max-w-2xl gap-card">
             {/* Home Team */}
-            <div className="flex-1 flex flex-col items-center text-center min-w-0">
+            <a
+              href={pathFor({ kind: 'team', comp: route.comp, teamId: match.homeId })}
+              className="flex-1 flex flex-col items-center text-center min-w-0 hover:opacity-80 transition-opacity"
+            >
               <div className="w-14 h-10 md:w-20 md:h-14 overflow-hidden rounded-card bg-panel2 shadow-hero mb-3 shrink-0">
                 {match.homeFlag ? (
                   <img
@@ -163,7 +166,7 @@ export default function MatchDetailPage({
               <span className="font-display text-base md:text-xl font-bold text-chalk truncate max-w-full">
                 {match.homeName}
               </span>
-            </div>
+            </a>
 
             {/* Score & Status */}
             <div className="flex flex-col items-center justify-center shrink-0 px-2 sm:px-6">
@@ -225,7 +228,10 @@ export default function MatchDetailPage({
             </div>
 
             {/* Away Team */}
-            <div className="flex-1 flex flex-col items-center text-center min-w-0">
+            <a
+              href={pathFor({ kind: 'team', comp: route.comp, teamId: match.awayId })}
+              className="flex-1 flex flex-col items-center text-center min-w-0 hover:opacity-80 transition-opacity"
+            >
               <div className="w-14 h-10 md:w-20 md:h-14 overflow-hidden rounded-card bg-panel2 shadow-hero mb-3 shrink-0">
                 {match.awayFlag ? (
                   <img
@@ -240,7 +246,7 @@ export default function MatchDetailPage({
               <span className="font-display text-base md:text-xl font-bold text-chalk truncate max-w-full">
                 {match.awayName}
               </span>
-            </div>
+            </a>
           </div>
         </div>
 

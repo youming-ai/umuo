@@ -31,9 +31,7 @@ export default function NewsView({
               key={item.key}
               type="button"
               onClick={() =>
-                navigate(pathFor({ kind: 'news', comp: DEFAULT_COMPETITION, scope: item.scope }), {
-                  scroll: true,
-                })
+                navigate(pathFor({ kind: 'news', comp: DEFAULT_COMPETITION, scope: item.scope }))
               }
               aria-pressed={active}
               className={`whitespace-nowrap ds-seg-tab ${active ? 'ds-seg-tab-active' : 'ds-seg-tab-inactive'}`}
@@ -138,9 +136,6 @@ function Tag({ tag }: { tag: NewsTag }) {
               comp: DEFAULT_COMPETITION,
               scope: { by: 'team', team: tag.team! },
             }),
-            {
-              scroll: true,
-            },
           )
         }
         className={`${cls} text-chalk hover:bg-white/10 transition`}

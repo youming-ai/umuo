@@ -1,8 +1,6 @@
-import { act, render } from '@testing-library/react';
+import { render } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { navigate, pathFor, useRouter } from './router';
-
-const MATCHES = { kind: 'section', comp: 'fifa.world', section: 'matches' } as const;
 
 describe('pathFor', () => {
   it('prefixes the competition and URI-encodes special characters in slugs', () => {
@@ -19,53 +17,44 @@ describe('pathFor', () => {
 });
 
 describe('navigate', () => {
-  let original: { push: typeof history.pushState; replace: typeof history.replaceState };
+  const original = window.location;
 
-  beforeEach(() => {
-    original = { push: window.history.pushState, replace: window.history.replaceState };
-    window.history.pushState = vi.fn() as unknown as typeof window.history.pushState;
-    window.history.replaceState = vi.fn() as unknown as typeof window.history.replaceState;
-    // reset to a known pathname.
+  afterEach(() => {
+    Object.defineProperty(window, 'location', { value: original, writable: true, configurable: true });
+  });
+
+  // jsdom's location.assign/replace aren't individually spy-able — stub the
+  // whole object, same trick the original pushState-based tests used.
+  function stubLocation(pathname: string) {
+    const assign = vi.fn();
+    const replace = vi.fn();
     Object.defineProperty(window, 'location', {
-      value: { ...window.location, pathname: '/' },
+      value: { ...window.location, pathname, assign, replace },
       writable: true,
       configurable: true,
     });
-  });
+    return { assign, replace };
+  }
 
-  afterEach(() => {
-    window.history.pushState = original.push;
-    window.history.replaceState = original.replace;
-  });
-
-  it('uses pushState by default', () => {
+  it('uses location.assign by default', () => {
+    const { assign, replace } = stubLocation('/');
     navigate('/match/abc');
-    expect(window.history.pushState).toHaveBeenCalled();
-    expect(window.history.replaceState).not.toHaveBeenCalled();
+    expect(assign).toHaveBeenCalledWith('/match/abc');
+    expect(replace).not.toHaveBeenCalled();
   });
 
-  it('uses replaceState when { replace: true }', () => {
+  it('uses location.replace when { replace: true }', () => {
+    const { assign, replace } = stubLocation('/');
     navigate('/match/abc', { replace: true });
-    expect(window.history.replaceState).toHaveBeenCalled();
-    expect(window.history.pushState).not.toHaveBeenCalled();
+    expect(replace).toHaveBeenCalledWith('/match/abc');
+    expect(assign).not.toHaveBeenCalled();
   });
 
   it('is a no-op when navigating to the current path', () => {
-    Object.defineProperty(window, 'location', {
-      value: { ...window.location, pathname: '/match/abc' },
-      writable: true,
-      configurable: true,
-    });
+    const { assign, replace } = stubLocation('/match/abc');
     navigate('/match/abc');
-    expect(window.history.pushState).not.toHaveBeenCalled();
-    expect(window.history.replaceState).not.toHaveBeenCalled();
-  });
-
-  it('dispatches a route-change event so useRouter can sync', () => {
-    const spy = vi.spyOn(window, 'dispatchEvent');
-    navigate('/match/abc');
-    expect(spy.mock.calls.some(([e]) => (e as Event).type === 'app:routechange')).toBe(true);
-    spy.mockRestore();
+    expect(assign).not.toHaveBeenCalled();
+    expect(replace).not.toHaveBeenCalled();
   });
 });
 
@@ -75,77 +64,17 @@ describe('useRouter', () => {
     return null;
   }
 
-  it('returns the parsed route on mount', () => {
+  beforeEach(() => {
     Object.defineProperty(window, 'location', {
       value: { ...window.location, pathname: '/match/foo' },
       writable: true,
       configurable: true,
     });
+  });
+
+  it('returns the parsed route for the current URL', () => {
     let captured!: ReturnType<typeof useRouter>;
     render(<Harness onReady={(route) => (captured = route)} />);
     expect(captured.route).toEqual({ kind: 'match', comp: 'fifa.world', slug: 'foo' });
-  });
-
-  it('reacts to popstate events', () => {
-    Object.defineProperty(window, 'location', {
-      value: { ...window.location, pathname: '/' },
-      writable: true,
-      configurable: true,
-    });
-    let captured!: ReturnType<typeof useRouter>;
-    render(<Harness onReady={(route) => (captured = route)} />);
-    expect(captured.route).toEqual(MATCHES);
-
-    // Simulate back navigation to /match/foo.
-    Object.defineProperty(window, 'location', {
-      value: { ...window.location, pathname: '/match/foo' },
-      writable: true,
-      configurable: true,
-    });
-    act(() => {
-      window.dispatchEvent(new PopStateEvent('popstate'));
-    });
-
-    expect(captured.route).toEqual({ kind: 'match', comp: 'fifa.world', slug: 'foo' });
-  });
-
-  it('reacts to route-change events from a programmatic navigate()', () => {
-    Object.defineProperty(window, 'location', {
-      value: { ...window.location, pathname: '/' },
-      writable: true,
-      configurable: true,
-    });
-    let captured!: ReturnType<typeof useRouter>;
-    render(<Harness onReady={(route) => (captured = route)} />);
-    expect(captured.route).toEqual(MATCHES);
-
-    // A direct navigate() (as FixturesView does) updates history and
-    // fires the route-change event; useRouter must re-parse off it.
-    Object.defineProperty(window, 'location', {
-      value: { ...window.location, pathname: '/match/foo' },
-      writable: true,
-      configurable: true,
-    });
-    act(() => {
-      window.dispatchEvent(new Event('app:routechange'));
-    });
-
-    expect(captured.route).toEqual({ kind: 'match', comp: 'fifa.world', slug: 'foo' });
-  });
-
-  it('exposes a go() that updates the route immediately', () => {
-    Object.defineProperty(window, 'location', {
-      value: { ...window.location, pathname: '/' },
-      writable: true,
-      configurable: true,
-    });
-    let captured!: ReturnType<typeof useRouter>;
-    render(<Harness onReady={(route) => (captured = route)} />);
-    expect(captured.route).toEqual(MATCHES);
-
-    act(() => {
-      captured.go('/match/abc');
-    });
-    expect(captured.route).toEqual({ kind: 'match', comp: 'fifa.world', slug: 'abc' });
   });
 });
