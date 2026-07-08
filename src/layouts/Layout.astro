@@ -1,0 +1,53 @@
+---
+import '../index.css';
+---
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/png" href="/favicon.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#0A0F0D" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="StreamCup" />
+    <title>StreamCup — World Cup 2026 live streams &amp; fixtures</title>
+    <meta name="description" content="Watch World Cup 2026 football live streams and follow every fixture, group standings, and result — one fast, no-clutter hub." />
+    <meta name="robots" content="index, follow" />
+    <link rel="canonical" href="https://cup.umuo.app/" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="StreamCup" />
+    <meta property="og:title" content="StreamCup — World Cup 2026 live streams &amp; fixtures" />
+    <meta property="og:description" content="Live streams and full fixtures for World Cup 2026 — matches, group standings, and results in one place." />
+    <meta property="og:url" content="https://cup.umuo.app/" />
+    <meta property="og:image" content="https://cup.umuo.app/og.jpg" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:locale" content="en_US" />
+    <meta property="og:locale:alternate" content="zh_CN" />
+    <meta property="og:locale:alternate" content="ja_JP" />
+    <meta property="og:locale:alternate" content="ko_KR" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="StreamCup — World Cup 2026 live streams &amp; fixtures" />
+    <meta name="twitter:description" content="Live streams and full fixtures for World Cup 2026 — matches, group standings, and results in one place." />
+    <meta name="twitter:image" content="https://cup.umuo.app/og.jpg" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Saira+Condensed:wght@600;700&family=Hanken+Grotesk:wght@400&display=swap" rel="stylesheet" />
+  </head>
+  <body class="min-h-screen">
+    <script is:inline>
+      (() => {
+        try {
+          const t = localStorage.getItem('theme');
+          document.documentElement.dataset.theme = t === 'light' ? 'light' : 'dark';
+        } catch (_e) {
+          document.documentElement.dataset.theme = 'dark';
+        }
+      })();
+    </script>
+    <slot />
+  </body>
+</html>
