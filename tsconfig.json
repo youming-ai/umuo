@@ -1,20 +1,8 @@
 {
-  "compilerOptions": {
-    "target": "ES2023",
-    "useDefineForClassFields": true,
-    "lib": ["DOM", "DOM.Iterable", "ES2024"],
-    "module": "ESNext",
-    "skipLibCheck": true,
-    "moduleResolution": "bundler",
-    "allowImportingTsExtensions": true,
-    "resolveJsonModule": true,
-    "isolatedModules": true,
-    "noEmit": true,
-    "jsx": "react-jsx",
-    "strict": true,
-    "noUnusedLocals": true,
-    "noUnusedParameters": true,
-    "noFallthroughCasesInSwitch": true
-  },
-  "include": ["src", "vite.config.ts", "worker-configuration.d.ts"]
+	"extends": "astro/tsconfigs/strict",
+	"include": ["src", "env.d.ts", "worker", "worker-configuration.d.ts"],
+	"exclude": ["dist"],
+	"compilerOptions": {
+		"jsx": "react-jsx"
+	}
 }

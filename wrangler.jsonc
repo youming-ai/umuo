@@ -2,7 +2,8 @@
   // Static SPA + a Worker that edge-caches the upstream data APIs in KV.
   "name": "umuo",
   "compatibility_date": "2026-06-24",
-  "main": "worker/index.ts",
+  "compatibility_flags": ["nodejs_compat"],
+  "main": "./dist/_worker.js/index.js",
   "observability": {
     "enabled": false,
     "head_sampling_rate": 1,
@@ -20,8 +21,7 @@
   },
   "assets": {
     "directory": "./dist",
-    "binding": "ASSETS",
-    "not_found_handling": "single-page-application"
+    "binding": "ASSETS"
   },
   "kv_namespaces": [{ "binding": "CACHE", "id": "1ec03cc00a6d43068e3d7c4473973fd3" }]
 }
