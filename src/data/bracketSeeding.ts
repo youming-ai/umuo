@@ -145,7 +145,7 @@ export const SEEDING: BracketMatch[] = [
     label: 'M89',
     round: 'R16',
     home: { kind: 'winner', matchIndex: 1 },
-    away: { kind: 'winner', matchIndex: 6 },
+    away: { kind: 'winner', matchIndex: 4 },
   },
   {
     index: 17,
@@ -165,7 +165,7 @@ export const SEEDING: BracketMatch[] = [
     index: 19,
     label: 'M92',
     round: 'R16',
-    home: { kind: 'winner', matchIndex: 4 },
+    home: { kind: 'winner', matchIndex: 6 },
     away: { kind: 'winner', matchIndex: 7 },
   },
   {

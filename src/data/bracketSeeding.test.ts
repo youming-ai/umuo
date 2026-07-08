@@ -29,10 +29,14 @@ describe('SEEDING', () => {
   });
 
   it('R16 winner slots reference the correct R32 indices', () => {
-    // M89 = winner of M74 vs winner of M79 (indices 1, 6)
+    // Per FIFA's fixed 2026 bracket: M89 = winner M74 vs winner M77 (indices
+    // 1, 4) and M92 = winner M79 vs winner M80 (indices 6, 7).
     const m89 = SEEDING[16];
     expect(m89?.home).toEqual({ kind: 'winner', matchIndex: 1 });
-    expect(m89?.away).toEqual({ kind: 'winner', matchIndex: 6 });
+    expect(m89?.away).toEqual({ kind: 'winner', matchIndex: 4 });
+    const m92 = SEEDING[19];
+    expect(m92?.home).toEqual({ kind: 'winner', matchIndex: 6 });
+    expect(m92?.away).toEqual({ kind: 'winner', matchIndex: 7 });
   });
 
   it('Final takes the SF winners; 3rd place takes the SF losers (28, 29)', () => {
