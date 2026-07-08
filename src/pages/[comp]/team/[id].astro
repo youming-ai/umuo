@@ -1,6 +1,8 @@
 ---
 import Layout from '../../../layouts/Layout.astro';
 import TeamPageIsland from '../../../components/TeamPageIsland';
+import LeftNav from '../../../components/LeftNav.astro';
+import RightRailIsland from '../../../components/RightRailIsland';
 import { getCompetitionView } from '../../../data/api';
 import { COMPETITIONS } from '../../../competitions';
 import type { WCStanding } from '../../../types';
@@ -35,9 +37,10 @@ const teamName = standing?.name ?? 'Team not found';
 const teamFlag = standing?.flag ?? '';
 ---
 
-<Layout title={`StreamCup — ${teamName}`}>
-  <main class="ds-page">
-    <div class="ds-page-inner">
+<Layout title={`StreamCup — ${teamName}`} comp={comp}>
+  <LeftNav slot="left" comp={comp} />
+  <main>
+    <div class="space-y-section">
 
       {standing ? (
         <>
@@ -99,4 +102,5 @@ const teamFlag = standing?.flag ?? '';
 
     </div>
   </main>
+  <RightRailIsland slot="right" comp={comp} initialData={view} client:only="react" />
 </Layout>

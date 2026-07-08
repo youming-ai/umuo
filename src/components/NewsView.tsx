@@ -11,7 +11,7 @@ export default function NewsView({ scope, initialData }: { scope: NewsScope; ini
   const activePath = pathFor({ kind: 'news', comp: DEFAULT_COMPETITION, scope });
 
   return (
-    <div className="max-w-6xl mx-auto w-full px-page-x md:px-page-x-md py-page-y">
+    <div className="w-full px-page-x md:px-page-x-md py-page-y">
       {/* Category-nav strip */}
       <nav
         aria-label={t('news.title')}

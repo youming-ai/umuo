@@ -1,0 +1,53 @@
+---
+import { COMPETITIONS } from '../competitions';
+import ThemeToggle from './ThemeToggle';
+
+interface Props {
+  comp?: string; // active competition (absent on /news)
+}
+const { comp } = Astro.props;
+const path = Astro.url.pathname;
+const onNews = path === '/news' || path.startsWith('/news/');
+
+// ponytail: static display names — Astro (SSR) can't run the React i18n hook,
+// same tradeoff NewsPageShell already makes. Add real i18n if the header ever
+// needs to translate at the edge.
+const NAMES: Record<string, string> = {
+  'fifa.world': 'World Cup',
+  'eng.1': 'Premier League',
+  nba: 'NBA',
+};
+---
+<header class="sticky top-0 z-40 border-b border-line/30 bg-panel/85 backdrop-blur-md">
+  <div class="flex items-center gap-4 px-page-x md:px-page-x-md h-14">
+    <a href="/" class="font-display font-bold text-lg tracking-wide text-chalk shrink-0">
+      Stream<span class="text-pitch">Cup</span>
+    </a>
+
+    <nav aria-label="Competitions" class="ds-segmented-blur overflow-x-auto no-scrollbar">
+      {Object.keys(COMPETITIONS).map((key) => {
+        const active = !onNews && comp === key;
+        return (
+          <a
+            href={`/${key}`}
+            aria-current={active ? 'page' : undefined}
+            class={`whitespace-nowrap ds-seg-tab ${active ? 'ds-seg-tab-active' : 'ds-seg-tab-inactive'}`}
+          >
+            {NAMES[key] ?? key}
+          </a>
+        );
+      })}
+      <a
+        href="/news"
+        aria-current={onNews ? 'page' : undefined}
+        class={`whitespace-nowrap ds-seg-tab ${onNews ? 'ds-seg-tab-active' : 'ds-seg-tab-inactive'}`}
+      >
+        News
+      </a>
+    </nav>
+
+    <div class="ml-auto shrink-0">
+      <ThemeToggle client:only="react" />
+    </div>
+  </div>
+</header>

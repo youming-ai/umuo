@@ -184,12 +184,10 @@ export default function FixturesView({
   );
 
   return (
-    // Match the Header's layout exactly — px on the OUTER wrapper, max-w-6xl
-    // INSIDE — so the content column lines up with the header box at every
-    // viewport width (otherwise the two max-w boxes diverge in the
-    // 1152–1200px band where only the header's max-w is squeezed by its px).
-    <div className="ds-page">
-      <div className="ds-page-inner">
+    // Width + page padding come from the app shell (Layout.astro) now; this
+    // just stacks its sections inside the shell's center column.
+    <div className="space-y-section">
+      <div className="space-y-section">
         {effectiveSection === 'scorers' ? (
           leadersSource === 'pipeline' ? (
             pipeline.loading && pipeline.leaders.length === 0 ? (

@@ -1,6 +1,8 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import PlayerPageIsland from '../../components/PlayerPageIsland';
+import LeftNav from '../../components/LeftNav.astro';
+import RightRailIsland from '../../components/RightRailIsland';
 import { getCompetitionView } from '../../data/api';
 import { COMPETITIONS, DEFAULT_COMPETITION } from '../../competitions';
 import type { CompMatch, ScorerEntry } from '../../types';
@@ -20,9 +22,10 @@ const scorer = view.scorers.find((s) => s.athleteId === id);
 const playerName = scorer?.name ?? 'Player not found';
 ---
 
-<Layout title={`StreamCup — ${playerName}`}>
-  <main class="ds-page">
-    <div class="ds-page-inner">
+<Layout title={`StreamCup — ${playerName}`} comp={DEFAULT_COMPETITION}>
+  <LeftNav slot="left" comp={DEFAULT_COMPETITION} />
+  <main>
+    <div class="space-y-section">
 
       {scorer ? (
         <div>
@@ -55,4 +58,5 @@ const playerName = scorer?.name ?? 'Player not found';
 
     </div>
   </main>
+  <RightRailIsland slot="right" comp={DEFAULT_COMPETITION} initialData={view} client:only="react" />
 </Layout>

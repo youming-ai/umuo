@@ -1,6 +1,8 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import CompetitionIsland from '../../components/CompetitionIsland';
+import LeftNav from '../../components/LeftNav.astro';
+import RightRailIsland from '../../components/RightRailIsland';
 import { getCompetitionView, getPipelineLeaders } from '../../data/api';
 import { COMPETITIONS } from '../../competitions';
 
@@ -15,7 +17,8 @@ const initialData = await getCompetitionView(competition, env, ctx);
 const initialPipelineLeaders =
   competition.leadersSource === 'pipeline' ? await getPipelineLeaders(competition, env, ctx) : undefined;
 ---
-<Layout title={`StreamCup — ${comp} — Scorers`}>
+<Layout title={`StreamCup — ${comp} — Scorers`} comp={comp}>
+  <LeftNav slot="left" comp={comp} active="scorers" />
   <main>
     <CompetitionIsland
       comp={comp}
@@ -25,4 +28,5 @@ const initialPipelineLeaders =
       client:only="react"
     />
   </main>
+  <RightRailIsland slot="right" comp={comp} initialData={initialData} client:only="react" />
 </Layout>

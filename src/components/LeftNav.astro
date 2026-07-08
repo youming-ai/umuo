@@ -1,0 +1,38 @@
+---
+import { COMPETITIONS } from '../competitions';
+import type { Section } from '../utils/router';
+
+interface Props {
+  comp: string;
+  active?: Section; // omitted on team/player/match pages → nothing highlighted
+}
+const { comp, active } = Astro.props;
+const caps = COMPETITIONS[comp]?.capabilities;
+
+// Section links for the active competition, gated by capabilities. Real <a>
+// navigation (each section is its own Astro page — client pushState can't swap
+// the SSR page). ponytail: static labels, see Header note.
+const items: { section: Section; label: string; href: string }[] = [
+  { section: 'matches', label: 'Matches', href: `/${comp}` },
+  ...(caps?.scorers ? [{ section: 'scorers' as Section, label: 'Scorers', href: `/${comp}/scorers` }] : []),
+  ...(caps?.bracket ? [{ section: 'bracket' as Section, label: 'Bracket', href: `/${comp}/bracket` }] : []),
+];
+---
+<nav
+  aria-label="Sections"
+  class="flex gap-1 overflow-x-auto no-scrollbar lg:flex-col lg:overflow-visible lg:sticky lg:top-[4.5rem]"
+>
+  {items.map((it) => (
+    <a
+      href={it.href}
+      aria-current={active === it.section ? 'page' : undefined}
+      class={`shrink-0 whitespace-nowrap rounded-card px-3 py-2 font-display text-sm tracking-wide transition-colors ${
+        active === it.section
+          ? 'bg-overlay/10 text-chalk font-bold'
+          : 'text-chalkdim hover:text-chalk hover:bg-overlay/5'
+      }`}
+    >
+      {it.label}
+    </a>
+  ))}
+</nav>

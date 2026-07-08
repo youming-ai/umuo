@@ -7,18 +7,20 @@
    Semantic names map 1:1 to design-tokens/tokens.json and tailwind.config.js. */
 :root,
 [data-theme='dark'] {
-  /* Surfaces */
-  --c-bg: 10 14 12;
-  --c-surface: 26 34 30;
-  --c-surface2: 40 52 46;
-  --c-line: 48 64 56;
-  --c-text: 242 247 244;
-  --c-muted: 138 150 144;
+  /* Surfaces — "Floodlit Midnight": a midnight blue-green ground, not pure
+     black, so the sodium floodlight glow has something to warm. */
+  --c-bg: 11 20 24;
+  --c-surface: 22 33 28;
+  --c-surface2: 34 50 45;
+  --c-line: 42 58 52;
+  --c-text: 234 244 238;
+  --c-muted: 130 146 142;
 
   /* Semantic */
   --c-pitch: 46 213 115;
   --c-live: 255 69 58;
   --c-amber: 251 191 36;
+  --c-sodium: 244 183 64; /* stadium floodlight glow — the signature accent */
 
   /* Elevation overlays (replaces ad-hoc white/black alpha) */
   --c-overlay: 255 255 255;
@@ -29,7 +31,7 @@
      must not flip with the theme. Light theme intentionally does NOT override
      these. */
   --c-on-scrim: 255 255 255;
-  --c-on-accent: 10 14 12;
+  --c-on-accent: 11 20 24;
 
   /* Radius. Every panel-like container shares one corner radius — the
      Header's (`panel`, 24px) — so cards, the hero scoreboard and glass
@@ -82,6 +84,7 @@
   --c-pitch: 34 170 90;
   --c-live: 220 50 45;
   --c-amber: 217 150 20;
+  --c-sodium: 214 150 40; /* daytime: a warmer amber; floodlight glow is muted in light */
 
   --c-overlay: 0 0 0;
   --c-scrim: 0 0 0;
@@ -169,6 +172,27 @@
   .live-dot {
     @apply inline-block w-1.5 h-1.5 bg-live;
     animation: live-pulse 1.4s ease-in-out infinite;
+  }
+
+  /* Signature — stadium floodlights above the page. A static sodium glow that
+     fades down into the midnight ground, as if the pitch is lit from overhead.
+     One fixed band at the top; the rest of the page stays quiet. Dark only —
+     a day match has no floodlights. */
+  .ds-floodlight {
+    position: fixed;
+    inset: 0 0 auto 0;
+    height: 340px;
+    z-index: 0;
+    pointer-events: none;
+    background: radial-gradient(
+      130% 100% at 50% -25%,
+      rgb(var(--c-sodium) / 0.16),
+      rgb(var(--c-sodium) / 0.05) 38%,
+      transparent 64%
+    );
+  }
+  [data-theme='light'] .ds-floodlight {
+    display: none;
   }
 }
 

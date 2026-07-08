@@ -106,3 +106,6 @@ dist-ssr/
 
 # Wrangler / Cloudflare local cache
 .wrangler/
+
+# Astro generated types
+.astro/

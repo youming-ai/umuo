@@ -1,6 +1,7 @@
 ---
 import Layout from '../../../layouts/Layout.astro';
 import MatchDetailIsland from '../../../components/MatchDetailIsland';
+import LeftNav from '../../../components/LeftNav.astro';
 import { getCompMatchBySlug, getMatchSummary } from '../../../data/api';
 import { COMPETITIONS } from '../../../competitions';
 
@@ -44,9 +45,10 @@ const kickoffTime = (): string => {
 };
 ---
 
-<Layout title={`StreamCup — ${match.homeName} vs ${match.awayName}`}>
-  <main class="ds-page">
-    <div class="ds-page-inner">
+<Layout title={`StreamCup — ${match.homeName} vs ${match.awayName}`} comp={comp}>
+  <LeftNav slot="left" comp={comp} />
+  <main>
+    <div class="space-y-section">
 
       <!-- Hero Scoreboard (SSR) -->
       <div class="ds-glass-hero p-card md:p-8 flex flex-col items-center justify-center relative overflow-hidden">
