@@ -100,6 +100,7 @@ const SLUG_TO_STAGE: Record<string, Stage> = {
   'round-of-16': 'r16',
   quarterfinals: 'qf',
   semifinals: 'sf',
+  '3rd-place-match': 'third',
   'third-place': 'third',
   final: 'final',
 };

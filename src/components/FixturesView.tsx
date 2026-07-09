@@ -56,10 +56,7 @@ export default function FixturesView({
   const leadersSource = competition?.leadersSource;
   // Single owner of pipeline leaders for this island (CompetitionIsland only
   // forwards the SSR seed; it does not run a second useLeaders).
-  const pipeline = useLeaders(
-    leadersSource === 'pipeline' ? comp : null,
-    pipelineLeaders,
-  );
+  const pipeline = useLeaders(leadersSource === 'pipeline' ? comp : null, pipelineLeaders);
   const caps = competition?.capabilities;
   // Unsupported capability deep-links (e.g. /eng.1/bracket) are redirected
   // server-side in the Astro pages. Keep a render-time fallback so a stale
@@ -134,35 +131,39 @@ export default function FixturesView({
             })
           : 'TBD'}
       </h3>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-stack sm:gap-card">
+      <div
+        className={
+          list.length === 1
+            ? 'mx-auto max-w-md'
+            : 'grid grid-cols-1 gap-stack sm:grid-cols-2 sm:gap-card'
+        }
+      >
         {list.map((m) => (
-            <MatchCard
-              key={m.id}
-              homeName={m.homeName}
-              awayName={m.awayName}
-              homeFlag={m.homeFlag}
-              awayFlag={m.awayFlag}
-              homeScore={m.homeScore}
-              awayScore={m.awayScore}
-              status={m.status}
-              kickoff={m.kickoff}
-              stage={m.stage}
-              group={m.group}
-              statusText={m.statusText}
-              progress={m.progress}
-              finishType={m.finishType}
-              homeShootoutScore={m.homeShootoutScore}
-              awayShootoutScore={m.awayShootoutScore}
-              winner={m.winner}
-              homeScorers={m.homeScorers}
-              awayScorers={m.awayScorers}
-              venue={m.venue}
-              href={
-                m.status === 'upcoming'
-                  ? undefined
-                  : pathFor({ kind: 'match', comp, slug: m.slug })
-              }
-            />
+          <MatchCard
+            key={m.id}
+            homeName={m.homeName}
+            awayName={m.awayName}
+            homeFlag={m.homeFlag}
+            awayFlag={m.awayFlag}
+            homeScore={m.homeScore}
+            awayScore={m.awayScore}
+            status={m.status}
+            kickoff={m.kickoff}
+            stage={m.stage}
+            group={m.group}
+            statusText={m.statusText}
+            progress={m.progress}
+            finishType={m.finishType}
+            homeShootoutScore={m.homeShootoutScore}
+            awayShootoutScore={m.awayShootoutScore}
+            winner={m.winner}
+            homeScorers={m.homeScorers}
+            awayScorers={m.awayScorers}
+            venue={m.venue}
+            href={
+              m.status === 'upcoming' ? undefined : pathFor({ kind: 'match', comp, slug: m.slug })
+            }
+          />
         ))}
       </div>
     </section>
@@ -172,152 +173,152 @@ export default function FixturesView({
     // Width + page padding come from the app shell (Layout.astro) now; this
     // just stacks its sections inside the shell's center column.
     <div className="space-y-section">
-        {effectiveSection === 'scorers' ? (
-          leadersSource === 'pipeline' ? (
-            pipeline.loading && pipeline.leaders.length === 0 ? (
-              <p className="font-mono text-xs tracking-[0.3em] text-pitch animate-pulse motion-reduce:animate-none">
-                Loading…
-              </p>
-            ) : pipeline.error && pipeline.leaders.length === 0 ? (
-              <div className="flex flex-col items-start gap-3">
-                <p className="font-mono text-xs tracking-wider text-chalkdim">{pipeline.error}</p>
-                <button
-                  type="button"
-                  onClick={pipeline.refetch}
-                  className="px-4 py-2 bg-pitch text-onaccent font-display font-semibold tracking-wide hover:brightness-110 transition"
-                >
-                  Retry
-                </button>
-              </div>
-            ) : (
-              <LeadersView
-                leaders={pipeline.leaders}
-                statLabel={competition?.sport === 'basketball' ? 'PTS' : 'G'}
-                title={competition?.sport === 'basketball' ? 'Scoring Leaders' : 'Top Scorers'}
-                subtitle={
-                  competition?.sport === 'basketball'
-                    ? "Points per the season's top scorers"
-                    : 'Golden Boot race'
-                }
-                empty="No goals scored yet"
-              />
-            )
+      {effectiveSection === 'scorers' ? (
+        leadersSource === 'pipeline' ? (
+          pipeline.loading && pipeline.leaders.length === 0 ? (
+            <p className="font-mono text-xs tracking-[0.3em] text-pitch animate-pulse motion-reduce:animate-none">
+              Loading…
+            </p>
+          ) : pipeline.error && pipeline.leaders.length === 0 ? (
+            <div className="flex flex-col items-start gap-3">
+              <p className="font-mono text-xs tracking-wider text-chalkdim">{pipeline.error}</p>
+              <button
+                type="button"
+                onClick={pipeline.refetch}
+                className="px-4 py-2 bg-pitch text-onaccent font-display font-semibold tracking-wide hover:brightness-110 transition"
+              >
+                Retry
+              </button>
+            </div>
           ) : (
             <LeadersView
-              leaders={scorersToLeaders(scorers)}
-              statLabel="G"
-              title="Top Scorers"
-              subtitle="Golden Boot race"
+              leaders={pipeline.leaders}
+              statLabel={competition?.sport === 'basketball' ? 'PTS' : 'G'}
+              title={competition?.sport === 'basketball' ? 'Scoring Leaders' : 'Top Scorers'}
+              subtitle={
+                competition?.sport === 'basketball'
+                  ? "Points per the season's top scorers"
+                  : 'Golden Boot race'
+              }
               empty="No goals scored yet"
             />
           )
-        ) : effectiveSection === 'bracket' ? (
-          <BracketView groups={groups} matches={matches} />
         ) : (
-          <>
-            {/* Quick filter: Upcoming / Finished. Counts are taken from the
+          <LeadersView
+            leaders={scorersToLeaders(scorers)}
+            statLabel="G"
+            title="Top Scorers"
+            subtitle="Golden Boot race"
+            empty="No goals scored yet"
+          />
+        )
+      ) : effectiveSection === 'bracket' ? (
+        <BracketView groups={groups} matches={matches} />
+      ) : (
+        <>
+          {/* Quick filter: Upcoming / Finished. Counts are taken from the
               unfiltered match list so users always see how many matches exist
               in each bucket regardless of the stage selection below. */}
+          <div className="flex gap-2 overflow-x-auto no-scrollbar">
+            {(
+              [
+                {
+                  key: 'upcoming',
+                  label: 'Upcoming',
+                  count: counts.upcoming,
+                },
+                {
+                  key: 'finished',
+                  label: 'Finished',
+                  count: counts.finished,
+                },
+              ] as { key: StatusFilter; label: string; count: number }[]
+            ).map(({ key, label, count }) => (
+              <button
+                key={key}
+                type="button"
+                onClick={() => setStatusFilter(key)}
+                aria-pressed={statusFilter === key}
+                className={`ds-chip ${statusFilter === key ? 'ds-chip-active' : 'ds-chip-inactive'}`}
+              >
+                {label}
+                <span className="ml-1.5 tabular-nums text-chalkdim/70">{count}</span>
+              </button>
+            ))}
+          </div>
+
+          {shape !== 'season' && (
             <div className="flex gap-2 overflow-x-auto no-scrollbar">
-              {(
-                [
-                  {
-                    key: 'upcoming',
-                    label: 'Upcoming',
-                    count: counts.upcoming,
-                  },
-                  {
-                    key: 'finished',
-                    label: 'Finished',
-                    count: counts.finished,
-                  },
-                ] as { key: StatusFilter; label: string; count: number }[]
-              ).map(({ key, label, count }) => (
+              {stages.map((s) => (
                 <button
-                  key={key}
+                  key={s}
                   type="button"
-                  onClick={() => setStatusFilter(key)}
-                  aria-pressed={statusFilter === key}
-                  className={`ds-chip ${statusFilter === key ? 'ds-chip-active' : 'ds-chip-inactive'}`}
+                  onClick={() => setStage(s)}
+                  aria-pressed={stage === s}
+                  className={`ds-chip ${stage === s ? 'ds-chip-active' : 'ds-chip-inactive'}`}
                 >
-                  {label}
-                  <span className="ml-1.5 tabular-nums text-chalkdim/70">{count}</span>
+                  {s === 'all' ? 'All' : stageLabel(s)}
                 </button>
               ))}
             </div>
+          )}
 
-            {shape !== 'season' && (
-              <div className="flex gap-2 overflow-x-auto no-scrollbar">
-                {stages.map((s) => (
-                  <button
-                    key={s}
-                    type="button"
-                    onClick={() => setStage(s)}
-                    aria-pressed={stage === s}
-                    className={`ds-chip ${stage === s ? 'ds-chip-active' : 'ds-chip-inactive'}`}
-                  >
-                    {s === 'all' ? 'All' : stageLabel(s)}
-                  </button>
-                ))}
-              </div>
-            )}
-
-            {/* Season-shape competitions (e.g. a domestic league) have a
+          {/* Season-shape competitions (e.g. a domestic league) have a
                 single always-visible table — there's no group stage to gate
                 it behind. Tournament-shape competitions keep the existing
                 behaviour: standings surface on top only while the group
                 filter is active. Basketball comps render conference tables
                 instead of the soccer group/league StandingsView. */}
-            {standings.kind === 'basketball' ? (
-              standings.conferences.length > 0 && (
-                <section className="space-y-stack">
-                  <h3 className="font-mono text-xs tracking-[0.2em] text-chalkdim uppercase">
-                    Standings
-                  </h3>
-                  <ConferenceStandings conferences={standings.conferences} />
-                </section>
-              )
-            ) : shape === 'season' && groups.length > 0 ? (
+          {standings.kind === 'basketball' ? (
+            standings.conferences.length > 0 && (
               <section className="space-y-stack">
                 <h3 className="font-mono text-xs tracking-[0.2em] text-chalkdim uppercase">
                   Standings
                 </h3>
-                <StandingsView groups={groups} mode="league" />
+                <ConferenceStandings conferences={standings.conferences} />
               </section>
-            ) : (
-              stage === 'group' &&
-              groups.length > 0 && (
-                <section className="space-y-stack">
-                  <h3 className="font-mono text-xs tracking-[0.2em] text-chalkdim uppercase">
-                    Standings
-                  </h3>
-                  <StandingsView groups={groups} mode="group" />
-                </section>
-              )
-            )}
+            )
+          ) : shape === 'season' && groups.length > 0 ? (
+            <section className="space-y-stack">
+              <h3 className="font-mono text-xs tracking-[0.2em] text-chalkdim uppercase">
+                Standings
+              </h3>
+              <StandingsView groups={groups} mode="league" />
+            </section>
+          ) : (
+            stage === 'group' &&
+            groups.length > 0 && (
+              <section className="space-y-stack">
+                <h3 className="font-mono text-xs tracking-[0.2em] text-chalkdim uppercase">
+                  Standings
+                </h3>
+                <StandingsView groups={groups} mode="group" />
+              </section>
+            )
+          )}
 
-            {(() => {
-              const days = statusFilter === 'finished' ? finished : upcoming;
-              if (days.length === 0) {
-                // The status-filter counts above are unfiltered by stage, so a
-                // status-specific message ("No finished matches yet") would
-                // contradict a non-zero chip count when an empty stage is also
-                // selected. Only assert that global truth when no stage narrows
-                // the view; otherwise fall back to the neutral "no results".
-                const emptyMessage =
-                  stage !== 'all'
-                    ? 'No results found'
-                    : statusFilter === 'finished'
-                      ? 'No finished matches yet'
-                      : 'No upcoming matches';
-                return (
-                  <p className="font-mono text-xs tracking-wider text-chalkdim">{emptyMessage}</p>
-                );
-              }
-              return <>{days.map(renderDay)}</>;
-            })()}
-          </>
-        )}
+          {(() => {
+            const days = statusFilter === 'finished' ? finished : upcoming;
+            if (days.length === 0) {
+              // The status-filter counts above are unfiltered by stage, so a
+              // status-specific message ("No finished matches yet") would
+              // contradict a non-zero chip count when an empty stage is also
+              // selected. Only assert that global truth when no stage narrows
+              // the view; otherwise fall back to the neutral "no results".
+              const emptyMessage =
+                stage !== 'all'
+                  ? 'No results found'
+                  : statusFilter === 'finished'
+                    ? 'No finished matches yet'
+                    : 'No upcoming matches';
+              return (
+                <p className="font-mono text-xs tracking-wider text-chalkdim">{emptyMessage}</p>
+              );
+            }
+            return <>{days.map(renderDay)}</>;
+          })()}
+        </>
+      )}
     </div>
   );
 }

@@ -35,9 +35,11 @@ export default function NewsView({
         <div className="space-y-3">
           {leadItem && <NewsCard item={leadItem} variant="lead" />}
           {storyItems.length > 0 && (
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+            <div className="columns-1 gap-3 sm:columns-2 xl:columns-3 2xl:columns-4">
               {storyItems.map((item, i) => (
-                <NewsCard key={item.id || `news-${i}`} item={item} />
+                <div key={item.id || `news-${i}`} className="mb-3 break-inside-avoid">
+                  <NewsCard item={item} />
+                </div>
               ))}
             </div>
           )}
@@ -57,19 +59,24 @@ function NewsCard({
   const external = item.link.startsWith('https://');
   const isLead = variant === 'lead';
   const body = (
-    <>
+    <div className={isLead ? 'md:flex' : undefined}>
       {item.imageUrl && (
         <img
           src={item.imageUrl}
           alt=""
-          className={`w-full object-cover ${isLead ? 'aspect-[16/7]' : 'aspect-video'}`}
+          onError={(e) => {
+            e.currentTarget.style.display = 'none';
+          }}
+          className={`w-full object-cover ${
+            isLead ? 'aspect-[16/9] md:aspect-auto md:h-full md:w-1/2' : 'aspect-video'
+          }`}
           loading={isLead ? 'eager' : 'lazy'}
         />
       )}
-      <div className={isLead ? 'p-4 md:p-5' : 'p-3'}>
+      <div className={isLead ? 'p-4 md:flex md:w-1/2 md:flex-col md:justify-center md:p-5' : 'p-3'}>
         <h3
           className={`font-display font-semibold text-chalk leading-snug ${
-            isLead ? 'text-xl md:text-3xl line-clamp-3' : 'text-sm line-clamp-2'
+            isLead ? 'text-xl line-clamp-3 md:text-2xl' : 'text-sm line-clamp-2'
           }`}
         >
           {item.headline}
@@ -77,7 +84,7 @@ function NewsCard({
         {item.description && (
           <p
             className={`mt-1 font-body text-chalkdim ${
-              isLead ? 'text-sm md:text-base line-clamp-3' : 'text-xs line-clamp-2'
+              isLead ? 'text-sm line-clamp-3 md:text-base' : 'text-xs line-clamp-2'
             }`}
           >
             {item.description}
@@ -85,7 +92,7 @@ function NewsCard({
         )}
         {item.byline && <p className="mt-2 ds-caption text-chalkdim/70">{item.byline}</p>}
       </div>
-    </>
+    </div>
   );
 
   return (

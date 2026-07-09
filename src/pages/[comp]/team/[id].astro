@@ -1,10 +1,10 @@
 ---
-import Layout from '../../../layouts/Layout.astro';
-import TeamPageIsland from '../../../components/TeamPageIsland';
+import { COMPETITIONS } from '../../../competitions';
 import LeftNav from '../../../components/LeftNav.astro';
 import RightRailIsland from '../../../components/RightRailIsland';
+import TeamPageIsland from '../../../components/TeamPageIsland';
 import { getCompetitionView } from '../../../data/api';
-import { COMPETITIONS } from '../../../competitions';
+import Layout from '../../../layouts/Layout.astro';
 import type { WCStanding } from '../../../types';
 
 const { comp, id } = Astro.params;
@@ -37,7 +37,7 @@ const teamName = standing?.name ?? 'Team not found';
 const teamFlag = standing?.flag ?? '';
 ---
 
-<Layout title={`StreamCup — ${teamName}`} comp={comp}>
+<Layout title={`umuo — ${teamName}`} comp={comp}>
   <LeftNav slot="left" comp={comp} />
   <main>
     <div class="space-y-section">

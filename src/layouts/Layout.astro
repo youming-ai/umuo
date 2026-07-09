@@ -1,15 +1,15 @@
 ---
 import '../index.css';
-import Ticker from '../components/Ticker';
-import Header from '../components/Header.astro';
 import Footer from '../components/Footer.astro';
+import Header from '../components/Header.astro';
+import Ticker from '../components/Ticker';
 
 interface Props {
   title?: string;
   comp?: string; // active competition, for the header highlight (absent on /news)
 }
 
-const { title = 'StreamCup — Sports news, scores & standings', comp } = Astro.props;
+const { title = 'umuo — Sports news, scores & standings', comp } = Astro.props;
 
 // Rails are opt-in per page via named slots. When a page has rails, the shell
 // owns the width + page padding and lays out the 3-col grid. When it has none,
@@ -37,14 +37,14 @@ const frame = hasRails ? `px-page-x md:px-page-x-md py-page-y ${cols}` : '';
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <meta name="apple-mobile-web-app-title" content="StreamCup" />
+    <meta name="apple-mobile-web-app-title" content="umuo" />
     <title>{title}</title>
     <meta name="description" content="Sports news, live scores, fixtures, and standings for the World Cup, Premier League, NBA, and more — one fast, no-clutter hub." />
     <meta name="robots" content="index, follow" />
     <link rel="canonical" href="https://cup.umuo.app/news" />
     <meta property="og:type" content="website" />
-    <meta property="og:site_name" content="StreamCup" />
-    <meta property="og:title" content="StreamCup — Sports news, scores &amp; standings" />
+    <meta property="og:site_name" content="umuo" />
+    <meta property="og:title" content="umuo — Sports news, scores &amp; standings" />
     <meta property="og:description" content="Breaking sports news, live scores, fixtures, and standings — World Cup, Premier League, NBA, and more." />
     <meta property="og:url" content="https://cup.umuo.app/news" />
     <meta property="og:image" content="https://cup.umuo.app/og.jpg" />
@@ -55,7 +55,7 @@ const frame = hasRails ? `px-page-x md:px-page-x-md py-page-y ${cols}` : '';
     <meta property="og:locale:alternate" content="ja_JP" />
     <meta property="og:locale:alternate" content="ko_KR" />
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="StreamCup — Sports news, scores &amp; standings" />
+    <meta name="twitter:title" content="umuo — Sports news, scores &amp; standings" />
     <meta name="twitter:description" content="Breaking sports news, live scores, fixtures, and standings — World Cup, Premier League, NBA, and more." />
     <meta name="twitter:image" content="https://cup.umuo.app/og.jpg" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -100,7 +100,7 @@ const frame = hasRails ? `px-page-x md:px-page-x-md py-page-y ${cols}` : '';
           <slot />
         </div>
         {hasRight && (
-          <aside class="hidden lg:block">
+          <aside class="mt-4 lg:mt-0">
             <slot name="right" />
           </aside>
         )}

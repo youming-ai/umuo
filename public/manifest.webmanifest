@@ -1,6 +1,6 @@
 {
-  "name": "StreamCup — World Cup 2026 live streams & fixtures",
-  "short_name": "StreamCup",
+  "name": "umuo — World Cup 2026 live streams & fixtures",
+  "short_name": "umuo",
   "description": "Watch World Cup 2026 football live streams and follow every fixture, group standings, and result — one fast, no-clutter hub.",
   "start_url": "/",
   "scope": "/",

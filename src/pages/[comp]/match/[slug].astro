@@ -1,9 +1,9 @@
 ---
-import Layout from '../../../layouts/Layout.astro';
-import MatchDetailIsland from '../../../components/MatchDetailIsland';
-import LeftNav from '../../../components/LeftNav.astro';
-import { getCompMatchBySlug, getMatchSummary } from '../../../data/api';
 import { COMPETITIONS } from '../../../competitions';
+import LeftNav from '../../../components/LeftNav.astro';
+import MatchDetailIsland from '../../../components/MatchDetailIsland';
+import { getCompMatchBySlug, getMatchSummary } from '../../../data/api';
+import Layout from '../../../layouts/Layout.astro';
 
 const { comp, slug } = Astro.params;
 if (!comp || !Object.hasOwn(COMPETITIONS, comp)) {
@@ -23,7 +23,7 @@ const initialDetail = await getMatchSummary(competition, match.id, env, ctx);
 // match detail (back, stream, live scoreboard, tabs) and seeds from SSR data.
 ---
 
-<Layout title={`StreamCup — ${match.homeName} vs ${match.awayName}`} comp={comp}>
+<Layout title={`umuo — ${match.homeName} vs ${match.awayName}`} comp={comp}>
   <LeftNav slot="left" comp={comp} />
   <main>
     <MatchDetailIsland match={match} initialDetail={initialDetail} client:only="react" />

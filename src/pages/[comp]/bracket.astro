@@ -1,10 +1,9 @@
 ---
-import Layout from '../../layouts/Layout.astro';
+import { COMPETITIONS } from '../../competitions';
 import CompetitionIsland from '../../components/CompetitionIsland';
 import LeftNav from '../../components/LeftNav.astro';
-import RightRailIsland from '../../components/RightRailIsland';
 import { getCompetitionView } from '../../data/api';
-import { COMPETITIONS } from '../../competitions';
+import Layout from '../../layouts/Layout.astro';
 
 const { comp } = Astro.params;
 if (!comp || !Object.hasOwn(COMPETITIONS, comp)) {
@@ -20,7 +19,7 @@ const env = Astro.locals.runtime.env;
 const ctx = Astro.locals.runtime.ctx as Parameters<typeof getCompetitionView>[2];
 const initialData = await getCompetitionView(competition, env, ctx);
 ---
-<Layout title={`StreamCup — ${comp} — Bracket`} comp={comp}>
+<Layout title={`umuo — ${competition.label} — Bracket`} comp={comp}>
   <LeftNav slot="left" comp={comp} active="bracket" />
   <main>
     <CompetitionIsland
@@ -30,5 +29,4 @@ const initialData = await getCompetitionView(competition, env, ctx);
       client:only="react"
     />
   </main>
-  <RightRailIsland slot="right" comp={comp} initialData={initialData} client:only="react" />
 </Layout>
