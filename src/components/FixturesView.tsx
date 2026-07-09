@@ -2,9 +2,9 @@ import { useMemo, useState } from 'react';
 import type { StandingsData } from '../adapters/types';
 import { COMPETITIONS } from '../competitions';
 import { useLeaders } from '../hooks/useLeaders';
-import { useT } from '../i18n';
 import type { CompMatch, Leader, Stage, TopScorer } from '../types';
 import { pathFor, type Section, useRouter } from '../utils/router';
+import { stageLabel } from '../utils/wc';
 import BracketView from './BracketView';
 import ConferenceStandings from './ConferenceStandings';
 import LeadersView from './LeadersView';
@@ -31,29 +31,23 @@ function scorersToLeaders(scorers: TopScorer[]): Leader[] {
 // already played?" toggle. Defaults to Upcoming so users land on what's next.
 type StatusFilter = 'upcoming' | 'finished';
 
-const NO_WATCHABLE: ReadonlySet<string> = new Set();
-
 export default function FixturesView({
   section,
   matches,
   standings,
   scorers,
-  watchableSlugs = NO_WATCHABLE,
   pipelineLeaders,
 }: {
   section: Section;
   matches: CompMatch[];
   standings: StandingsData;
   scorers: TopScorer[];
-  // Slugs of matches with a ppv.to stream live right now (resolved in App).
-  watchableSlugs?: ReadonlySet<string>;
   // Optional SSR seed for pipeline leaders (NBA / eng.1 scorers page).
   // Always still owned by useLeaders below — the seed only skips the first
   // paint fetch when non-empty. Do NOT gate the hook on truthiness of this
   // array: `[]` is a valid empty seed and must still poll/fetch.
   pipelineLeaders?: Leader[];
 }) {
-  const t = useT();
   const { route } = useRouter();
   const comp = route.comp;
   const groups = standings.kind === 'soccer' ? standings.groups : [];
@@ -138,12 +132,10 @@ export default function FixturesView({
               month: 'short',
               day: 'numeric',
             })
-          : t('common.tbd')}
+          : 'TBD'}
       </h3>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-stack sm:gap-card">
-        {list.map((m) => {
-          const watchable = watchableSlugs.has(m.slug);
-          return (
+        {list.map((m) => (
             <MatchCard
               key={m.id}
               homeName={m.homeName}
@@ -162,20 +154,16 @@ export default function FixturesView({
               homeShootoutScore={m.homeShootoutScore}
               awayShootoutScore={m.awayShootoutScore}
               winner={m.winner}
-              watchable={watchable}
               homeScorers={m.homeScorers}
               awayScorers={m.awayScorers}
               venue={m.venue}
-              // Real href when not upcoming, or when watchable (a live stream
-              // exists even if ESPN still shows the pre-match state).
               href={
-                m.status === 'upcoming' && !watchable
+                m.status === 'upcoming'
                   ? undefined
                   : pathFor({ kind: 'match', comp, slug: m.slug })
               }
             />
-          );
-        })}
+        ))}
       </div>
     </section>
   );
@@ -188,7 +176,7 @@ export default function FixturesView({
           leadersSource === 'pipeline' ? (
             pipeline.loading && pipeline.leaders.length === 0 ? (
               <p className="font-mono text-xs tracking-[0.3em] text-pitch animate-pulse motion-reduce:animate-none">
-                {t('common.loading')}
+                Loading…
               </p>
             ) : pipeline.error && pipeline.leaders.length === 0 ? (
               <div className="flex flex-col items-start gap-3">
@@ -198,29 +186,29 @@ export default function FixturesView({
                   onClick={pipeline.refetch}
                   className="px-4 py-2 bg-pitch text-onaccent font-display font-semibold tracking-wide hover:brightness-110 transition"
                 >
-                  {t('common.retry')}
+                  Retry
                 </button>
               </div>
             ) : (
               <LeadersView
                 leaders={pipeline.leaders}
-                statLabelKey={
-                  competition?.sport === 'basketball' ? 'leaders.points' : 'scorers.goals'
+                statLabel={competition?.sport === 'basketball' ? 'PTS' : 'G'}
+                title={competition?.sport === 'basketball' ? 'Scoring Leaders' : 'Top Scorers'}
+                subtitle={
+                  competition?.sport === 'basketball'
+                    ? "Points per the season's top scorers"
+                    : 'Golden Boot race'
                 }
-                titleKey={competition?.sport === 'basketball' ? 'leaders.title' : 'scorers.title'}
-                subtitleKey={
-                  competition?.sport === 'basketball' ? 'leaders.subtitle' : 'scorers.subtitle'
-                }
-                empty={t('scorers.empty')}
+                empty="No goals scored yet"
               />
             )
           ) : (
             <LeadersView
               leaders={scorersToLeaders(scorers)}
-              statLabelKey="scorers.goals"
-              titleKey="scorers.title"
-              subtitleKey="scorers.subtitle"
-              empty={t('scorers.empty')}
+              statLabel="G"
+              title="Top Scorers"
+              subtitle="Golden Boot race"
+              empty="No goals scored yet"
             />
           )
         ) : effectiveSection === 'bracket' ? (
@@ -235,12 +223,12 @@ export default function FixturesView({
                 [
                   {
                     key: 'upcoming',
-                    label: t('fixtures.filterUpcoming'),
+                    label: 'Upcoming',
                     count: counts.upcoming,
                   },
                   {
                     key: 'finished',
-                    label: t('fixtures.filterFinished'),
+                    label: 'Finished',
                     count: counts.finished,
                   },
                 ] as { key: StatusFilter; label: string; count: number }[]
@@ -268,7 +256,7 @@ export default function FixturesView({
                     aria-pressed={stage === s}
                     className={`ds-chip ${stage === s ? 'ds-chip-active' : 'ds-chip-inactive'}`}
                   >
-                    {s === 'all' ? t('filter.all') : t(`stage.${s}`)}
+                    {s === 'all' ? 'All' : stageLabel(s)}
                   </button>
                 ))}
               </div>
@@ -284,7 +272,7 @@ export default function FixturesView({
               standings.conferences.length > 0 && (
                 <section className="space-y-stack">
                   <h3 className="font-mono text-xs tracking-[0.2em] text-chalkdim uppercase">
-                    {t('fixtures.standings')}
+                    Standings
                   </h3>
                   <ConferenceStandings conferences={standings.conferences} />
                 </section>
@@ -292,7 +280,7 @@ export default function FixturesView({
             ) : shape === 'season' && groups.length > 0 ? (
               <section className="space-y-stack">
                 <h3 className="font-mono text-xs tracking-[0.2em] text-chalkdim uppercase">
-                  {t('fixtures.standings')}
+                  Standings
                 </h3>
                 <StandingsView groups={groups} mode="league" />
               </section>
@@ -301,7 +289,7 @@ export default function FixturesView({
               groups.length > 0 && (
                 <section className="space-y-stack">
                   <h3 className="font-mono text-xs tracking-[0.2em] text-chalkdim uppercase">
-                    {t('fixtures.standings')}
+                    Standings
                   </h3>
                   <StandingsView groups={groups} mode="group" />
                 </section>
@@ -316,14 +304,14 @@ export default function FixturesView({
                 // contradict a non-zero chip count when an empty stage is also
                 // selected. Only assert that global truth when no stage narrows
                 // the view; otherwise fall back to the neutral "no results".
-                const emptyKey =
+                const emptyMessage =
                   stage !== 'all'
-                    ? 'common.empty'
+                    ? 'No results found'
                     : statusFilter === 'finished'
-                      ? 'fixtures.finishedEmpty'
-                      : 'fixtures.upcomingEmpty';
+                      ? 'No finished matches yet'
+                      : 'No upcoming matches';
                 return (
-                  <p className="font-mono text-xs tracking-wider text-chalkdim">{t(emptyKey)}</p>
+                  <p className="font-mono text-xs tracking-wider text-chalkdim">{emptyMessage}</p>
                 );
               }
               return <>{days.map(renderDay)}</>;

@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useT } from '../i18n';
 import type { Match } from '../types';
 import { isTrustedStreamUrl } from '../utils/streamSources';
 
@@ -53,16 +52,14 @@ function playerStatus(match: Match): 'live' | 'ht' | 'finished' | 'upcoming' {
 // / upcoming → muted.
 function PlayerStatusBadge({
   status,
-  t,
 }: {
   status: 'live' | 'ht' | 'finished' | 'upcoming';
-  t: (k: string) => string;
 }) {
   if (status === 'ht') {
     return (
       <div className="absolute top-3 left-3 z-20 flex items-center gap-1.5 px-3 py-0.5 ds-scrim-badge border border-amber/30 shadow-[0_0_10px_rgb(var(--c-amber)_/_0.15)] select-none">
         <span className="font-mono text-xs tracking-widest text-amber font-bold">
-          {t('status.ht')}
+          Half-time
         </span>
       </div>
     );
@@ -72,7 +69,7 @@ function PlayerStatusBadge({
       <div className="absolute top-3 left-3 z-20 flex items-center gap-1.5 px-3 py-0.5 ds-scrim-badge border border-live/30 shadow-[0_0_10px_rgb(var(--c-live)_/_0.15)] select-none">
         <span className="live-dot" />
         <span className="font-mono text-xs tracking-widest text-live font-bold">
-          {t('status.live')}
+          LIVE
         </span>
       </div>
     );
@@ -81,7 +78,7 @@ function PlayerStatusBadge({
     return (
       <div className="absolute top-3 left-3 z-20 flex items-center gap-1.5 px-3 py-0.5 ds-scrim-badge border border-overlay/10 select-none">
         <span className="font-mono text-xs tracking-widest text-onscrim/70 font-bold">
-          {t('status.ft')}
+          Final
         </span>
       </div>
     );
@@ -89,24 +86,23 @@ function PlayerStatusBadge({
   return (
     <div className="absolute top-3 left-3 z-20 flex items-center gap-1.5 px-3 py-0.5 ds-scrim-badge border border-overlay/10 select-none">
       <span className="font-mono text-xs tracking-widest text-onscrim/60 font-bold">
-        {t('status.upcoming')}
+        Upcoming
       </span>
     </div>
   );
 }
 
 export default function Player({ match, selectedIframeUrl, setSelectedIframeUrl }: PlayerProps) {
-  const t = useT();
   const sources = useMemo(() => {
     if (!match) return [];
     const raw = [
-      { iframe: match.iframe, label: match.sourceTag || t('live.source') },
+      { iframe: match.iframe, label: match.sourceTag || 'Feed' },
       ...(match.substreams ?? []).map((s) => ({ iframe: s.iframe, label: s.source_tag || s.name })),
     ];
     return raw
       .filter((src) => isTrustedStreamUrl(src.iframe))
       .filter((src, index, all) => all.findIndex((item) => item.iframe === src.iframe) === index);
-  }, [match, t]);
+  }, [match]);
   const activeIframeUrl = sources.some((src) => src.iframe === selectedIframeUrl)
     ? selectedIframeUrl
     : '';
@@ -130,13 +126,13 @@ export default function Player({ match, selectedIframeUrl, setSelectedIframeUrl 
         <CornerTicks />
         <div className="text-center px-8">
           <div className="font-mono text-xs tracking-[0.3em] text-pitch mb-4">
-            {t('common.standby')}
+            STANDBY
           </div>
           <h2 className="font-display font-bold text-3xl text-chalk tracking-wide mb-3">
-            {t('live.standbyTitle')}
+            Awaiting signal
           </h2>
           <p className="font-body text-sm text-chalkdim max-w-sm mx-auto leading-relaxed">
-            {t('live.standbyBody')}
+            Pick a match from the list to start watching.
           </p>
         </div>
       </div>
@@ -147,7 +143,7 @@ export default function Player({ match, selectedIframeUrl, setSelectedIframeUrl 
     <div className="space-y-card">
       <div className="relative aspect-video w-full rounded-panel border border-line/30 bg-black overflow-hidden shadow-hero">
         <CornerTicks />
-        <PlayerStatusBadge status={playerStatus(match)} t={t} />
+        <PlayerStatusBadge status={playerStatus(match)} />
 
         {activeIframeUrl && (
           <iframe
@@ -168,7 +164,7 @@ export default function Player({ match, selectedIframeUrl, setSelectedIframeUrl 
           >
             <span className="live-dot" />
             <span className="font-mono text-xs tracking-[0.3em] text-pitch animate-pulse motion-reduce:animate-none">
-              {t('common.loading')}
+              Loading…
             </span>
           </div>
         )}
@@ -182,7 +178,7 @@ export default function Player({ match, selectedIframeUrl, setSelectedIframeUrl 
             </span>
             <span className="ds-caption text-pitch flex items-center gap-1">
               <span className="w-1 h-1 bg-pitch" />
-              {t('common.watching', { n: match.viewers })}
+              {match.viewers} watching
             </span>
           </div>
           <h1 className="font-display font-bold text-2xl md:text-3xl text-chalk tracking-wide">
@@ -192,7 +188,7 @@ export default function Player({ match, selectedIframeUrl, setSelectedIframeUrl 
 
         <div>
           <p className="ds-caption uppercase tracking-[0.25em] text-chalkdim mb-2">
-            {t('live.sources')}
+            Available sources
           </p>
           <div className="flex flex-wrap gap-2">
             {sources.map((src) => {

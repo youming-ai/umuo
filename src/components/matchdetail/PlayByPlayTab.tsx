@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { useT } from '../../i18n';
 import type { PlayEvent } from '../../types';
 
 export default function PlayByPlayTab({
@@ -11,7 +10,6 @@ export default function PlayByPlayTab({
   keyPlays: PlayEvent[];
   homeId: string;
 }) {
-  const t = useT();
   const [tab, setTab] = useState<'all' | 'key'>('all');
   const plays = tab === 'all' ? allPlays : keyPlays;
 
@@ -26,13 +24,13 @@ export default function PlayByPlayTab({
             aria-pressed={tab === k}
             className={`ds-seg-tab ${tab === k ? 'ds-seg-tab-active' : 'ds-seg-tab-inactive'}`}
           >
-            {t(k === 'all' ? 'detail.allPlays' : 'detail.keyPlays')}
+            {k === 'all' ? 'All Plays' : 'Key Plays'}
           </button>
         ))}
       </div>
 
       {plays.length === 0 ? (
-        <p className="font-mono text-xs tracking-wider text-chalkdim p-2">{t('detail.noData')}</p>
+        <p className="font-mono text-xs tracking-wider text-chalkdim p-2">No data yet</p>
       ) : (
         <ul className="space-y-card relative pl-6 border-l border-overlay/10 ml-3">
           {plays.map((p) => {

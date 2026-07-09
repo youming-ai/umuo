@@ -1,6 +1,5 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import { LanguageProvider } from '../i18n';
 import type { CompMatch, ScorerEntry, WCGroup } from '../types';
 import PlayerPage from './PlayerPage';
 
@@ -72,9 +71,7 @@ function renderPage(props: Partial<React.ComponentProps<typeof PlayerPage>> = {}
     backHref: '/fifa.world',
   };
   return render(
-    <LanguageProvider>
-      <PlayerPage {...defaults} {...props} />
-    </LanguageProvider>,
+    <PlayerPage {...defaults} {...props} />,
   );
 }
 
@@ -88,8 +85,8 @@ describe('PlayerPage', () => {
   it('renders the goal count when the player is in the scorers feed', () => {
     renderPage();
     // The "2 goals" line is rendered in the body; the section header is
-    // a separate h2 with the i18n word "goals". Use a more specific
-    // assertion: the body text combines the number and the i18n word.
+    // a separate h2 with the word "goals". Use a more specific
+    // assertion: the body text combines the number and the word.
     expect(screen.getByText(/2\s*goals/)).toBeInTheDocument();
   });
 
@@ -117,7 +114,7 @@ describe('PlayerPage', () => {
       ],
     });
     // Both goals render. The 'goals' section header is an h2 — match it
-    // case-insensitively because the i18n word is lowercase.
+    // case-insensitively because the word is lowercase.
     expect(screen.getByRole('heading', { level: 2, name: /goals/i })).toBeInTheDocument();
     // "23'" appears in the m2 row, "67'" in the m1 row.
     expect(screen.getByText("23'")).toBeInTheDocument();

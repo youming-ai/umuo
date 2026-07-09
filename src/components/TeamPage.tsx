@@ -1,4 +1,3 @@
-import { useT } from '../i18n';
 import type { CompMatch, TopScorer, WCGroup, WCStanding } from '../types';
 import { pathFor, useRouter } from '../utils/router';
 import MatchCard from './MatchCard';
@@ -36,7 +35,6 @@ function teamMatches(matches: CompMatch[], teamId: string): CompMatch[] {
 }
 
 export default function TeamPage({ teamId, groups, matches, scorers, backHref }: TeamPageProps) {
-  const t = useT();
   const { route } = useRouter();
   const comp = route.comp;
   const found = findStanding(groups, teamId);
@@ -53,9 +51,9 @@ export default function TeamPage({ teamId, groups, matches, scorers, backHref }:
     return (
       <div className="space-y-section w-full">
           <a href={backHref} className={backClass}>
-            ← <span>{t('detail.back')}</span>
+            ← <span>Back</span>
           </a>
-          <p className="font-mono text-xs text-chalkdim p-card text-center">{t('team.notFound')}</p>
+          <p className="font-mono text-xs text-chalkdim p-card text-center">Team not found</p>
       </div>
     );
   }
@@ -69,7 +67,7 @@ export default function TeamPage({ teamId, groups, matches, scorers, backHref }:
     // Width + page padding come from the app shell; stack sections only.
     <div className="space-y-section">
         <a href={backHref} className={backClass}>
-          ← <span>{t('detail.back')}</span>
+          ← <span>Back</span>
         </a>
 
         {/* Header */}
@@ -83,7 +81,7 @@ export default function TeamPage({ teamId, groups, matches, scorers, backHref }:
             <h1 className="font-display font-bold text-2xl text-chalk tracking-wide">{teamName}</h1>
             {groupLetter && (
               <span className="ds-caption uppercase tracking-[0.18em] text-chalkdim">
-                {t('common.group')} {groupLetter}
+                Group {groupLetter}
               </span>
             )}
           </div>
@@ -91,20 +89,20 @@ export default function TeamPage({ teamId, groups, matches, scorers, backHref }:
 
         {/* Stats strip */}
         <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 sm:gap-card ds-glass p-card">
-          <Stat label={t('st.mp')} value={standing.mp} />
-          <Stat label={t('st.w')} value={standing.w} tone="pitch" />
-          <Stat label={t('st.d')} value={standing.d} />
-          <Stat label={t('st.l')} value={standing.l} tone="live" />
+          <Stat label="MP" value={standing.mp} />
+          <Stat label="W" value={standing.w} tone="pitch" />
+          <Stat label="D" value={standing.d} />
+          <Stat label="L" value={standing.l} tone="live" />
           <Stat
-            label={t('st.gd')}
+            label="GD"
             value={standing.gd > 0 ? `+${standing.gd}` : standing.gd}
             tone={standing.gd > 0 ? 'pitch' : standing.gd < 0 ? 'live' : undefined}
           />
-          <Stat label={t('st.pts')} value={standing.pts} bold />
+          <Stat label="Pts" value={standing.pts} bold />
           {standing.form && (
             <div className="col-span-2 sm:col-span-5 flex items-center gap-2 pt-1">
               <span className="ds-caption uppercase tracking-wider text-chalkdim/60">
-                {t('st.form')}:
+                Form:
               </span>
               <TeamFormPill form={standing.form} />
             </div>
@@ -114,13 +112,13 @@ export default function TeamPage({ teamId, groups, matches, scorers, backHref }:
         {/* Matches */}
         <section className="space-y-3">
           <h2 className="font-display font-bold text-lg text-chalk tracking-wide">
-            {t('team.matches')}
+            Matches
           </h2>
           {ownMatches.length === 0 ? (
-            <p className="font-mono text-xs text-chalkdim">{t('team.matchesEmpty')}</p>
+            <p className="font-mono text-xs text-chalkdim">No matches scheduled</p>
           ) : (
             <div className="space-y-3">
-              {upcoming.length > 0 && <SubHeader>{t('team.upcoming')}</SubHeader>}
+              {upcoming.length > 0 && <SubHeader>Upcoming</SubHeader>}
               {upcoming.map((m) => (
                 <MatchCard
                   key={m.id}
@@ -138,7 +136,7 @@ export default function TeamPage({ teamId, groups, matches, scorers, backHref }:
                   href={pathFor({ kind: 'match', comp, slug: m.slug })}
                 />
               ))}
-              {finished.length > 0 && <SubHeader>{t('team.results')}</SubHeader>}
+              {finished.length > 0 && <SubHeader>Results</SubHeader>}
               {finished.map((m) => (
                 <MatchCard
                   key={m.id}
@@ -168,7 +166,7 @@ export default function TeamPage({ teamId, groups, matches, scorers, backHref }:
         {ownScorers.length > 0 && (
           <section className="space-y-3">
             <h2 className="font-display font-bold text-lg text-chalk tracking-wide">
-              {t('team.scorers')}
+              Top scorers
             </h2>
             <ul className="space-y-2 ds-glass p-card">
               {ownScorers.map((s) => (

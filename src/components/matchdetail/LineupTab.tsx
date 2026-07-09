@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { useT } from '../../i18n';
 import type { LineupPlayer, TeamLineup } from '../../types';
 import { layoutStarters } from '../../utils/espn';
 
@@ -46,13 +45,12 @@ function Pitch({ starters }: { starters: LineupPlayer[] }) {
 }
 
 function Bench({ players }: { players: LineupPlayer[] }) {
-  const t = useT();
   const subs = players.filter((p) => !p.starter);
   if (subs.length === 0) return null;
   return (
     <div className="mt-6 bg-overlay/5 rounded-card p-card border border-overlay/5">
       <h4 className="ds-caption uppercase tracking-[0.2em] text-chalkdim mb-3">
-        {t('detail.bench')}
+        Bench
       </h4>
       <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2">
         {subs.map((p) => (
@@ -80,11 +78,10 @@ function Bench({ players }: { players: LineupPlayer[] }) {
 }
 
 export default function LineupTab({ lineups, homeId }: { lineups: TeamLineup[]; homeId: string }) {
-  const t = useT();
   const [side, setSide] = useState<'home' | 'away'>('home');
   if (lineups.length === 0) {
     return (
-      <p className="font-mono text-xs tracking-wider text-chalkdim p-card">{t('detail.noData')}</p>
+      <p className="font-mono text-xs tracking-wider text-chalkdim p-card">No data yet</p>
     );
   }
   const home = lineups.find((l) => l.teamId === homeId) ?? lineups[0];
@@ -117,7 +114,7 @@ export default function LineupTab({ lineups, homeId }: { lineups: TeamLineup[]; 
       <div className="space-y-card">
         {toggle}
         <p className="font-mono text-xs tracking-wider text-chalkdim p-2 text-center">
-          {t('detail.noData')}
+          No data yet
         </p>
       </div>
     );
@@ -127,7 +124,7 @@ export default function LineupTab({ lineups, homeId }: { lineups: TeamLineup[]; 
     <div className="space-y-card">
       {toggle}
       <div className="ds-caption uppercase tracking-[0.2em] text-chalkdim text-center">
-        {t('detail.startingLineup')} · <span>{team.formation}</span>
+        Starting Lineup · <span>{team.formation}</span>
       </div>
       <Pitch starters={team.players.filter((p) => p.starter)} />
       <Bench players={team.players} />

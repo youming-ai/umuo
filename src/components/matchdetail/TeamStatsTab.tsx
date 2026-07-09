@@ -1,4 +1,3 @@
-import { useT } from '../../i18n';
 import type { TeamStatRow } from '../../types';
 
 // ESPN sends %-labeled stats as fractions (0.3 → 30%), except Possession which
@@ -18,10 +17,9 @@ function homePct(home: string, away: string): number | null {
 }
 
 export default function TeamStatsTab({ stats }: { stats: TeamStatRow[] }) {
-  const t = useT();
   if (stats.length === 0) {
     return (
-      <p className="font-mono text-xs tracking-wider text-chalkdim p-card">{t('detail.noData')}</p>
+      <p className="font-mono text-xs tracking-wider text-chalkdim p-card">No data yet</p>
     );
   }
   return (

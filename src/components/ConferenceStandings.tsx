@@ -1,11 +1,8 @@
-import { useT } from '../i18n';
 import type { ConferenceTable } from '../adapters/types';
 
 export default function ConferenceStandings({ conferences }: { conferences: ConferenceTable[] }) {
-  const t = useT();
-
   if (conferences.length === 0) {
-    return <p className="font-mono text-xs tracking-wider text-chalkdim">{t('common.empty')}</p>;
+    return <p className="font-mono text-xs tracking-wider text-chalkdim">No results found</p>;
   }
 
   return (
@@ -20,19 +17,19 @@ export default function ConferenceStandings({ conferences }: { conferences: Conf
               <thead>
                 <tr className="text-chalkdim ds-caption uppercase">
                   <th scope="col" className="text-left font-medium px-4 py-2">
-                    {t('st.team')}
+                    Team
                   </th>
                   <th scope="col" className="px-1 font-medium">
-                    <abbr title="Wins">{t('st.w')}</abbr>
+                    <abbr title="Wins">W</abbr>
                   </th>
                   <th scope="col" className="px-1 font-medium">
-                    <abbr title="Losses">{t('st.l')}</abbr>
+                    <abbr title="Losses">L</abbr>
                   </th>
                   <th scope="col" className="px-2 font-medium">
-                    <abbr title="Win percentage">{t('st.pct')}</abbr>
+                    <abbr title="Win percentage">PCT</abbr>
                   </th>
                   <th scope="col" className="px-2 font-medium hidden sm:table-cell">
-                    <abbr title="Games behind">{t('st.gb')}</abbr>
+                    <abbr title="Games behind">GB</abbr>
                   </th>
                 </tr>
               </thead>

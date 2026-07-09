@@ -1,6 +1,5 @@
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import { LanguageProvider } from '../i18n';
 import type { ConferenceTable } from '../adapters/types';
 import ConferenceStandings from './ConferenceStandings';
 
@@ -23,9 +22,7 @@ const conferences: ConferenceTable[] = [
 describe('ConferenceStandings', () => {
   it('renders one table per conference with team rows', () => {
     render(
-      <LanguageProvider>
-        <ConferenceStandings conferences={conferences} />
-      </LanguageProvider>,
+      <ConferenceStandings conferences={conferences} />,
     );
     expect(screen.getByText('Eastern Conference')).toBeInTheDocument();
     expect(screen.getByText('Western Conference')).toBeInTheDocument();
@@ -36,9 +33,7 @@ describe('ConferenceStandings', () => {
 
   it('renders W/L/PCT/GB values', () => {
     render(
-      <LanguageProvider>
-        <ConferenceStandings conferences={conferences} />
-      </LanguageProvider>,
+      <ConferenceStandings conferences={conferences} />,
     );
     expect(screen.getByText('.714')).toBeInTheDocument();
     expect(screen.getByText('3')).toBeInTheDocument(); // Knicks GB
@@ -46,9 +41,7 @@ describe('ConferenceStandings', () => {
 
   it('does not make rows clickable (no buttons/links in the tables)', () => {
     render(
-      <LanguageProvider>
-        <ConferenceStandings conferences={conferences} />
-      </LanguageProvider>,
+      <ConferenceStandings conferences={conferences} />,
     );
     expect(screen.queryByRole('button')).not.toBeInTheDocument();
     expect(screen.queryByRole('link')).not.toBeInTheDocument();
@@ -56,9 +49,7 @@ describe('ConferenceStandings', () => {
 
   it('shows the empty message when there are no conferences', () => {
     render(
-      <LanguageProvider>
-        <ConferenceStandings conferences={[]} />
-      </LanguageProvider>,
+      <ConferenceStandings conferences={[]} />,
     );
     expect(screen.getByText('No results found')).toBeInTheDocument();
   });

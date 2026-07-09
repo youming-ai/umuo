@@ -1,40 +1,52 @@
 import { describe, expect, it } from 'vitest';
-import { selectTickerMatches } from './Ticker';
-import type { Match } from '../types';
+import type { CompMatch } from '../types';
+import { formatTickerLine } from './Ticker';
+import type { TickerMatch } from '../hooks/useTicker';
 
-const m = (over: Partial<Match>): Match => ({
-  id: 0,
-  name: 'A vs B',
-  category_name: 'football',
-  iframe: '',
-  viewers: '0',
-  substreams: [],
-  slug: 'a-vs-b',
-  ...over,
-});
+function m(over: Partial<CompMatch> & { comp?: string }): TickerMatch {
+  return {
+    id: '1',
+    homeName: 'Mexico',
+    awayName: 'South Africa',
+    homeFlag: '',
+    awayFlag: '',
+    homeId: 'h1',
+    awayId: 'a1',
+    homeScore: 2,
+    awayScore: 0,
+    kickoff: new Date('2026-06-13T19:00Z'),
+    status: 'live',
+    homeScorers: [],
+    awayScorers: [],
+    venue: '',
+    slug: 'mexico-vs-south-africa',
+    comp: 'fifa.world',
+    ...over,
+  };
+}
 
-describe('selectTickerMatches', () => {
-  const now = 1_000;
-
-  it('puts live (in-window / alwaysLive) before upcoming, upcoming sorted by kickoff', () => {
-    const items = selectTickerMatches(
-      [
-        m({ id: 1, startsAt: 2_000 }), // future → soon
-        m({ id: 2, startsAt: 900, endsAt: 1_100 }), // now inside window → live
-        m({ id: 3, alwaysLive: true }), // live
-        m({ id: 4, startsAt: 1_500 }), // future → soon (earlier than #1)
-      ],
-      now,
+describe('formatTickerLine', () => {
+  it('shows score, teams, and clock for a live match', () => {
+    const line = formatTickerLine(
+      m({
+        status: 'live',
+        homeScore: 1,
+        awayScore: 0,
+        progress: { status: 'in', clock: 67, displayClock: "67'", period: 2 },
+      }),
     );
-    expect(items.map((i) => i.id)).toEqual([2, 3, 4, 1]);
-    expect(items.filter((i) => i.live).map((i) => i.id)).toEqual([2, 3]);
+    expect(line).toBe("1-0 Mexico – South Africa 67'");
   });
 
-  it('drops finished streams (past endsAt) and caps upcoming at 10', () => {
-    const finished = m({ id: 99, startsAt: 100, endsAt: 500 });
-    const future = Array.from({ length: 12 }, (_v, i) => m({ id: i + 1, startsAt: 2_000 + i }));
-    const items = selectTickerMatches([finished, ...future], now);
-    expect(items.some((i) => i.id === 99)).toBe(false);
-    expect(items.length).toBe(10);
+  it('shows score and teams for a finished match', () => {
+    const line = formatTickerLine(m({ status: 'finished', homeScore: 2, awayScore: 1 }));
+    expect(line).toBe('2-1 Mexico – South Africa');
+  });
+
+  it('shows kickoff time and teams for an upcoming match', () => {
+    const kickoff = new Date('2026-06-13T19:00Z');
+    const line = formatTickerLine(m({ status: 'upcoming', homeScore: null, awayScore: null, kickoff }));
+    expect(line).toMatch(/Mexico – South Africa/);
+    expect(line).toMatch(/\d{2}:\d{2}/);
   });
 });

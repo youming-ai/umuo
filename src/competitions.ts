@@ -11,7 +11,7 @@ export interface Competition {
   key: string; // URL first segment, e.g. 'fifa.world'
   sport: Sport;
   league: string; // ESPN league slug
-  label: string; // i18n key (wired into the switcher in Phase 2)
+  label: string; // display name
   season?: number; // fixed season year; omit for cross-year leagues → derived per request (seasonForDate)
   dates?: string; // scoreboard date window — tournaments need it, season comps omit it
   standingsLevel?: number; // soccer standings depth (World Cup = 3 → the group tables)
@@ -34,7 +34,7 @@ export const COMPETITIONS: Record<string, Competition> = {
     key: 'fifa.world',
     sport: 'soccer',
     league: 'fifa.world',
-    label: 'comp.fifa.world',
+    label: 'World Cup',
     season: 2026,
     dates: '20260611-20260719',
     standingsLevel: 3,
@@ -46,7 +46,7 @@ export const COMPETITIONS: Record<string, Competition> = {
     key: 'eng.1',
     sport: 'soccer',
     league: 'eng.1',
-    label: 'comp.eng1',
+    label: 'Premier League',
     // season 省略 → buildUrl 用 seasonForDate 按请求时刻推导（跨年赛季 8 月翻转），
     // 避免写死年份的时间引信。scoreboard 无 dates → ESPN 返回当前窗口。见 spec §7。
     shape: 'season',
@@ -62,7 +62,7 @@ export const COMPETITIONS: Record<string, Competition> = {
     key: 'nba',
     sport: 'basketball',
     league: 'nba',
-    label: 'comp.nba',
+    label: 'NBA',
     // season 省略 → buildUrl 用 seasonForDate('basketball', …) 按请求时刻推导
     // （赛季制 10 月翻转，键为结束年）。scoreboard 无 dates → ESPN 返回当日窗口，
     // off-season（7–9 月）当日为空由现有空态处理。见 spec §3。

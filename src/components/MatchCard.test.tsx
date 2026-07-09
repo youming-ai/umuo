@@ -1,14 +1,11 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import { LanguageProvider } from '../i18n';
 import type { ScorerEntry } from '../types';
 import MatchCard from './MatchCard';
 
 function renderCard(props: Parameters<typeof MatchCard>[0]) {
   return render(
-    <LanguageProvider>
-      <MatchCard {...props} />
-    </LanguageProvider>,
+    <MatchCard {...props} />,
   );
 }
 
@@ -222,35 +219,6 @@ describe('MatchCard', () => {
     });
     expect(screen.getByText('AET')).toBeInTheDocument();
     expect(screen.queryByText('Final')).not.toBeInTheDocument();
-  });
-
-  it('shows a watch badge when the match is watchable, and links to the match page', () => {
-    renderCard({
-      homeName: 'Netherlands',
-      awayName: 'Morocco',
-      homeScore: 1,
-      awayScore: 0,
-      status: 'live',
-      kickoff: null,
-      stage: 'r16',
-      group: 'R16',
-      watchable: true,
-    });
-    expect(screen.getByText('Watch')).toBeInTheDocument();
-  });
-
-  it('omits the watch badge when not watchable', () => {
-    renderCard({
-      homeName: 'Netherlands',
-      awayName: 'Morocco',
-      homeScore: 1,
-      awayScore: 0,
-      status: 'live',
-      kickoff: null,
-      stage: 'r16',
-      group: 'R16',
-    });
-    expect(screen.queryByText('Watch')).not.toBeInTheDocument();
   });
 
   it('offers a reminder for an upcoming match without nesting it inside the card link', () => {

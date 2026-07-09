@@ -1,6 +1,7 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import NewsIsland from '../../components/NewsIsland';
+import NewsRightRailIsland from '../../components/NewsRightRailIsland';
 import { fetchNewsItems } from '../../data/api';
 import type { NewsScope } from '../../types';
 
@@ -14,4 +15,5 @@ const items = await fetchNewsItems({ limit: 20, sport }, env, ctx);
   <main>
     <NewsIsland scope={scope} initialData={items} client:only="react" />
   </main>
+  <NewsRightRailIsland slot="right" client:only="react" />
 </Layout>

@@ -1,5 +1,4 @@
 import { type ResolvedBracketMatch, type ResolvedTeam, useBracket } from '../hooks/useBracket';
-import { useT } from '../i18n';
 import type { CompMatch, WCGroup } from '../types';
 import { pathFor, useRouter } from '../utils/router';
 
@@ -129,7 +128,6 @@ export default function BracketView({
   groups: WCGroup[];
   matches: CompMatch[];
 }) {
-  const t = useT();
   const { route } = useRouter();
   const comp = route.comp;
   const { resolved } = useBracket(groups, matches);
@@ -186,7 +184,7 @@ export default function BracketView({
           viewBox={`0 0 ${BOX} ${BOX}`}
           className="w-full h-full overflow-visible"
           role="img"
-          aria-label={t('bracket.Final')}
+          aria-label="Final"
         >
           <defs>
             <radialGradient id="cupGlow">
@@ -269,7 +267,6 @@ export default function BracketView({
                 match={m.match}
                 comp={comp}
                 eliminated={m.winner != null && m.winner !== side}
-                t={t}
               />
             ));
           })}
@@ -287,7 +284,6 @@ export default function BracketView({
                 team={winnerTeam(m)}
                 match={m.match}
                 comp={comp}
-                t={t}
               />
             ))}
 
@@ -301,15 +297,15 @@ export default function BracketView({
       {/* rings, named outward-in */}
       <p className="ds-caption uppercase tracking-[0.16em] text-chalkdim/60 text-center">
         {[
-          t('bracket.R32'),
-          t('bracket.R16'),
-          t('bracket.QF'),
-          t('bracket.SF'),
-          t('bracket.Final'),
+          'Round of 32',
+          'Round of 16',
+          'Quarter-finals',
+          'Semi-finals',
+          'Final',
         ].join(' · ')}
       </p>
 
-      {thirdPlace && <ThirdPlaceChip match={thirdPlace} comp={comp} t={t} />}
+      {thirdPlace && <ThirdPlaceChip match={thirdPlace} comp={comp} />}
     </div>
   );
 }
@@ -331,7 +327,6 @@ function Node({
   match,
   comp,
   eliminated,
-  t,
 }: {
   center: Pt;
   size: number;
@@ -339,11 +334,10 @@ function Node({
   match: CompMatch | null;
   comp: string;
   eliminated?: boolean;
-  t: (k: string) => string;
 }) {
   const r = size / 2;
   const href = match ? pathFor({ kind: 'match', comp, slug: match.slug }) : undefined;
-  const label = team ? team.label : t('bracket.tbd');
+  const label = team ? team.label : 'TBD';
   // Undecided / not-yet-qualified slot: a quiet waypoint dot, not a full disc,
   // so only real crests carry visual weight on the disc.
   if (!team) {
@@ -397,11 +391,9 @@ function Node({
 function ThirdPlaceChip({
   match,
   comp,
-  t,
 }: {
   match: ResolvedBracketMatch;
   comp: string;
-  t: (k: string) => string;
 }) {
   const href = match.match
     ? pathFor({ kind: 'match', comp, slug: match.match.slug })
@@ -411,11 +403,11 @@ function ThirdPlaceChip({
   const inner = (
     <>
       <span className="ds-caption uppercase tracking-[0.14em] text-chalkdim/70">
-        {t('bracket.3rd')}
+        3rd place
       </span>
-      <Crest team={match.home} t={t} />
+      <Crest team={match.home} />
       <span className="ds-caption text-chalkdim/50">–</span>
-      <Crest team={match.away} t={t} />
+      <Crest team={match.away} />
     </>
   );
   if (href) {
@@ -432,8 +424,8 @@ function ThirdPlaceChip({
   );
 }
 
-function Crest({ team, t }: { team: ResolvedTeam | null; t: (k: string) => string }) {
-  if (!team) return <span className="ds-caption text-chalkdim/40">{t('bracket.tbd')}</span>;
+function Crest({ team }: { team: ResolvedTeam | null }) {
+  if (!team) return <span className="ds-caption text-chalkdim/40">TBD</span>;
   return team.flag ? (
     <img
       src={team.flag}

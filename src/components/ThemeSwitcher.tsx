@@ -1,5 +1,4 @@
 import { Moon, Sun } from 'lucide-react';
-import { useT } from '../i18n';
 import { type Theme, useTheme } from '../theme';
 
 const CYCLE: Theme[] = ['dark', 'light'];
@@ -9,10 +8,15 @@ const ICONS = {
   light: Sun,
 } as const;
 
+const THEME_LABELS: Record<Theme, string> = {
+  dark: 'Dark theme',
+  light: 'Light theme',
+};
+
 export default function ThemeSwitcher() {
   const { theme, setTheme } = useTheme();
-  const t = useT();
   const Icon = ICONS[theme];
+  const label = THEME_LABELS[theme];
 
   const cycle = () => {
     const idx = CYCLE.indexOf(theme);
@@ -23,8 +27,8 @@ export default function ThemeSwitcher() {
     <button
       type="button"
       onClick={cycle}
-      aria-label={t(`theme.${theme}`)}
-      title={t(`theme.${theme}`)}
+      aria-label={label}
+      title={label}
       className="p-2 rounded-pill hover:bg-overlay/10 text-chalkdim hover:text-chalk transition-all duration-200"
     >
       <Icon className="w-5 h-5" aria-hidden />

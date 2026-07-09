@@ -1,6 +1,5 @@
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import { LanguageProvider } from '../i18n';
 import type { WCGroup } from '../types';
 import BracketView from './BracketView';
 
@@ -34,9 +33,7 @@ function group(letter: string, teams: ReturnType<typeof standing>[]): WCGroup {
 describe('BracketView', () => {
   it('renders the radial disc with the cup at its centre', () => {
     render(
-      <LanguageProvider>
-        <BracketView groups={[]} matches={[]} />
-      </LanguageProvider>,
+      <BracketView groups={[]} matches={[]} />,
     );
     // The whole knockout is one labelled figure (the trophy is decorative).
     expect(screen.getByRole('img', { name: 'Final' })).toBeInTheDocument();
@@ -45,9 +42,7 @@ describe('BracketView', () => {
 
   it('shows TBD in the 3rd-place chip before any team has qualified', () => {
     render(
-      <LanguageProvider>
-        <BracketView groups={[]} matches={[]} />
-      </LanguageProvider>,
+      <BracketView groups={[]} matches={[]} />,
     );
     // With no data every rim slot is a quiet waypoint dot; the only visible
     // copy is the 3rd-place chip's two TBD placeholders.
@@ -60,9 +55,7 @@ describe('BracketView', () => {
       group('B', [standing({ teamId: '224', name: 'Canada', pts: 6 })]),
     ];
     render(
-      <LanguageProvider>
-        <BracketView groups={groups} matches={[]} />
-      </LanguageProvider>,
+      <BracketView groups={groups} matches={[]} />,
     );
     // Mexico wins group A (1A slot, M79) and Canada group B (1B slot, M85).
     expect(screen.getAllByLabelText('Mexico').length).toBeGreaterThan(0);
@@ -71,14 +64,12 @@ describe('BracketView', () => {
 
   it('shows crests, with the country name as the accessible label, not visible copy', () => {
     render(
-      <LanguageProvider>
-        <BracketView
+      <BracketView
           groups={[
             group('A', [standing({ teamId: '203', name: 'Mexico', flag: 'mex.png', pts: 9 })]),
           ]}
           matches={[]}
-        />
-      </LanguageProvider>,
+        />,
     );
     // Name reaches assistive tech via the node's label...
     expect(screen.getAllByLabelText('Mexico').length).toBeGreaterThan(0);
@@ -88,9 +79,7 @@ describe('BracketView', () => {
 
   it('renders the empty 3rd-place chip without a link when no match is attached', () => {
     render(
-      <LanguageProvider>
-        <BracketView groups={[]} matches={[]} />
-      </LanguageProvider>,
+      <BracketView groups={[]} matches={[]} />,
     );
     // Empty data: no match links on the disc or chip (TBD slots are non-links).
     expect(screen.queryAllByRole('link')).toHaveLength(0);
