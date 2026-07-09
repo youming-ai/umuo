@@ -1,10 +1,10 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import type { StandingsData } from '../adapters/types';
 import { COMPETITIONS } from '../competitions';
 import { useLeaders } from '../hooks/useLeaders';
 import { useT } from '../i18n';
 import type { CompMatch, Leader, Stage, TopScorer } from '../types';
-import { navigate, pathFor, type Section, useRouter } from '../utils/router';
+import { pathFor, type Section, useRouter } from '../utils/router';
 import BracketView from './BracketView';
 import ConferenceStandings from './ConferenceStandings';
 import LeadersView from './LeadersView';
@@ -77,12 +77,6 @@ export default function FixturesView({
       : section;
   const [stage, setStage] = useState<Stage | 'all'>('all');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('upcoming');
-  const openMatch = useCallback(
-    (m: CompMatch) => {
-      navigate(pathFor({ kind: 'match', comp, slug: m.slug }));
-    },
-    [comp],
-  );
 
   const stages: (Stage | 'all')[] = useMemo(() => {
     const present = new Set<Stage>(
@@ -172,9 +166,13 @@ export default function FixturesView({
               homeScorers={m.homeScorers}
               awayScorers={m.awayScorers}
               venue={m.venue}
-              // Clickable when not upcoming, or when watchable (a live stream
+              // Real href when not upcoming, or when watchable (a live stream
               // exists even if ESPN still shows the pre-match state).
-              onOpen={m.status === 'upcoming' && !watchable ? undefined : () => openMatch(m)}
+              href={
+                m.status === 'upcoming' && !watchable
+                  ? undefined
+                  : pathFor({ kind: 'match', comp, slug: m.slug })
+              }
             />
           );
         })}

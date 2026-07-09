@@ -2,7 +2,7 @@ import { Fragment } from 'react';
 import { type ResolvedBracketMatch, type ResolvedTeam, useBracket } from '../hooks/useBracket';
 import { useT } from '../i18n';
 import type { CompMatch, WCGroup } from '../types';
-import { navigate, pathFor, useRouter } from '../utils/router';
+import { pathFor, useRouter } from '../utils/router';
 
 // Visual (top-to-bottom) ordering of match indices within each round, so the
 // tree lines connect adjacent cells. Each round's list is split down the
@@ -196,30 +196,39 @@ function BracketCell({
   t: (k: string) => string;
   emphasis?: boolean; // the Final — the tree's focal cell
 }) {
-  const onClick = () => {
-    if (match.match) {
-      navigate(pathFor({ kind: 'match', comp, slug: match.match.slug }));
-    }
-  };
-  return (
-    // No hard frame — just a near-invisible tray (the app's accepted elevation
-    // idiom) that bounds the two flags as one match and gives the connector
-    // lines a real edge to meet. The loser fades so the winner reads off flags
-    // alone. The Final gets the pitch-green focal treatment.
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={!match.match}
-      aria-label={match.label}
-      className={`w-full flex flex-col items-center gap-0.5 rounded-xl px-2 py-1.5 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-pitch disabled:cursor-default ${
-        emphasis
-          ? 'bg-pitch/10 ring-1 ring-inset ring-pitch/30 hover:bg-pitch/[0.18]'
-          : 'bg-white/[0.045] hover:bg-white/[0.09] disabled:hover:bg-white/[0.045]'
-      }`}
-    >
+  // Real href when a CompMatch is attached so middle-click / open-in-new-tab
+  // work; TBD slots stay non-interactive.
+  const href = match.match
+    ? pathFor({ kind: 'match', comp, slug: match.match.slug })
+    : undefined;
+  const cls = `w-full flex flex-col items-center gap-0.5 rounded-xl px-2 py-1.5 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-pitch ${
+    href ? '' : 'cursor-default'
+  } ${
+    emphasis
+      ? 'bg-pitch/10 ring-1 ring-inset ring-pitch/30 hover:bg-pitch/[0.18]'
+      : `bg-white/[0.045] ${href ? 'hover:bg-white/[0.09]' : ''}`
+  }`;
+  const inner = (
+    <>
       <TeamFlag team={match.home} loser={match.winner === 'away'} t={t} />
       <TeamFlag team={match.away} loser={match.winner === 'home'} t={t} />
-    </button>
+    </>
+  );
+  // No hard frame — just a near-invisible tray (the app's accepted elevation
+  // idiom) that bounds the two flags as one match and gives the connector
+  // lines a real edge to meet. The loser fades so the winner reads off flags
+  // alone. The Final gets the pitch-green focal treatment.
+  if (href) {
+    return (
+      <a href={href} aria-label={match.label} className={cls}>
+        {inner}
+      </a>
+    );
+  }
+  return (
+    <div aria-label={match.label} className={cls}>
+      {inner}
+    </div>
   );
 }
 

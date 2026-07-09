@@ -1,6 +1,6 @@
 import { useT } from '../i18n';
 import type { CompMatch, ScorerEntry, TopScorer, WCGroup } from '../types';
-import { navigate, pathFor, useRouter } from '../utils/router';
+import { pathFor, useRouter } from '../utils/router';
 import { scorerDisplay } from '../utils/wc';
 
 interface PlayerPageProps {
@@ -8,7 +8,8 @@ interface PlayerPageProps {
   groups: WCGroup[];
   matches: CompMatch[];
   scorers: TopScorer[];
-  onBack: () => void;
+  /** Schedule URL for the up-navigation control (real `<a href>`). */
+  backHref: string;
 }
 
 // One goal scored by the player in a specific match, with the full match
@@ -57,7 +58,7 @@ export default function PlayerPage({
   groups,
   matches,
   scorers,
-  onBack,
+  backHref,
 }: PlayerPageProps) {
   const t = useT();
   const { route } = useRouter();
@@ -75,17 +76,15 @@ export default function PlayerPage({
     : undefined;
   const teamId = topScorerEntry?.teamId ?? fallbackTeamId;
   const teamName = topScorerEntry?.teamName || teamNameFor(groups, teamId);
+  const backClass =
+    'font-mono text-xs tracking-widest text-chalkdim hover:text-chalk transition-colors inline-flex items-center gap-1';
 
   if (!topScorerEntry && goals.length === 0) {
     return (
       <div className="space-y-section w-full">
-          <button
-            type="button"
-            onClick={onBack}
-            className="font-mono text-xs tracking-widest text-chalkdim hover:text-chalk transition-colors inline-flex items-center gap-1"
-          >
+          <a href={backHref} className={backClass}>
             ← <span>{t('detail.back')}</span>
-          </button>
+          </a>
           <p className="font-mono text-xs text-chalkdim p-card text-center">
             {t('player.notFound')}
           </p>
@@ -96,13 +95,9 @@ export default function PlayerPage({
   return (
     // Width + page padding come from the app shell; stack sections only.
     <div className="space-y-section">
-        <button
-          type="button"
-          onClick={onBack}
-          className="font-mono text-xs tracking-widest text-chalkdim hover:text-chalk transition-colors inline-flex items-center gap-1"
-        >
+        <a href={backHref} className={backClass}>
           ← <span>{t('detail.back')}</span>
-        </button>
+        </a>
 
         {/* Header */}
         <div>
@@ -111,13 +106,12 @@ export default function PlayerPage({
           </h1>
           <div className="flex items-center gap-3 mt-1">
             {teamId && (
-              <button
-                type="button"
-                onClick={() => navigate(pathFor({ kind: 'team', comp, teamId }))}
+              <a
+                href={pathFor({ kind: 'team', comp, teamId })}
                 className="font-mono text-[11px] uppercase tracking-[0.18em] text-chalkdim hover:text-pitch transition-colors"
               >
                 {teamName}
-              </button>
+              </a>
             )}
             {topScorerEntry && (
               <span className="font-mono text-[11px] text-chalkdim/60">
@@ -155,15 +149,12 @@ export default function PlayerPage({
                       <span className="text-chalk tabular-nums w-12 shrink-0">
                         {g.entry.minute}
                       </span>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          navigate(pathFor({ kind: 'match', comp, slug: g.match.slug }))
-                        }
+                      <a
+                        href={pathFor({ kind: 'match', comp, slug: g.match.slug })}
                         className="font-display text-sm text-chalk hover:text-pitch transition-colors truncate text-left"
                       >
                         {g.match.homeName} vs {g.match.awayName}
-                      </button>
+                      </a>
                     </div>
                     <div className="flex items-center gap-3 shrink-0">
                       <span className="text-chalk tabular-nums">{score}</span>

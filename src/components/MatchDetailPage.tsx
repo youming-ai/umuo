@@ -87,7 +87,7 @@ function TeamBadge({ flag, name, href }: { flag: string; name: string; href?: st
 export default function MatchDetailPage({
   match,
   stream,
-  onBack,
+  backHref,
   initialDetail,
 }: {
   match: CompMatch;
@@ -95,7 +95,8 @@ export default function MatchDetailPage({
   // (null unless a stream for this fixture is live now). Keeping the timing in
   // App means this component stays deterministic given its props.
   stream?: Match | null;
-  onBack: () => void;
+  /** Schedule URL for the up-navigation control (real `<a href>`). */
+  backHref: string;
   initialDetail?: MatchDetail | null;
 }) {
   const t = useT();
@@ -144,14 +145,13 @@ export default function MatchDetailPage({
     <div className="space-y-section">
         {/* Back navigation */}
         <div>
-          <button
-            type="button"
-            onClick={onBack}
+          <a
+            href={backHref}
             className="font-mono text-xs tracking-widest text-chalkdim hover:text-chalk transition-colors inline-flex items-center gap-1.5 py-1"
             aria-label={t('detail.back')}
           >
             ← <span>{t('detail.back')}</span>
-          </button>
+          </a>
         </div>
 
         {/* Live stream player (only when a matching ppv.to stream is live) */}

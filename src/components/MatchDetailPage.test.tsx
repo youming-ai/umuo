@@ -65,10 +65,9 @@ function summaryJson() {
 
 it('renders the match header (home : away) and the back button', async () => {
   fetchMock.mockResolvedValueOnce({ ok: true, json: async () => summaryJson() });
-  const onBack = vi.fn();
   render(
     <LanguageProvider>
-      <MatchDetailPage match={match} onBack={onBack} />
+      <MatchDetailPage match={match} backHref="/fifa.world" />
     </LanguageProvider>,
   );
   await waitFor(() => expect(screen.getByText('Shots')).toBeInTheDocument());
@@ -77,15 +76,15 @@ it('renders the match header (home : away) and the back button', async () => {
   expect(screen.getByText('South Africa')).toBeInTheDocument();
   expect(screen.getByText('2')).toBeInTheDocument();
   expect(screen.getByText('0')).toBeInTheDocument();
-  fireEvent.click(screen.getByRole('button', { name: /Back/ }));
-  expect(onBack).toHaveBeenCalled();
+  const back = screen.getByRole('link', { name: /Back/ });
+  expect(back).toHaveAttribute('href', '/fifa.world');
 });
 
 it('links soccer team crests to their team page', async () => {
   fetchMock.mockResolvedValueOnce({ ok: true, json: async () => summaryJson() });
   render(
     <LanguageProvider>
-      <MatchDetailPage match={match} onBack={vi.fn()} />
+      <MatchDetailPage match={match} backHref="/fifa.world" />
     </LanguageProvider>,
   );
   await waitFor(() => expect(screen.getByText('Shots')).toBeInTheDocument());
@@ -104,7 +103,7 @@ it('renders the live stream player at the top when a live stream is provided', a
   fetchMock.mockResolvedValueOnce({ ok: true, json: async () => summaryJson() });
   render(
     <LanguageProvider>
-      <MatchDetailPage match={match} stream={liveStream} onBack={vi.fn()} />
+      <MatchDetailPage match={match} stream={liveStream} backHref="/fifa.world" />
     </LanguageProvider>,
   );
   // The Player renders the stream name as a heading and an iframe titled with it.
@@ -120,7 +119,7 @@ it('does not render a player when no live stream is provided', async () => {
   fetchMock.mockResolvedValueOnce({ ok: true, json: async () => summaryJson() });
   render(
     <LanguageProvider>
-      <MatchDetailPage match={match} stream={null} onBack={vi.fn()} />
+      <MatchDetailPage match={match} stream={null} backHref="/fifa.world" />
     </LanguageProvider>,
   );
   await waitFor(() => expect(screen.getByText('Shots')).toBeInTheDocument());
@@ -143,7 +142,7 @@ it('shows the penalty-shootout score and a Pens badge for a pens match', async (
   };
   render(
     <LanguageProvider>
-      <MatchDetailPage match={pensMatch} onBack={vi.fn()} />
+      <MatchDetailPage match={pensMatch} backHref="/fifa.world" />
     </LanguageProvider>,
   );
   await waitFor(() => expect(screen.getByText('Shots')).toBeInTheDocument());
@@ -157,7 +156,7 @@ it('shows an AET badge for an extra-time decider', async () => {
   const aetMatch: CompMatch = { ...match, stage: 'qf', finishType: 'aet' };
   render(
     <LanguageProvider>
-      <MatchDetailPage match={aetMatch} onBack={vi.fn()} />
+      <MatchDetailPage match={aetMatch} backHref="/fifa.world" />
     </LanguageProvider>,
   );
   await waitFor(() => expect(screen.getByText('Shots')).toBeInTheDocument());
@@ -168,10 +167,9 @@ it('shows an i18n error with a retry button that refetches', async () => {
   fetchMock
     .mockResolvedValueOnce({ ok: false })
     .mockResolvedValueOnce({ ok: true, json: async () => summaryJson() });
-  const onBack = vi.fn();
   render(
     <LanguageProvider>
-      <MatchDetailPage match={match} onBack={onBack} />
+      <MatchDetailPage match={match} backHref="/fifa.world" />
     </LanguageProvider>,
   );
   await waitFor(() => expect(screen.getByText('Failed to load data')).toBeInTheDocument());
@@ -241,7 +239,7 @@ it('shows Boxscore + Stats tabs for an NBA match (no Lineup / Play-By-Play)', as
   fetchMock.mockResolvedValueOnce({ ok: true, json: async () => nbaSummaryJson() });
   render(
     <LanguageProvider>
-      <MatchDetailPage match={nbaMatch} onBack={vi.fn()} />
+      <MatchDetailPage match={nbaMatch} backHref="/fifa.world" />
     </LanguageProvider>,
   );
   // Boxscore tab renders the player once the summary resolves
@@ -257,7 +255,7 @@ it('shows the NBA statusText and no stage label in the hero', async () => {
   fetchMock.mockResolvedValueOnce({ ok: true, json: async () => nbaSummaryJson() });
   render(
     <LanguageProvider>
-      <MatchDetailPage match={nbaMatch} onBack={vi.fn()} />
+      <MatchDetailPage match={nbaMatch} backHref="/fifa.world" />
     </LanguageProvider>,
   );
   await screen.findByText('L. James');
@@ -270,7 +268,7 @@ it('does not link NBA team crests (no basketball team page exists)', async () =>
   fetchMock.mockResolvedValueOnce({ ok: true, json: async () => nbaSummaryJson() });
   render(
     <LanguageProvider>
-      <MatchDetailPage match={nbaMatch} onBack={vi.fn()} />
+      <MatchDetailPage match={nbaMatch} backHref="/fifa.world" />
     </LanguageProvider>,
   );
   await screen.findByText('L. James');
