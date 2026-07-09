@@ -224,7 +224,10 @@ it('falls back to matches when a disabled section is requested (eng.1 bracket)',
   expect(screen.getByText('Arsenal')).toBeInTheDocument();
 });
 
-it('rewrites the URL to the competition root when a disabled section is deep-linked', () => {
+it('does not client-navigate for a disabled section (server owns the redirect)', () => {
+  // Unsupported deep links (e.g. /eng.1/bracket) are 307'd in the Astro page.
+  // FixturesView still falls back to matches if it ever sees a bad section,
+  // but must not issue a second full-page location.replace.
   setPath('/eng.1/bracket');
   const navSpy = vi.spyOn(router, 'navigate').mockImplementation(() => {});
   render(
@@ -237,8 +240,8 @@ it('rewrites the URL to the competition root when a disabled section is deep-lin
       />
     </LanguageProvider>,
   );
-  // render falls back to matches AND the URL is made honest via replace
-  expect(navSpy).toHaveBeenCalledWith('/eng.1', { replace: true });
+  expect(navSpy).not.toHaveBeenCalled();
+  expect(screen.getByText('Arsenal')).toBeInTheDocument();
   navSpy.mockRestore();
 });
 

@@ -1,11 +1,30 @@
 ---
 import '../index.css';
+import Ticker from '../components/Ticker';
+import Header from '../components/Header.astro';
+import Footer from '../components/Footer.astro';
 
 interface Props {
   title?: string;
+  comp?: string; // active competition, for the header highlight (absent on /news)
 }
 
-const { title = 'StreamCup — World Cup 2026 live streams & fixtures' } = Astro.props;
+const { title = 'StreamCup — World Cup 2026 live streams & fixtures', comp } = Astro.props;
+
+// Rails are opt-in per page via named slots. When a page has rails, the shell
+// owns the width + page padding and lays out the 3-col grid. When it has none,
+// the shell adds nothing — the page's own content wrapper keeps its width and
+// padding (so existing pages need no change and never double-pad).
+const hasLeft = Astro.slots.has('left');
+const hasRight = Astro.slots.has('right');
+const hasRails = hasLeft || hasRight;
+const cols =
+  hasLeft && hasRight
+    ? 'lg:grid lg:gap-6 lg:grid-cols-[13rem_minmax(0,1fr)_20rem]'
+    : hasRight
+      ? 'lg:grid lg:gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]'
+      : 'lg:grid lg:gap-6 lg:grid-cols-[13rem_minmax(0,1fr)]';
+const frame = hasRails ? `px-page-x md:px-page-x-md py-page-y ${cols}` : '';
 ---
 <!doctype html>
 <html lang="en">
@@ -54,6 +73,39 @@ const { title = 'StreamCup — World Cup 2026 live streams & fixtures' } = Astro
         }
       })();
     </script>
-    <slot />
+    <script is:inline>
+      // PWA service worker — production only (localhost/dev keeps network free).
+      (() => {
+        const host = location.hostname;
+        const isLocal = host === 'localhost' || host === '127.0.0.1' || host === '::1';
+        if (isLocal || !('serviceWorker' in navigator)) return;
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js').catch(() => {});
+        });
+      })();
+    </script>
+    <div class="ds-floodlight" aria-hidden="true"></div>
+    <div class="relative z-10 flex flex-col min-h-screen">
+      <div class="sticky top-0 z-40 bg-night/95 backdrop-blur-md">
+        <Ticker client:only="react" />
+        <Header comp={comp} />
+      </div>
+      <div class={`flex-1 w-full ${frame}`}>
+        {hasLeft && (
+          <aside class="mb-4 lg:mb-0">
+            <slot name="left" />
+          </aside>
+        )}
+        <div class="min-w-0">
+          <slot />
+        </div>
+        {hasRight && (
+          <aside class="hidden lg:block">
+            <slot name="right" />
+          </aside>
+        )}
+      </div>
+      <Footer />
+    </div>
   </body>
 </html>

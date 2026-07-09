@@ -2,8 +2,8 @@ import { COMPETITIONS, DEFAULT_COMPETITION } from './competitions';
 
 // Astro middleware: runs on every request (SSR and static). Redirects the
 // root and legacy unprefixed paths to their canonical forms under the
-// default competition. Known routes (with comp prefixes, /api, /news,
-// /player) pass through unchanged.
+// default competition. Known routes (with comp prefixes, /api, /news)
+// pass through unchanged.
 export function onRequest(
   context: { request: Request; redirect: (url: string, status?: number) => Response; url: URL },
   next: () => Response | Promise<Response>,
@@ -14,7 +14,6 @@ export function onRequest(
   if (
     path.startsWith('/api/') ||
     path.startsWith('/news') ||
-    path.startsWith('/player') ||
     path === '/favicon.png' ||
     path === '/apple-touch-icon.png' ||
     path === '/icon-192.png' ||

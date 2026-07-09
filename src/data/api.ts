@@ -292,11 +292,16 @@ export interface CompetitionView {
   scorers: TopScorer[];
 }
 
-const EMPTY_COMPETITION_VIEW: CompetitionView = {
-  matches: [],
-  standings: { kind: 'soccer', groups: [] },
-  scorers: [],
-};
+function emptyCompetitionView(comp: Competition): CompetitionView {
+  return {
+    matches: [],
+    standings:
+      comp.sport === 'basketball'
+        ? { kind: 'basketball', conferences: [] }
+        : { kind: 'soccer', groups: [] },
+    scorers: [],
+  };
+}
 
 export async function getCompetitionView(
   comp: Competition,
@@ -308,11 +313,11 @@ export async function getCompetitionView(
       serve(comp, 'scoreboard', env, ctx),
       serve(comp, 'standings', env, ctx),
     ]);
-    if (!sbRes.ok || !stRes.ok) return EMPTY_COMPETITION_VIEW;
+    if (!sbRes.ok || !stRes.ok) return emptyCompetitionView(comp);
     const [sbJson, stJson] = await Promise.all([sbRes.json(), stRes.json()]);
     return getAdapter(comp.key).transform(sbJson, stJson);
   } catch {
-    return EMPTY_COMPETITION_VIEW;
+    return emptyCompetitionView(comp);
   }
 }
 

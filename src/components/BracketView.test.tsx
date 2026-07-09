@@ -99,24 +99,21 @@ describe('BracketView', () => {
         <BracketView groups={[]} matches={[]} />
       </LanguageProvider>,
     );
-    // Flags-only cells: the M-label is the button's accessible name, not visible text.
-    expect(screen.getByRole('button', { name: 'M73' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'M89' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'M104' })).toBeInTheDocument();
+    // Flags-only cells: the M-label is the accessible name, not visible text.
+    // TBD slots (no CompMatch) render as non-link containers.
+    expect(screen.getByLabelText('M73')).toBeInTheDocument();
+    expect(screen.getByLabelText('M89')).toBeInTheDocument();
+    expect(screen.getByLabelText('M104')).toBeInTheDocument();
   });
 
-  it('does not navigate on cell click when no CompMatch is attached', () => {
-    // jsdom's window.location is read-only; just verify clicking a TBD
-    // cell doesn't crash and the click handler is a no-op.
-    const spy = vi.spyOn(window.history, 'pushState');
+  it('renders TBD cells without a link when no CompMatch is attached', () => {
     render(
       <LanguageProvider>
         <BracketView groups={[]} matches={[]} />
       </LanguageProvider>,
     );
-    const firstButton = screen.getAllByRole('button')[0];
-    expect(firstButton).toBeDisabled();
-    fireEvent.click(firstButton);
-    expect(spy).not.toHaveBeenCalled();
+    // Empty bracket: no match links, only labelled non-interactive cells.
+    expect(screen.queryAllByRole('link')).toHaveLength(0);
+    expect(screen.getByLabelText('M73').tagName).toBe('DIV');
   });
 });

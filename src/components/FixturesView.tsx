@@ -1,10 +1,10 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import type { StandingsData } from '../adapters/types';
 import { COMPETITIONS } from '../competitions';
 import { useLeaders } from '../hooks/useLeaders';
 import { useT } from '../i18n';
 import type { CompMatch, Leader, Stage, TopScorer } from '../types';
-import { navigate, pathFor, type Section, useRouter } from '../utils/router';
+import { pathFor, type Section, useRouter } from '../utils/router';
 import BracketView from './BracketView';
 import ConferenceStandings from './ConferenceStandings';
 import LeadersView from './LeadersView';
@@ -47,9 +47,10 @@ export default function FixturesView({
   scorers: TopScorer[];
   // Slugs of matches with a ppv.to stream live right now (resolved in App).
   watchableSlugs?: ReadonlySet<string>;
-  // Optional pre-warmed pipeline leaders (from the SSR pass). When provided
-  // and leadersSource === 'pipeline', used in place of useLeaders so the
-  // first paint shows the SSR data with no fetch.
+  // Optional SSR seed for pipeline leaders (NBA / eng.1 scorers page).
+  // Always still owned by useLeaders below — the seed only skips the first
+  // paint fetch when non-empty. Do NOT gate the hook on truthiness of this
+  // array: `[]` is a valid empty seed and must still poll/fetch.
   pipelineLeaders?: Leader[];
 }) {
   const t = useT();
@@ -59,31 +60,23 @@ export default function FixturesView({
   const competition = COMPETITIONS[comp];
   const shape = competition?.shape ?? 'tournament';
   const leadersSource = competition?.leadersSource;
-  // Hooks must run unconditionally. When pipelineLeaders is provided, the
-  // hook is gated to a no-op (comp: null) so the island doesn't double-fetch.
-  const pipeline = useLeaders(pipelineLeaders ? null : leadersSource === 'pipeline' ? comp : null, pipelineLeaders);
+  // Single owner of pipeline leaders for this island (CompetitionIsland only
+  // forwards the SSR seed; it does not run a second useLeaders).
+  const pipeline = useLeaders(
+    leadersSource === 'pipeline' ? comp : null,
+    pipelineLeaders,
+  );
   const caps = competition?.capabilities;
+  // Unsupported capability deep-links (e.g. /eng.1/bracket) are redirected
+  // server-side in the Astro pages. Keep a render-time fallback so a stale
+  // client navigation still shows matches instead of an empty section.
   const effectiveSection: Section =
     (section === 'bracket' && caps && !caps.bracket) ||
     (section === 'scorers' && caps && !caps.scorers)
       ? 'matches'
       : section;
-  // URL honesty: when a deep link hits a section this competition doesn't
-  // have (e.g. /eng.1/bracket), the render falls back to matches above —
-  // rewrite the URL to match so the Header highlight and shared links agree.
-  useEffect(() => {
-    if (effectiveSection !== section) {
-      navigate(pathFor({ kind: 'section', comp, section: effectiveSection }), { replace: true });
-    }
-  }, [effectiveSection, section, comp]);
   const [stage, setStage] = useState<Stage | 'all'>('all');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('upcoming');
-  const openMatch = useCallback(
-    (m: CompMatch) => {
-      navigate(pathFor({ kind: 'match', comp, slug: m.slug }));
-    },
-    [comp],
-  );
 
   const stages: (Stage | 'all')[] = useMemo(() => {
     const present = new Set<Stage>(
@@ -173,9 +166,13 @@ export default function FixturesView({
               homeScorers={m.homeScorers}
               awayScorers={m.awayScorers}
               venue={m.venue}
-              // Clickable when not upcoming, or when watchable (a live stream
+              // Real href when not upcoming, or when watchable (a live stream
               // exists even if ESPN still shows the pre-match state).
-              onOpen={m.status === 'upcoming' && !watchable ? undefined : () => openMatch(m)}
+              href={
+                m.status === 'upcoming' && !watchable
+                  ? undefined
+                  : pathFor({ kind: 'match', comp, slug: m.slug })
+              }
             />
           );
         })}
@@ -184,12 +181,9 @@ export default function FixturesView({
   );
 
   return (
-    // Match the Header's layout exactly — px on the OUTER wrapper, max-w-6xl
-    // INSIDE — so the content column lines up with the header box at every
-    // viewport width (otherwise the two max-w boxes diverge in the
-    // 1152–1200px band where only the header's max-w is squeezed by its px).
-    <div className="ds-page">
-      <div className="ds-page-inner">
+    // Width + page padding come from the app shell (Layout.astro) now; this
+    // just stacks its sections inside the shell's center column.
+    <div className="space-y-section">
         {effectiveSection === 'scorers' ? (
           leadersSource === 'pipeline' ? (
             pipeline.loading && pipeline.leaders.length === 0 ? (
@@ -336,7 +330,6 @@ export default function FixturesView({
             })()}
           </>
         )}
-      </div>
     </div>
   );
 }

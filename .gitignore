@@ -99,6 +99,7 @@ tsconfig.tsbuildinfo
 # Build outputs
 dist/
 dist-ssr/
+.astro/
 *.local
 
 # Vitest
@@ -106,3 +107,6 @@ dist-ssr/
 
 # Wrangler / Cloudflare local cache
 .wrangler/
+
+# Astro generated types
+.astro/

@@ -5,7 +5,7 @@
 const c = (v) => `rgb(var(${v}) / <alpha-value>)`;
 
 export default {
-  content: ['./index.html', './src/**/*.{js,ts,jsx,tsx}'],
+  content: ['./src/**/*.{astro,js,ts,jsx,tsx}'],
   theme: {
     extend: {
       colors: {
@@ -18,6 +18,7 @@ export default {
         pitch: c('--c-pitch'),
         live: c('--c-live'),
         amber: c('--c-amber'),
+        sodium: c('--c-sodium'),
         overlay: c('--c-overlay'),
         scrim: c('--c-scrim'),
         onscrim: c('--c-on-scrim'),

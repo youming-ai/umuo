@@ -1,12 +1,10 @@
-import { useCallback, useEffect, useState } from 'react';
 import { COMPETITIONS, DEFAULT_COMPETITION } from '../competitions';
 import type { NewsScope } from '../types';
 
-// One-route-fits-all router built on the History API. No react-router /
-// wouter dep — the surface area is small enough that a single module is
-// enough. The Worker serves index.html for unknown paths
-// (assets.not_found_handling = single-page-application), so deep links
-// resolve to the SPA at page refresh.
+// Every route is a real Astro SSR page (no client router / catch-all SPA
+// anymore — see commit 81b71fc). `parseRoute`/`pathFor` are shared purely to
+// build/read URLs consistently between server pages and client islands;
+// `navigate()` performs a real browser navigation to move between them.
 //
 // Route scheme (every view is addressable — shareable, back/forward, refresh):
 //   /<comp>              matches (schedule; group standings live under the group filter)
@@ -130,49 +128,22 @@ export function pathFor(route: Route): string {
   }
 }
 
-// pushState/replaceState do NOT emit `popstate`, so `useRouter` can't see a
-// programmatic navigation on its own. Every `navigate()` dispatches this event
-// and the hook re-parses on it — that's what keeps any caller (FixturesView,
-// App) in sync without threading a setter through props.
-const ROUTE_CHANGE = 'app:routechange';
-
-// Programmatic navigation. Default behaviour: pushState (back/forward works).
-// Pass `{ replace: true }` for state-only updates that shouldn't grow the
-// history stack (e.g. tab switches).
-export function navigate(path: string, opts: { replace?: boolean; scroll?: boolean } = {}): void {
-  const { replace = false, scroll = false } = opts;
+// Real cross-page navigation (every route is its own SSR document — there's
+// no client router to intercept a pushState). Default: assign (back/forward
+// works, adds a history entry). Pass `{ replace: true }` to swap the current
+// entry instead (e.g. a "this deep link doesn't apply here" correction).
+export function navigate(path: string, opts: { replace?: boolean } = {}): void {
   if (window.location.pathname + window.location.search === path) return;
-  if (replace) {
-    window.history.replaceState(null, '', path);
+  if (opts.replace) {
+    window.location.replace(path);
   } else {
-    window.history.pushState(null, '', path);
+    window.location.assign(path);
   }
-  if (scroll) window.scrollTo({ top: 0, behavior: 'instant' });
-  window.dispatchEvent(new Event(ROUTE_CHANGE));
 }
 
-// React hook: subscribes to popstate (back/forward) + our route-change event
-// (programmatic navigate), returns the current Route and a `go` alias.
-export function useRouter(): {
-  route: Route;
-  go: (path: string, opts?: { replace?: boolean; scroll?: boolean }) => void;
-} {
-  const [route, setRoute] = useState<Route>(() => parseRoute(window.location.pathname));
-
-  useEffect(() => {
-    const sync = () => setRoute(parseRoute(window.location.pathname));
-    window.addEventListener('popstate', sync);
-    window.addEventListener(ROUTE_CHANGE, sync);
-    return () => {
-      window.removeEventListener('popstate', sync);
-      window.removeEventListener(ROUTE_CHANGE, sync);
-    };
-  }, []);
-
-  const go = useCallback((path: string, opts?: { replace?: boolean; scroll?: boolean }) => {
-    navigate(path, opts);
-    setRoute(parseRoute(path));
-  }, []);
-
-  return { route, go };
+// Reads the route for the current URL. A real navigate() reloads the
+// document, so there's nothing to subscribe to — every mount already sees
+// the URL it was served for.
+export function useRouter(): { route: Route } {
+  return { route: parseRoute(window.location.pathname) };
 }
