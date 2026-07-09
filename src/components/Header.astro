@@ -11,10 +11,14 @@ const onScores =
   !onNews &&
   Object.keys(COMPETITIONS).some((key) => path === `/${key}` || path.startsWith(`/${key}/`));
 
-// Two-level nav: the header switches top-level areas (News ↔ Scores). News
-// categories live in the NewsView strip; comp switching lives in Scores views.
+// One nav bar: News (All) + a curated set of news categories + Scores. Other
+// leagues (La Liga, Serie A, …) stay reachable by URL — promote here if needed.
 const NAV = [
-  { href: '/news', label: 'News', active: onNews },
+  { href: '/news', label: 'News', active: path === '/news' },
+  { href: '/news/soccer', label: 'Soccer', active: path === '/news/soccer' },
+  { href: '/news/basketball', label: 'Basketball', active: path === '/news/basketball' },
+  { href: '/news/league/eng.1', label: 'EPL', active: path === '/news/league/eng.1' },
+  { href: '/news/league/nba', label: 'NBA', active: path === '/news/league/nba' },
   { href: `/${DEFAULT_COMPETITION}`, label: 'Scores', active: onScores },
 ];
 ---

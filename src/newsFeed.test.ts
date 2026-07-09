@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { NEWS_NAV, parseNewsFeed } from './newsFeed';
+import { parseNewsFeed } from './newsFeed';
 
 const feed = {
   headlines: [
@@ -73,9 +73,5 @@ describe('parseNewsFeed', () => {
         tags: [],
       },
     ]);
-  });
-
-  it('NEWS_NAV starts with the all scope', () => {
-    expect(NEWS_NAV[0].scope).toEqual({ by: 'all' });
   });
 });
