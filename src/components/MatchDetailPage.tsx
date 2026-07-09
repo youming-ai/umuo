@@ -1,6 +1,7 @@
 import { type KeyboardEvent as ReactKeyboardEvent, useEffect, useState } from 'react';
 import { useMatchDetail } from '../hooks/useMatchDetail';
 import { useT } from '../i18n';
+import { COMPETITIONS } from '../competitions';
 import type { MatchDetail } from '../adapters/types';
 import type { CompMatch, Match } from '../types';
 import { pathFor, useRouter } from '../utils/router';
@@ -55,6 +56,34 @@ function StatusBadge({
   return null;
 }
 
+// Hero team crest + name. Links to the team page only when one exists for
+// this competition — team pages resolve from soccer standings, so basketball
+// (NBA) has none and the badge renders as plain text instead of a dead link.
+function TeamBadge({ flag, name, href }: { flag: string; name: string; href?: string }) {
+  const inner = (
+    <>
+      <div className="w-14 h-10 md:w-20 md:h-14 overflow-hidden rounded-card bg-panel2 shadow-hero mb-3 shrink-0">
+        {flag ? (
+          <img src={flag} alt={name} className="w-full h-full object-cover" />
+        ) : (
+          <div className="w-full h-full bg-panel2" />
+        )}
+      </div>
+      <span className="font-display text-base md:text-xl font-bold text-chalk truncate max-w-full">
+        {name}
+      </span>
+    </>
+  );
+  const cls = 'flex-1 flex flex-col items-center text-center min-w-0';
+  return href ? (
+    <a href={href} className={`${cls} hover:opacity-80 transition-opacity`}>
+      {inner}
+    </a>
+  ) : (
+    <div className={cls}>{inner}</div>
+  );
+}
+
 export default function MatchDetailPage({
   match,
   stream,
@@ -78,6 +107,13 @@ export default function MatchDetailPage({
   const showPlayer = stream != null;
 
   const homeId = detail?.homeId ?? '';
+
+  // Team pages only exist for soccer competitions (they read soccer standings);
+  // gate the crest links so NBA match headers don't link to a "Team not found".
+  const teamHref = (teamId: string) =>
+    COMPETITIONS[route.comp]?.sport === 'soccer'
+      ? pathFor({ kind: 'team', comp: route.comp, teamId })
+      : undefined;
 
   const tabs: Tab[] =
     detail?.kind === 'basketball' ? ['boxscore', 'stats'] : ['stats', 'play', 'lineup'];
@@ -148,25 +184,7 @@ export default function MatchDetailPage({
 
           <div className="flex items-center justify-between w-full max-w-2xl gap-card">
             {/* Home Team */}
-            <a
-              href={pathFor({ kind: 'team', comp: route.comp, teamId: match.homeId })}
-              className="flex-1 flex flex-col items-center text-center min-w-0 hover:opacity-80 transition-opacity"
-            >
-              <div className="w-14 h-10 md:w-20 md:h-14 overflow-hidden rounded-card bg-panel2 shadow-hero mb-3 shrink-0">
-                {match.homeFlag ? (
-                  <img
-                    src={match.homeFlag}
-                    alt={match.homeName}
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <div className="w-full h-full bg-panel2" />
-                )}
-              </div>
-              <span className="font-display text-base md:text-xl font-bold text-chalk truncate max-w-full">
-                {match.homeName}
-              </span>
-            </a>
+            <TeamBadge flag={match.homeFlag} name={match.homeName} href={teamHref(match.homeId)} />
 
             {/* Score & Status */}
             <div className="flex flex-col items-center justify-center shrink-0 px-2 sm:px-6">
@@ -228,25 +246,7 @@ export default function MatchDetailPage({
             </div>
 
             {/* Away Team */}
-            <a
-              href={pathFor({ kind: 'team', comp: route.comp, teamId: match.awayId })}
-              className="flex-1 flex flex-col items-center text-center min-w-0 hover:opacity-80 transition-opacity"
-            >
-              <div className="w-14 h-10 md:w-20 md:h-14 overflow-hidden rounded-card bg-panel2 shadow-hero mb-3 shrink-0">
-                {match.awayFlag ? (
-                  <img
-                    src={match.awayFlag}
-                    alt={match.awayName}
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <div className="w-full h-full bg-panel2" />
-                )}
-              </div>
-              <span className="font-display text-base md:text-xl font-bold text-chalk truncate max-w-full">
-                {match.awayName}
-              </span>
-            </a>
+            <TeamBadge flag={match.awayFlag} name={match.awayName} href={teamHref(match.awayId)} />
           </div>
         </div>
 

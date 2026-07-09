@@ -81,6 +81,25 @@ it('renders the match header (home : away) and the back button', async () => {
   expect(onBack).toHaveBeenCalled();
 });
 
+it('links soccer team crests to their team page', async () => {
+  fetchMock.mockResolvedValueOnce({ ok: true, json: async () => summaryJson() });
+  render(
+    <LanguageProvider>
+      <MatchDetailPage match={match} onBack={vi.fn()} />
+    </LanguageProvider>,
+  );
+  await waitFor(() => expect(screen.getByText('Shots')).toBeInTheDocument());
+  // Team name sits inside an anchor pointing at /<comp>/team/<id>.
+  expect(screen.getByText('Mexico').closest('a')).toHaveAttribute(
+    'href',
+    '/fifa.world/team/203',
+  );
+  expect(screen.getByText('South Africa').closest('a')).toHaveAttribute(
+    'href',
+    '/fifa.world/team/492',
+  );
+});
+
 it('renders the live stream player at the top when a live stream is provided', async () => {
   fetchMock.mockResolvedValueOnce({ ok: true, json: async () => summaryJson() });
   render(
@@ -244,4 +263,23 @@ it('shows the NBA statusText and no stage label in the hero', async () => {
   await screen.findByText('L. James');
   // no soccer stage/group chip in the hero (nbaMatch has no stage)
   expect(screen.queryByText(/^Group /)).not.toBeInTheDocument();
+});
+
+it('does not link NBA team crests (no basketball team page exists)', async () => {
+  setPath('/nba');
+  fetchMock.mockResolvedValueOnce({ ok: true, json: async () => nbaSummaryJson() });
+  render(
+    <LanguageProvider>
+      <MatchDetailPage match={nbaMatch} onBack={vi.fn()} />
+    </LanguageProvider>,
+  );
+  await screen.findByText('L. James');
+  // Team names render as plain text, not anchors → no dead /nba/team/<id>
+  // links. (The name also appears in the boxscore; assert none are anchored.)
+  for (const el of screen.getAllByText('Los Angeles Lakers')) {
+    expect(el.closest('a')).toBeNull();
+  }
+  for (const el of screen.getAllByText('Boston Celtics')) {
+    expect(el.closest('a')).toBeNull();
+  }
 });
