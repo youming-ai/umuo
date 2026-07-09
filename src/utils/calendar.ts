@@ -40,9 +40,9 @@ export function icsDataUri(e: CalEvent): string {
   const lines = [
     'BEGIN:VCALENDAR',
     'VERSION:2.0',
-    'PRODID:-//StreamCup//WC2026//EN',
+    'PRODID:-//umuo//WC2026//EN',
     'BEGIN:VEVENT',
-    `UID:${toUtc(e.start)}-${encodeURIComponent(e.title)}@streamcup`,
+    `UID:${toUtc(e.start)}-${encodeURIComponent(e.title)}@umuo`,
     `DTSTART:${toUtc(e.start)}`,
     `DTEND:${toUtc(endOf(e))}`,
     `SUMMARY:${esc(e.title)}`,

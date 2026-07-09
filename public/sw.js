@@ -1,4 +1,4 @@
-const CACHE_NAME = 'streamcup-v2';
+const CACHE_NAME = 'umuo-v1';
 const PRECACHE_URLS = ['/', '/index.html'];
 
 // Install: precache app shell

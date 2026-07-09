@@ -1,4 +1,5 @@
 ---
+import { COMPETITIONS } from '../../../competitions';
 import NewsIsland from '../../../components/NewsIsland';
 import NewsRightRailIsland from '../../../components/NewsRightRailIsland';
 import { fetchNewsItems } from '../../../data/api';
@@ -11,7 +12,7 @@ const env = Astro.locals.runtime.env;
 const ctx = Astro.locals.runtime.ctx as Parameters<typeof fetchNewsItems>[2];
 const items = await fetchNewsItems({ limit: 20, leagues: league }, env, ctx);
 ---
-<Layout title={`StreamCup — News — ${league}`}>
+<Layout title={`umuo — News — ${COMPETITIONS[league]?.label ?? league}`}>
   <main>
     <NewsIsland scope={scope} initialData={items} client:only="react" />
   </main>

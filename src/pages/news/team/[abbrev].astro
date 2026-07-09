@@ -11,7 +11,7 @@ const env = Astro.locals.runtime.env;
 const ctx = Astro.locals.runtime.ctx as Parameters<typeof fetchNewsItems>[2];
 const items = await fetchNewsItems({ limit: 20, team }, env, ctx);
 ---
-<Layout title={`StreamCup — News — team ${team}`}>
+<Layout title={`umuo — News — ${team.toUpperCase()}`}>
   <main>
     <NewsIsland scope={scope} initialData={items} client:only="react" />
   </main>

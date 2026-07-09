@@ -1,10 +1,10 @@
 ---
-import Layout from '../../../layouts/Layout.astro';
-import PlayerPageIsland from '../../../components/PlayerPageIsland';
+import { COMPETITIONS } from '../../../competitions';
 import LeftNav from '../../../components/LeftNav.astro';
+import PlayerPageIsland from '../../../components/PlayerPageIsland';
 import RightRailIsland from '../../../components/RightRailIsland';
 import { getCompetitionView } from '../../../data/api';
-import { COMPETITIONS } from '../../../competitions';
+import Layout from '../../../layouts/Layout.astro';
 
 const { comp, id } = Astro.params;
 if (!comp || !Object.hasOwn(COMPETITIONS, comp)) {
@@ -22,7 +22,7 @@ const scorer = view.scorers.find((s) => s.athleteId === id);
 const playerName = scorer?.name ?? 'Player not found';
 ---
 
-<Layout title={`StreamCup — ${playerName}`} comp={comp}>
+<Layout title={`umuo — ${playerName}`} comp={comp}>
   <LeftNav slot="left" comp={comp} />
   <main>
     <div class="space-y-section">
