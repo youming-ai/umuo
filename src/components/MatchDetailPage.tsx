@@ -1,28 +1,32 @@
 import { type KeyboardEvent as ReactKeyboardEvent, useEffect, useState } from 'react';
 import { useMatchDetail } from '../hooks/useMatchDetail';
-import { useT } from '../i18n';
 import { COMPETITIONS } from '../competitions';
 import type { MatchDetail } from '../adapters/types';
-import type { CompMatch, Match } from '../types';
+import type { CompMatch } from '../types';
 import { pathFor, useRouter } from '../utils/router';
+import { stageLabel } from '../utils/wc';
 import BoxscoreTab from './matchdetail/BoxscoreTab';
 import LineupTab from './matchdetail/LineupTab';
 import PlayByPlayTab from './matchdetail/PlayByPlayTab';
-import Player from './Player';
 import TeamStatsTab from './matchdetail/TeamStatsTab';
 
 type Tab = 'stats' | 'play' | 'lineup' | 'boxscore';
+
+const TAB_LABELS: Record<Tab, string> = {
+  stats: 'Stats',
+  play: 'Play-By-Play',
+  lineup: 'Lineup',
+  boxscore: 'Box Score',
+};
 
 function StatusBadge({
   status,
   progress,
   finishType,
-  t,
 }: {
   status: 'upcoming' | 'live' | 'finished';
   progress: CompMatch['progress'];
   finishType: CompMatch['finishType'];
-  t: (k: string) => string;
 }) {
   if (status === 'live') {
     const isHT = progress?.status === 'halftime';
@@ -35,18 +39,14 @@ function StatusBadge({
         }`}
       >
         {!isHT && <span className="w-1.5 h-1.5 rounded-pill bg-live animate-pulse" />}
-        {isHT ? t('status.ht') : progress?.displayClock || t('status.live')}
+        {isHT ? 'Half-time' : progress?.displayClock || 'LIVE'}
       </span>
     );
   }
   if (status === 'finished') {
     // Knockout finishes carry an AET / Pens tag instead of the plain FT.
     const label =
-      finishType === 'pens'
-        ? t('status.pens')
-        : finishType === 'aet'
-          ? t('status.aet')
-          : t('status.ft');
+      finishType === 'pens' ? 'Pens' : finishType === 'aet' ? 'AET' : 'Final';
     return (
       <span className="inline-flex items-center px-3 py-0.5 rounded-pill bg-chalkdim/10 text-chalkdim border border-overlay/10 ds-caption font-bold tracking-wider uppercase select-none">
         {label}
@@ -86,26 +86,17 @@ function TeamBadge({ flag, name, href }: { flag: string; name: string; href?: st
 
 export default function MatchDetailPage({
   match,
-  stream,
   backHref,
   initialDetail,
 }: {
   match: CompMatch;
-  // The matching ppv.to stream, already resolved AND liveness-filtered in App
-  // (null unless a stream for this fixture is live now). Keeping the timing in
-  // App means this component stays deterministic given its props.
-  stream?: Match | null;
   /** Schedule URL for the up-navigation control (real `<a href>`). */
   backHref: string;
   initialDetail?: MatchDetail | null;
 }) {
-  const t = useT();
   const { route } = useRouter();
   const { detail, loading, error, reload } = useMatchDetail(match.id, route.comp, initialDetail);
   const [tab, setTab] = useState<Tab>('stats');
-  const [iframeUrl, setIframeUrl] = useState('');
-
-  const showPlayer = stream != null;
 
   const homeId = detail?.homeId ?? '';
 
@@ -148,20 +139,11 @@ export default function MatchDetailPage({
           <a
             href={backHref}
             className="font-mono text-xs tracking-widest text-chalkdim hover:text-chalk transition-colors inline-flex items-center gap-1.5 py-1"
-            aria-label={t('detail.back')}
+            aria-label="Back"
           >
-            ← <span>{t('detail.back')}</span>
+            ← <span>Back</span>
           </a>
         </div>
-
-        {/* Live stream player (only when a matching ppv.to stream is live) */}
-        {showPlayer && (
-          <Player
-            match={stream}
-            selectedIframeUrl={iframeUrl}
-            setSelectedIframeUrl={setIframeUrl}
-          />
-        )}
 
         {/* Hero Scoreboard (Apple Sports style) */}
         <div className="ds-glass-hero p-card md:p-8 flex flex-col items-center justify-center relative overflow-hidden">
@@ -172,9 +154,7 @@ export default function MatchDetailPage({
           {match.stage && (
             <div className="text-center mb-4 shrink-0">
               <span className="ds-caption uppercase tracking-[0.2em] text-chalkdim">
-                {match.stage === 'group'
-                  ? `${t('common.group')} ${match.group ?? ''}`
-                  : t(`stage.${match.stage}`)}
+                {stageLabel(match.stage, match.group)}
               </span>
             </div>
           )}
@@ -194,7 +174,7 @@ export default function MatchDetailPage({
                           minute: '2-digit',
                           hour12: false,
                         })
-                      : t('common.tbd')}
+                      : 'TBD'}
                   </span>
                   {match.kickoff && (
                     <div className="ds-caption text-chalkdim mt-1.5">
@@ -235,7 +215,6 @@ export default function MatchDetailPage({
                       status={match.status}
                       progress={match.progress}
                       finishType={match.finishType}
-                      t={t}
                     />
                   </div>
                 </div>
@@ -250,7 +229,7 @@ export default function MatchDetailPage({
         {/* Tab List (Segmented Control style) */}
         <div
           role="tablist"
-          aria-label={t('detail.tabsLabel')}
+          aria-label="Match detail tabs"
           onKeyDown={onTabKey}
           className="ds-segmented-blur w-full"
         >
@@ -265,15 +244,7 @@ export default function MatchDetailPage({
                 tab === k ? 'ds-seg-tab-active' : 'ds-seg-tab-inactive'
               }`}
             >
-              {t(
-                k === 'stats'
-                  ? 'detail.stats'
-                  : k === 'play'
-                    ? 'detail.playByPlay'
-                    : k === 'lineup'
-                      ? 'detail.lineup'
-                      : 'detail.boxscore',
-              )}
+              {TAB_LABELS[k]}
             </button>
           ))}
         </div>
@@ -282,17 +253,17 @@ export default function MatchDetailPage({
         <div className="ds-glass-hero p-card min-h-32">
           {loading ? (
             <p className="font-mono text-xs tracking-[0.3em] text-pitch animate-pulse p-card text-center">
-              {t('common.loading')}
+              Loading…
             </p>
           ) : error ? (
             <div className="p-card text-center space-y-3">
-              <p className="font-mono text-xs text-live">{t('common.error')}</p>
+              <p className="font-mono text-xs text-live">Failed to load data</p>
               <button
                 type="button"
                 onClick={reload}
                 className="font-display text-sm text-chalk border border-overlay/10 rounded-pill px-5 py-1.5 hover:border-pitch hover:bg-overlay/5 transition-colors"
               >
-                {t('common.retry')}
+                Retry
               </button>
             </div>
           ) : detail && detail.kind === 'soccer' ? (
@@ -311,7 +282,7 @@ export default function MatchDetailPage({
                   {detail.venue && <div>{detail.venue}</div>}
                   {detail.attendance && (
                     <div>
-                      {t('detail.attendance')}: {detail.attendance.toLocaleString()}
+                      Attendance: {detail.attendance.toLocaleString()}
                     </div>
                   )}
                 </div>
@@ -326,7 +297,7 @@ export default function MatchDetailPage({
                   {detail.venue && <div>{detail.venue}</div>}
                   {detail.attendance && (
                     <div>
-                      {t('detail.attendance')}: {detail.attendance.toLocaleString()}
+                      Attendance: {detail.attendance.toLocaleString()}
                     </div>
                   )}
                 </div>

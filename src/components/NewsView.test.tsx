@@ -1,6 +1,5 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { LanguageProvider } from '../i18n';
 import NewsView from './NewsView';
 
 const fetchMock = vi.fn();
@@ -30,9 +29,7 @@ const feed = {
 
 function renderView() {
   return render(
-    <LanguageProvider>
-      <NewsView scope={{ by: 'all' }} />
-    </LanguageProvider>,
+    <NewsView scope={{ by: 'all' }} />,
   );
 }
 

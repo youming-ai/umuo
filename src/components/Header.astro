@@ -1,46 +1,41 @@
 ---
-import { COMPETITIONS } from '../competitions';
+import { COMPETITIONS, DEFAULT_COMPETITION } from '../competitions';
 import ThemeToggle from './ThemeToggle';
 
 interface Props {
-  comp?: string; // active competition (absent on /news)
+  comp?: string; // accepted from Layout; nav derives active state from the URL
 }
-const { comp } = Astro.props;
 const path = Astro.url.pathname;
 const onNews = path === '/news' || path.startsWith('/news/');
+const onScores =
+  !onNews &&
+  Object.keys(COMPETITIONS).some((key) => path === `/${key}` || path.startsWith(`/${key}/`));
 
-const NAMES: Record<string, string> = {
-  'fifa.world': 'World Cup',
-  'eng.1': 'Premier League',
-  nba: 'NBA',
-};
+const NAV = [
+  { href: '/news', label: 'News', active: path === '/news' },
+  { href: '/news/soccer', label: 'Soccer', active: path === '/news/soccer' },
+  { href: '/news/basketball', label: 'Basketball', active: path === '/news/basketball' },
+  { href: '/news/league/eng.1', label: 'EPL', active: path === '/news/league/eng.1' },
+  { href: '/news/league/nba', label: 'NBA', active: path === '/news/league/nba' },
+  { href: `/${DEFAULT_COMPETITION}`, label: 'Scores', active: onScores },
+];
 ---
 <header class="border-b border-line/30 bg-panel/85 backdrop-blur-md">
   <div class="flex items-center gap-4 px-page-x md:px-page-x-md h-14">
-    <a href="/" class="font-display font-bold text-lg tracking-wide text-chalk shrink-0">
+    <a href="/news" class="font-display font-bold text-lg tracking-wide text-chalk shrink-0">
       Stream<span class="text-pitch">Cup</span>
     </a>
 
-    <nav aria-label="Competitions" class="ds-segmented-blur overflow-x-auto no-scrollbar">
-      {Object.keys(COMPETITIONS).map((key) => {
-        const active = !onNews && comp === key;
-        return (
-          <a
-            href={`/${key}`}
-            aria-current={active ? 'page' : undefined}
-            class={`whitespace-nowrap ds-seg-tab ${active ? 'ds-seg-tab-active' : 'ds-seg-tab-inactive'}`}
-          >
-            {NAMES[key] ?? key}
-          </a>
-        );
-      })}
-      <a
-        href="/news"
-        aria-current={onNews ? 'page' : undefined}
-        class={`whitespace-nowrap ds-seg-tab ${onNews ? 'ds-seg-tab-active' : 'ds-seg-tab-inactive'}`}
-      >
-        News
-      </a>
+    <nav aria-label="Main" class="ds-segmented-blur overflow-x-auto no-scrollbar">
+      {NAV.map((item) => (
+        <a
+          href={item.href}
+          aria-current={item.active ? 'page' : undefined}
+          class={`whitespace-nowrap ds-seg-tab ${item.active ? 'ds-seg-tab-active' : 'ds-seg-tab-inactive'}`}
+        >
+          {item.label}
+        </a>
+      ))}
     </nav>
 
     <div class="ml-auto shrink-0">

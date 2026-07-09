@@ -33,9 +33,9 @@ export function onRequest(
     }
   }
 
-  // Root redirect.
+  // Root redirect — news-first home.
   if (path === '/') {
-    return context.redirect(`/${DEFAULT_COMPETITION}`, 307);
+    return context.redirect('/news', 307);
   }
 
   // Legacy unprefixed paths: redirect to the default competition.

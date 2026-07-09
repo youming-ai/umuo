@@ -1,7 +1,6 @@
 import { memo, type ReactNode } from 'react';
-import { useT } from '../i18n';
 import type { MatchProgress, MatchStatus, ScorerEntry } from '../types';
-import { scorerDisplay } from '../utils/wc';
+import { scorerDisplay, stageLabel } from '../utils/wc';
 import { ReminderMenu } from './MatchActions';
 
 interface MatchCardProps {
@@ -31,9 +30,6 @@ interface MatchCardProps {
   // "OT"). When present on a live/finished card it replaces the derived
   // StatusPill/ClockLabel — we don't synthesize period text for other sports.
   statusText?: string;
-  // A matching ppv.to stream is live right now → show a watch badge. The card
-  // already deep-links to /match, which hosts the player.
-  watchable?: boolean;
   /** Real match-detail URL. When set, the card body is an `<a href>` (middle-
    *  click / open-in-new-tab / copy link all work). */
   href?: string;
@@ -71,37 +67,31 @@ function StatusPill({
   status,
   progress,
   finishType,
-  t,
 }: {
   status: MatchStatus;
   progress: MatchProgress | undefined;
   finishType: 'aet' | 'pens' | undefined;
-  t: (k: string) => string;
 }) {
   // Halftime: distinct amber pill so it's visible at a glance and never
   // confused with a regular in-progress minute.
   if (progress?.status === 'halftime') {
-    return <span className="ds-caption tracking-widest text-amber">{t('status.ht')}</span>;
+    return <span className="ds-caption tracking-widest text-amber">Half-time</span>;
   }
   if (status === 'live') {
     return (
       <span className="flex items-center gap-1 ds-caption tracking-widest text-live">
         <span className="live-dot" />
-        {t('status.live')}
+        LIVE
       </span>
     );
   }
   if (status === 'finished') {
     const label =
-      finishType === 'pens'
-        ? t('status.pens')
-        : finishType === 'aet'
-          ? t('status.aet')
-          : t('status.ft');
+      finishType === 'pens' ? 'Pens' : finishType === 'aet' ? 'AET' : 'Final';
     return <span className="ds-caption tracking-widest text-chalkdim">{label}</span>;
   }
   return (
-    <span className="ds-caption tracking-widest text-chalkdim/70">{t('status.upcoming')}</span>
+    <span className="ds-caption tracking-widest text-chalkdim/70">Upcoming</span>
   );
 }
 
@@ -145,16 +135,10 @@ export default memo(function MatchCard({
   awayShootoutScore,
   winner,
   statusText,
-  watchable,
   href,
 }: MatchCardProps) {
-  const t = useT();
-  const tbd = t('common.tbd');
-  const stageLabel = !stage
-    ? ''
-    : stage === 'group'
-      ? `${t('common.group')} ${group ?? ''}`
-      : t(`stage.${stage}`);
+  const tbd = 'TBD';
+  const stageText = stage ? stageLabel(stage, group) : '';
 
   // finished: brighten the winner, dim the loser. Prefer ESPN's explicit
   // winner (set on knockout games) so a pens win resolves where the
@@ -193,9 +177,9 @@ export default memo(function MatchCard({
       >
         <div className="flex items-center justify-between gap-2 px-3 pt-2 pb-1.5 border-b border-line bg-panel2/10">
           <div className="flex items-center gap-2 min-w-0">
-            {stageLabel && (
+            {stageText && (
               <span className="ds-caption uppercase tracking-[0.18em] text-chalkdim truncate">
-                {stageLabel}
+                {stageText}
               </span>
             )}
             {venue && (
@@ -205,12 +189,6 @@ export default memo(function MatchCard({
             )}
           </div>
           <div className="flex items-center gap-2 shrink-0">
-            {watchable && (
-              <span className="flex items-center gap-1 ds-caption tracking-widest uppercase text-pitch">
-                <span className="live-dot" />
-                {t('card.watch')}
-              </span>
-            )}
             {kickoff && (
               <span className="ds-caption tabular-nums text-chalkdim/70">
                 {kickoff.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
@@ -265,7 +243,7 @@ export default memo(function MatchCard({
               </span>
             ) : (
               <>
-                <StatusPill status={status} progress={progress} finishType={finishType} t={t} />
+                <StatusPill status={status} progress={progress} finishType={finishType} />
                 <ClockLabel progress={progress} />
               </>
             )}
@@ -298,7 +276,7 @@ export default memo(function MatchCard({
 
       {status === 'upcoming' && kickoff && (
         <div className="flex items-center justify-end gap-0.5 px-2 py-1 border-t border-line bg-panel2/10 rounded-b-card">
-          <ReminderMenu title={`${homeName || tbd} vs ${awayName || tbd}`} start={kickoff} t={t} />
+          <ReminderMenu title={`${homeName || tbd} vs ${awayName || tbd}`} start={kickoff} />
         </div>
       )}
     </div>

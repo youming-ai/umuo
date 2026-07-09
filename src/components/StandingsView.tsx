@@ -1,5 +1,4 @@
 import { useMemo } from 'react';
-import { useT } from '../i18n';
 import type { WCGroup } from '../types';
 
 // Last-5 form pill. Renders each W/D/L as a colour-coded square.
@@ -54,8 +53,6 @@ export default function StandingsView({
   groups: WCGroup[];
   mode?: 'group' | 'league';
 }) {
-  const t = useT();
-
   // WC2026 出线：每组前 2 名 + 跨组 8 个成绩最好的第三名 → 32 强。
   // 这里按 pts→gd→gf 给所有第三名排序，取前 8 个标记为"最佳第三名"出线。
   const bestThirdIds = useMemo(() => {
@@ -65,7 +62,11 @@ export default function StandingsView({
   }, [groups]);
 
   if (groups.length === 0) {
-    return <p className="font-mono text-xs tracking-wider text-chalkdim">{t('standings.empty')}</p>;
+    return (
+      <p className="font-mono text-xs tracking-wider text-chalkdim">
+        Standings appear once the group stage kicks off
+      </p>
+    );
   }
 
   return (
@@ -75,11 +76,11 @@ export default function StandingsView({
         <div className="flex flex-wrap items-center gap-x-5 gap-y-2 ds-caption uppercase tracking-wider text-chalkdim">
           <span className="flex items-center gap-1.5">
             <span className="w-1 h-3 bg-pitch" />
-            {t('standings.advanceTop2')}
+            Top 2 advance
           </span>
           <span className="flex items-center gap-1.5">
             <span className="w-1 h-3 bg-pitch/40" />
-            {t('standings.advanceThird')}
+            8 best third-placed teams advance
           </span>
         </div>
       )}
@@ -91,38 +92,38 @@ export default function StandingsView({
           <div key={g.name} className="ds-glass overflow-hidden">
             <div className="px-4 py-3 border-b border-overlay/5 bg-overlay/[0.02]">
               <span className="font-display font-bold text-lg text-chalk">
-                {mode === 'group' ? `${t('common.group')} ${g.name}` : g.name}
+                {mode === 'group' ? `Group ${g.name}` : g.name}
               </span>
             </div>
             <table className="w-full text-sm">
               <caption className="sr-only">
-                {mode === 'group' ? `${t('common.group')} ${g.name}` : g.name}
+                {mode === 'group' ? `Group ${g.name}` : g.name}
               </caption>
               <thead>
                 <tr className="text-chalkdim ds-caption uppercase">
                   <th scope="col" className="text-left font-medium px-4 py-2">
-                    {t('st.team')}
+                    Team
                   </th>
                   <th scope="col" className="px-1 font-medium">
-                    <abbr title="Matches Played">{t('st.mp')}</abbr>
+                    <abbr title="Matches Played">MP</abbr>
                   </th>
                   <th scope="col" className="px-1 font-medium hidden sm:table-cell">
-                    <abbr title="Wins">{t('st.w')}</abbr>
+                    <abbr title="Wins">W</abbr>
                   </th>
                   <th scope="col" className="px-1 font-medium hidden sm:table-cell">
-                    <abbr title="Draws">{t('st.d')}</abbr>
+                    <abbr title="Draws">D</abbr>
                   </th>
                   <th scope="col" className="px-1 font-medium hidden sm:table-cell">
-                    <abbr title="Losses">{t('st.l')}</abbr>
+                    <abbr title="Losses">L</abbr>
                   </th>
                   <th scope="col" className="px-1 font-medium">
-                    <abbr title="Goal Difference">{t('st.gd')}</abbr>
+                    <abbr title="Goal Difference">GD</abbr>
                   </th>
                   <th scope="col" className="px-2 font-medium hidden sm:table-cell">
-                    <abbr title="Last 5 matches">{t('st.form')}</abbr>
+                    <abbr title="Last 5 matches">Form</abbr>
                   </th>
                   <th scope="col" className="px-2 font-medium">
-                    <abbr title="Points">{t('st.pts')}</abbr>
+                    <abbr title="Points">Pts</abbr>
                   </th>
                 </tr>
               </thead>

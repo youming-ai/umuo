@@ -41,7 +41,7 @@ export function useMatchDetail(eventId: string | null, comp: string, initialData
       .catch((err: unknown) => {
         if (controller.signal.aborted || (err instanceof Error && err.name === 'AbortError'))
           return;
-        // Raw message is for the console/internal only; the UI surfaces an i18n string.
+        // Raw message is for the console/internal only; the UI surfaces a user-facing string.
         console.error('useMatchDetail:', err);
         setError(err instanceof Error ? err.message : 'Failed to load match detail');
       })

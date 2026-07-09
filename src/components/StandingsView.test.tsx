@@ -1,14 +1,11 @@
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import { LanguageProvider } from '../i18n';
 import type { WCGroup, WCStanding } from '../types';
 import StandingsView from './StandingsView';
 
 function renderView(groups: WCGroup[]) {
   return render(
-    <LanguageProvider>
-      <StandingsView groups={groups} />
-    </LanguageProvider>,
+    <StandingsView groups={groups} />,
   );
 }
 
@@ -229,7 +226,7 @@ describe('StandingsView', () => {
       },
     ];
     renderView(groups);
-    // The form column has a header labelled "Form" via the i18n key.
+    // The form column has a header labelled "Form" via the key.
     expect(screen.getByText('Form')).toBeInTheDocument();
   });
 
@@ -281,9 +278,7 @@ describe('StandingsView', () => {
 
     it('renders teams without the qualification legend', () => {
       render(
-        <LanguageProvider>
-          <StandingsView groups={league} mode="league" />
-        </LanguageProvider>,
+        <StandingsView groups={league} mode="league" />,
       );
       expect(screen.getByText('Arsenal')).toBeInTheDocument();
       // WC-only "advance (top 2)" legend must not render in league mode
@@ -293,9 +288,7 @@ describe('StandingsView', () => {
 
     it('does not prefix the card header with "Group"', () => {
       render(
-        <LanguageProvider>
-          <StandingsView groups={league} mode="league" />
-        </LanguageProvider>,
+        <StandingsView groups={league} mode="league" />,
       );
       expect(screen.getAllByText('English Premier League')).toHaveLength(2); // visible span + sr-only caption
       expect(screen.queryByText(/^Group /)).not.toBeInTheDocument();
@@ -303,9 +296,7 @@ describe('StandingsView', () => {
 
     it('does not apply direct/third qualification highlighting to rows', () => {
       render(
-        <LanguageProvider>
-          <StandingsView groups={league} mode="league" />
-        </LanguageProvider>,
+        <StandingsView groups={league} mode="league" />,
       );
       const rows = screen.getAllByRole('row');
       // rows[0] = thead, rows[1-2] = tbody rows (Arsenal, Chelsea)

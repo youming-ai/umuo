@@ -1,13 +1,12 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { describe, expect, it } from 'vitest';
-import { LanguageProvider } from '../../i18n';
 import type { PlayEvent, TeamLineup, TeamStatRow } from '../../types';
 import LineupTab from './LineupTab';
 import PlayByPlayTab from './PlayByPlayTab';
 import TeamStatsTab from './TeamStatsTab';
 
-const wrap = (ui: ReactNode) => render(<LanguageProvider>{ui}</LanguageProvider>);
+const wrap = (ui: ReactNode) => render(ui);
 
 describe('TeamStatsTab', () => {
   it('renders a row per stat with both values', () => {

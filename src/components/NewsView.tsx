@@ -1,5 +1,4 @@
 import { NEWS_NAV } from '../newsFeed';
-import { useT } from '../i18n';
 import type { NewsItem, NewsScope, NewsTag } from '../types';
 import { pathFor } from '../utils/router';
 import { useNews } from '../hooks/useNews';
@@ -12,15 +11,14 @@ export default function NewsView({
   scope: NewsScope;
   initialData?: NewsItem[];
 }) {
-  const t = useT();
   const { items, loading, error, refetch } = useNews(scope, initialData);
   const activePath = pathFor({ kind: 'news', comp: DEFAULT_COMPETITION, scope });
 
   return (
-    <div className="max-w-6xl mx-auto w-full px-page-x md:px-page-x-md py-page-y">
+    <div className="w-full">
       {/* Category-nav strip — real links for middle-click / open-in-new-tab */}
       <nav
-        aria-label={t('news.title')}
+        aria-label="News"
         className="ds-segmented mb-4 max-w-full overflow-x-auto no-scrollbar"
       >
         {NEWS_NAV.map((item) => {
@@ -33,14 +31,14 @@ export default function NewsView({
               aria-current={active ? 'page' : undefined}
               className={`whitespace-nowrap ds-seg-tab ${active ? 'ds-seg-tab-active' : 'ds-seg-tab-inactive'}`}
             >
-              {t(item.labelKey)}
+              {item.label}
             </a>
           );
         })}
       </nav>
 
       {loading && items.length === 0 ? (
-        <p className="ds-caption text-chalkdim py-12 text-center">{t('common.loading')}</p>
+        <p className="ds-caption text-chalkdim py-12 text-center">Loading…</p>
       ) : error && items.length === 0 ? (
         <div className="py-12 text-center">
           <p className="ds-caption text-live mb-3">{error}</p>
@@ -49,11 +47,11 @@ export default function NewsView({
             onClick={refetch}
             className="px-4 py-2 bg-pitch text-onaccent font-display font-semibold tracking-wide rounded-card hover:brightness-110 transition"
           >
-            {t('common.retry')}
+            Retry
           </button>
         </div>
       ) : items.length === 0 ? (
-        <p className="ds-caption text-chalkdim py-12 text-center">{t('news.empty')}</p>
+        <p className="ds-caption text-chalkdim py-12 text-center">No news right now</p>
       ) : (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {items.map((item, i) => (

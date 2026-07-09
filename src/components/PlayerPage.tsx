@@ -1,4 +1,3 @@
-import { useT } from '../i18n';
 import type { CompMatch, ScorerEntry, TopScorer, WCGroup } from '../types';
 import { pathFor, useRouter } from '../utils/router';
 import { scorerDisplay } from '../utils/wc';
@@ -60,7 +59,6 @@ export default function PlayerPage({
   scorers,
   backHref,
 }: PlayerPageProps) {
-  const t = useT();
   const { route } = useRouter();
   const comp = route.comp;
   const topScorerEntry = scorers.find((s) => s.athleteId === athleteId);
@@ -83,10 +81,10 @@ export default function PlayerPage({
     return (
       <div className="space-y-section w-full">
           <a href={backHref} className={backClass}>
-            ← <span>{t('detail.back')}</span>
+            ← <span>Back</span>
           </a>
           <p className="font-mono text-xs text-chalkdim p-card text-center">
-            {t('player.notFound')}
+            Player not found
           </p>
       </div>
     );
@@ -96,7 +94,7 @@ export default function PlayerPage({
     // Width + page padding come from the app shell; stack sections only.
     <div className="space-y-section">
         <a href={backHref} className={backClass}>
-          ← <span>{t('detail.back')}</span>
+          ← <span>Back</span>
         </a>
 
         {/* Header */}
@@ -115,7 +113,7 @@ export default function PlayerPage({
             )}
             {topScorerEntry && (
               <span className="font-mono text-[11px] text-chalkdim/60">
-                {topScorerEntry.goals} {t('player.goals')}
+                {topScorerEntry.goals} goals
               </span>
             )}
           </div>
@@ -124,17 +122,17 @@ export default function PlayerPage({
         {/* Stats strip */}
         {topScorerEntry && (
           <div className="grid grid-cols-2 gap-2 sm:gap-card ds-glass p-card max-w-xs">
-            <Stat label={t('scorers.goals')} value={topScorerEntry.goals} bold />
+            <Stat label="G" value={topScorerEntry.goals} bold />
           </div>
         )}
 
         {/* Goals timeline */}
         <section className="space-y-3">
           <h2 className="font-display font-bold text-lg text-chalk tracking-wide">
-            {t('player.goals')}
+            goals
           </h2>
           {goals.length === 0 ? (
-            <p className="font-mono text-xs text-chalkdim">{t('player.noGoals')}</p>
+            <p className="font-mono text-xs text-chalkdim">No goals scored yet</p>
           ) : (
             <ul className="space-y-2 ds-glass p-card">
               {goals.map((g) => {

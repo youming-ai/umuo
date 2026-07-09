@@ -84,7 +84,7 @@ describe('nba (season-shape basketball)', () => {
     expect(nba.sport).toBe('basketball');
     expect(nba.shape).toBe('season');
     expect(nba.league).toBe('nba');
-    expect(nba.label).toBe('comp.nba');
+    expect(nba.label).toBe('NBA');
   });
 
   it('exposes boxscore and scorers capabilities', () => {

@@ -1,26 +1,23 @@
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import { LanguageProvider } from '../i18n';
 import type { Leader } from '../types';
 import LeadersView from './LeadersView';
 
 function renderView(
   leaders: Leader[],
-  statLabelKey = 'scorers.goals',
+  statLabel = 'G',
   empty = 'No goals scored yet',
-  titleKey?: string,
-  subtitleKey?: string,
+  title?: string,
+  subtitle?: string,
 ) {
   return render(
-    <LanguageProvider>
-      <LeadersView
-        leaders={leaders}
-        statLabelKey={statLabelKey}
-        titleKey={titleKey}
-        subtitleKey={subtitleKey}
-        empty={empty}
-      />
-    </LanguageProvider>,
+    <LeadersView
+      leaders={leaders}
+      statLabel={statLabel}
+      title={title}
+      subtitle={subtitle}
+      empty={empty}
+    />,
   );
 }
 
@@ -39,7 +36,7 @@ const rows: Leader[] = [
 
 describe('LeadersView', () => {
   it('shows the provided empty message when there are no leaders', () => {
-    renderView([], 'scorers.goals', 'No goals scored yet');
+    renderView([], 'G', 'No goals scored yet');
     expect(screen.getByText('No goals scored yet')).toBeInTheDocument();
   });
 
@@ -63,8 +60,8 @@ describe('LeadersView', () => {
     expect(trs[2]?.textContent).toMatch(/^2/);
   });
 
-  it('renders the column header from statLabelKey (basketball → PTS)', () => {
-    renderView(rows, 'leaders.points', 'No stats yet');
+  it('renders the column header from statLabel (basketball → PTS)', () => {
+    renderView(rows, 'PTS', 'No stats yet');
     expect(screen.getByRole('columnheader', { name: 'PTS' })).toBeInTheDocument();
   });
 
@@ -74,15 +71,15 @@ describe('LeadersView', () => {
     expect(screen.queryByRole('link')).not.toBeInTheDocument();
   });
 
-  it('defaults to the soccer title/subtitle when titleKey/subtitleKey are omitted', () => {
+  it('defaults to the soccer title/subtitle when title/subtitle are omitted', () => {
     renderView(rows);
     // Title renders twice (visible heading + sr-only <caption>).
     expect(screen.getAllByText('Top Scorers').length).toBeGreaterThan(0);
     expect(screen.getByText('Golden Boot race')).toBeInTheDocument();
   });
 
-  it('renders the passed titleKey/subtitleKey (basketball → Scoring Leaders)', () => {
-    renderView(rows, 'leaders.points', 'No stats yet', 'leaders.title', 'leaders.subtitle');
+  it('renders the passed title/subtitle (basketball → Scoring Leaders)', () => {
+    renderView(rows, 'PTS', 'No stats yet', 'Scoring Leaders', "Points per the season's top scorers");
     expect(screen.getAllByText('Scoring Leaders').length).toBeGreaterThan(0);
     expect(screen.getByText("Points per the season's top scorers")).toBeInTheDocument();
     expect(screen.queryByText('Top Scorers')).not.toBeInTheDocument();

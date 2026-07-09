@@ -1,45 +1,18 @@
-import { useT } from '../i18n';
-import type { CompMatch, TopScorer, Match } from '../types';
+import type { TopScorer } from '../types';
 import type { StandingsData } from '../adapters/types';
-import { pathFor } from '../utils/router';
-import { liveStreamForMatch } from '../utils/streamMatch';
 import { useMemo, useState } from 'react';
-import { Tv, ListOrdered, Award } from 'lucide-react';
+import { ListOrdered, Award } from 'lucide-react';
 import { COMPETITIONS } from '../competitions';
 import { useLeaders } from '../hooks/useLeaders';
 
 interface RightRailProps {
   /** Authoritative competition for this rail (island prop, not router parse). */
   comp: string;
-  matches: CompMatch[];
   standings: StandingsData;
   scorers: TopScorer[];
-  streamIndex: Map<string, Match>;
-  watchableSlugs: ReadonlySet<string>;
 }
 
-export default function RightRail({
-  comp: activeComp,
-  matches,
-  standings,
-  scorers,
-  streamIndex,
-  watchableSlugs,
-}: RightRailProps) {
-  const t = useT();
-  const now = Date.now();
-
-  // 1. Resolve Live Streams
-  const liveMatches = useMemo(() => {
-    return matches.filter((m) => {
-      const isLive = m.status === 'live';
-      const hasStream =
-        watchableSlugs.has(m.slug) || liveStreamForMatch(m, streamIndex, now) !== null;
-      return (isLive || hasStream) && m.status !== 'finished';
-    });
-  }, [matches, streamIndex, watchableSlugs, now]);
-
-  // 2. Resolve Top Scorers / Leaders
+export default function RightRail({ comp: activeComp, standings, scorers }: RightRailProps) {
   const compConfig = COMPETITIONS[activeComp];
   const { leaders } = useLeaders(compConfig?.leadersSource === 'pipeline' ? activeComp : null);
 
@@ -60,61 +33,15 @@ export default function RightRail({
     return [];
   }, [scorers, leaders, compConfig]);
 
-  // Standing tabs/sections
   const [soccerGroupIndex, setSoccerGroupIndex] = useState(0);
   const [nbaConf, setNbaConf] = useState<'eastern' | 'western'>('eastern');
 
   return (
     <div className="flex flex-col gap-4 w-full">
-      {/* 1. Live Streams Section */}
-      <div className="ds-glass p-4 flex flex-col gap-3">
-        <h3 className="text-xs font-mono tracking-widest text-chalkdim/60 uppercase px-1 flex items-center gap-2">
-          <Tv className="w-3.5 h-3.5 text-live animate-pulse motion-reduce:animate-none" />
-          <span>{t('live.streams')}</span>
-        </h3>
-        {liveMatches.length === 0 ? (
-          <p className="text-xs text-chalkdim/60 px-1 py-2 italic">
-            {t('live.noStreams')}
-          </p>
-        ) : (
-          <div className="flex flex-col gap-2">
-            {liveMatches.map((m) => (
-              <a
-                key={m.id}
-                href={pathFor({ kind: 'match', comp: activeComp, slug: m.slug })}
-                className="flex flex-col gap-1.5 p-2 rounded-card bg-overlay/5 border border-line/25 hover:bg-overlay/10 hover:border-line/50 text-left transition-all duration-200"
-              >
-                <div className="flex items-center justify-between w-full">
-                  <span className="text-[10px] font-mono uppercase bg-live/10 text-live px-1.5 py-0.5 rounded-micro font-bold">
-                    {m.status === 'live' ? m.progress?.displayClock || 'LIVE' : 'STREAM LIVE'}
-                  </span>
-                  {m.progress?.displayClock === 'HT' && (
-                    <span className="text-[10px] font-mono text-chalkdim/60">HT</span>
-                  )}
-                </div>
-                <div className="flex items-center justify-between text-xs w-full">
-                  <div className="flex flex-col gap-0.5 font-medium text-chalk max-w-[70%] truncate">
-                    <span className="truncate">{m.homeName}</span>
-                    <span className="truncate">{m.awayName}</span>
-                  </div>
-                  {m.homeScore !== null && m.awayScore !== null && (
-                    <div className="flex flex-col items-end font-bold font-mono text-chalk">
-                      <span>{m.homeScore}</span>
-                      <span>{m.awayScore}</span>
-                    </div>
-                  )}
-                </div>
-              </a>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* 2. Standings Preview */}
       <div className="ds-glass p-4 flex flex-col gap-3">
         <h3 className="text-xs font-mono tracking-widest text-chalkdim/60 uppercase px-1 flex items-center gap-2">
           <ListOrdered className="w-3.5 h-3.5" />
-          <span>{t('fixtures.standings') || 'Standings'}</span>
+          <span>Standings</span>
         </h3>
 
         {standings.kind === 'soccer' && standings.groups.length > 0 && (
@@ -138,7 +65,6 @@ export default function RightRail({
               </div>
             )}
 
-            {/* Soccer Table */}
             <div className="flex flex-col gap-1.5">
               {(standings.groups[soccerGroupIndex] || standings.groups[0]).standings
                 .slice(0, 5)
@@ -188,7 +114,6 @@ export default function RightRail({
               })}
             </div>
 
-            {/* Basketball Table */}
             <div className="flex flex-col gap-1.5">
               {(
                 standings.conferences.find((c) =>
@@ -225,15 +150,14 @@ export default function RightRail({
         )}
       </div>
 
-      {/* 3. Leaders Section */}
       {topLeaders.length > 0 && (
         <div className="ds-glass p-4 flex flex-col gap-3">
           <h3 className="text-xs font-mono tracking-widest text-chalkdim/60 uppercase px-1 flex items-center gap-2">
             <Award className="w-3.5 h-3.5" />
             <span>
               {COMPETITIONS[activeComp]?.sport === 'basketball'
-                ? t('leaders.title') || 'Leaders'
-                : t('scorers.title') || 'Top Scorers'}
+                ? 'Scoring Leaders'
+                : 'Top Scorers'}
             </span>
           </h3>
           <div className="flex flex-col gap-2.5">

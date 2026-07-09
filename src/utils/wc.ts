@@ -107,6 +107,23 @@ export function stageFromSlug(slug: string | undefined): Stage {
   return (slug && SLUG_TO_STAGE[slug]) || 'group';
 }
 
+const STAGE_LABELS: Record<Stage, string> = {
+  group: 'Group stage',
+  r32: 'Round of 32',
+  r16: 'Round of 16',
+  qf: 'Quarter-finals',
+  sf: 'Semi-finals',
+  third: 'Third place play-off',
+  final: 'Final',
+};
+
+export function stageLabel(stage: string, group?: string): string {
+  if (stage === 'group') {
+    return group != null && group !== '' ? `Group ${group}` : 'Group stage';
+  }
+  return STAGE_LABELS[stage as Stage] ?? stage;
+}
+
 // Build a URL-friendly slug from a match's home/away team names. Used by
 // the /match/[slug] route for deep linking. Same slugify pipeline as the
 // streamed.pk Match type so URL shapes match across data sources.

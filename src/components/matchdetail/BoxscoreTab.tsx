@@ -1,11 +1,9 @@
 import type { BoxscoreTable } from '../../adapters/types';
-import { useT } from '../../i18n';
 
 export default function BoxscoreTab({ tables }: { tables: BoxscoreTable[] }) {
-  const t = useT();
   if (tables.length === 0) {
     return (
-      <p className="font-mono text-xs tracking-wider text-chalkdim p-card">{t('detail.noData')}</p>
+      <p className="font-mono text-xs tracking-wider text-chalkdim p-card">No data yet</p>
     );
   }
   return (
@@ -18,7 +16,7 @@ export default function BoxscoreTab({ tables }: { tables: BoxscoreTable[] }) {
               <thead>
                 <tr className="text-chalkdim ds-caption uppercase">
                   <th scope="col" className="text-left font-medium px-2 py-1.5">
-                    {t('scorers.player')}
+                    Player
                   </th>
                   {tbl.labels.map((label) => (
                     <th key={label} scope="col" className="px-2 py-1.5 font-medium text-right">

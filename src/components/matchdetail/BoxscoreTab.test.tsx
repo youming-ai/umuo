@@ -1,7 +1,6 @@
 import { render, screen, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import type { BoxscoreTable } from '../../adapters/types';
-import { LanguageProvider } from '../../i18n';
 import BoxscoreTab from './BoxscoreTab';
 
 const tables: BoxscoreTable[] = [
@@ -25,9 +24,7 @@ const tables: BoxscoreTable[] = [
 describe('BoxscoreTab', () => {
   it('renders one table per team with the team name and column labels', () => {
     render(
-      <LanguageProvider>
-        <BoxscoreTab tables={tables} />
-      </LanguageProvider>,
+      <BoxscoreTab tables={tables} />,
     );
     expect(screen.getByText('Los Angeles Lakers')).toBeInTheDocument();
     expect(screen.getByText('Boston Celtics')).toBeInTheDocument();
@@ -37,9 +34,7 @@ describe('BoxscoreTab', () => {
 
   it('renders a player row with its stats', () => {
     render(
-      <LanguageProvider>
-        <BoxscoreTab tables={tables} />
-      </LanguageProvider>,
+      <BoxscoreTab tables={tables} />,
     );
     expect(screen.getByText('L. James')).toBeInTheDocument();
     expect(screen.getByText('30')).toBeInTheDocument();
@@ -48,9 +43,7 @@ describe('BoxscoreTab', () => {
 
   it('renders a DNP player without crashing on empty stats', () => {
     render(
-      <LanguageProvider>
-        <BoxscoreTab tables={tables} />
-      </LanguageProvider>,
+      <BoxscoreTab tables={tables} />,
     );
     const row = screen.getByText('B. Reserve').closest('tr');
     expect(row).not.toBeNull();
@@ -60,9 +53,7 @@ describe('BoxscoreTab', () => {
 
   it('shows an empty message when there are no tables', () => {
     render(
-      <LanguageProvider>
-        <BoxscoreTab tables={[]} />
-      </LanguageProvider>,
+      <BoxscoreTab tables={[]} />,
     );
     expect(screen.getByText('No data yet')).toBeInTheDocument();
   });
