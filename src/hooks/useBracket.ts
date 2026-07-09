@@ -97,40 +97,20 @@ function placeTeam(
   return null;
 }
 
-// Match the SEEDING R32 row to a real CompMatch by team group. Each
-// r32 CompMatch in our data has a home team with `group` set to the
-// home team's group letter; the away team's group letter isn't on
-// CompMatch today, so we match by (homeGroup, awayGroup) from the
-// SEEDING place codes.
-function r32MatchFor(
-  groups: WCGroup[],
-  matches: CompMatch[],
-  seeding: BracketMatch,
-): CompMatch | null {
-  if (seeding.round !== 'R32') return null;
-  if (seeding.home.kind !== 'place' || seeding.away.kind !== 'place') return null;
-  // The home side is a single-group position like '1A' or '2A'.
-  // The away side is either a single position (1X/2X) or a 3rd-place
-  // group list. For 3rd-place matches, the away group letter is the
-  // first letter in the slash list (FIFA's official ordering is the
-  // order of the actual groups).
-  const homeGroup = (seeding.home.place.match(/^[12]([A-L])$/) ?? [])[1];
-  const awayGroup =
-    (seeding.away.place.match(/^[12]([A-L])$/) ?? [])[1] ??
-    (seeding.away.place.match(/^3([A-L])\//) ?? [])[1];
-  if (!homeGroup || !awayGroup) return null;
-  for (const m of matches) {
-    if (m.stage !== 'r32') continue;
-    if (m.group !== homeGroup) continue;
-    // The away team's group letter isn't on CompMatch. Look up the away
-    // team by name match in any group matching the expected away group.
-    for (const g of groups) {
-      if (g.name !== awayGroup) continue;
-      for (const s of g.standings) {
-        if (s.name === m.awayName) return m;
-      }
-    }
-  }
+// Which resolved side won, by team IDENTITY rather than the real match's
+// home/away flag — ESPN's home/away for a knockout tie need not match the
+// bracket slot's home/away, so comparing sides by position would flip the
+// winner. Compares the winning team's name to the two resolved teams.
+function winnerSideByName(
+  m: CompMatch,
+  home: ResolvedTeam | null,
+  away: ResolvedTeam | null,
+): 'home' | 'away' | null {
+  const w = winnerOf(m);
+  if (!w) return null;
+  const winName = w === 'home' ? m.homeName : m.awayName;
+  if (home && winName === home.label) return 'home';
+  if (away && winName === away.label) return 'away';
   return null;
 }
 
@@ -160,72 +140,60 @@ export function useBracket(groups: WCGroup[], matches: CompMatch[]) {
   return useMemo(() => {
     const bestThirds = bestThirdIds(groups);
     const thirdAssign = assignThirds(groups, bestThirds);
-    // Pre-resolve: build a Map<matchIndex, ResolvedTeam> for the R32
-    // round first, so that R16+ can look up winners by index.
-    const resolved: ResolvedBracketMatch[] = SEEDING.map((bm) => {
-      const resolveOne = (slot: BracketSlot): ResolvedTeam | null => {
-        if (slot.kind === 'place') return placeTeam(groups, slot.place, thirdAssign);
-        return null; // 'winner'/'loser' resolved below after results are known
-      };
-      return {
-        index: bm.index,
-        label: bm.label,
-        round: bm.round,
-        home: resolveOne(bm.home),
-        away: resolveOne(bm.away),
-        match: null,
-        winner: null,
-      };
-    });
+    const resolved: ResolvedBracketMatch[] = SEEDING.map((bm) => ({
+      index: bm.index,
+      label: bm.label,
+      round: bm.round,
+      home: null,
+      away: null,
+      match: null,
+      winner: null,
+    }));
+    const byIndex = new Map(resolved.map((r) => [r.index, r]));
 
-    // For R32: also try to attach the actual CompMatch. The hook iterates
-    // rounds, so we can resolve winner slots progressively. But the
-    // simplest approach: do a second pass to attach matches + winners.
-    for (let i = 0; i < resolved.length; i++) {
-      const bm = SEEDING[i]!;
-      const r = resolved[i]!;
-      // Attach the actual CompMatch when one exists.
-      if (bm.round === 'R32') {
-        r.match = r32MatchFor(groups, matches, bm);
-      } else {
-        // R16 / QF / SF / 3rd / Final: look up by stage + team names.
-        r.match = bracketMatchForStage(matches, bm, r.home, r.away);
-      }
-      // Determine the winner if the CompMatch has been played.
-      if (r.match) r.winner = winnerOf(r.match);
+    // R32: every slot's HOME is a concrete group position (1X/2X), so resolve
+    // it from standings, then find the real match that team is in and take the
+    // ACTUAL opponent + winner straight off ESPN. The FIFA 3rd-place codes only
+    // seed the away side before kickoff — once a match exists we never trust
+    // the code (the greedy allocation and ESPN's real allocation can differ).
+    for (const bm of SEEDING) {
+      if (bm.round !== 'R32') continue;
+      const r = byIndex.get(bm.index)!;
+      r.home = bm.home.kind === 'place' ? placeTeam(groups, bm.home.place, thirdAssign) : null;
+      r.away = bm.away.kind === 'place' ? placeTeam(groups, bm.away.place, thirdAssign) : null;
+      if (!r.home) continue;
+      const home = r.home;
+      const real = matches.find(
+        (m) => m.stage === 'r32' && (m.homeName === home.label || m.awayName === home.label),
+      );
+      if (!real) continue;
+      r.match = real;
+      r.away =
+        real.homeName === home.label
+          ? { teamId: real.awayId, label: real.awayName, flag: real.awayFlag }
+          : { teamId: real.homeId, label: real.homeName, flag: real.homeFlag };
+      r.winner = winnerSideByName(real, r.home, r.away);
     }
 
-    // Now resolve R16+ winner slots. For each non-R32 row, walk the
-    // winner indices and pull the resolved team from the prior match.
-    // Re-resolve after R32 results are known.
-    for (let i = 0; i < resolved.length; i++) {
-      const bm = SEEDING[i]!;
-      const r = resolved[i]!;
-      const resolveWinner = (slot: BracketSlot): ResolvedTeam | null => {
+    // R16 → Final, in seeding order (children always precede parents): each
+    // side is the winner (or, for the 3rd-place match, the SF loser) of a prior
+    // match. Attach the real match by the two resolved names; decide the winner
+    // by identity so a flipped home/away can't invert it.
+    for (const bm of SEEDING) {
+      if (bm.round === 'R32') continue;
+      const r = byIndex.get(bm.index)!;
+      const resolveSlot = (slot: BracketSlot): ResolvedTeam | null => {
         if (slot.kind === 'place') return placeTeam(groups, slot.place, thirdAssign);
-        const target = resolved[slot.matchIndex];
-        if (!target) return null;
-        if (slot.kind === 'loser') {
-          // The third-place match takes the two semifinal LOSERS.
-          if (target.winner === 'home') return target.away;
-          if (target.winner === 'away') return target.home;
-          return null;
-        }
-        if (target.winner === 'home') return target.home;
-        if (target.winner === 'away') return target.away;
-        return null;
+        const target = byIndex.get(slot.matchIndex);
+        if (!target?.winner) return null;
+        const won = target.winner === 'home' ? target.home : target.away;
+        const lost = target.winner === 'home' ? target.away : target.home;
+        return slot.kind === 'loser' ? lost : won;
       };
-      r.home = resolveWinner(bm.home);
-      r.away = resolveWinner(bm.away);
-      // Re-attach the CompMatch (now that we have team names resolved
-      // from previous rounds, the lookup can succeed even when the
-      // r32 winner wasn't a 'place' seed).
-      if (bm.round === 'R32') {
-        r.match = r32MatchFor(groups, matches, bm);
-      } else {
-        r.match = bracketMatchForStage(matches, bm, r.home, r.away);
-      }
-      if (r.match) r.winner = winnerOf(r.match);
+      r.home = resolveSlot(bm.home);
+      r.away = resolveSlot(bm.away);
+      r.match = bracketMatchForStage(matches, bm, r.home, r.away);
+      if (r.match) r.winner = winnerSideByName(r.match, r.home, r.away);
     }
 
     return {

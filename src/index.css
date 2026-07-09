@@ -194,6 +194,26 @@
   [data-theme='light'] .ds-floodlight {
     display: none;
   }
+
+  /* Radial bracket: winning paths ignite from rim to cup on mount */
+  .bracket-spark {
+    stroke-dasharray: 1;
+    animation: bracket-spark 0.9s ease-out both;
+  }
+  @keyframes bracket-spark {
+    from {
+      stroke-dashoffset: 1;
+    }
+    to {
+      stroke-dashoffset: 0;
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .bracket-spark {
+      stroke-dasharray: none;
+      animation: none;
+    }
+  }
 }
 
 @keyframes live-pulse {
