@@ -73,9 +73,20 @@ const frame = hasRails ? `px-page-x md:px-page-x-md py-page-y ${cols}` : '';
         }
       })();
     </script>
+    <script is:inline>
+      // PWA service worker — production only (localhost/dev keeps network free).
+      (() => {
+        const host = location.hostname;
+        const isLocal = host === 'localhost' || host === '127.0.0.1' || host === '::1';
+        if (isLocal || !('serviceWorker' in navigator)) return;
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js').catch(() => {});
+        });
+      })();
+    </script>
     <div class="ds-floodlight" aria-hidden="true"></div>
     <div class="relative z-10 flex flex-col min-h-screen">
-      <div class="sticky top-0 z-40">
+      <div class="sticky top-0 z-40 bg-night/95 backdrop-blur-md">
         <Ticker client:only="react" />
         <Header comp={comp} />
       </div>

@@ -1,7 +1,7 @@
 import { useT } from '../i18n';
 import type { CompMatch, TopScorer, Match } from '../types';
 import type { StandingsData } from '../adapters/types';
-import { pathFor, useRouter } from '../utils/router';
+import { pathFor } from '../utils/router';
 import { liveStreamForMatch } from '../utils/streamMatch';
 import { useMemo, useState } from 'react';
 import { Tv, ListOrdered, Award } from 'lucide-react';
@@ -9,6 +9,8 @@ import { COMPETITIONS } from '../competitions';
 import { useLeaders } from '../hooks/useLeaders';
 
 interface RightRailProps {
+  /** Authoritative competition for this rail (island prop, not router parse). */
+  comp: string;
   matches: CompMatch[];
   standings: StandingsData;
   scorers: TopScorer[];
@@ -17,6 +19,7 @@ interface RightRailProps {
 }
 
 export default function RightRail({
+  comp: activeComp,
   matches,
   standings,
   scorers,
@@ -24,8 +27,6 @@ export default function RightRail({
   watchableSlugs,
 }: RightRailProps) {
   const t = useT();
-  const { route } = useRouter();
-  const activeComp = route.comp;
   const now = Date.now();
 
   // 1. Resolve Live Streams
@@ -68,12 +69,12 @@ export default function RightRail({
       {/* 1. Live Streams Section */}
       <div className="ds-glass p-4 flex flex-col gap-3">
         <h3 className="text-xs font-mono tracking-widest text-chalkdim/60 uppercase px-1 flex items-center gap-2">
-          <Tv className="w-3.5 h-3.5 text-live animate-pulse" />
-          <span>{t('live.streams') || 'Live Streams'}</span>
+          <Tv className="w-3.5 h-3.5 text-live animate-pulse motion-reduce:animate-none" />
+          <span>{t('live.streams')}</span>
         </h3>
         {liveMatches.length === 0 ? (
           <p className="text-xs text-chalkdim/60 px-1 py-2 italic">
-            {t('live.noStreams') || 'No live matches streaming right now.'}
+            {t('live.noStreams')}
           </p>
         ) : (
           <div className="flex flex-col gap-2">
@@ -120,7 +121,7 @@ export default function RightRail({
           <div className="flex flex-col gap-2">
             {standings.groups.length > 1 && (
               <div className="flex gap-1 overflow-x-auto no-scrollbar py-0.5 border-b border-line/25 mb-1">
-                {standings.groups.slice(0, 4).map((g, idx) => (
+                {standings.groups.map((g, idx) => (
                   <button
                     key={g.name}
                     type="button"

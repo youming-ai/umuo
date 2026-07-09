@@ -66,7 +66,7 @@ function renderPage(props: Partial<React.ComponentProps<typeof TeamPage>> = {}) 
     ],
     matches: [],
     scorers: [],
-    onBack: vi.fn(),
+    backHref: '/fifa.world',
   };
   return render(
     <LanguageProvider>
@@ -99,11 +99,10 @@ describe('TeamPage', () => {
     expect(screen.getByRole('img', { name: /Last 5 matches: WW/ })).toBeInTheDocument();
   });
 
-  it('renders the back button which calls onBack when clicked', () => {
-    const onBack = vi.fn();
-    renderPage({ onBack });
-    fireEvent.click(screen.getByRole('button', { name: /Back/ }));
-    expect(onBack).toHaveBeenCalled();
+  it('renders the back control as a real schedule link', () => {
+    renderPage({});
+    const back = screen.getByRole('link', { name: /Back/ });
+    expect(back).toHaveAttribute('href', '/fifa.world');
   });
 
   it('filters matches to only this team (home or away)', () => {

@@ -253,8 +253,7 @@ describe('MatchCard', () => {
     expect(screen.queryByText('Watch')).not.toBeInTheDocument();
   });
 
-  it('offers a reminder for an upcoming match without opening the card', () => {
-    const onOpen = vi.fn();
+  it('offers a reminder for an upcoming match without nesting it inside the card link', () => {
     renderCard({
       homeName: 'Brazil',
       awayName: 'Argentina',
@@ -264,12 +263,15 @@ describe('MatchCard', () => {
       kickoff: new Date(2026, 5, 24, 18, 0),
       stage: 'group',
       group: 'C',
-      onOpen,
+      href: '/fifa.world/match/brazil-vs-argentina',
     });
     const reminder = screen.getByLabelText('Set a reminder');
     expect(reminder).toBeInTheDocument();
-    fireEvent.click(reminder);
-    expect(onOpen).not.toHaveBeenCalled(); // reminder control must not open the card
+    // Reminder lives in a sibling footer, not inside the <a>, so clicking it
+    // never activates navigation.
+    expect(reminder.closest('a')).toBeNull();
+    const cardLink = screen.getByRole('link', { name: /Brazil/ });
+    expect(cardLink).toHaveAttribute('href', '/fifa.world/match/brazil-vs-argentina');
   });
 
   it('shows no reminder (no action footer) for a finished match', () => {

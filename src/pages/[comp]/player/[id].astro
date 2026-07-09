@@ -1,19 +1,19 @@
 ---
-import Layout from '../../layouts/Layout.astro';
-import PlayerPageIsland from '../../components/PlayerPageIsland';
-import LeftNav from '../../components/LeftNav.astro';
-import RightRailIsland from '../../components/RightRailIsland';
-import { getCompetitionView } from '../../data/api';
-import { COMPETITIONS, DEFAULT_COMPETITION } from '../../competitions';
-import type { CompMatch, ScorerEntry } from '../../types';
+import Layout from '../../../layouts/Layout.astro';
+import PlayerPageIsland from '../../../components/PlayerPageIsland';
+import LeftNav from '../../../components/LeftNav.astro';
+import RightRailIsland from '../../../components/RightRailIsland';
+import { getCompetitionView } from '../../../data/api';
+import { COMPETITIONS } from '../../../competitions';
 
-const { id } = Astro.params;
+const { comp, id } = Astro.params;
+if (!comp || !Object.hasOwn(COMPETITIONS, comp)) {
+  return new Response('Not found', { status: 404 });
+}
 if (!id) {
   return new Response('Not found', { status: 404 });
 }
-// /player/:id is a legacy unprefixed path — always resolve under the default
-// competition, matching parseRoute's fallback logic.
-const competition = COMPETITIONS[DEFAULT_COMPETITION]!;
+const competition = COMPETITIONS[comp]!;
 const env = Astro.locals.runtime.env;
 const ctx = Astro.locals.runtime.ctx as Parameters<typeof getCompetitionView>[2];
 const view = await getCompetitionView(competition, env, ctx);
@@ -22,8 +22,8 @@ const scorer = view.scorers.find((s) => s.athleteId === id);
 const playerName = scorer?.name ?? 'Player not found';
 ---
 
-<Layout title={`StreamCup — ${playerName}`} comp={DEFAULT_COMPETITION}>
-  <LeftNav slot="left" comp={DEFAULT_COMPETITION} />
+<Layout title={`StreamCup — ${playerName}`} comp={comp}>
+  <LeftNav slot="left" comp={comp} />
   <main>
     <div class="space-y-section">
 
@@ -58,5 +58,5 @@ const playerName = scorer?.name ?? 'Player not found';
 
     </div>
   </main>
-  <RightRailIsland slot="right" comp={DEFAULT_COMPETITION} initialData={view} client:only="react" />
+  <RightRailIsland slot="right" comp={comp} initialData={view} client:only="react" />
 </Layout>
