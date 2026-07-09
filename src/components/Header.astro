@@ -10,14 +10,11 @@ const onNews = path === '/news' || path.startsWith('/news/');
 const onScores =
   !onNews &&
   Object.keys(COMPETITIONS).some((key) => path === `/${key}` || path.startsWith(`/${key}/`));
-const onKnownNewsChannel =
-  path === '/news/soccer' ||
-  path === '/news/basketball' ||
-  path === '/news/league/eng.1' ||
-  path === '/news/league/nba';
 
+// One nav bar: News (All) + a curated set of news categories + Scores. Other
+// leagues (La Liga, Serie A, …) stay reachable by URL — promote here if needed.
 const NAV = [
-  { href: '/news', label: 'News', active: onNews && !onKnownNewsChannel },
+  { href: '/news', label: 'News', active: path === '/news' },
   { href: '/news/soccer', label: 'Soccer', active: path === '/news/soccer' },
   { href: '/news/basketball', label: 'Basketball', active: path === '/news/basketball' },
   { href: '/news/league/eng.1', label: 'EPL', active: path === '/news/league/eng.1' },

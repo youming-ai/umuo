@@ -1,6 +1,5 @@
 import { DEFAULT_COMPETITION } from '../competitions';
 import { useNews } from '../hooks/useNews';
-import { NEWS_NAV } from '../newsFeed';
 import type { NewsItem, NewsScope, NewsTag } from '../types';
 import { pathFor } from '../utils/router';
 
@@ -12,33 +11,11 @@ export default function NewsView({
   initialData?: NewsItem[];
 }) {
   const { items, loading, error, refetch } = useNews(scope, initialData);
-  const activePath = pathFor({ kind: 'news', comp: DEFAULT_COMPETITION, scope });
   const leadItem = items[0];
   const storyItems = items.slice(1);
 
   return (
     <div className="w-full">
-      {/* Category-nav strip — real links for middle-click / open-in-new-tab */}
-      <nav
-        aria-label="News"
-        className="ds-segmented mb-4 max-w-full overflow-x-auto no-scrollbar"
-      >
-        {NEWS_NAV.map((item) => {
-          const href = pathFor({ kind: 'news', comp: DEFAULT_COMPETITION, scope: item.scope });
-          const active = href === activePath;
-          return (
-            <a
-              key={item.key}
-              href={href}
-              aria-current={active ? 'page' : undefined}
-              className={`whitespace-nowrap ds-seg-tab ${active ? 'ds-seg-tab-active' : 'ds-seg-tab-inactive'}`}
-            >
-              {item.label}
-            </a>
-          );
-        })}
-      </nav>
-
       {loading && items.length === 0 ? (
         <p className="ds-caption text-chalkdim py-12 text-center">Loading…</p>
       ) : error && items.length === 0 ? (
@@ -58,7 +35,7 @@ export default function NewsView({
         <div className="space-y-3">
           {leadItem && <NewsCard item={leadItem} variant="lead" />}
           {storyItems.length > 0 && (
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
               {storyItems.map((item, i) => (
                 <NewsCard key={item.id || `news-${i}`} item={item} />
               ))}

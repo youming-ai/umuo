@@ -2,7 +2,7 @@
 // ESPN JSON is untyped/heterogeneous (categories mix team/athlete/league/guid/
 // topic/…), so coerce with obj()/arr()/str() rather than trusting shapes —
 // same discipline as the sport adapters. No DOM/React: unit-testable in isolation.
-import type { NewsItem, NewsScope, NewsTag } from './types';
+import type { NewsItem, NewsTag } from './types';
 
 function isObj(v: unknown): v is Record<string, unknown> {
   return typeof v === 'object' && v !== null && !Array.isArray(v);
@@ -69,17 +69,3 @@ export function parseNewsFeed(json: unknown): NewsItem[] {
     };
   });
 }
-
-// The category-nav strip. Kept small and explicit (YAGNI): the sports/leagues
-// the app actually surfaces. Extend when a new section is needed.
-export const NEWS_NAV: { key: string; scope: NewsScope; label: string }[] = [
-  { key: 'all', scope: { by: 'all' }, label: 'All' },
-  { key: 'soccer', scope: { by: 'sport', sport: 'soccer' }, label: 'Soccer' },
-  { key: 'basketball', scope: { by: 'sport', sport: 'basketball' }, label: 'Basketball' },
-  { key: 'nba', scope: { by: 'league', league: 'nba' }, label: 'NBA' },
-  { key: 'eng.1', scope: { by: 'league', league: 'eng.1' }, label: 'Premier League' },
-  { key: 'esp.1', scope: { by: 'league', league: 'esp.1' }, label: 'La Liga' },
-  { key: 'ita.1', scope: { by: 'league', league: 'ita.1' }, label: 'Serie A' },
-  { key: 'ger.1', scope: { by: 'league', league: 'ger.1' }, label: 'Bundesliga' },
-  { key: 'nfl', scope: { by: 'league', league: 'nfl' }, label: 'NFL' },
-];
