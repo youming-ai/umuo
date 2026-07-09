@@ -99,6 +99,7 @@ tsconfig.tsbuildinfo
 # Build outputs
 dist/
 dist-ssr/
+.astro/
 *.local
 
 # Vitest
