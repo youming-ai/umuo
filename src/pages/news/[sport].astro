@@ -1,8 +1,9 @@
 ---
-import Layout from '../../layouts/Layout.astro';
 import NewsIsland from '../../components/NewsIsland';
+import NewsLeftRail from '../../components/NewsLeftRail.astro';
 import NewsRightRailIsland from '../../components/NewsRightRailIsland';
 import { fetchNewsItems } from '../../data/api';
+import Layout from '../../layouts/Layout.astro';
 import type { NewsScope } from '../../types';
 
 const sport = Astro.params.sport ?? '';
@@ -12,6 +13,7 @@ const ctx = Astro.locals.runtime.ctx as Parameters<typeof fetchNewsItems>[2];
 const items = await fetchNewsItems({ limit: 20, sport }, env, ctx);
 ---
 <Layout title={`StreamCup — News — ${sport}`}>
+  <NewsLeftRail slot="left" />
   <main>
     <NewsIsland scope={scope} initialData={items} client:only="react" />
   </main>

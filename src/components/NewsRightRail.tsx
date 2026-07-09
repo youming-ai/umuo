@@ -1,24 +1,33 @@
 import { Flame, Trophy } from 'lucide-react';
-import type { NewsItem } from '../types';
-import type { TickerMatch } from '../hooks/useTicker';
-import { pathFor } from '../utils/router';
 import { COMPETITIONS } from '../competitions';
+import type { TickerMatch } from '../hooks/useTicker';
+import type { NewsItem } from '../types';
+import { pathFor } from '../utils/router';
 import { formatTickerLine } from './Ticker';
 
 interface NewsRightRailProps {
   trending: NewsItem[];
   scores: TickerMatch[];
+  newsLoading?: boolean;
 }
 
-export default function NewsRightRail({ trending, scores }: NewsRightRailProps) {
+export default function NewsRightRail({
+  trending,
+  scores,
+  newsLoading = false,
+}: NewsRightRailProps) {
   return (
     <div className="flex flex-col gap-4 w-full">
-      {trending.length > 0 && (
-        <div className="ds-glass p-4 flex flex-col gap-3">
-          <h3 className="text-xs font-mono tracking-widest text-chalkdim/60 uppercase px-1 flex items-center gap-2">
-            <Flame className="w-3.5 h-3.5 text-amber" />
-            <span>Trending</span>
-          </h3>
+      <div className="ds-glass p-4 flex flex-col gap-3">
+        <h3 className="text-xs font-mono tracking-widest text-chalkdim/60 uppercase px-1 flex items-center gap-2">
+          <Flame className="w-3.5 h-3.5 text-amber" />
+          <span>Top Headlines</span>
+        </h3>
+        {trending.length === 0 ? (
+          <p className="text-xs text-chalkdim/60 px-1 py-2 italic">
+            {newsLoading ? 'Loading headlines...' : 'No headlines right now.'}
+          </p>
+        ) : (
           <div className="flex flex-col gap-2">
             {trending.map((item, i) => (
               <a
@@ -32,8 +41,8 @@ export default function NewsRightRail({ trending, scores }: NewsRightRailProps) 
               </a>
             ))}
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
       <div className="ds-glass p-4 flex flex-col gap-3">
         <h3 className="text-xs font-mono tracking-widest text-chalkdim/60 uppercase px-1 flex items-center gap-2">

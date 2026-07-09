@@ -1,8 +1,8 @@
+import { DEFAULT_COMPETITION } from '../competitions';
+import { useNews } from '../hooks/useNews';
 import { NEWS_NAV } from '../newsFeed';
 import type { NewsItem, NewsScope, NewsTag } from '../types';
 import { pathFor } from '../utils/router';
-import { useNews } from '../hooks/useNews';
-import { DEFAULT_COMPETITION } from '../competitions';
 
 export default function NewsView({
   scope,
@@ -13,6 +13,8 @@ export default function NewsView({
 }) {
   const { items, loading, error, refetch } = useNews(scope, initialData);
   const activePath = pathFor({ kind: 'news', comp: DEFAULT_COMPETITION, scope });
+  const leadItem = items[0];
+  const storyItems = items.slice(1);
 
   return (
     <div className="w-full">
@@ -53,34 +55,56 @@ export default function NewsView({
       ) : items.length === 0 ? (
         <p className="ds-caption text-chalkdim py-12 text-center">No news right now</p>
       ) : (
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {items.map((item, i) => (
-            <NewsCard key={item.id || `news-${i}`} item={item} />
-          ))}
+        <div className="space-y-3">
+          {leadItem && <NewsCard item={leadItem} variant="lead" />}
+          {storyItems.length > 0 && (
+            <div className="grid gap-3 sm:grid-cols-2">
+              {storyItems.map((item, i) => (
+                <NewsCard key={item.id || `news-${i}`} item={item} />
+              ))}
+            </div>
+          )}
         </div>
       )}
     </div>
   );
 }
 
-function NewsCard({ item }: { item: NewsItem }) {
+function NewsCard({
+  item,
+  variant = 'standard',
+}: {
+  item: NewsItem;
+  variant?: 'standard' | 'lead';
+}) {
   const external = item.link.startsWith('https://');
+  const isLead = variant === 'lead';
   const body = (
     <>
       {item.imageUrl && (
         <img
           src={item.imageUrl}
           alt=""
-          className="w-full aspect-video object-cover"
-          loading="lazy"
+          className={`w-full object-cover ${isLead ? 'aspect-[16/7]' : 'aspect-video'}`}
+          loading={isLead ? 'eager' : 'lazy'}
         />
       )}
-      <div className="p-3">
-        <h3 className="font-display font-semibold text-sm text-chalk leading-snug line-clamp-2">
+      <div className={isLead ? 'p-4 md:p-5' : 'p-3'}>
+        <h3
+          className={`font-display font-semibold text-chalk leading-snug ${
+            isLead ? 'text-xl md:text-3xl line-clamp-3' : 'text-sm line-clamp-2'
+          }`}
+        >
           {item.headline}
         </h3>
         {item.description && (
-          <p className="mt-1 font-body text-xs text-chalkdim line-clamp-2">{item.description}</p>
+          <p
+            className={`mt-1 font-body text-chalkdim ${
+              isLead ? 'text-sm md:text-base line-clamp-3' : 'text-xs line-clamp-2'
+            }`}
+          >
+            {item.description}
+          </p>
         )}
         {item.byline && <p className="mt-2 ds-caption text-chalkdim/70">{item.byline}</p>}
       </div>
@@ -88,7 +112,7 @@ function NewsCard({ item }: { item: NewsItem }) {
   );
 
   return (
-    <article className="ds-glass rounded-card shadow-panel overflow-hidden flex flex-col">
+    <article className="ds-glass rounded-card shadow-panel overflow-hidden">
       {external ? (
         <a
           href={item.link}
