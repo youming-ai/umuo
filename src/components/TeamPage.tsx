@@ -48,8 +48,7 @@ export default function TeamPage({ teamId, groups, matches, scorers, onBack }: T
 
   if (!standing) {
     return (
-      <div className="ds-page">
-        <div className="ds-page-inner w-full">
+      <div className="space-y-section w-full">
           <button
             type="button"
             onClick={onBack}
@@ -58,7 +57,6 @@ export default function TeamPage({ teamId, groups, matches, scorers, onBack }: T
             ← <span>{t('detail.back')}</span>
           </button>
           <p className="font-mono text-xs text-chalkdim p-card text-center">{t('team.notFound')}</p>
-        </div>
       </div>
     );
   }
@@ -69,9 +67,8 @@ export default function TeamPage({ teamId, groups, matches, scorers, onBack }: T
   const finished = ownMatches.filter((m) => m.status === 'finished').reverse(); // newest first
 
   return (
-    // px OUTSIDE, max-w-6xl INSIDE — matches the schedule/header frame exactly.
-    <div className="ds-page">
-      <div className="ds-page-inner">
+    // Width + page padding come from the app shell; stack sections only.
+    <div className="space-y-section">
         <button
           type="button"
           onClick={onBack}
@@ -193,7 +190,6 @@ export default function TeamPage({ teamId, groups, matches, scorers, onBack }: T
             </ul>
           </section>
         )}
-      </div>
     </div>
   );
 }

@@ -140,11 +140,8 @@ export default function MatchDetailPage({
   };
 
   return (
-    // Identical frame to the schedule/header (px OUTSIDE, max-w-6xl INSIDE) so
-    // the content column lines up exactly — padding inside max-w would shift it
-    // in by one p-6 and break alignment.
-    <div className="ds-page">
-      <div className="ds-page-inner">
+    // Width + page padding come from the app shell; stack sections only.
+    <div className="space-y-section">
         {/* Back navigation */}
         <div>
           <button
@@ -337,7 +334,6 @@ export default function MatchDetailPage({
             </>
           ) : null}
         </div>
-      </div>
     </div>
   );
 }

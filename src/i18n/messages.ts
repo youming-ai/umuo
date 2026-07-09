@@ -72,6 +72,8 @@ const en: Dict = {
   'live.standbyBody': 'Pick a match from the list to start watching.',
   'live.source': 'Feed',
   'live.sources': 'Available sources',
+  'live.streams': 'Live Streams',
+  'live.noStreams': 'No live matches streaming right now.',
   'footer.disclaimer':
     'Disclaimer: We only link to streams available on the internet. We do not host any content.',
   'footer.copyright': '© {year} StreamCup. All rights reserved.',
@@ -189,6 +191,8 @@ const zh: Dict = {
   'live.standbyBody': '从列表选择一场比赛即可开始观看。',
   'live.source': '线路',
   'live.sources': '可用线路',
+  'live.streams': '直播中',
+  'live.noStreams': '当前没有可观看的直播。',
   'footer.disclaimer':
     '免责声明：本站仅提供互联网公开直播源的链接，不托管、存储或上传任何视频内容。',
   'footer.copyright': '© {year} StreamCup. 保留所有权利。',
@@ -306,6 +310,8 @@ const ja: Dict = {
   'live.standbyBody': 'リストから試合を選ぶと視聴を開始します。',
   'live.source': '回線',
   'live.sources': '視聴可能な回線',
+  'live.streams': 'ライブ配信',
+  'live.noStreams': '現在視聴可能な配信はありません。',
   'footer.disclaimer':
     '免責事項：当サイトはインターネット上で公開されている配信へのリンクのみを提供しており、コンテンツのホストや保存は行っておりません。',
   'footer.copyright': '© {year} StreamCup. 全著作権所有。',
@@ -423,6 +429,8 @@ const ko: Dict = {
   'live.standbyBody': '목록에서 경기를 선택하면 시청을 시작합니다.',
   'live.source': '채널',
   'live.sources': '사용 가능한 채널',
+  'live.streams': '라이브 스트림',
+  'live.noStreams': '현재 시청 가능한 라이브가 없습니다.',
   'footer.disclaimer':
     '면책 조항: 본 사이트는 인터넷에 공개된 스트림 링크만 제공하며, 어떠한 콘텐츠도 직접 호스트하거나 저장하지 않습니다.',
   'footer.copyright': '© {year} StreamCup. 모든 권리 보유.',

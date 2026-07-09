@@ -13,10 +13,9 @@ interface InitialData {
   scorers: TopScorer[];
 }
 
-// Right-rail as a self-contained island. On comp pages it seeds from the same
-// SSR initialData the center island already got; on other pages (team/player)
-// initialData is omitted and it self-fetches on mount (SWR, worker KV-cached),
-// so those pages need no extra SSR fetch — just a brief rail flash.
+// Right-rail as a self-contained island. Pages that already SSR a competition
+// view (comp, team, player) pass it as initialData so the first paint is warm;
+// otherwise the island self-fetches on mount (SWR, worker KV-cached).
 // ponytail: this runs a 2nd useCompetition poll alongside the center island —
 // the worker coalesces + KV-caches, so upstream ESPN load is unchanged. Hoist
 // to a shared context only if the extra worker hits ever matter.
@@ -42,6 +41,7 @@ export default function RightRailIsland({
   return (
     <AppProviders>
       <RightRail
+        comp={comp}
         matches={matches}
         standings={standings}
         scorers={scorers}
