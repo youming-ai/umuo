@@ -1,5 +1,5 @@
-import { fireEvent, render, screen } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { render, screen } from '@testing-library/react';
+import { describe, expect, it } from 'vitest';
 import { LanguageProvider } from '../i18n';
 import type { WCGroup } from '../types';
 import BracketView from './BracketView';
@@ -86,18 +86,14 @@ describe('BracketView', () => {
     expect(screen.queryByText('Mexico')).not.toBeInTheDocument();
   });
 
-  it('does not navigate from a slot that has no match attached', () => {
-    const spy = vi.spyOn(window.history, 'pushState');
+  it('renders the empty 3rd-place chip without a link when no match is attached', () => {
     render(
       <LanguageProvider>
         <BracketView groups={[]} matches={[]} />
       </LanguageProvider>,
     );
-    // The 3rd-place chip is the one always-present control; with no data it is
-    // disabled and clicking it is a no-op.
-    const chip = screen.getByRole('button');
-    expect(chip).toBeDisabled();
-    fireEvent.click(chip);
-    expect(spy).not.toHaveBeenCalled();
+    // Empty data: no match links on the disc or chip (TBD slots are non-links).
+    expect(screen.queryAllByRole('link')).toHaveLength(0);
+    expect(screen.getByText('3rd place').closest('[aria-disabled="true"]')).toBeTruthy();
   });
 });

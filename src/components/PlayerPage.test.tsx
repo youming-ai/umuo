@@ -69,7 +69,7 @@ function renderPage(props: Partial<React.ComponentProps<typeof PlayerPage>> = {}
         goals: 2,
       },
     ],
-    onBack: vi.fn(),
+    backHref: '/fifa.world',
   };
   return render(
     <LanguageProvider>
@@ -170,15 +170,14 @@ describe('PlayerPage', () => {
     });
     // Vega scored for the away side (Canada) — the team link must be Canada,
     // not the home opponent Mexico.
-    expect(screen.getByRole('button', { name: 'Canada' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Canada' })).toHaveAttribute('href', expect.stringContaining('/team/'));
     expect(screen.queryByRole('button', { name: 'Mexico' })).not.toBeInTheDocument();
   });
 
-  it('clicking the back button calls onBack', () => {
-    const onBack = vi.fn();
-    renderPage({ onBack });
-    fireEvent.click(screen.getByRole('button', { name: /Back/ }));
-    expect(onBack).toHaveBeenCalled();
+  it('renders the back control as a real schedule link', () => {
+    renderPage({});
+    const back = screen.getByRole('link', { name: /Back/ });
+    expect(back).toHaveAttribute('href', '/fifa.world');
   });
 
   it('clicking a goal row navigates to the match detail', () => {
@@ -191,9 +190,10 @@ describe('PlayerPage', () => {
         }),
       ],
     });
-    // The match title is rendered as a button — clicking it would call
-    // navigate(). We don't have router active in this test, so just
-    // verify the button is there.
-    expect(screen.getByRole('button', { name: /Mexico vs Canada/ })).toBeInTheDocument();
+    // Goal rows link to the match detail page.
+    expect(screen.getByRole('link', { name: /Mexico vs Canada/ })).toHaveAttribute(
+      'href',
+      '/fifa.world/match/mexico-vs-canada',
+    );
   });
 });

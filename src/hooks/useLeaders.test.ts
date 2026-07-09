@@ -87,4 +87,23 @@ describe('useLeaders', () => {
     expect(result.current.leaders).toEqual([] as Leader[]);
     expect(result.current.error).toBe('nba network down');
   });
+
+  it('skips the first fetch when initialData is provided and non-empty', async () => {
+    const seed: Leader[] = [
+      {
+        rank: 1,
+        name: 'Seeded',
+        teamName: 'X',
+        teamLogo: '',
+        displayValue: '10',
+        value: 10,
+      },
+    ];
+    const { result } = renderHook(() => useLeaders('nba', seed));
+    expect(result.current.loading).toBe(false);
+    expect(result.current.leaders).toEqual(seed);
+    expect(result.current.error).toBeNull();
+    await new Promise((r) => setTimeout(r, 10));
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
 });

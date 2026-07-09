@@ -1,21 +1,27 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { getAdapter } from '../adapters';
 import type { MatchDetail } from '../adapters/types';
 
-export function useMatchDetail(eventId: string | null, comp: string) {
-  const [detail, setDetail] = useState<MatchDetail | null>(null);
-  const [loading, setLoading] = useState(false);
+export function useMatchDetail(eventId: string | null, comp: string, initialData?: MatchDetail | null) {
+  const seeded = !!initialData;
+  const [detail, setDetail] = useState<MatchDetail | null>(initialData ?? null);
+  const [loading, setLoading] = useState(!seeded);
   const [error, setError] = useState<string | null>(null);
   // `attempt` is intentionally unused in the body — `reload()` bumps it to
   // re-trigger the fetch effect. The biome lint rule on the deps array below
   // acknowledges this pattern.
   const [attempt, setAttempt] = useState(0);
+  const skipRef = useRef(seeded);
   // biome-ignore lint/correctness/useExhaustiveDependencies(attempt): bumped by reload() to force a re-fetch
   useEffect(() => {
     if (!eventId) {
       setDetail(null);
       setError(null);
       setLoading(false);
+      return;
+    }
+    if (skipRef.current) {
+      skipRef.current = false;
       return;
     }
     const controller = new AbortController();

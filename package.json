@@ -4,10 +4,10 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "tsc && tsc -p tsconfig.worker.json && vite build",
-    "typecheck": "tsc && tsc -p tsconfig.worker.json",
-    "preview": "vite preview",
+    "dev": "astro dev",
+    "build": "astro check && tsc -p tsconfig.worker.json && astro build",
+    "typecheck": "astro check && tsc -p tsconfig.worker.json",
+    "preview": "astro preview",
     "test": "vitest",
     "lint": "biome lint .",
     "lint:fix": "biome lint --write .",
@@ -15,11 +15,15 @@
     "format:check": "biome format ."
   },
   "dependencies": {
+    "@astrojs/cloudflare": "^12.6.13",
+    "@astrojs/react": "^4.4.2",
+    "astro": "^5.18.2",
     "lucide-react": "^1.22.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },
   "devDependencies": {
+    "@astrojs/check": "^0.9.9",
     "@biomejs/biome": "2.5.1",
     "@cloudflare/workers-types": "^4.20260630.1",
     "@testing-library/jest-dom": "^6.9.1",

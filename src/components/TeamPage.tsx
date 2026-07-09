@@ -1,6 +1,6 @@
 import { useT } from '../i18n';
 import type { CompMatch, TopScorer, WCGroup, WCStanding } from '../types';
-import { navigate, pathFor, useRouter } from '../utils/router';
+import { pathFor, useRouter } from '../utils/router';
 import MatchCard from './MatchCard';
 
 interface TeamPageProps {
@@ -8,7 +8,8 @@ interface TeamPageProps {
   groups: WCGroup[];
   matches: CompMatch[];
   scorers: TopScorer[];
-  onBack: () => void;
+  /** Schedule URL for the up-navigation control (real `<a href>`). */
+  backHref: string;
 }
 
 // Find the WCStanding row for the team by id, along with the parent
@@ -34,7 +35,7 @@ function teamMatches(matches: CompMatch[], teamId: string): CompMatch[] {
     .sort((a, b) => (a.kickoff?.getTime() ?? 0) - (b.kickoff?.getTime() ?? 0));
 }
 
-export default function TeamPage({ teamId, groups, matches, scorers, onBack }: TeamPageProps) {
+export default function TeamPage({ teamId, groups, matches, scorers, backHref }: TeamPageProps) {
   const t = useT();
   const { route } = useRouter();
   const comp = route.comp;
@@ -45,20 +46,16 @@ export default function TeamPage({ teamId, groups, matches, scorers, onBack }: T
   const teamFlag = standing?.flag ?? '';
   const ownMatches = teamMatches(matches, teamId);
   const ownScorers = scorers.filter((s) => s.teamId === teamId);
+  const backClass =
+    'font-mono text-xs tracking-widest text-chalkdim hover:text-chalk transition-colors inline-flex items-center gap-1';
 
   if (!standing) {
     return (
-      <div className="ds-page">
-        <div className="ds-page-inner w-full">
-          <button
-            type="button"
-            onClick={onBack}
-            className="font-mono text-xs tracking-widest text-chalkdim hover:text-chalk transition-colors inline-flex items-center gap-1"
-          >
+      <div className="space-y-section w-full">
+          <a href={backHref} className={backClass}>
             ← <span>{t('detail.back')}</span>
-          </button>
+          </a>
           <p className="font-mono text-xs text-chalkdim p-card text-center">{t('team.notFound')}</p>
-        </div>
       </div>
     );
   }
@@ -69,16 +66,11 @@ export default function TeamPage({ teamId, groups, matches, scorers, onBack }: T
   const finished = ownMatches.filter((m) => m.status === 'finished').reverse(); // newest first
 
   return (
-    // px OUTSIDE, max-w-6xl INSIDE — matches the schedule/header frame exactly.
-    <div className="ds-page">
-      <div className="ds-page-inner">
-        <button
-          type="button"
-          onClick={onBack}
-          className="font-mono text-xs tracking-widest text-chalkdim hover:text-chalk transition-colors inline-flex items-center gap-1"
-        >
+    // Width + page padding come from the app shell; stack sections only.
+    <div className="space-y-section">
+        <a href={backHref} className={backClass}>
           ← <span>{t('detail.back')}</span>
-        </button>
+        </a>
 
         {/* Header */}
         <div className="flex items-center gap-3">
@@ -143,7 +135,7 @@ export default function TeamPage({ teamId, groups, matches, scorers, onBack }: T
                   stage={m.stage}
                   group={m.group}
                   progress={m.progress}
-                  onOpen={() => navigate(pathFor({ kind: 'match', comp, slug: m.slug }))}
+                  href={pathFor({ kind: 'match', comp, slug: m.slug })}
                 />
               ))}
               {finished.length > 0 && <SubHeader>{t('team.results')}</SubHeader>}
@@ -165,7 +157,7 @@ export default function TeamPage({ teamId, groups, matches, scorers, onBack }: T
                   homeShootoutScore={m.homeShootoutScore}
                   awayShootoutScore={m.awayShootoutScore}
                   winner={m.winner}
-                  onOpen={() => navigate(pathFor({ kind: 'match', comp, slug: m.slug }))}
+                  href={pathFor({ kind: 'match', comp, slug: m.slug })}
                 />
               ))}
             </div>
@@ -180,18 +172,19 @@ export default function TeamPage({ teamId, groups, matches, scorers, onBack }: T
             </h2>
             <ul className="space-y-2 ds-glass p-card">
               {ownScorers.map((s) => (
-                <li
-                  key={s.athleteId}
-                  className="flex items-center justify-between font-mono text-xs"
-                >
-                  <span className="font-display text-sm text-chalk">{s.name}</span>
-                  <span className="tabular-nums text-chalk">{s.goals}</span>
+                <li key={s.athleteId}>
+                  <a
+                    href={pathFor({ kind: 'player', comp, athleteId: s.athleteId })}
+                    className="flex items-center justify-between font-mono text-xs hover:text-pitch transition-colors"
+                  >
+                    <span className="font-display text-sm text-chalk">{s.name}</span>
+                    <span className="tabular-nums text-chalk">{s.goals}</span>
+                  </a>
                 </li>
               ))}
             </ul>
           </section>
         )}
-      </div>
     </div>
   );
 }

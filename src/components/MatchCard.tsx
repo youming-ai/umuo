@@ -1,4 +1,4 @@
-import { memo } from 'react';
+import { memo, type ReactNode } from 'react';
 import { useT } from '../i18n';
 import type { MatchProgress, MatchStatus, ScorerEntry } from '../types';
 import { scorerDisplay } from '../utils/wc';
@@ -34,7 +34,9 @@ interface MatchCardProps {
   // A matching ppv.to stream is live right now → show a watch badge. The card
   // already deep-links to /match, which hosts the player.
   watchable?: boolean;
-  onOpen?: () => void;
+  /** Real match-detail URL. When set, the card body is an `<a href>` (middle-
+   *  click / open-in-new-tab / copy link all work). */
+  href?: string;
 }
 
 // What to render under the score on a live/HT card. Returns null for FT /
@@ -110,6 +112,19 @@ function Flag({ src, alt, dim }: { src?: string; alt: string; dim?: boolean }) {
   return <img src={src} alt={alt} className={`${size} object-cover rounded-micro ${cls}`} />;
 }
 
+function CardBodyShell({
+  href,
+  className,
+  children,
+}: {
+  href?: string;
+  className: string;
+  children: ReactNode;
+}) {
+  if (href) return <a href={href} className={className}>{children}</a>;
+  return <div className={className}>{children}</div>;
+}
+
 export default memo(function MatchCard({
   homeName,
   awayName,
@@ -131,7 +146,7 @@ export default memo(function MatchCard({
   winner,
   statusText,
   watchable,
-  onOpen,
+  href,
 }: MatchCardProps) {
   const t = useT();
   const tbd = t('common.tbd');
@@ -159,21 +174,19 @@ export default memo(function MatchCard({
       lost ? 'font-normal text-chalkdim' : won ? 'font-bold text-chalk' : 'font-semibold text-chalk'
     }`;
 
-  const clickable = Boolean(onOpen);
-  const Clickable = clickable ? 'button' : 'div';
+  const clickable = Boolean(href);
   return (
     // Outer frame holds the border/radius but NOT overflow-hidden, so the
     // reminder dropdown can spill past the card edge without being clipped.
-    // The clickable region (button) and the action footer are siblings — not
-    // nested — so a footer click can't reach the card button; that sibling
-    // layout (not the controls' stopPropagation) is what keeps the two apart.
+    // The clickable region (`<a href>`) and the action footer are siblings —
+    // not nested — so a footer click can't activate the link.
     <div
       className={`block w-full rounded-card border border-line bg-panel shadow-panel transition-all duration-200 ${
         clickable ? 'hover:border-pitch' : 'hover:border-chalkdim'
       }`}
     >
-      <Clickable
-        {...(clickable ? { onClick: onOpen, type: 'button' as const } : {})}
+      <CardBodyShell
+        href={href}
         className={`block w-full text-left rounded-t-card overflow-hidden ${
           clickable ? 'cursor-pointer' : ''
         }`}
@@ -281,7 +294,7 @@ export default memo(function MatchCard({
             <span className="ds-caption text-chalkdim/70 truncate block">{venue}</span>
           </div>
         )}
-      </Clickable>
+      </CardBodyShell>
 
       {status === 'upcoming' && kickoff && (
         <div className="flex items-center justify-end gap-0.5 px-2 py-1 border-t border-line bg-panel2/10 rounded-b-card">

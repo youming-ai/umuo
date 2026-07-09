@@ -344,4 +344,40 @@ describe('useCompetition', () => {
     unmount();
     expect(firstSignal?.aborted).toBe(true);
   });
+
+  it('skips the first fetch when initialData is provided and non-empty', async () => {
+    const seed = {
+      matches: [
+        {
+          id: 'seed-1',
+          homeName: 'A',
+          awayName: 'B',
+          homeFlag: '',
+          awayFlag: '',
+          homeId: '1',
+          awayId: '2',
+          homeScore: 0,
+          awayScore: 0,
+          kickoff: null,
+          status: 'upcoming' as const,
+          homeScorers: [],
+          awayScorers: [],
+          venue: '',
+          slug: 'a-vs-b',
+        },
+      ],
+      standings: { kind: 'soccer' as const, groups: [] },
+      scorers: [],
+    };
+    const { result } = renderHook(() => useCompetition('fifa.world', seed));
+    // synchronous: the seeded state is visible without waiting for any fetch
+    expect(result.current.loading).toBe(false);
+    expect(result.current.matches).toEqual(seed.matches);
+    expect(result.current.standings).toEqual(seed.standings);
+    expect(result.current.scorers).toEqual(seed.scorers);
+    expect(result.current.error).toBeNull();
+    // wait one tick for any effect to settle; the fetch must NOT have happened
+    await new Promise((r) => setTimeout(r, 10));
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
 });

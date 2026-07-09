@@ -1,5 +1,6 @@
 import { renderHook, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { NewsItem } from '../types';
 import { useNews } from './useNews';
 
 const fetchMock = vi.fn();
@@ -68,5 +69,28 @@ describe('useNews', () => {
     await waitFor(() =>
       expect(fetchMock).toHaveBeenCalledWith('/api/news?team=lal', expect.any(Object)),
     );
+  });
+
+  it('skips the first fetch when initialData is provided and non-empty', async () => {
+    const seed: NewsItem[] = [
+      {
+        id: 'seed-1',
+        headline: 'Seeded headline',
+        description: 'd',
+        published: '2026-07-07T00:00:00Z',
+        byline: 'ESPN',
+        imageUrl: '',
+        link: 'https://espn.com/seed',
+        tags: [],
+      },
+    ];
+    const { result } = renderHook(() => useNews({ by: 'all' }, seed));
+    // synchronous: the seeded state is visible without waiting for any fetch
+    expect(result.current.loading).toBe(false);
+    expect(result.current.items).toEqual(seed);
+    expect(result.current.error).toBeNull();
+    // wait one tick for any effect to settle; the fetch must NOT have happened
+    await new Promise((r) => setTimeout(r, 10));
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 });

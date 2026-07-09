@@ -1,7 +1,7 @@
 import { type ResolvedBracketMatch, type ResolvedTeam, useBracket } from '../hooks/useBracket';
 import { useT } from '../i18n';
 import type { CompMatch, WCGroup } from '../types';
-import { navigate, pathFor, useRouter } from '../utils/router';
+import { pathFor, useRouter } from '../utils/router';
 
 // Radial bracket. The knockout is a balanced binary tree, so we draw it as
 // concentric rings collapsing toward the trophy at the centre: 32 nations on
@@ -342,37 +342,16 @@ function Node({
   t: (k: string) => string;
 }) {
   const r = size / 2;
-  const clickable = !!match;
+  const href = match ? pathFor({ kind: 'match', comp, slug: match.slug }) : undefined;
   const label = team ? team.label : t('bracket.tbd');
-  const activate = () => {
-    if (match) navigate(pathFor({ kind: 'match', comp, slug: match.slug }));
-  };
   // Undecided / not-yet-qualified slot: a quiet waypoint dot, not a full disc,
   // so only real crests carry visual weight on the disc.
   if (!team) {
     return <circle cx={center.x} cy={center.y} r={r * 0.42} className="fill-panel2/70" />;
   }
-  return (
-    // biome-ignore lint/a11y/noStaticElementInteractions: keyboard-accessible SVG node — role=button, tabIndex, Enter/Space handled below
-    <g
-      className={`group/n ${clickable ? 'cursor-pointer' : ''} focus:outline-none`}
-      role={clickable ? 'button' : undefined}
-      tabIndex={clickable ? 0 : undefined}
-      aria-label={label}
-      onClick={clickable ? activate : undefined}
-      onKeyDown={
-        clickable
-          ? (e) => {
-              if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault();
-                activate();
-              }
-            }
-          : undefined
-      }
-      opacity={eliminated ? 0.45 : 1}
-    >
-      {team?.flag ? (
+  const disc = (
+    <>
+      {team.flag ? (
         <image
           href={team.flag}
           x={center.x - r}
@@ -396,6 +375,21 @@ function Node({
         className="stroke-night/70 group-hover/n:stroke-pitch group-focus-visible/n:stroke-pitch"
         strokeWidth={2.5}
       />
+    </>
+  );
+  // Real SVG <a href> so middle-click / open-in-new-tab work after SPA removal.
+  // Opacity lives on an inner <g> — SVG <a> is typed as HTMLAnchorElement and
+  // does not accept the SVG opacity attribute.
+  if (href) {
+    return (
+      <a href={href} className="group/n cursor-pointer focus:outline-none" aria-label={label}>
+        <g opacity={eliminated ? 0.45 : 1}>{disc}</g>
+      </a>
+    );
+  }
+  return (
+    <g className="group/n" aria-label={label} opacity={eliminated ? 0.45 : 1}>
+      {disc}
     </g>
   );
 }
@@ -409,24 +403,32 @@ function ThirdPlaceChip({
   comp: string;
   t: (k: string) => string;
 }) {
-  const clickable = !!match.match;
-  const activate = () => {
-    if (match.match) navigate(pathFor({ kind: 'match', comp, slug: match.match.slug }));
-  };
-  return (
-    <button
-      type="button"
-      onClick={activate}
-      disabled={!clickable}
-      className="flex items-center gap-2 rounded-pill border border-line bg-panel px-3 py-1.5 shadow-panel transition-colors hover:border-pitch disabled:cursor-default disabled:hover:border-line"
-    >
+  const href = match.match
+    ? pathFor({ kind: 'match', comp, slug: match.match.slug })
+    : undefined;
+  const cls =
+    'flex items-center gap-2 rounded-pill border border-line bg-panel px-3 py-1.5 shadow-panel transition-colors hover:border-pitch';
+  const inner = (
+    <>
       <span className="ds-caption uppercase tracking-[0.14em] text-chalkdim/70">
         {t('bracket.3rd')}
       </span>
       <Crest team={match.home} t={t} />
       <span className="ds-caption text-chalkdim/50">–</span>
       <Crest team={match.away} t={t} />
-    </button>
+    </>
+  );
+  if (href) {
+    return (
+      <a href={href} className={cls}>
+        {inner}
+      </a>
+    );
+  }
+  return (
+    <span className={`${cls} cursor-default hover:border-line opacity-70`} aria-disabled="true">
+      {inner}
+    </span>
   );
 }
 

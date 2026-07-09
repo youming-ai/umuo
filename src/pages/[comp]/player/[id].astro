@@ -1,0 +1,62 @@
+---
+import Layout from '../../../layouts/Layout.astro';
+import PlayerPageIsland from '../../../components/PlayerPageIsland';
+import LeftNav from '../../../components/LeftNav.astro';
+import RightRailIsland from '../../../components/RightRailIsland';
+import { getCompetitionView } from '../../../data/api';
+import { COMPETITIONS } from '../../../competitions';
+
+const { comp, id } = Astro.params;
+if (!comp || !Object.hasOwn(COMPETITIONS, comp)) {
+  return new Response('Not found', { status: 404 });
+}
+if (!id) {
+  return new Response('Not found', { status: 404 });
+}
+const competition = COMPETITIONS[comp]!;
+const env = Astro.locals.runtime.env;
+const ctx = Astro.locals.runtime.ctx as Parameters<typeof getCompetitionView>[2];
+const view = await getCompetitionView(competition, env, ctx);
+
+const scorer = view.scorers.find((s) => s.athleteId === id);
+const playerName = scorer?.name ?? 'Player not found';
+---
+
+<Layout title={`StreamCup — ${playerName}`} comp={comp}>
+  <LeftNav slot="left" comp={comp} />
+  <main>
+    <div class="space-y-section">
+
+      {scorer ? (
+        <div>
+          <h1 class="font-display font-bold text-3xl text-chalk tracking-wide">
+            {scorer.name}
+          </h1>
+          <div class="flex items-center gap-3 mt-1">
+            {scorer.teamName && (
+              <span class="font-mono text-[11px] uppercase tracking-[0.18em] text-chalkdim/60">
+                {scorer.teamName}
+              </span>
+            )}
+            <span class="font-mono text-[11px] text-chalkdim/60">
+              {scorer.goals} goals
+            </span>
+          </div>
+        </div>
+      ) : (
+        <p class="font-mono text-xs text-chalkdim p-card text-center">Player not found</p>
+      )}
+
+      <!-- Island: takes over for goals timeline, team nav link, back button, stats -->
+      <PlayerPageIsland
+        athleteId={id}
+        groups={view.standings.kind === 'soccer' ? view.standings.groups : []}
+        matches={view.matches}
+        scorers={view.scorers}
+        client:only="react"
+      />
+
+    </div>
+  </main>
+  <RightRailIsland slot="right" comp={comp} initialData={view} client:only="react" />
+</Layout>

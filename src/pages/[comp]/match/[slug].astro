@@ -1,0 +1,31 @@
+---
+import Layout from '../../../layouts/Layout.astro';
+import MatchDetailIsland from '../../../components/MatchDetailIsland';
+import LeftNav from '../../../components/LeftNav.astro';
+import { getCompMatchBySlug, getMatchSummary } from '../../../data/api';
+import { COMPETITIONS } from '../../../competitions';
+
+const { comp, slug } = Astro.params;
+if (!comp || !Object.hasOwn(COMPETITIONS, comp)) {
+  return new Response('Not found', { status: 404 });
+}
+const competition = COMPETITIONS[comp]!;
+const env = Astro.locals.runtime.env;
+const ctx = Astro.locals.runtime.ctx as Parameters<typeof getCompMatchBySlug>[3];
+const match = await getCompMatchBySlug(competition, slug!, env, ctx);
+if (!match) {
+  return new Response('Not found', { status: 404 });
+}
+const initialDetail = await getMatchSummary(competition, match.id, env, ctx);
+
+// client:only islands do not hydrate pre-rendered siblings — an SSR hero here
+// would permanently stack under the React hero. The island owns the full
+// match detail (back, stream, live scoreboard, tabs) and seeds from SSR data.
+---
+
+<Layout title={`StreamCup — ${match.homeName} vs ${match.awayName}`} comp={comp}>
+  <LeftNav slot="left" comp={comp} />
+  <main>
+    <MatchDetailIsland match={match} initialDetail={initialDetail} client:only="react" />
+  </main>
+</Layout>

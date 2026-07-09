@@ -1,39 +1,40 @@
 import { NEWS_NAV } from '../newsFeed';
 import { useT } from '../i18n';
 import type { NewsItem, NewsScope, NewsTag } from '../types';
-import { navigate, pathFor } from '../utils/router';
+import { pathFor } from '../utils/router';
 import { useNews } from '../hooks/useNews';
 import { DEFAULT_COMPETITION } from '../competitions';
 
-export default function NewsView({ scope }: { scope: NewsScope }) {
+export default function NewsView({
+  scope,
+  initialData,
+}: {
+  scope: NewsScope;
+  initialData?: NewsItem[];
+}) {
   const t = useT();
-  const { items, loading, error, refetch } = useNews(scope);
+  const { items, loading, error, refetch } = useNews(scope, initialData);
   const activePath = pathFor({ kind: 'news', comp: DEFAULT_COMPETITION, scope });
 
   return (
     <div className="max-w-6xl mx-auto w-full px-page-x md:px-page-x-md py-page-y">
-      {/* Category-nav strip */}
+      {/* Category-nav strip — real links for middle-click / open-in-new-tab */}
       <nav
         aria-label={t('news.title')}
         className="ds-segmented mb-4 max-w-full overflow-x-auto no-scrollbar"
       >
         {NEWS_NAV.map((item) => {
-          const active =
-            pathFor({ kind: 'news', comp: DEFAULT_COMPETITION, scope: item.scope }) === activePath;
+          const href = pathFor({ kind: 'news', comp: DEFAULT_COMPETITION, scope: item.scope });
+          const active = href === activePath;
           return (
-            <button
+            <a
               key={item.key}
-              type="button"
-              onClick={() =>
-                navigate(pathFor({ kind: 'news', comp: DEFAULT_COMPETITION, scope: item.scope }), {
-                  scroll: true,
-                })
-              }
-              aria-pressed={active}
+              href={href}
+              aria-current={active ? 'page' : undefined}
               className={`whitespace-nowrap ds-seg-tab ${active ? 'ds-seg-tab-active' : 'ds-seg-tab-inactive'}`}
             >
               {t(item.labelKey)}
-            </button>
+            </a>
           );
         })}
       </nav>
@@ -123,24 +124,16 @@ function Tag({ tag }: { tag: NewsTag }) {
   const cls = 'ds-caption rounded-micro px-1.5 py-0.5 bg-white/5';
   if (tag.kind === 'team' && tag.team) {
     return (
-      <button
-        type="button"
-        onClick={() =>
-          navigate(
-            pathFor({
-              kind: 'news',
-              comp: DEFAULT_COMPETITION,
-              scope: { by: 'team', team: tag.team! },
-            }),
-            {
-              scroll: true,
-            },
-          )
-        }
+      <a
+        href={pathFor({
+          kind: 'news',
+          comp: DEFAULT_COMPETITION,
+          scope: { by: 'team', team: tag.team },
+        })}
         className={`${cls} text-chalk hover:bg-white/10 transition`}
       >
         {tag.label}
-      </button>
+      </a>
     );
   }
   return <span className={`${cls} text-chalkdim`}>{tag.label}</span>;

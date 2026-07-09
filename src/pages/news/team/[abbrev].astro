@@ -1,0 +1,17 @@
+---
+import Layout from '../../../layouts/Layout.astro';
+import NewsIsland from '../../../components/NewsIsland';
+import { fetchNewsItems } from '../../../data/api';
+import type { NewsScope } from '../../../types';
+
+const team = Astro.params.abbrev ?? '';
+const scope: NewsScope = { by: 'team', team };
+const env = Astro.locals.runtime.env;
+const ctx = Astro.locals.runtime.ctx as Parameters<typeof fetchNewsItems>[2];
+const items = await fetchNewsItems({ limit: 20, team }, env, ctx);
+---
+<Layout title={`StreamCup — News — team ${team}`}>
+  <main>
+    <NewsIsland scope={scope} initialData={items} client:only="react" />
+  </main>
+</Layout>

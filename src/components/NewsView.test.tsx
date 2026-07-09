@@ -44,8 +44,11 @@ describe('NewsView', () => {
     const link = screen.getByRole('link', { name: /Big trade/ });
     expect(link).toHaveAttribute('href', 'https://www.espn.com/story/7');
     expect(link).toHaveAttribute('target', '_blank');
-    // team tag is a navigation button (clickable), athlete/league would be plain text
-    expect(screen.getByRole('button', { name: 'Lakers' })).toBeInTheDocument();
+    // team tag is a real news-feed link; athlete/league would be plain text
+    expect(screen.getByRole('link', { name: 'Lakers' })).toHaveAttribute(
+      'href',
+      '/news/team/lal',
+    );
   });
 
   it('shows the empty message when there are no headlines', async () => {

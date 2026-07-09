@@ -1,0 +1,37 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import CompetitionIsland from '../../components/CompetitionIsland';
+import LeftNav from '../../components/LeftNav.astro';
+import RightRailIsland from '../../components/RightRailIsland';
+import { getCompetitionView, getPipelineLeaders } from '../../data/api';
+import { COMPETITIONS } from '../../competitions';
+
+const { comp } = Astro.params;
+if (!comp || !Object.hasOwn(COMPETITIONS, comp)) {
+  return new Response('Not found', { status: 404 });
+}
+const competition = COMPETITIONS[comp]!;
+// Capability deep-link: redirect unsupported sections server-side so the
+// client never SSR-mounts then full-page-replaces (post-SPA navigate cost).
+if (!competition.capabilities.scorers) {
+  return Astro.redirect(`/${comp}`, 307);
+}
+const env = Astro.locals.runtime.env;
+const ctx = Astro.locals.runtime.ctx as Parameters<typeof getCompetitionView>[2];
+const initialData = await getCompetitionView(competition, env, ctx);
+const initialPipelineLeaders =
+  competition.leadersSource === 'pipeline' ? await getPipelineLeaders(competition, env, ctx) : undefined;
+---
+<Layout title={`StreamCup — ${comp} — Scorers`} comp={comp}>
+  <LeftNav slot="left" comp={comp} active="scorers" />
+  <main>
+    <CompetitionIsland
+      comp={comp}
+      section="scorers"
+      initialData={initialData}
+      initialPipelineLeaders={initialPipelineLeaders}
+      client:only="react"
+    />
+  </main>
+  <RightRailIsland slot="right" comp={comp} initialData={initialData} client:only="react" />
+</Layout>

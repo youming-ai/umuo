@@ -1,0 +1,111 @@
+---
+import '../index.css';
+import Ticker from '../components/Ticker';
+import Header from '../components/Header.astro';
+import Footer from '../components/Footer.astro';
+
+interface Props {
+  title?: string;
+  comp?: string; // active competition, for the header highlight (absent on /news)
+}
+
+const { title = 'StreamCup — World Cup 2026 live streams & fixtures', comp } = Astro.props;
+
+// Rails are opt-in per page via named slots. When a page has rails, the shell
+// owns the width + page padding and lays out the 3-col grid. When it has none,
+// the shell adds nothing — the page's own content wrapper keeps its width and
+// padding (so existing pages need no change and never double-pad).
+const hasLeft = Astro.slots.has('left');
+const hasRight = Astro.slots.has('right');
+const hasRails = hasLeft || hasRight;
+const cols =
+  hasLeft && hasRight
+    ? 'lg:grid lg:gap-6 lg:grid-cols-[13rem_minmax(0,1fr)_20rem]'
+    : hasRight
+      ? 'lg:grid lg:gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]'
+      : 'lg:grid lg:gap-6 lg:grid-cols-[13rem_minmax(0,1fr)]';
+const frame = hasRails ? `px-page-x md:px-page-x-md py-page-y ${cols}` : '';
+---
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/png" href="/favicon.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#0A0F0D" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="StreamCup" />
+    <title>{title}</title>
+    <meta name="description" content="Watch World Cup 2026 football live streams and follow every fixture, group standings, and result — one fast, no-clutter hub." />
+    <meta name="robots" content="index, follow" />
+    <link rel="canonical" href="https://cup.umuo.app/" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="StreamCup" />
+    <meta property="og:title" content="StreamCup — World Cup 2026 live streams &amp; fixtures" />
+    <meta property="og:description" content="Live streams and full fixtures for World Cup 2026 — matches, group standings, and results in one place." />
+    <meta property="og:url" content="https://cup.umuo.app/" />
+    <meta property="og:image" content="https://cup.umuo.app/og.jpg" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:locale" content="en_US" />
+    <meta property="og:locale:alternate" content="zh_CN" />
+    <meta property="og:locale:alternate" content="ja_JP" />
+    <meta property="og:locale:alternate" content="ko_KR" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="StreamCup — World Cup 2026 live streams &amp; fixtures" />
+    <meta name="twitter:description" content="Live streams and full fixtures for World Cup 2026 — matches, group standings, and results in one place." />
+    <meta name="twitter:image" content="https://cup.umuo.app/og.jpg" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Saira+Condensed:wght@600;700&family=Hanken+Grotesk:wght@400&display=swap" rel="stylesheet" />
+  </head>
+  <body class="min-h-screen">
+    <script is:inline>
+      (() => {
+        try {
+          const t = localStorage.getItem('theme');
+          document.documentElement.dataset.theme = t === 'light' ? 'light' : 'dark';
+        } catch (_e) {
+          document.documentElement.dataset.theme = 'dark';
+        }
+      })();
+    </script>
+    <script is:inline>
+      // PWA service worker — production only (localhost/dev keeps network free).
+      (() => {
+        const host = location.hostname;
+        const isLocal = host === 'localhost' || host === '127.0.0.1' || host === '::1';
+        if (isLocal || !('serviceWorker' in navigator)) return;
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js').catch(() => {});
+        });
+      })();
+    </script>
+    <div class="ds-floodlight" aria-hidden="true"></div>
+    <div class="relative z-10 flex flex-col min-h-screen">
+      <div class="sticky top-0 z-40 bg-night/95 backdrop-blur-md">
+        <Ticker client:only="react" />
+        <Header comp={comp} />
+      </div>
+      <div class={`flex-1 w-full ${frame}`}>
+        {hasLeft && (
+          <aside class="mb-4 lg:mb-0">
+            <slot name="left" />
+          </aside>
+        )}
+        <div class="min-w-0">
+          <slot />
+        </div>
+        {hasRight && (
+          <aside class="hidden lg:block">
+            <slot name="right" />
+          </aside>
+        )}
+      </div>
+      <Footer />
+    </div>
+  </body>
+</html>

@@ -1,8 +1,10 @@
 import { type KeyboardEvent as ReactKeyboardEvent, useEffect, useState } from 'react';
 import { useMatchDetail } from '../hooks/useMatchDetail';
 import { useT } from '../i18n';
+import { COMPETITIONS } from '../competitions';
+import type { MatchDetail } from '../adapters/types';
 import type { CompMatch, Match } from '../types';
-import { useRouter } from '../utils/router';
+import { pathFor, useRouter } from '../utils/router';
 import BoxscoreTab from './matchdetail/BoxscoreTab';
 import LineupTab from './matchdetail/LineupTab';
 import PlayByPlayTab from './matchdetail/PlayByPlayTab';
@@ -54,27 +56,65 @@ function StatusBadge({
   return null;
 }
 
+// Hero team crest + name. Links to the team page only when one exists for
+// this competition — team pages resolve from soccer standings, so basketball
+// (NBA) has none and the badge renders as plain text instead of a dead link.
+function TeamBadge({ flag, name, href }: { flag: string; name: string; href?: string }) {
+  const inner = (
+    <>
+      <div className="w-14 h-10 md:w-20 md:h-14 overflow-hidden rounded-card bg-panel2 shadow-hero mb-3 shrink-0">
+        {flag ? (
+          <img src={flag} alt={name} className="w-full h-full object-cover" />
+        ) : (
+          <div className="w-full h-full bg-panel2" />
+        )}
+      </div>
+      <span className="font-display text-base md:text-xl font-bold text-chalk truncate max-w-full">
+        {name}
+      </span>
+    </>
+  );
+  const cls = 'flex-1 flex flex-col items-center text-center min-w-0';
+  return href ? (
+    <a href={href} className={`${cls} hover:opacity-80 transition-opacity`}>
+      {inner}
+    </a>
+  ) : (
+    <div className={cls}>{inner}</div>
+  );
+}
+
 export default function MatchDetailPage({
   match,
   stream,
-  onBack,
+  backHref,
+  initialDetail,
 }: {
   match: CompMatch;
   // The matching ppv.to stream, already resolved AND liveness-filtered in App
   // (null unless a stream for this fixture is live now). Keeping the timing in
   // App means this component stays deterministic given its props.
   stream?: Match | null;
-  onBack: () => void;
+  /** Schedule URL for the up-navigation control (real `<a href>`). */
+  backHref: string;
+  initialDetail?: MatchDetail | null;
 }) {
   const t = useT();
   const { route } = useRouter();
-  const { detail, loading, error, reload } = useMatchDetail(match.id, route.comp);
+  const { detail, loading, error, reload } = useMatchDetail(match.id, route.comp, initialDetail);
   const [tab, setTab] = useState<Tab>('stats');
   const [iframeUrl, setIframeUrl] = useState('');
 
   const showPlayer = stream != null;
 
   const homeId = detail?.homeId ?? '';
+
+  // Team pages only exist for soccer competitions (they read soccer standings);
+  // gate the crest links so NBA match headers don't link to a "Team not found".
+  const teamHref = (teamId: string) =>
+    COMPETITIONS[route.comp]?.sport === 'soccer'
+      ? pathFor({ kind: 'team', comp: route.comp, teamId })
+      : undefined;
 
   const tabs: Tab[] =
     detail?.kind === 'basketball' ? ['boxscore', 'stats'] : ['stats', 'play', 'lineup'];
@@ -101,21 +141,17 @@ export default function MatchDetailPage({
   };
 
   return (
-    // Identical frame to the schedule/header (px OUTSIDE, max-w-6xl INSIDE) so
-    // the content column lines up exactly — padding inside max-w would shift it
-    // in by one p-6 and break alignment.
-    <div className="ds-page">
-      <div className="ds-page-inner">
+    // Width + page padding come from the app shell; stack sections only.
+    <div className="space-y-section">
         {/* Back navigation */}
         <div>
-          <button
-            type="button"
-            onClick={onBack}
+          <a
+            href={backHref}
             className="font-mono text-xs tracking-widest text-chalkdim hover:text-chalk transition-colors inline-flex items-center gap-1.5 py-1"
             aria-label={t('detail.back')}
           >
             ← <span>{t('detail.back')}</span>
-          </button>
+          </a>
         </div>
 
         {/* Live stream player (only when a matching ppv.to stream is live) */}
@@ -145,22 +181,7 @@ export default function MatchDetailPage({
 
           <div className="flex items-center justify-between w-full max-w-2xl gap-card">
             {/* Home Team */}
-            <div className="flex-1 flex flex-col items-center text-center min-w-0">
-              <div className="w-14 h-10 md:w-20 md:h-14 overflow-hidden rounded-card bg-panel2 shadow-hero mb-3 shrink-0">
-                {match.homeFlag ? (
-                  <img
-                    src={match.homeFlag}
-                    alt={match.homeName}
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <div className="w-full h-full bg-panel2" />
-                )}
-              </div>
-              <span className="font-display text-base md:text-xl font-bold text-chalk truncate max-w-full">
-                {match.homeName}
-              </span>
-            </div>
+            <TeamBadge flag={match.homeFlag} name={match.homeName} href={teamHref(match.homeId)} />
 
             {/* Score & Status */}
             <div className="flex flex-col items-center justify-center shrink-0 px-2 sm:px-6">
@@ -222,22 +243,7 @@ export default function MatchDetailPage({
             </div>
 
             {/* Away Team */}
-            <div className="flex-1 flex flex-col items-center text-center min-w-0">
-              <div className="w-14 h-10 md:w-20 md:h-14 overflow-hidden rounded-card bg-panel2 shadow-hero mb-3 shrink-0">
-                {match.awayFlag ? (
-                  <img
-                    src={match.awayFlag}
-                    alt={match.awayName}
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <div className="w-full h-full bg-panel2" />
-                )}
-              </div>
-              <span className="font-display text-base md:text-xl font-bold text-chalk truncate max-w-full">
-                {match.awayName}
-              </span>
-            </div>
+            <TeamBadge flag={match.awayFlag} name={match.awayName} href={teamHref(match.awayId)} />
           </div>
         </div>
 
@@ -328,7 +334,6 @@ export default function MatchDetailPage({
             </>
           ) : null}
         </div>
-      </div>
     </div>
   );
 }
