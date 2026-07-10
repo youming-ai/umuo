@@ -55,6 +55,15 @@
   --space-card: 0.75rem;
   --space-card-inner: 0.5rem;
 
+  /* Sticky top bar geometry — one source of truth for the Ticker reserve
+     height, the Header row, and their sum. Layout reserves `--h-ticker` for
+     the client:only Ticker (avoids CLS), Header is `--h-header` (= Tailwind
+     h-14), and anything sticking below the bar (LeftNav) offsets by the sum
+     so it never slides under the header. Retune the ticker row here once. */
+  --h-ticker: 26px;
+  --h-header: 3.5rem; /* matches Tailwind h-14 (56px) */
+  --h-topbar: calc(var(--h-ticker) + var(--h-header));
+
   /* Typography */
   --text-micro: 0.5625rem;
   --text-caption: 0.625rem;
