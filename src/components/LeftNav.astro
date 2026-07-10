@@ -20,49 +20,39 @@ const items: { section: Section; label: string; href: string }[] = [
     : []),
 ];
 ---
-<div class="flex flex-col gap-5 lg:sticky lg:top-14">
-  <div>
-    <p class="mb-1.5 px-3 font-mono text-caption uppercase tracking-widest text-chalkdim">
-      Competition
-    </p>
-    <nav aria-label="Competitions" class="flex gap-1 overflow-x-auto no-scrollbar lg:flex-col lg:overflow-visible">
-      {comps.map((c) => (
-        <a
-          href={`/${c.key}`}
-          aria-current={c.key === comp ? 'page' : undefined}
-          class={`shrink-0 whitespace-nowrap rounded-card px-3 py-2 font-display text-sm tracking-wide transition-colors ${
-            c.key === comp
-              ? 'bg-overlay/10 text-chalk font-bold'
-              : 'text-chalkdim hover:text-chalk hover:bg-overlay/5'
-          }`}
-        >
-          {c.label}
-        </a>
-      ))}
-    </nav>
-  </div>
+<div class="flex flex-col gap-4 lg:sticky lg:top-14">
+  <nav aria-label="Competitions" class="flex gap-1 overflow-x-auto no-scrollbar lg:flex-col lg:overflow-visible">
+    {comps.map((c) => (
+      <a
+        href={`/${c.key}`}
+        aria-current={c.key === comp ? 'page' : undefined}
+        class={`shrink-0 whitespace-nowrap rounded-card px-3 py-2 font-display text-sm tracking-wide transition-colors ${
+          c.key === comp
+            ? 'bg-overlay/10 text-chalk font-bold'
+            : 'text-chalkdim hover:text-chalk hover:bg-overlay/5'
+        }`}
+      >
+        {c.label}
+      </a>
+    ))}
+  </nav>
 
-  <div>
-    <p class="mb-1.5 px-3 font-mono text-caption uppercase tracking-widest text-chalkdim">
-      Section
-    </p>
-    <nav
-      aria-label="Sections"
-      class="flex gap-1 overflow-x-auto no-scrollbar lg:flex-col lg:overflow-visible"
-    >
-      {items.map((it) => (
-        <a
-          href={it.href}
-          aria-current={active === it.section ? 'page' : undefined}
-          class={`shrink-0 whitespace-nowrap rounded-card px-3 py-2 font-display text-sm tracking-wide transition-colors ${
-            active === it.section
-              ? 'bg-overlay/10 text-chalk font-bold'
-              : 'text-chalkdim hover:text-chalk hover:bg-overlay/5'
-          }`}
-        >
-          {it.label}
-        </a>
-      ))}
-    </nav>
-  </div>
+  <nav
+    aria-label="Sections"
+    class="flex gap-1 overflow-x-auto no-scrollbar lg:flex-col lg:overflow-visible"
+  >
+    {items.map((it) => (
+      <a
+        href={it.href}
+        aria-current={active === it.section ? 'page' : undefined}
+        class={`shrink-0 whitespace-nowrap rounded-card px-3 py-2 font-display text-sm tracking-wide transition-colors ${
+          active === it.section
+            ? 'bg-overlay/10 text-chalk font-bold'
+            : 'text-chalkdim hover:text-chalk hover:bg-overlay/5'
+        }`}
+      >
+        {it.label}
+      </a>
+    ))}
+  </nav>
 </div>
