@@ -1,6 +1,5 @@
 import type { CompMatch, ScorerEntry, TopScorer, WCGroup } from '../types';
 import { pathFor, useRouter } from '../utils/router';
-import { scorerDisplay } from '../utils/wc';
 
 interface PlayerPageProps {
   athleteId: string;
@@ -80,12 +79,10 @@ export default function PlayerPage({
   if (!topScorerEntry && goals.length === 0) {
     return (
       <div className="space-y-section w-full">
-          <a href={backHref} className={backClass}>
-            ← <span>Back</span>
-          </a>
-          <p className="font-mono text-xs text-chalkdim p-card text-center">
-            Player not found
-          </p>
+        <a href={backHref} className={backClass}>
+          ← <span>Back</span>
+        </a>
+        <p className="font-mono text-xs text-chalkdim p-card text-center">Player not found</p>
       </div>
     );
   }
@@ -93,82 +90,76 @@ export default function PlayerPage({
   return (
     // Width + page padding come from the app shell; stack sections only.
     <div className="space-y-section">
-        <a href={backHref} className={backClass}>
-          ← <span>Back</span>
-        </a>
+      <a href={backHref} className={backClass}>
+        ← <span>Back</span>
+      </a>
 
-        {/* Header */}
-        <div>
-          <h1 className="font-display font-bold text-3xl text-chalk tracking-wide">
-            {topScorerEntry?.name ?? goals[0]?.entry.name ?? ''}
-          </h1>
-          <div className="flex items-center gap-3 mt-1">
-            {teamId && (
-              <a
-                href={pathFor({ kind: 'team', comp, teamId })}
-                className="font-mono text-[11px] uppercase tracking-[0.18em] text-chalkdim hover:text-pitch transition-colors"
-              >
-                {teamName}
-              </a>
-            )}
-            {topScorerEntry && (
-              <span className="font-mono text-[11px] text-chalkdim/60">
-                {topScorerEntry.goals} goals
-              </span>
-            )}
-          </div>
-        </div>
-
-        {/* Stats strip */}
-        {topScorerEntry && (
-          <div className="grid grid-cols-2 gap-2 sm:gap-card ds-glass p-card max-w-xs">
-            <Stat label="G" value={topScorerEntry.goals} bold />
-          </div>
-        )}
-
-        {/* Goals timeline */}
-        <section className="space-y-3">
-          <h2 className="font-display font-bold text-lg text-chalk tracking-wide">
-            goals
-          </h2>
-          {goals.length === 0 ? (
-            <p className="font-mono text-xs text-chalkdim">No goals scored yet</p>
-          ) : (
-            <ul className="space-y-2 ds-glass p-card">
-              {goals.map((g) => {
-                const opp = g.side === 'home' ? g.match.awayName : g.match.homeName;
-                const score = `${g.match.homeScore ?? 0} : ${g.match.awayScore ?? 0}`;
-                return (
-                  <li
-                    key={`${g.match.id}-${g.entry.minute}`}
-                    className="flex items-center justify-between font-mono text-xs"
-                  >
-                    <div className="flex items-center gap-3 min-w-0">
-                      <span className="text-chalk tabular-nums w-12 shrink-0">
-                        {g.entry.minute}
-                      </span>
-                      <a
-                        href={pathFor({ kind: 'match', comp, slug: g.match.slug })}
-                        className="font-display text-sm text-chalk hover:text-pitch transition-colors truncate text-left"
-                      >
-                        {g.match.homeName} vs {g.match.awayName}
-                      </a>
-                    </div>
-                    <div className="flex items-center gap-3 shrink-0">
-                      <span className="text-chalk tabular-nums">{score}</span>
-                      <span className="text-chalkdim/60 truncate hidden sm:inline">{opp}</span>
-                      {g.entry.tag && (
-                        <span className="text-chalkdim/60 ds-caption uppercase">
-                          {g.entry.tag.trim()}
-                        </span>
-                      )}
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
+      {/* Header */}
+      <div>
+        <h1 className="font-display font-bold text-3xl text-chalk tracking-wide">
+          {topScorerEntry?.name ?? goals[0]?.entry.name ?? ''}
+        </h1>
+        <div className="flex items-center gap-3 mt-1">
+          {teamId && (
+            <a
+              href={pathFor({ kind: 'team', comp, teamId })}
+              className="font-mono text-label uppercase tracking-[0.18em] text-chalkdim hover:text-pitch transition-colors"
+            >
+              {teamName}
+            </a>
           )}
-        </section>
+          {topScorerEntry && (
+            <span className="font-mono text-label text-chalkdim">{topScorerEntry.goals} goals</span>
+          )}
+        </div>
+      </div>
+
+      {/* Stats strip */}
+      {topScorerEntry && (
+        <div className="grid grid-cols-2 gap-2 sm:gap-card ds-glass p-card max-w-xs">
+          <Stat label="G" value={topScorerEntry.goals} bold />
+        </div>
+      )}
+
+      {/* Goals timeline */}
+      <section className="space-y-3">
+        <h2 className="font-display font-bold text-lg text-chalk tracking-wide">Goals</h2>
+        {goals.length === 0 ? (
+          <p className="font-mono text-xs text-chalkdim">No goals scored yet</p>
+        ) : (
+          <ul className="space-y-2 ds-glass p-card">
+            {goals.map((g) => {
+              const opp = g.side === 'home' ? g.match.awayName : g.match.homeName;
+              const score = `${g.match.homeScore ?? 0} : ${g.match.awayScore ?? 0}`;
+              return (
+                <li
+                  key={`${g.match.id}-${g.entry.minute}`}
+                  className="flex items-center justify-between font-mono text-xs"
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <span className="text-chalk tabular-nums w-12 shrink-0">{g.entry.minute}</span>
+                    <a
+                      href={pathFor({ kind: 'match', comp, slug: g.match.slug })}
+                      className="font-display text-sm text-chalk hover:text-pitch transition-colors truncate text-left"
+                    >
+                      {g.match.homeName} vs {g.match.awayName}
+                    </a>
+                  </div>
+                  <div className="flex items-center gap-3 shrink-0">
+                    <span className="text-chalk tabular-nums">{score}</span>
+                    <span className="text-chalkdim truncate hidden sm:inline">{opp}</span>
+                    {g.entry.tag && (
+                      <span className="text-chalkdim ds-caption uppercase">
+                        {g.entry.tag.trim()}
+                      </span>
+                    )}
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </section>
     </div>
   );
 }
@@ -176,7 +167,7 @@ export default function PlayerPage({
 function Stat({ label, value, bold }: { label: string; value: string | number; bold?: boolean }) {
   return (
     <div className="flex flex-col items-center">
-      <span className="ds-caption uppercase tracking-wider text-chalkdim/60">{label}</span>
+      <span className="ds-caption uppercase tracking-wider text-chalkdim">{label}</span>
       <span
         className={`font-mono tabular-nums ${bold ? 'text-3xl font-bold text-pitch' : 'text-base text-chalk'}`}
       >
@@ -185,7 +176,3 @@ function Stat({ label, value, bold }: { label: string; value: string | number; b
     </div>
   );
 }
-
-// scorerDisplay is re-exported for tests that want to verify the
-// expected display string for a given ScorerEntry.
-void scorerDisplay;

@@ -53,7 +53,7 @@ export default function PlayByPlayTab({
                           : p.type.includes('Red')
                             ? 'bg-live'
                             : p.type.includes('Card')
-                              ? 'bg-yellow-400'
+                              ? 'bg-amber'
                               : 'bg-chalk'
                       }`}
                     />

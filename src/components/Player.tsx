@@ -50,17 +50,11 @@ function playerStatus(match: Match): 'live' | 'ht' | 'finished' | 'upcoming' {
 // Top-left status badge over the iframe. Mirrors MatchCard's status pill but
 // tuned for the dark video background: live → red pulse, ht → amber, finished
 // / upcoming → muted.
-function PlayerStatusBadge({
-  status,
-}: {
-  status: 'live' | 'ht' | 'finished' | 'upcoming';
-}) {
+function PlayerStatusBadge({ status }: { status: 'live' | 'ht' | 'finished' | 'upcoming' }) {
   if (status === 'ht') {
     return (
       <div className="absolute top-3 left-3 z-20 flex items-center gap-1.5 px-3 py-0.5 ds-scrim-badge border border-amber/30 shadow-[0_0_10px_rgb(var(--c-amber)_/_0.15)] select-none">
-        <span className="font-mono text-xs tracking-widest text-amber font-bold">
-          Half-time
-        </span>
+        <span className="font-mono text-xs tracking-widest text-amber font-bold">Half-time</span>
       </div>
     );
   }
@@ -68,26 +62,20 @@ function PlayerStatusBadge({
     return (
       <div className="absolute top-3 left-3 z-20 flex items-center gap-1.5 px-3 py-0.5 ds-scrim-badge border border-live/30 shadow-[0_0_10px_rgb(var(--c-live)_/_0.15)] select-none">
         <span className="live-dot" />
-        <span className="font-mono text-xs tracking-widest text-live font-bold">
-          LIVE
-        </span>
+        <span className="font-mono text-xs tracking-widest text-live font-bold">LIVE</span>
       </div>
     );
   }
   if (status === 'finished') {
     return (
       <div className="absolute top-3 left-3 z-20 flex items-center gap-1.5 px-3 py-0.5 ds-scrim-badge border border-overlay/10 select-none">
-        <span className="font-mono text-xs tracking-widest text-onscrim/70 font-bold">
-          Final
-        </span>
+        <span className="font-mono text-xs tracking-widest text-onscrim/70 font-bold">Final</span>
       </div>
     );
   }
   return (
     <div className="absolute top-3 left-3 z-20 flex items-center gap-1.5 px-3 py-0.5 ds-scrim-badge border border-overlay/10 select-none">
-      <span className="font-mono text-xs tracking-widest text-onscrim/60 font-bold">
-        Upcoming
-      </span>
+      <span className="font-mono text-xs tracking-widest text-onscrim/60 font-bold">Upcoming</span>
     </div>
   );
 }
@@ -125,9 +113,7 @@ export default function Player({ match, selectedIframeUrl, setSelectedIframeUrl 
       <div className="relative h-full min-h-[60vh] ds-glass-hero overflow-hidden flex items-center justify-center">
         <CornerTicks />
         <div className="text-center px-8">
-          <div className="font-mono text-xs tracking-[0.3em] text-pitch mb-4">
-            STANDBY
-          </div>
+          <div className="font-mono text-xs tracking-[0.3em] text-pitch mb-4">STANDBY</div>
           <h2 className="font-display font-bold text-3xl text-chalk tracking-wide mb-3">
             Awaiting signal
           </h2>
@@ -168,6 +154,17 @@ export default function Player({ match, selectedIframeUrl, setSelectedIframeUrl 
             </span>
           </div>
         )}
+
+        {!activeIframeUrl && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 px-6 text-center">
+            <span className="font-mono text-xs uppercase tracking-[0.2em] text-chalkdim">
+              Signal unavailable
+            </span>
+            <p className="max-w-sm text-sm text-chalk">
+              No trusted stream source is currently available for this match.
+            </p>
+          </div>
+        )}
       </div>
 
       <div className="ds-glass-hero p-card space-y-card">
@@ -204,7 +201,7 @@ export default function Player({ match, selectedIframeUrl, setSelectedIframeUrl 
                   type="button"
                   onClick={() => setSelectedIframeUrl(src.iframe)}
                   aria-pressed={active}
-                  className={`inline-flex items-center gap-2 px-4 py-1.5 rounded-pill border text-sm transition-all duration-200 ${
+                  className={`inline-flex min-h-11 items-center gap-2 px-4 py-1.5 rounded-pill border text-sm transition-all duration-200 ${
                     active
                       ? 'bg-pitch text-onaccent border-pitch font-bold shadow-sm'
                       : 'border-line bg-panel2 text-chalkdim hover:text-chalk hover:bg-panel'
@@ -223,6 +220,9 @@ export default function Player({ match, selectedIframeUrl, setSelectedIframeUrl 
                 </button>
               );
             })}
+            {sources.length === 0 && (
+              <span className="text-sm text-chalkdim">No sources available.</span>
+            )}
           </div>
         </div>
       </div>

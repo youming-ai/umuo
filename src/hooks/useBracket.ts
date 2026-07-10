@@ -100,22 +100,23 @@ function placeTeam(
 // Which resolved side won, by team IDENTITY rather than the real match's
 // home/away flag — ESPN's home/away for a knockout tie need not match the
 // bracket slot's home/away, so comparing sides by position would flip the
-// winner. Compares the winning team's name to the two resolved teams.
-function winnerSideByName(
+// winner. Compare stable ESPN team ids because display names can differ
+// between the standings and scoreboard endpoints (for example USA vs United States).
+function winnerSideById(
   m: CompMatch,
   home: ResolvedTeam | null,
   away: ResolvedTeam | null,
 ): 'home' | 'away' | null {
   const w = winnerOf(m);
   if (!w) return null;
-  const winName = w === 'home' ? m.homeName : m.awayName;
-  if (home && winName === home.label) return 'home';
-  if (away && winName === away.label) return 'away';
+  const winnerId = w === 'home' ? m.homeId : m.awayId;
+  if (home && winnerId === home.teamId) return 'home';
+  if (away && winnerId === away.teamId) return 'away';
   return null;
 }
 
 // Find the CompMatch for a 'winner' slot by looking up the CompMatch at
-// the target stage and matching the two team names against the
+// the target stage and matching the two stable team ids against the
 // resolved home/away teams from previous round matches.
 function bracketMatchForStage(
   matches: CompMatch[],
@@ -127,8 +128,8 @@ function bracketMatchForStage(
     target.round === '3rd' ? 'third' : (target.round.toLowerCase() as CompMatch['stage']);
   for (const m of matches) {
     if (m.stage !== stage) continue;
-    if (home && (m.homeName === home.label || m.awayName === home.label)) {
-      if (!away || m.homeName === away.label || m.awayName === away.label) {
+    if (home && (m.homeId === home.teamId || m.awayId === home.teamId)) {
+      if (!away || m.homeId === away.teamId || m.awayId === away.teamId) {
         return m;
       }
     }
@@ -164,15 +165,15 @@ export function useBracket(groups: WCGroup[], matches: CompMatch[]) {
       if (!r.home) continue;
       const home = r.home;
       const real = matches.find(
-        (m) => m.stage === 'r32' && (m.homeName === home.label || m.awayName === home.label),
+        (m) => m.stage === 'r32' && (m.homeId === home.teamId || m.awayId === home.teamId),
       );
       if (!real) continue;
       r.match = real;
       r.away =
-        real.homeName === home.label
+        real.homeId === home.teamId
           ? { teamId: real.awayId, label: real.awayName, flag: real.awayFlag }
           : { teamId: real.homeId, label: real.homeName, flag: real.homeFlag };
-      r.winner = winnerSideByName(real, r.home, r.away);
+      r.winner = winnerSideById(real, r.home, r.away);
     }
 
     // R16 → Final, in seeding order (children always precede parents): each
@@ -193,7 +194,7 @@ export function useBracket(groups: WCGroup[], matches: CompMatch[]) {
       r.home = resolveSlot(bm.home);
       r.away = resolveSlot(bm.away);
       r.match = bracketMatchForStage(matches, bm, r.home, r.away);
-      if (r.match) r.winner = winnerSideByName(r.match, r.home, r.away);
+      if (r.match) r.winner = winnerSideById(r.match, r.home, r.away);
     }
 
     return {

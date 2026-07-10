@@ -21,6 +21,10 @@ function str(v: unknown): string {
   return typeof v === 'string' ? v : '';
 }
 
+function score(v: unknown): number | null {
+  return typeof v === 'string' || typeof v === 'number' ? parseScore(v) : null;
+}
+
 // ESPN standings stats are [{name, value, displayValue}]; pull the display
 // string by name (PCT/GB want the pre-formatted ".714" / "-" / "3").
 function statDisplay(entry: Record<string, unknown>, name: string): string {
@@ -102,8 +106,8 @@ function transform(
       awayFlag: teamLogo(awayTeam),
       homeId: str(homeTeam.id),
       awayId: str(awayTeam.id),
-      homeScore: status === 'upcoming' ? null : parseScore(str(home.score)),
-      awayScore: status === 'upcoming' ? null : parseScore(str(away.score)),
+      homeScore: status === 'upcoming' ? null : score(home.score),
+      awayScore: status === 'upcoming' ? null : score(away.score),
       kickoff: kickoff && !Number.isNaN(kickoff.getTime()) ? kickoff : null,
       status,
       homeScorers: [],
@@ -139,9 +143,13 @@ function transformSummary(json: unknown): MatchDetail {
   }
   const homeStats = byTeam.get(homeId) ?? new Map();
   const awayStats = byTeam.get(awayId) ?? new Map();
-  const teamStats: TeamStatRow[] = [...homeStats.entries()].map(([label, home]) => ({
+  const statLabels = [
+    ...homeStats.keys(),
+    ...[...awayStats.keys()].filter((label) => !homeStats.has(label)),
+  ];
+  const teamStats: TeamStatRow[] = statLabels.map((label) => ({
     label,
-    home,
+    home: homeStats.get(label) ?? '',
     away: awayStats.get(label) ?? '',
   }));
 

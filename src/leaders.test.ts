@@ -125,15 +125,19 @@ describe('assembleLeaders', () => {
     expect(saka.teamName).toBe('Arsenal');
   });
 
-  it('returns [] when the category is absent', async () => {
+  it('throws when the configured category is absent so callers can serve stale data', async () => {
     const fetchImpl = makeFetch({
       [LEADERS_URL]: { categories: [{ name: 'assists', leaders: [] }] },
     });
-    expect(await assembleLeaders(fetchImpl, eplCfg)).toEqual([]);
+    await expect(assembleLeaders(fetchImpl, eplCfg)).rejects.toThrow(
+      'leaders category goals not found',
+    );
   });
 
-  it('returns [] on an empty leaders payload without throwing', async () => {
-    const fetchImpl = makeFetch({ [LEADERS_URL]: {} });
+  it('returns [] when the configured category legitimately has no leaders', async () => {
+    const fetchImpl = makeFetch({
+      [LEADERS_URL]: { categories: [{ name: 'goals', leaders: [] }] },
+    });
     expect(await assembleLeaders(fetchImpl, eplCfg)).toEqual([]);
   });
 

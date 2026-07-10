@@ -254,8 +254,11 @@ describe('serveLeaders', () => {
 
   it('runs the producer and caches its result on a MISS', async () => {
     // The producer (assembleLeaders) fetches the leaders doc then athlete/team
-    // refs. Canned: an empty categories payload → assembleLeaders returns [].
-    fetchMock.mockResolvedValue({ ok: true, json: async () => ({ categories: [] }) });
+    // refs. Canned: the configured category exists but has no leaders yet.
+    fetchMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({ categories: [{ name: 'points', leaders: [] }] }),
+    });
     const env = mockEnv(null, 'nba:leaders');
     const ctx = mockCtx();
     const res = await serveLeaders(NBA, env as unknown as Env, ctx);
@@ -349,7 +352,10 @@ describe('fetch routing', () => {
   });
 
   it('routes a known competition leaders through serveLeaders', async () => {
-    fetchMock.mockResolvedValue({ ok: true, json: async () => ({ categories: [] }) });
+    fetchMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({ categories: [{ name: 'points', leaders: [] }] }),
+    });
     const env = mockEnv(null, 'nba:leaders');
     const res = await worker.fetch(
       new Request('https://x/api/nba/leaders'),

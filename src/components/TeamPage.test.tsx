@@ -1,5 +1,5 @@
-import { fireEvent, render, screen } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { render, screen } from '@testing-library/react';
+import { describe, expect, it } from 'vitest';
 import type { CompMatch, TopScorer, WCStanding } from '../types';
 import TeamPage from './TeamPage';
 
@@ -67,9 +67,7 @@ function renderPage(props: Partial<React.ComponentProps<typeof TeamPage>> = {}) 
     scorers: [],
     backHref: '/fifa.world',
   };
-  return render(
-    <TeamPage {...defaults} {...props} />,
-  );
+  return render(<TeamPage {...defaults} {...props} />);
 }
 
 describe('TeamPage', () => {
@@ -147,7 +145,7 @@ describe('TeamPage', () => {
       },
     ];
     renderPage({ scorers });
-    expect(screen.getByRole('heading', { level: 2, name: 'Top scorers' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 2, name: 'Top Scorers' })).toBeInTheDocument();
     expect(screen.getByText('Alvarado')).toBeInTheDocument();
     expect(screen.getByText('Vega')).toBeInTheDocument();
     // The other team's player is filtered out

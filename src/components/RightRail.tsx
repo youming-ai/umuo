@@ -1,23 +1,39 @@
-import type { TopScorer } from '../types';
 import type { StandingsData } from '../adapters/types';
 import { useMemo, useState } from 'react';
-import { ListOrdered, Award } from 'lucide-react';
+import { Award, ListOrdered } from 'lucide-react';
 import { COMPETITIONS } from '../competitions';
 import { useLeaders } from '../hooks/useLeaders';
+import type { TopScorer } from '../types';
 
 interface RightRailProps {
   /** Authoritative competition for this rail (island prop, not router parse). */
   comp: string;
   standings: StandingsData;
   scorers: TopScorer[];
+  standingsLoading?: boolean;
+  standingsError?: string | null;
+  onStandingsRetry?: () => void;
 }
 
-export default function RightRail({ comp: activeComp, standings, scorers }: RightRailProps) {
+export default function RightRail({
+  comp: activeComp,
+  standings,
+  scorers,
+  standingsLoading = false,
+  standingsError = null,
+  onStandingsRetry,
+}: RightRailProps) {
   const compConfig = COMPETITIONS[activeComp];
-  const { leaders } = useLeaders(compConfig?.leadersSource === 'pipeline' ? activeComp : null);
+  const usesPipeline = compConfig?.leadersSource === 'pipeline';
+  const {
+    leaders,
+    loading: leadersLoading,
+    error: leadersError,
+    refetch,
+  } = useLeaders(usesPipeline ? activeComp : null);
 
   const topLeaders = useMemo(() => {
-    if (compConfig?.leadersSource === 'pipeline') {
+    if (usesPipeline) {
       return leaders.slice(0, 3);
     }
     if (scorers && scorers.length > 0) {
@@ -31,7 +47,11 @@ export default function RightRail({ comp: activeComp, standings, scorers }: Righ
       }));
     }
     return [];
-  }, [scorers, leaders, compConfig]);
+  }, [scorers, leaders, usesPipeline]);
+
+  const hasStandings =
+    (standings.kind === 'soccer' && standings.groups.length > 0) ||
+    (standings.kind === 'basketball' && standings.conferences.length > 0);
 
   const [soccerGroupIndex, setSoccerGroupIndex] = useState(0);
   const [nbaConf, setNbaConf] = useState<'eastern' | 'western'>('eastern');
@@ -39,7 +59,7 @@ export default function RightRail({ comp: activeComp, standings, scorers }: Righ
   return (
     <div className="flex flex-col gap-4 w-full">
       <div className="ds-glass p-4 flex flex-col gap-3">
-        <h3 className="text-xs font-mono tracking-widest text-chalkdim/60 uppercase px-1 flex items-center gap-2">
+        <h3 className="text-xs font-mono tracking-widest text-chalkdim uppercase px-1 flex items-center gap-2">
           <ListOrdered className="w-3.5 h-3.5" />
           <span>Standings</span>
         </h3>
@@ -53,10 +73,10 @@ export default function RightRail({ comp: activeComp, standings, scorers }: Righ
                     key={g.name}
                     type="button"
                     onClick={() => setSoccerGroupIndex(idx)}
-                    className={`px-2 py-0.5 rounded-micro text-[10px] font-mono uppercase transition-all ${
+                    className={`min-h-11 px-2 py-0.5 rounded-micro text-caption font-mono uppercase transition-all ${
                       soccerGroupIndex === idx
                         ? 'bg-overlay/10 text-chalk font-bold'
-                        : 'text-chalkdim/60 hover:text-chalk'
+                        : 'text-chalkdim hover:text-chalk'
                     }`}
                   >
                     {g.name.replace('Group ', '')}
@@ -74,7 +94,7 @@ export default function RightRail({ comp: activeComp, standings, scorers }: Righ
                     className="flex items-center justify-between text-xs py-0.5 px-1 rounded-micro hover:bg-overlay/5"
                   >
                     <div className="flex items-center gap-2 max-w-[70%] truncate">
-                      <span className="font-mono text-chalkdim/50 w-3">{idx + 1}</span>
+                      <span className="font-mono text-chalkdim w-3">{idx + 1}</span>
                       {row.flag && (
                         <img
                           src={row.flag}
@@ -102,10 +122,10 @@ export default function RightRail({ comp: activeComp, standings, scorers }: Righ
                     key={conf.name}
                     type="button"
                     onClick={() => setNbaConf(confKey)}
-                    className={`flex-1 text-center py-0.5 rounded-micro text-[10px] font-mono uppercase transition-all ${
+                    className={`min-h-11 flex-1 text-center py-0.5 rounded-micro text-caption font-mono uppercase transition-all ${
                       nbaConf === confKey
                         ? 'bg-overlay/10 text-chalk font-bold'
-                        : 'text-chalkdim/60 hover:text-chalk'
+                        : 'text-chalkdim hover:text-chalk'
                     }`}
                   >
                     {conf.name.replace(' Conference', '')}
@@ -129,7 +149,7 @@ export default function RightRail({ comp: activeComp, standings, scorers }: Righ
                     className="flex items-center justify-between text-xs py-0.5 px-1 rounded-micro hover:bg-overlay/5"
                   >
                     <div className="flex items-center gap-2 max-w-[75%] truncate">
-                      <span className="font-mono text-chalkdim/50 w-3">{idx + 1}</span>
+                      <span className="font-mono text-chalkdim w-3">{idx + 1}</span>
                       {row.logo && (
                         <img
                           src={row.logo}
@@ -140,7 +160,7 @@ export default function RightRail({ comp: activeComp, standings, scorers }: Righ
                       )}
                       <span className="font-medium text-chalk truncate">{row.name}</span>
                     </div>
-                    <span className="font-mono text-chalkdim/80">
+                    <span className="font-mono text-chalkdim">
                       {row.w}-{row.l}
                     </span>
                   </div>
@@ -148,32 +168,66 @@ export default function RightRail({ comp: activeComp, standings, scorers }: Righ
             </div>
           </div>
         )}
+
+        {!hasStandings && standingsLoading ? (
+          <p className="text-xs text-chalkdim px-1 py-2">Loading standings…</p>
+        ) : !hasStandings && standingsError ? (
+          <div className="flex items-center justify-between gap-2 px-1 py-1">
+            <p className="text-xs text-live">{standingsError}</p>
+            {onStandingsRetry && (
+              <button
+                type="button"
+                onClick={onStandingsRetry}
+                className="min-h-11 px-3 rounded-pill text-xs font-semibold text-pitch hover:bg-pitch/10 transition-colors"
+              >
+                Retry
+              </button>
+            )}
+          </div>
+        ) : !hasStandings ? (
+          <p className="text-xs text-chalkdim px-1 py-2">No standings yet.</p>
+        ) : null}
       </div>
 
-      {topLeaders.length > 0 && (
+      {(usesPipeline || topLeaders.length > 0) && (
         <div className="ds-glass p-4 flex flex-col gap-3">
-          <h3 className="text-xs font-mono tracking-widest text-chalkdim/60 uppercase px-1 flex items-center gap-2">
+          <h3 className="text-xs font-mono tracking-widest text-chalkdim uppercase px-1 flex items-center gap-2">
             <Award className="w-3.5 h-3.5" />
             <span>
-              {COMPETITIONS[activeComp]?.sport === 'basketball'
-                ? 'Scoring Leaders'
-                : 'Top Scorers'}
+              {COMPETITIONS[activeComp]?.sport === 'basketball' ? 'Scoring Leaders' : 'Top Scorers'}
             </span>
           </h3>
-          <div className="flex flex-col gap-2.5">
-            {topLeaders.map((l) => (
-              <div key={l.name} className="flex items-center justify-between text-xs px-1">
-                <div className="flex items-center gap-2.5 max-w-[75%]">
-                  <span className="font-mono text-chalkdim/50 w-3">{l.rank}</span>
-                  <div className="flex flex-col">
-                    <span className="font-bold text-chalk truncate">{l.name}</span>
-                    <span className="text-[10px] text-chalkdim/60">{l.teamName}</span>
+          {leadersLoading && topLeaders.length === 0 ? (
+            <p className="text-xs text-chalkdim px-1 py-2">Loading leaders…</p>
+          ) : leadersError && topLeaders.length === 0 ? (
+            <div className="flex items-center justify-between gap-2 px-1 py-1">
+              <p className="text-xs text-live">{leadersError}</p>
+              <button
+                type="button"
+                onClick={refetch}
+                className="min-h-11 px-3 rounded-pill text-xs font-semibold text-pitch hover:bg-pitch/10 transition-colors"
+              >
+                Retry
+              </button>
+            </div>
+          ) : topLeaders.length === 0 ? (
+            <p className="text-xs text-chalkdim px-1 py-2">No leaders yet.</p>
+          ) : (
+            <div className="flex flex-col gap-2.5">
+              {topLeaders.map((l) => (
+                <div key={l.name} className="flex items-center justify-between text-xs px-1">
+                  <div className="flex items-center gap-2.5 max-w-[75%]">
+                    <span className="font-mono text-chalkdim w-3">{l.rank}</span>
+                    <div className="flex flex-col">
+                      <span className="font-bold text-chalk truncate">{l.name}</span>
+                      <span className="text-caption text-chalkdim">{l.teamName}</span>
+                    </div>
                   </div>
+                  <span className="font-mono font-bold text-chalk">{l.displayValue}</span>
                 </div>
-                <span className="font-mono font-bold text-chalk">{l.displayValue}</span>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
     </div>

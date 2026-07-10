@@ -28,7 +28,7 @@ Tests run under jsdom with `globals: true` and **`fileParallelism: false`** (`vi
 ## Architecture
 
 ### Astro SSR shell + React islands — two-stage render
-Pages are Astro files under `src/pages/` with `output: "server"` on the `@astrojs/cloudflare` adapter. Each page **fetches its initial data server-side** through the shared data layer (`src/data/api.ts`) using `Astro.locals.runtime.env.CACHE` + `ctx`, renders the first paint, and passes that payload as `initialData` to a React island mounted `client:only="react"` (`@astrojs/react`). The island hydrates, seeds its hook from `initialData`, and takes over interactivity + polling. `AppProviders.tsx` wraps every island with the i18n + theme context. `platformProxy` (dev) hands the same real KV binding to `astro dev`, so local dev exercises the production cache path — there is **no** separate vite dev proxy anymore.
+Pages are Astro files under `src/pages/` with `output: "server"` on the `@astrojs/cloudflare` adapter. Each page **fetches its initial data server-side** through the shared data layer (`src/data/api.ts`) using `Astro.locals.runtime.env.CACHE` + `ctx`, renders the first paint, and passes that payload as `initialData` to a React island mounted `client:only="react"` (`@astrojs/react`). The island hydrates, seeds its hook from `initialData`, and takes over interactivity + polling. `AppProviders.tsx` wraps every island with theme context. `platformProxy` (dev) hands the same real KV binding to `astro dev`, so local dev exercises the production cache path — there is **no** separate vite dev proxy anymore.
 
 ### Routing is split: Astro owns the entry, a custom router owns in-app nav
 - **`src/middleware.ts`** (Astro middleware, every request) redirects `/` and legacy unprefixed paths to `/<DEFAULT_COMPETITION>` (`fifa.world`, 307); comp-prefixed routes, `/api`, `/news`, `/player`, and asset paths pass through.
@@ -62,9 +62,8 @@ ESPN's "now" core API, scoped global / sport / league / team. `src/news.ts` (`Ne
 ### Data hooks share a pattern
 `useCompetition.ts`, `useLeaders.ts`, `useMatchDetail.ts`, `useBracket.ts`, `useStreams.ts`, `useNews.ts` all follow: **stale-while-revalidate** (seeded from SSR `initialData`, refetch in background), `AbortController` per fetch, and **visibility-gated polling** (paused when tab hidden). Hooks keyed by `comp` (or `eventId`) reset cache + displayed state when the key changes, so one competition's data never flashes on another's tab.
 
-### i18n and theme are both custom
-- `src/i18n/` — `messages.ts` is a flat `key → string` map per language (`en`, `zh`, `ja`, `ko`; en is the fallback), `index.tsx` provides `LanguageProvider`/`useT`/`translate` with `{var}` interpolation. `messages.test.ts` enforces key parity across languages — add a key to every language.
-- `src/theme/` — `ThemeProvider`/`useTheme` toggles `dark`/`light`, persisted to localStorage (defaults to dark). An inline `<script>` in `Layout.astro` sets `data-theme` before hydration to avoid a flash; the CSS tokens key off it.
+### Theme
+`src/theme/` provides `ThemeProvider`/`useTheme` for the persisted `dark`/`light` choice (defaults to dark). An inline `<script>` in `Layout.astro` sets `data-theme` and the browser theme color before hydration to avoid a flash; the CSS tokens key off it.
 
 ## Conventions
 

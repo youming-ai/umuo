@@ -24,9 +24,7 @@ export default function LeadersView({
     <div className="space-y-card">
       <div className="flex items-baseline justify-between gap-3">
         <h3 className="font-display font-bold text-lg text-chalk tracking-wide">{title}</h3>
-        <span className="ds-caption uppercase tracking-[0.2em] text-chalkdim/60">
-          {subtitle}
-        </span>
+        <span className="ds-caption uppercase tracking-[0.2em] text-chalkdim">{subtitle}</span>
       </div>
 
       <table className="w-full text-sm border border-line/30 bg-panel/85 rounded-card overflow-hidden shadow-panel backdrop-blur-sm">
@@ -58,7 +56,7 @@ export default function LeadersView({
                 <td className="px-3 py-2 font-mono tabular-nums text-chalkdim">{l.rank}</td>
                 <td className="px-3 py-2 font-display text-chalk truncate max-w-0">
                   {l.name}
-                  <span className="flex items-center gap-1 sm:hidden ds-caption text-chalkdim/70">
+                  <span className="flex items-center gap-1 sm:hidden ds-caption text-chalkdim">
                     {l.teamLogo && (
                       <img
                         src={l.teamLogo}
@@ -69,7 +67,7 @@ export default function LeadersView({
                     <span className="truncate">{l.teamName}</span>
                   </span>
                 </td>
-                <td className="px-3 py-2 font-mono text-[11px] text-chalkdim truncate max-w-0 hidden sm:table-cell">
+                <td className="px-3 py-2 font-mono text-label text-chalkdim truncate max-w-0 hidden sm:table-cell">
                   <span className="flex items-center gap-1.5">
                     {l.teamLogo && (
                       <img

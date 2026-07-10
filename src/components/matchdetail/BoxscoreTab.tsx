@@ -2,9 +2,7 @@ import type { BoxscoreTable } from '../../adapters/types';
 
 export default function BoxscoreTab({ tables }: { tables: BoxscoreTable[] }) {
   if (tables.length === 0) {
-    return (
-      <p className="font-mono text-xs tracking-wider text-chalkdim p-card">No data yet</p>
-    );
+    return <p className="font-mono text-xs tracking-wider text-chalkdim p-card">No data yet</p>;
   }
   return (
     <div className="space-y-card p-card">
@@ -30,7 +28,7 @@ export default function BoxscoreTab({ tables }: { tables: BoxscoreTable[] }) {
                   <tr key={p.name} className="border-t border-overlay/5">
                     <td className="px-2 py-1.5 whitespace-nowrap">
                       <span
-                        className={`font-display ${p.dnp ? 'text-chalkdim/60' : 'text-chalk'} ${
+                        className={`font-display ${p.dnp ? 'text-chalkdim' : 'text-chalk'} ${
                           p.starter ? 'font-semibold' : 'font-normal'
                         }`}
                       >
@@ -40,7 +38,7 @@ export default function BoxscoreTab({ tables }: { tables: BoxscoreTable[] }) {
                     {p.dnp ? (
                       <td
                         colSpan={tbl.labels.length}
-                        className="px-2 py-1.5 text-chalkdim/60 ds-caption uppercase tracking-wider"
+                        className="px-2 py-1.5 text-chalkdim ds-caption uppercase tracking-wider"
                       >
                         DNP
                       </td>

@@ -242,7 +242,7 @@ export default function FixturesView({
                 className={`ds-chip ${statusFilter === key ? 'ds-chip-active' : 'ds-chip-inactive'}`}
               >
                 {label}
-                <span className="ml-1.5 tabular-nums text-chalkdim/70">{count}</span>
+                <span className="ml-1.5 tabular-nums text-chalkdim">{count}</span>
               </button>
             ))}
           </div>

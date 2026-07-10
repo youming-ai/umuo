@@ -4,7 +4,6 @@ import {
   matchSlug,
   parseScore,
   progressFromStatus,
-  scorerLabel,
   sortStandings,
   stageFromSlug,
   statusFromState,
@@ -161,14 +160,6 @@ describe('stageFromSlug', () => {
     expect(stageFromSlug('final')).toBe('final');
     expect(stageFromSlug('mystery')).toBe('group');
     expect(stageFromSlug(undefined)).toBe('group');
-  });
-});
-
-describe('scorerLabel', () => {
-  it('appends penalty/own-goal tags, keeps clock notation', () => {
-    expect(scorerLabel('Breel Embolo', "17'", 'Penalty - Scored')).toBe("Breel Embolo 17' (p)");
-    expect(scorerLabel('B. Khoukhi', "90'+5'", 'Goal')).toBe("B. Khoukhi 90'+5'");
-    expect(scorerLabel('J. Doe', "30'", 'Own Goal')).toBe("J. Doe 30' (OG)");
   });
 });
 

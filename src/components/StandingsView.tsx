@@ -8,7 +8,7 @@ import type { WCGroup } from '../types';
 // The visual letter is also announced to screen readers via a visually-
 // hidden span, and `title` gives mouse users a hover tooltip.
 function FormPill({ form }: { form?: string }) {
-  if (!form) return <span className="text-chalkdim/50">—</span>;
+  if (!form) return <span className="text-chalkdim">—</span>;
   // The wrapping element uses role="img" + aria-label so screen readers
   // hear a single "WLWLL" string. The role is required because
   // aria-label on a plain <span> isn't a valid a11y hook.
@@ -79,8 +79,7 @@ export default function StandingsView({
             Top 2 advance
           </span>
           <span className="flex items-center gap-1.5">
-            <span className="w-1 h-3 bg-pitch/40" />
-            8 best third-placed teams advance
+            <span className="w-1 h-3 bg-pitch/40" />8 best third-placed teams advance
           </span>
         </div>
       )}
@@ -96,9 +95,7 @@ export default function StandingsView({
               </span>
             </div>
             <table className="w-full text-sm">
-              <caption className="sr-only">
-                {mode === 'group' ? `Group ${g.name}` : g.name}
-              </caption>
+              <caption className="sr-only">{mode === 'group' ? `Group ${g.name}` : g.name}</caption>
               <thead>
                 <tr className="text-chalkdim ds-caption uppercase">
                   <th scope="col" className="text-left font-medium px-4 py-2">

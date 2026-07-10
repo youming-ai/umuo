@@ -17,7 +17,9 @@ export const ADAPTERS: Partial<Record<Sport, SportAdapter>> & {
 // Resolve the adapter for a competition via its registered sport — the single
 // lookup+guard shared by useCompetition and useMatchDetail.
 export function getAdapter(comp: string): SportAdapter {
-  const sport = COMPETITIONS[comp].sport;
+  if (!Object.hasOwn(COMPETITIONS, comp)) throw new Error(`Unknown competition: ${comp}`);
+  const competition = COMPETITIONS[comp];
+  const sport = competition.sport;
   const adapter = ADAPTERS[sport];
   if (!adapter) throw new Error(`No adapter for sport: ${sport}`);
   return adapter;

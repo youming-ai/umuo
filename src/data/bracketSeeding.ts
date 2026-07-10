@@ -262,10 +262,5 @@ export const SEEDING: BracketMatch[] = [
   },
 ];
 
-// Round labels (in display order) and the slice of SEEDING that
-// belongs to each round.
+// Round labels in display order.
 export const ROUNDS: Array<BracketMatch['round']> = ['R32', 'R16', 'QF', 'SF', '3rd', 'Final'];
-
-export function sliceByRound(round: BracketMatch['round']): BracketMatch[] {
-  return SEEDING.filter((m) => m.round === round);
-}

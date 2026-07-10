@@ -157,6 +157,16 @@ describe('basketballAdapter.transform', () => {
     expect(sd).toEqual({ kind: 'basketball', conferences: [] });
     expect(scorers).toEqual([]);
   });
+
+  it('preserves numeric scores returned by ESPN', () => {
+    const withNumericScores = structuredClone(scoreboard);
+    withNumericScores.events[0].competitions[0].competitors[0].score = 112 as unknown as string;
+    withNumericScores.events[0].competitions[0].competitors[1].score = 108 as unknown as string;
+
+    const { matches } = basketballAdapter.transform(withNumericScores, standings);
+    expect(matches[0].homeScore).toBe(112);
+    expect(matches[0].awayScore).toBe(108);
+  });
 });
 
 const summary = {
@@ -249,6 +259,14 @@ describe('basketballAdapter.transformSummary', () => {
       { label: 'FG', home: '42-88', away: '40-90' },
       { label: 'REB', home: '45', away: '41' },
     ]);
+  });
+
+  it('keeps a stat that is present only for the away team', () => {
+    const awayOnly = structuredClone(summary);
+    awayOnly.boxscore.teams[1].statistics.push({ label: 'BLK', displayValue: '6' });
+    const parsed = basketballAdapter.transformSummary(awayOnly);
+    if (parsed.kind !== 'basketball') throw new Error('expected basketball');
+    expect(parsed.teamStats).toContainEqual({ label: 'BLK', home: '', away: '6' });
   });
 
   it('builds one boxscore table per team with labels + player rows (home first)', () => {

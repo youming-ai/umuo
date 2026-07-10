@@ -1,6 +1,7 @@
+import { renderHook } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import type { CompMatch, WCGroup } from '../types';
-import { assignThirds, winnerOf } from './useBracket';
+import { assignThirds, useBracket, winnerOf } from './useBracket';
 
 const LETTERS = 'ABCDEFGHIJKL'.split('');
 
@@ -75,5 +76,55 @@ describe('assignThirds', () => {
     const ids = [...assignThirds(ALL_GROUPS, best).values()].map((t) => t.teamId);
     expect(ids).toHaveLength(8); // all 8 third-place slots filled
     expect(new Set(ids).size).toBe(8); // …each by a distinct team — no team appears twice
+  });
+});
+
+describe('useBracket', () => {
+  it('matches and advances teams by id when ESPN endpoints use different display names', () => {
+    const groups = ['A', 'B', 'C', 'F'].map(groupWithThird);
+    groups.find((g) => g.name === 'A')!.standings[1].name = 'United States';
+    groups.find((g) => g.name === 'F')!.standings[0].name = 'Germany National Team';
+
+    const matches = [
+      match({
+        id: 'r32-a',
+        stage: 'r32',
+        homeId: 'tA2',
+        homeName: 'USA',
+        awayId: 'tB2',
+        awayName: 'Opponent B',
+        homeScore: 2,
+        awayScore: 0,
+        winner: 'home',
+      }),
+      match({
+        id: 'r32-f',
+        stage: 'r32',
+        homeId: 'tF1',
+        homeName: 'Germany',
+        awayId: 'tC2',
+        awayName: 'Opponent C',
+        homeScore: 1,
+        awayScore: 0,
+        winner: 'home',
+      }),
+      match({
+        id: 'r16',
+        stage: 'r16',
+        homeId: 'tA2',
+        homeName: 'USA',
+        awayId: 'tF1',
+        awayName: 'Germany',
+        homeScore: 3,
+        awayScore: 1,
+        winner: 'home',
+      }),
+    ];
+
+    const { result } = renderHook(() => useBracket(groups, matches));
+    expect(result.current.resolved[0].winner).toBe('home');
+    expect(result.current.resolved[2].winner).toBe('home');
+    expect(result.current.resolved[17].match?.id).toBe('r16');
+    expect(result.current.resolved[17].winner).toBe('home');
   });
 });
