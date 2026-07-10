@@ -12,8 +12,10 @@ export function onRequest(
 
   // Assets + API + known unprefixed routes pass through.
   if (
+    path === '/api' ||
     path.startsWith('/api/') ||
-    path.startsWith('/news') ||
+    path === '/news' ||
+    path.startsWith('/news/') ||
     path === '/favicon.png' ||
     path === '/apple-touch-icon.png' ||
     path === '/icon-192.png' ||

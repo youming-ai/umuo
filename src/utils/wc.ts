@@ -137,18 +137,7 @@ export function matchSlug(homeName: string, awayName: string, eventId: string): 
   return eventId ? `${base}-${eventId}` : base;
 }
 
-// Build a display scorer line from an ESPN scoring play, e.g.
-// "Breel Embolo 17' (p)" / "L. Messi 90'+5'" / "J. Doe 30' (OG)".
-// Used for the live-view shorthand; the structured ScorerEntry carries
-// the same data and is rendered by MatchCard via scorerDisplay().
-export function scorerLabel(name: string, clock: string, typeText: string): string {
-  const t = (typeText || '').toLowerCase();
-  const tag = t.includes('own') ? ' (OG)' : t.includes('penalty') ? ' (p)' : '';
-  return `${name} ${clock}${tag}`.trim();
-}
-
-// Render a structured ScorerEntry as a human-readable string. Same
-// shape as scorerLabel() output but takes the already-parsed entry.
+// Render a structured ScorerEntry as a human-readable string.
 export function scorerDisplay(entry: ScorerEntry): string {
   return `${entry.name} ${entry.minute}${entry.tag}`.trim();
 }

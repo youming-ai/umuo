@@ -20,7 +20,6 @@ describe('ThemeProvider', () => {
   it('defaults to dark theme', () => {
     const { result } = renderHook(() => useTheme(), { wrapper });
     expect(result.current.theme).toBe('dark');
-    expect(result.current.resolved).toBe('dark');
     expect(document.documentElement.dataset.theme).toBe('dark');
   });
 
@@ -30,7 +29,6 @@ describe('ThemeProvider', () => {
     act(() => result.current.setTheme('dark'));
 
     expect(result.current.theme).toBe('dark');
-    expect(result.current.resolved).toBe('dark');
     expect(localStorage.getItem('theme')).toBe('dark');
     expect(document.documentElement.dataset.theme).toBe('dark');
   });
@@ -41,7 +39,6 @@ describe('ThemeProvider', () => {
     act(() => result.current.setTheme('light'));
 
     expect(result.current.theme).toBe('light');
-    expect(result.current.resolved).toBe('light');
     expect(localStorage.getItem('theme')).toBe('light');
     expect(document.documentElement.dataset.theme).toBe('light');
   });

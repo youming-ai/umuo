@@ -86,13 +86,10 @@ function StatusPill({
     );
   }
   if (status === 'finished') {
-    const label =
-      finishType === 'pens' ? 'Pens' : finishType === 'aet' ? 'AET' : 'Final';
+    const label = finishType === 'pens' ? 'Pens' : finishType === 'aet' ? 'AET' : 'Final';
     return <span className="ds-caption tracking-widest text-chalkdim">{label}</span>;
   }
-  return (
-    <span className="ds-caption tracking-widest text-chalkdim/70">Upcoming</span>
-  );
+  return <span className="ds-caption tracking-widest text-chalkdim">Upcoming</span>;
 }
 
 function Flag({ src, alt, dim }: { src?: string; alt: string; dim?: boolean }) {
@@ -111,7 +108,12 @@ function CardBodyShell({
   className: string;
   children: ReactNode;
 }) {
-  if (href) return <a href={href} className={className}>{children}</a>;
+  if (href)
+    return (
+      <a href={href} className={className}>
+        {children}
+      </a>
+    );
   return <div className={className}>{children}</div>;
 }
 
@@ -183,14 +185,14 @@ export default memo(function MatchCard({
               </span>
             )}
             {venue && (
-              <span className="ds-caption text-chalkdim/60 truncate hidden sm:inline" title={venue}>
+              <span className="ds-caption text-chalkdim truncate hidden sm:inline" title={venue}>
                 · {venue}
               </span>
             )}
           </div>
           <div className="flex items-center gap-2 shrink-0">
             {kickoff && (
-              <span className="ds-caption tabular-nums text-chalkdim/70">
+              <span className="ds-caption tabular-nums text-chalkdim">
                 {kickoff.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
               </span>
             )}
@@ -209,7 +211,7 @@ export default memo(function MatchCard({
                   </li>
                 ))}
                 {homeScorers.length > 3 && (
-                  <li className="text-chalkdim/60">+{homeScorers.length - 3} more</li>
+                  <li className="text-chalkdim">+{homeScorers.length - 3} more</li>
                 )}
               </ul>
             )}
@@ -260,7 +262,7 @@ export default memo(function MatchCard({
                   </li>
                 ))}
                 {awayScorers.length > 3 && (
-                  <li className="text-chalkdim/60">+{awayScorers.length - 3} more</li>
+                  <li className="text-chalkdim">+{awayScorers.length - 3} more</li>
                 )}
               </ul>
             )}
@@ -269,7 +271,7 @@ export default memo(function MatchCard({
 
         {venue && (
           <div className="px-3 py-1.5 border-t border-overlay/5 sm:hidden">
-            <span className="ds-caption text-chalkdim/70 truncate block">{venue}</span>
+            <span className="ds-caption text-chalkdim truncate block">{venue}</span>
           </div>
         )}
       </CardBodyShell>

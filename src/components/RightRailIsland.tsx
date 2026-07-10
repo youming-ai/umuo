@@ -19,11 +19,18 @@ export default function RightRailIsland({
   comp: string;
   initialData?: InitialData;
 }) {
-  const { standings, scorers } = useCompetition(comp, initialData);
+  const { standings, scorers, loading, error, refetch } = useCompetition(comp, initialData);
 
   return (
     <AppProviders>
-      <RightRail comp={comp} standings={standings} scorers={scorers} />
+      <RightRail
+        comp={comp}
+        standings={standings}
+        scorers={scorers}
+        standingsLoading={loading}
+        standingsError={error}
+        onStandingsRetry={refetch}
+      />
     </AppProviders>
   );
 }

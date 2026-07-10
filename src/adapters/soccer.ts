@@ -32,6 +32,10 @@ function str(v: unknown): string {
   return typeof v === 'string' ? v : '';
 }
 
+function score(v: unknown): number | null {
+  return typeof v === 'string' || typeof v === 'number' ? parseScore(v) : null;
+}
+
 // ESPN standings stats are [{name, value}]; pull one by name.
 function stat(entry: Record<string, unknown>, name: string): number {
   const s = arr(entry.stats).find((x) => obj(x).name === name);
@@ -103,9 +107,11 @@ function transform(
   // `competitor.form` covers a different sliding window. We pick the
   // first 5 chars of any form we see; the most-recent one is the one
   // attached to the team's latest event in the data.
-  const teamForm = new Map<string, string>();
+  const teamForm = new Map<string, { value: string; eventAt: number }>();
   const ms: CompMatch[] = arr(obj(sbJson).events).map((rawEvent): CompMatch => {
     const ev = obj(rawEvent);
+    const parsedEventAt = Date.parse(str(ev.date));
+    const eventAt = Number.isNaN(parsedEventAt) ? Number.NEGATIVE_INFINITY : parsedEventAt;
     const comp = obj(arr(ev.competitions)[0]);
     const competitors = arr(comp.competitors).map(obj);
     const home = competitors.find((c) => c.homeAway === 'home') || competitors[0] || {};
@@ -123,7 +129,10 @@ function transform(
       const c = obj(rawC);
       const tid = str(obj(c.team).id);
       const form = str(c.form);
-      if (tid && form && !teamForm.has(tid)) teamForm.set(tid, form);
+      const previous = teamForm.get(tid);
+      if (tid && form && (!previous || eventAt > previous.eventAt)) {
+        teamForm.set(tid, { value: form, eventAt });
+      }
     }
 
     // goals: scoring plays from competition.details, split by team id.
@@ -207,8 +216,8 @@ function transform(
       awayFlag: teamLogo(awayTeam),
       homeId: homeId,
       awayId: str(awayTeam.id),
-      homeScore: status === 'upcoming' ? null : parseScore(str(home.score)),
-      awayScore: status === 'upcoming' ? null : parseScore(str(away.score)),
+      homeScore: status === 'upcoming' ? null : score(home.score),
+      awayScore: status === 'upcoming' ? null : score(away.score),
       group: teamGroup.get(homeId) || teamGroup.get(str(awayTeam.id)) || '',
       kickoff: kickoff && !Number.isNaN(kickoff.getTime()) ? kickoff : null,
       status,
@@ -231,7 +240,7 @@ function transform(
   // populated teamForm.
   for (const g of gr) {
     for (const s of g.standings) {
-      const form = teamForm.get(s.teamId);
+      const form = teamForm.get(s.teamId)?.value;
       if (form) s.form = form;
     }
   }
@@ -306,9 +315,13 @@ function transformSummary(json: unknown): MatchDetail {
   }
   const homeStats = byTeam.get(homeId) ?? new Map();
   const awayStats = byTeam.get(awayId) ?? new Map();
-  const stats: TeamStatRow[] = [...homeStats.entries()].map(([label, home]) => ({
+  const statLabels = [
+    ...homeStats.keys(),
+    ...[...awayStats.keys()].filter((label) => !homeStats.has(label)),
+  ];
+  const stats: TeamStatRow[] = statLabels.map((label) => ({
     label,
-    home,
+    home: homeStats.get(label) ?? '',
     away: awayStats.get(label) ?? '',
   }));
 

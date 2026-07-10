@@ -1,4 +1,4 @@
-import { useTicker, type TickerMatch } from '../hooks/useTicker';
+import { type TickerMatch, useTicker } from '../hooks/useTicker';
 import { pathFor } from '../utils/router';
 
 // Signature element: a persistent live-score strip pinned above the header.
@@ -28,19 +28,32 @@ export default function Ticker() {
   const { items } = useTicker();
   if (items.length === 0) return null;
 
+  const tickerItems = (isDuplicate = false) => (
+    <div
+      className={`marquee-group flex items-center gap-4 px-page-x py-1.5 md:px-page-x-md${isDuplicate ? ' marquee-copy' : ''}`}
+      aria-hidden={isDuplicate || undefined}
+    >
+      {items.map((m) => (
+        <a
+          key={`${m.comp}-${m.id}`}
+          href={pathFor({ kind: 'match', comp: m.comp, slug: m.slug })}
+          className="flex items-center gap-1.5 whitespace-nowrap ds-caption text-chalkdim hover:text-chalk transition-colors"
+          tabIndex={isDuplicate ? -1 : undefined}
+        >
+          {m.status === 'live' && <span className="live-dot rounded-full" aria-hidden />}
+          <span className="font-medium text-chalk">{formatTickerLine(m)}</span>
+        </a>
+      ))}
+    </div>
+  );
+
   return (
     <div className="border-b border-line/30 bg-panel/60 backdrop-blur-md">
-      <div className="flex items-center gap-4 overflow-x-auto no-scrollbar px-page-x md:px-page-x-md py-1.5">
-        {items.map((m) => (
-          <a
-            key={`${m.comp}-${m.id}`}
-            href={pathFor({ kind: 'match', comp: m.comp, slug: m.slug })}
-            className="flex items-center gap-1.5 whitespace-nowrap ds-caption text-chalkdim hover:text-chalk transition-colors"
-          >
-            {m.status === 'live' && <span className="live-dot rounded-full" aria-hidden />}
-            <span className="font-medium text-chalk">{formatTickerLine(m)}</span>
-          </a>
-        ))}
+      <div className="marquee-viewport no-scrollbar">
+        <div className="marquee-track flex w-max">
+          {tickerItems()}
+          {tickerItems(true)}
+        </div>
       </div>
     </div>
   );

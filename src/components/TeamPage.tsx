@@ -50,10 +50,10 @@ export default function TeamPage({ teamId, groups, matches, scorers, backHref }:
   if (!standing) {
     return (
       <div className="space-y-section w-full">
-          <a href={backHref} className={backClass}>
-            ← <span>Back</span>
-          </a>
-          <p className="font-mono text-xs text-chalkdim p-card text-center">Team not found</p>
+        <a href={backHref} className={backClass}>
+          ← <span>Back</span>
+        </a>
+        <p className="font-mono text-xs text-chalkdim p-card text-center">Team not found</p>
       </div>
     );
   }
@@ -66,123 +66,117 @@ export default function TeamPage({ teamId, groups, matches, scorers, backHref }:
   return (
     // Width + page padding come from the app shell; stack sections only.
     <div className="space-y-section">
-        <a href={backHref} className={backClass}>
-          ← <span>Back</span>
-        </a>
+      <a href={backHref} className={backClass}>
+        ← <span>Back</span>
+      </a>
 
-        {/* Header */}
-        <div className="flex items-center gap-3">
-          {teamFlag ? (
-            <img src={teamFlag} alt={teamName} className="w-12 h-8 object-cover rounded-micro" />
-          ) : (
-            <span className="w-12 h-8 bg-overlay/5 rounded-micro" aria-hidden />
-          )}
-          <div>
-            <h1 className="font-display font-bold text-2xl text-chalk tracking-wide">{teamName}</h1>
-            {groupLetter && (
-              <span className="ds-caption uppercase tracking-[0.18em] text-chalkdim">
-                Group {groupLetter}
-              </span>
-            )}
-          </div>
-        </div>
-
-        {/* Stats strip */}
-        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 sm:gap-card ds-glass p-card">
-          <Stat label="MP" value={standing.mp} />
-          <Stat label="W" value={standing.w} tone="pitch" />
-          <Stat label="D" value={standing.d} />
-          <Stat label="L" value={standing.l} tone="live" />
-          <Stat
-            label="GD"
-            value={standing.gd > 0 ? `+${standing.gd}` : standing.gd}
-            tone={standing.gd > 0 ? 'pitch' : standing.gd < 0 ? 'live' : undefined}
-          />
-          <Stat label="Pts" value={standing.pts} bold />
-          {standing.form && (
-            <div className="col-span-2 sm:col-span-5 flex items-center gap-2 pt-1">
-              <span className="ds-caption uppercase tracking-wider text-chalkdim/60">
-                Form:
-              </span>
-              <TeamFormPill form={standing.form} />
-            </div>
-          )}
-        </div>
-
-        {/* Matches */}
-        <section className="space-y-3">
-          <h2 className="font-display font-bold text-lg text-chalk tracking-wide">
-            Matches
-          </h2>
-          {ownMatches.length === 0 ? (
-            <p className="font-mono text-xs text-chalkdim">No matches scheduled</p>
-          ) : (
-            <div className="space-y-3">
-              {upcoming.length > 0 && <SubHeader>Upcoming</SubHeader>}
-              {upcoming.map((m) => (
-                <MatchCard
-                  key={m.id}
-                  homeName={m.homeName}
-                  awayName={m.awayName}
-                  homeFlag={m.homeFlag}
-                  awayFlag={m.awayFlag}
-                  homeScore={m.homeScore}
-                  awayScore={m.awayScore}
-                  status={m.status}
-                  kickoff={m.kickoff}
-                  stage={m.stage}
-                  group={m.group}
-                  progress={m.progress}
-                  href={pathFor({ kind: 'match', comp, slug: m.slug })}
-                />
-              ))}
-              {finished.length > 0 && <SubHeader>Results</SubHeader>}
-              {finished.map((m) => (
-                <MatchCard
-                  key={m.id}
-                  homeName={m.homeName}
-                  awayName={m.awayName}
-                  homeFlag={m.homeFlag}
-                  awayFlag={m.awayFlag}
-                  homeScore={m.homeScore}
-                  awayScore={m.awayScore}
-                  status={m.status}
-                  kickoff={m.kickoff}
-                  stage={m.stage}
-                  group={m.group}
-                  progress={m.progress}
-                  finishType={m.finishType}
-                  homeShootoutScore={m.homeShootoutScore}
-                  awayShootoutScore={m.awayShootoutScore}
-                  winner={m.winner}
-                  href={pathFor({ kind: 'match', comp, slug: m.slug })}
-                />
-              ))}
-            </div>
-          )}
-        </section>
-
-        {/* Scorers from this team */}
-        {ownScorers.length > 0 && (
-          <section className="space-y-3">
-            <h2 className="font-display font-bold text-lg text-chalk tracking-wide">
-              Top scorers
-            </h2>
-            <ul className="space-y-2 ds-glass p-card">
-              {ownScorers.map((s) => (
-                <li key={s.athleteId}>
-                  <a
-                    href={pathFor({ kind: 'player', comp, athleteId: s.athleteId })}
-                    className="flex items-center justify-between font-mono text-xs hover:text-pitch transition-colors"
-                  >
-                    <span className="font-display text-sm text-chalk">{s.name}</span>
-                    <span className="tabular-nums text-chalk">{s.goals}</span>
-                  </a>
-                </li>
-              ))}
-            </ul>
-          </section>
+      {/* Header */}
+      <div className="flex items-center gap-3">
+        {teamFlag ? (
+          <img src={teamFlag} alt={teamName} className="w-12 h-8 object-cover rounded-micro" />
+        ) : (
+          <span className="w-12 h-8 bg-overlay/5 rounded-micro" aria-hidden />
         )}
+        <div>
+          <h1 className="font-display font-bold text-2xl text-chalk tracking-wide">{teamName}</h1>
+          {groupLetter && (
+            <span className="ds-caption uppercase tracking-[0.18em] text-chalkdim">
+              Group {groupLetter}
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* Stats strip */}
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 sm:gap-card ds-glass p-card">
+        <Stat label="MP" value={standing.mp} />
+        <Stat label="W" value={standing.w} tone="pitch" />
+        <Stat label="D" value={standing.d} />
+        <Stat label="L" value={standing.l} tone="live" />
+        <Stat
+          label="GD"
+          value={standing.gd > 0 ? `+${standing.gd}` : standing.gd}
+          tone={standing.gd > 0 ? 'pitch' : standing.gd < 0 ? 'live' : undefined}
+        />
+        <Stat label="Pts" value={standing.pts} bold />
+        {standing.form && (
+          <div className="col-span-2 sm:col-span-5 flex items-center gap-2 pt-1">
+            <span className="ds-caption uppercase tracking-wider text-chalkdim">Form:</span>
+            <TeamFormPill form={standing.form} />
+          </div>
+        )}
+      </div>
+
+      {/* Matches */}
+      <section className="space-y-3">
+        <h2 className="font-display font-bold text-lg text-chalk tracking-wide">Matches</h2>
+        {ownMatches.length === 0 ? (
+          <p className="font-mono text-xs text-chalkdim">No matches scheduled</p>
+        ) : (
+          <div className="space-y-3">
+            {upcoming.length > 0 && <SubHeader>Upcoming</SubHeader>}
+            {upcoming.map((m) => (
+              <MatchCard
+                key={m.id}
+                homeName={m.homeName}
+                awayName={m.awayName}
+                homeFlag={m.homeFlag}
+                awayFlag={m.awayFlag}
+                homeScore={m.homeScore}
+                awayScore={m.awayScore}
+                status={m.status}
+                kickoff={m.kickoff}
+                stage={m.stage}
+                group={m.group}
+                progress={m.progress}
+                href={pathFor({ kind: 'match', comp, slug: m.slug })}
+              />
+            ))}
+            {finished.length > 0 && <SubHeader>Results</SubHeader>}
+            {finished.map((m) => (
+              <MatchCard
+                key={m.id}
+                homeName={m.homeName}
+                awayName={m.awayName}
+                homeFlag={m.homeFlag}
+                awayFlag={m.awayFlag}
+                homeScore={m.homeScore}
+                awayScore={m.awayScore}
+                status={m.status}
+                kickoff={m.kickoff}
+                stage={m.stage}
+                group={m.group}
+                progress={m.progress}
+                finishType={m.finishType}
+                homeShootoutScore={m.homeShootoutScore}
+                awayShootoutScore={m.awayShootoutScore}
+                winner={m.winner}
+                href={pathFor({ kind: 'match', comp, slug: m.slug })}
+              />
+            ))}
+          </div>
+        )}
+      </section>
+
+      {/* Scorers from this team */}
+      {ownScorers.length > 0 && (
+        <section className="space-y-3">
+          <h2 className="font-display font-bold text-lg text-chalk tracking-wide">Top Scorers</h2>
+          <ul className="space-y-2 ds-glass p-card">
+            {ownScorers.map((s) => (
+              <li key={s.athleteId}>
+                <a
+                  href={pathFor({ kind: 'player', comp, athleteId: s.athleteId })}
+                  className="flex items-center justify-between font-mono text-xs hover:text-pitch transition-colors"
+                >
+                  <span className="font-display text-sm text-chalk">{s.name}</span>
+                  <span className="tabular-nums text-chalk">{s.goals}</span>
+                </a>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
     </div>
   );
 }
@@ -203,7 +197,7 @@ function Stat({
   }`;
   return (
     <div className="flex flex-col items-center">
-      <span className="ds-caption uppercase tracking-wider text-chalkdim/60">{label}</span>
+      <span className="ds-caption uppercase tracking-wider text-chalkdim">{label}</span>
       <span className={valueClass}>{value}</span>
     </div>
   );

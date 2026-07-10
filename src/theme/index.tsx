@@ -24,13 +24,11 @@ function detectTheme(): Theme {
 
 interface ThemeCtx {
   theme: Theme;
-  resolved: Theme;
   setTheme: (t: Theme) => void;
 }
 
 const Ctx = createContext<ThemeCtx>({
   theme: 'dark',
-  resolved: 'dark',
   setTheme: () => {},
 });
 
@@ -50,7 +48,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     setThemeState(t);
   }, []);
 
-  const value = useMemo(() => ({ theme, resolved: theme, setTheme }), [theme, setTheme]);
+  const value = useMemo(() => ({ theme, setTheme }), [theme, setTheme]);
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
 

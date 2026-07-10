@@ -1,6 +1,6 @@
 import { renderHook, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { NewsItem } from '../types';
+import type { NewsItem, NewsScope } from '../types';
 import { useNews } from './useNews';
 
 const fetchMock = vi.fn();
@@ -92,5 +92,35 @@ describe('useNews', () => {
     // wait one tick for any effect to settle; the fetch must NOT have happened
     await new Promise((r) => setTimeout(r, 10));
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('fetches the new scope immediately when a seeded hook changes scope', async () => {
+    const seed: NewsItem[] = [
+      {
+        id: 'seed-1',
+        headline: 'Seeded headline',
+        description: 'd',
+        published: '2026-07-07T00:00:00Z',
+        byline: 'ESPN',
+        imageUrl: '',
+        link: 'https://espn.com/seed',
+        tags: [],
+      },
+    ];
+    fetchMock.mockResolvedValue({ ok: true, json: async () => feed });
+    const { rerender, result } = renderHook(
+      ({ scope }: { scope: NewsScope }) => useNews(scope, seed),
+      {
+        initialProps: { scope: { by: 'all' } as NewsScope },
+      },
+    );
+
+    rerender({ scope: { by: 'sport', sport: 'soccer' } });
+
+    await waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith('/api/news?sport=soccer', expect.any(Object)),
+    );
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.items[0].headline).toBe('Hello');
   });
 });

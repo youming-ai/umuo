@@ -93,7 +93,7 @@ export async function assembleLeaders(
   const category = arr(payload.categories)
     .map(obj)
     .find((c) => str(c.name) === cfg.category);
-  if (!category) return [];
+  if (!category) throw new Error(`leaders category ${cfg.category} not found`);
 
   const rows: RawRow[] = arr(category.leaders)
     .map(obj)

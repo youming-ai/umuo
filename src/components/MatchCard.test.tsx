@@ -1,12 +1,10 @@
-import { fireEvent, render, screen } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { render, screen } from '@testing-library/react';
+import { describe, expect, it } from 'vitest';
 import type { ScorerEntry } from '../types';
 import MatchCard from './MatchCard';
 
 function renderCard(props: Parameters<typeof MatchCard>[0]) {
-  return render(
-    <MatchCard {...props} />,
-  );
+  return render(<MatchCard {...props} />);
 }
 
 // Build a ScorerEntry from a "name minute" string. The tests don't

@@ -57,6 +57,7 @@ function NewsCard({
   variant?: 'standard' | 'lead';
 }) {
   const external = item.link.startsWith('https://');
+  const linked = external || item.link.startsWith('/');
   const isLead = variant === 'lead';
   const body = (
     <div className={isLead ? 'md:flex' : undefined}>
@@ -90,24 +91,24 @@ function NewsCard({
             {item.description}
           </p>
         )}
-        {item.byline && <p className="mt-2 ds-caption text-chalkdim/70">{item.byline}</p>}
+        {item.byline && <p className="mt-2 ds-caption text-chalkdim">{item.byline}</p>}
       </div>
     </div>
   );
 
   return (
     <article className="ds-glass rounded-card shadow-panel overflow-hidden">
-      {external ? (
+      {linked ? (
         <a
           href={item.link}
-          target="_blank"
-          rel="noopener noreferrer"
+          target={external ? '_blank' : undefined}
+          rel={external ? 'noopener noreferrer' : undefined}
           className="block hover:opacity-95 transition"
         >
           {body}
         </a>
       ) : (
-        <div className="block hover:opacity-95 transition">{body}</div>
+        <div>{body}</div>
       )}
       {item.tags.length > 0 && (
         <div className="px-3 pb-3 flex flex-wrap gap-1.5">

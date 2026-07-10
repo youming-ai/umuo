@@ -184,7 +184,7 @@ export default function BracketView({
           viewBox={`0 0 ${BOX} ${BOX}`}
           className="w-full h-full overflow-visible"
           role="img"
-          aria-label="Final"
+          aria-label="Tournament bracket"
         >
           <defs>
             <radialGradient id="cupGlow">
@@ -295,14 +295,8 @@ export default function BracketView({
       </div>
 
       {/* rings, named outward-in */}
-      <p className="ds-caption uppercase tracking-[0.16em] text-chalkdim/60 text-center">
-        {[
-          'Round of 32',
-          'Round of 16',
-          'Quarter-finals',
-          'Semi-finals',
-          'Final',
-        ].join(' · ')}
+      <p className="ds-caption uppercase tracking-[0.16em] text-chalkdim text-center">
+        {['Round of 32', 'Round of 16', 'Quarter-finals', 'Semi-finals', 'Final'].join(' · ')}
       </p>
 
       {thirdPlace && <ThirdPlaceChip match={thirdPlace} comp={comp} />}
@@ -388,25 +382,15 @@ function Node({
   );
 }
 
-function ThirdPlaceChip({
-  match,
-  comp,
-}: {
-  match: ResolvedBracketMatch;
-  comp: string;
-}) {
-  const href = match.match
-    ? pathFor({ kind: 'match', comp, slug: match.match.slug })
-    : undefined;
+function ThirdPlaceChip({ match, comp }: { match: ResolvedBracketMatch; comp: string }) {
+  const href = match.match ? pathFor({ kind: 'match', comp, slug: match.match.slug }) : undefined;
   const cls =
     'flex items-center gap-2 rounded-pill border border-line bg-panel px-3 py-1.5 shadow-panel transition-colors hover:border-pitch';
   const inner = (
     <>
-      <span className="ds-caption uppercase tracking-[0.14em] text-chalkdim/70">
-        3rd place
-      </span>
+      <span className="ds-caption uppercase tracking-[0.14em] text-chalkdim">3rd place</span>
       <Crest team={match.home} />
-      <span className="ds-caption text-chalkdim/50">–</span>
+      <span className="ds-caption text-chalkdim">–</span>
       <Crest team={match.away} />
     </>
   );
@@ -425,7 +409,7 @@ function ThirdPlaceChip({
 }
 
 function Crest({ team }: { team: ResolvedTeam | null }) {
-  if (!team) return <span className="ds-caption text-chalkdim/40">TBD</span>;
+  if (!team) return <span className="ds-caption text-chalkdim">TBD</span>;
   return team.flag ? (
     <img
       src={team.flag}

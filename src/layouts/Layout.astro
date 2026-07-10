@@ -32,7 +32,7 @@ const frame = hasRails ? `px-page-x md:px-page-x-md py-page-y ${cols}` : '';
     <meta charset="UTF-8" />
     <link rel="icon" type="image/png" href="/favicon.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#0A0F0D" />
+    <meta name="theme-color" content="" />
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -67,10 +67,27 @@ const frame = hasRails ? `px-page-x md:px-page-x-md py-page-y ${cols}` : '';
       (() => {
         try {
           const t = localStorage.getItem('theme');
-          document.documentElement.dataset.theme = t === 'light' ? 'light' : 'dark';
+          const theme = t === 'light' ? 'light' : 'dark';
+          document.documentElement.dataset.theme = theme;
         } catch (_e) {
           document.documentElement.dataset.theme = 'dark';
         }
+
+        const syncThemeColor = () => {
+          const channels = getComputedStyle(document.documentElement)
+            .getPropertyValue('--c-bg')
+            .trim();
+          if (channels) {
+            document
+              .querySelector('meta[name="theme-color"]')
+              ?.setAttribute('content', `rgb(${channels})`);
+          }
+        };
+        syncThemeColor();
+        new MutationObserver(syncThemeColor).observe(document.documentElement, {
+          attributes: true,
+          attributeFilter: ['data-theme'],
+        });
       })();
     </script>
     <script is:inline>

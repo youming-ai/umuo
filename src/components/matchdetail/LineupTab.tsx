@@ -31,7 +31,7 @@ function Pitch({ starters }: { starters: LineupPlayer[] }) {
           </span>
           {p.card && (
             <span
-              className={`mt-1 w-2 h-3 rounded-[1px] shadow-sm ${p.card === 'red' ? 'bg-live' : 'bg-yellow-400'}`}
+              className={`mt-1 w-2 h-3 rounded-[1px] shadow-sm ${p.card === 'red' ? 'bg-live' : 'bg-amber'}`}
               aria-hidden
             />
           )}
@@ -49,21 +49,19 @@ function Bench({ players }: { players: LineupPlayer[] }) {
   if (subs.length === 0) return null;
   return (
     <div className="mt-6 bg-overlay/5 rounded-card p-card border border-overlay/5">
-      <h4 className="ds-caption uppercase tracking-[0.2em] text-chalkdim mb-3">
-        Bench
-      </h4>
+      <h4 className="ds-caption uppercase tracking-[0.2em] text-chalkdim mb-3">Bench</h4>
       <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2">
         {subs.map((p) => (
           <li
             key={p.jersey + p.name}
             className="flex items-center gap-2.5 font-body text-sm text-chalkdim py-1 border-b border-overlay/5 last:border-b-0"
           >
-            <span className="font-mono text-xs w-6 text-right font-bold text-chalkdim/60">
+            <span className="font-mono text-xs w-6 text-right font-bold text-chalkdim">
               {p.jersey}
             </span>
             <span className="text-chalk font-medium flex-1 truncate">{p.name}</span>
             {p.card && (
-              <span className={`w-2.5 h-3.5 ${p.card === 'red' ? 'bg-live' : 'bg-yellow-400'}`} />
+              <span className={`w-2.5 h-3.5 ${p.card === 'red' ? 'bg-live' : 'bg-amber'}`} />
             )}
             {p.subbedInAt && (
               <span className="ds-caption text-pitch font-semibold bg-pitch/10 px-1.5 py-0.5 rounded">
@@ -80,9 +78,7 @@ function Bench({ players }: { players: LineupPlayer[] }) {
 export default function LineupTab({ lineups, homeId }: { lineups: TeamLineup[]; homeId: string }) {
   const [side, setSide] = useState<'home' | 'away'>('home');
   if (lineups.length === 0) {
-    return (
-      <p className="font-mono text-xs tracking-wider text-chalkdim p-card">No data yet</p>
-    );
+    return <p className="font-mono text-xs tracking-wider text-chalkdim p-card">No data yet</p>;
   }
   const home = lineups.find((l) => l.teamId === homeId) ?? lineups[0];
   const away = lineups.find((l) => l.teamId !== homeId) ?? lineups[1] ?? home;

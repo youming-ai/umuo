@@ -2,12 +2,7 @@
 
 import { getAdapter } from '../adapters';
 import type { MatchDetail, StandingsData } from '../adapters/types';
-import {
-  type Competition,
-  type Resource,
-  buildUrl,
-  seasonForDate,
-} from '../competitions';
+import { type Competition, type Resource, buildUrl, seasonForDate } from '../competitions';
 import { assembleLeaders, LEADERS_BY_SPORT } from '../leaders';
 import { buildNewsUrl, newsCacheKey, newsFresh, newsParamsFromQuery } from '../news';
 import { parseNewsFeed } from '../newsFeed';
@@ -116,8 +111,9 @@ async function runCached(
   const promise = (async (): Promise<CachedResult> => {
     try {
       const body = await produce();
+      const producedAt = Date.now();
       ctx.waitUntil(
-        env.CACHE.put(cacheKey, JSON.stringify({ body, at: now } satisfies Entry), {
+        env.CACHE.put(cacheKey, JSON.stringify({ body, at: producedAt } satisfies Entry), {
           expirationTtl: keep,
         }),
       );

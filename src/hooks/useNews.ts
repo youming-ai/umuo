@@ -16,10 +16,7 @@ function scopeToQuery(s: NewsScope): string {
 // (the global feed's fresh window; filtered feeds are fresher-capped at 300s, so
 // this just re-hits the edge cache — acceptable). Resets cache when the scope
 // changes so one scope's feed never flashes on another.
-export function useNews(
-  scope: NewsScope,
-  initialData?: NewsItem[],
-) {
+export function useNews(scope: NewsScope, initialData?: NewsItem[]) {
   const query = scopeToQuery(scope);
   const seeded = !!initialData && initialData.length > 0;
   const [items, setItems] = useState<NewsItem[]>(initialData ?? []);
@@ -74,22 +71,9 @@ export function useNews(
   }, [query]);
 
   useEffect(() => {
-    if (!initialRef.current) {
-      // already seeded with initialData; skip the first fetch and start polling
-      const onVisible = () => {
-        if (document.visibilityState === 'visible') fetchData();
-      };
-      const id = setInterval(() => {
-        if (document.visibilityState === 'visible') fetchData();
-      }, 120_000);
-      document.addEventListener('visibilitychange', onVisible);
-      return () => {
-        abortRef.current?.abort();
-        clearInterval(id);
-        document.removeEventListener('visibilitychange', onVisible);
-      };
-    }
-    fetchData();
+    // SSR seed suppresses only the first request for that same query. A client-side
+    // scope change must fetch immediately rather than waiting for the polling interval.
+    if (initialRef.current || queryRef.current !== query) fetchData();
     const onVisible = () => {
       if (document.visibilityState === 'visible') fetchData();
     };
@@ -102,7 +86,7 @@ export function useNews(
       clearInterval(id);
       document.removeEventListener('visibilitychange', onVisible);
     };
-  }, [fetchData]);
+  }, [fetchData, query]);
 
   return { items, loading, error, refetch: fetchData };
 }

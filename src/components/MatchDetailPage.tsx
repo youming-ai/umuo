@@ -45,8 +45,7 @@ function StatusBadge({
   }
   if (status === 'finished') {
     // Knockout finishes carry an AET / Pens tag instead of the plain FT.
-    const label =
-      finishType === 'pens' ? 'Pens' : finishType === 'aet' ? 'AET' : 'Final';
+    const label = finishType === 'pens' ? 'Pens' : finishType === 'aet' ? 'AET' : 'Final';
     return (
       <span className="inline-flex items-center px-3 py-0.5 rounded-pill bg-chalkdim/10 text-chalkdim border border-overlay/10 ds-caption font-bold tracking-wider uppercase select-none">
         {label}
@@ -134,177 +133,169 @@ export default function MatchDetailPage({
   return (
     // Width + page padding come from the app shell; stack sections only.
     <div className="space-y-section">
-        {/* Back navigation */}
-        <div>
-          <a
-            href={backHref}
-            className="font-mono text-xs tracking-widest text-chalkdim hover:text-chalk transition-colors inline-flex items-center gap-1.5 py-1"
-            aria-label="Back"
-          >
-            ← <span>Back</span>
-          </a>
-        </div>
-
-        {/* Hero Scoreboard (Apple Sports style) */}
-        <div className="ds-glass-hero p-card md:p-8 flex flex-col items-center justify-center relative overflow-hidden">
-          {/* Subtle radial glow background circles */}
-          <div className="absolute top-0 right-0 w-32 h-32 bg-pitch/5 rounded-pill blur-3xl pointer-events-none select-none" />
-          <div className="absolute bottom-0 left-0 w-32 h-32 bg-live/5 rounded-pill blur-3xl pointer-events-none select-none" />
-          {/* Stage/Group Label */}
-          {match.stage && (
-            <div className="text-center mb-4 shrink-0">
-              <span className="ds-caption uppercase tracking-[0.2em] text-chalkdim">
-                {stageLabel(match.stage, match.group)}
-              </span>
-            </div>
-          )}
-
-          <div className="flex items-center justify-between w-full max-w-2xl gap-card">
-            {/* Home Team */}
-            <TeamBadge flag={match.homeFlag} name={match.homeName} href={teamHref(match.homeId)} />
-
-            {/* Score & Status */}
-            <div className="flex flex-col items-center justify-center shrink-0 px-2 sm:px-6">
-              {match.status === 'upcoming' ? (
-                <div className="text-center">
-                  <span className="font-mono text-xl md:text-3xl font-black tracking-wider text-chalk">
-                    {match.kickoff
-                      ? match.kickoff.toLocaleTimeString(undefined, {
-                          hour: '2-digit',
-                          minute: '2-digit',
-                          hour12: false,
-                        })
-                      : 'TBD'}
-                  </span>
-                  {match.kickoff && (
-                    <div className="ds-caption text-chalkdim mt-1.5">
-                      {match.kickoff.toLocaleDateString(undefined, {
-                        month: 'short',
-                        day: 'numeric',
-                      })}
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <div className="flex flex-col items-center">
-                  <div className="flex items-center justify-center gap-card sm:gap-8 font-display text-4xl md:text-6xl font-black text-chalk tabular-nums select-none leading-none">
-                    {/* Penalty-shootout score (when decided on pens) sits beside
-                        each team's aggregate as a smaller pitch-colored number. */}
-                    <span>
-                      {match.homeScore ?? 0}
-                      {match.homeShootoutScore != null && (
-                        <sup className="ml-0.5 text-xl md:text-2xl font-bold text-pitch">
-                          ({match.homeShootoutScore})
-                        </sup>
-                      )}
-                    </span>
-                    <span className="text-chalkdim/30 text-2xl md:text-3xl font-light font-body select-none">
-                      :
-                    </span>
-                    <span>
-                      {match.awayShootoutScore != null && (
-                        <sup className="mr-0.5 text-xl md:text-2xl font-bold text-pitch">
-                          ({match.awayShootoutScore})
-                        </sup>
-                      )}
-                      {match.awayScore ?? 0}
-                    </span>
-                  </div>
-                  <div className="mt-3">
-                    <StatusBadge
-                      status={match.status}
-                      progress={match.progress}
-                      finishType={match.finishType}
-                    />
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Away Team */}
-            <TeamBadge flag={match.awayFlag} name={match.awayName} href={teamHref(match.awayId)} />
-          </div>
-        </div>
-
-        {/* Tab List (Segmented Control style) */}
-        <div
-          role="tablist"
-          aria-label="Match detail tabs"
-          onKeyDown={onTabKey}
-          className="ds-segmented-blur w-full"
+      {/* Back navigation */}
+      <div>
+        <a
+          href={backHref}
+          className="font-mono text-xs tracking-widest text-chalkdim hover:text-chalk transition-colors inline-flex items-center gap-1.5 py-1"
+          aria-label="Back"
         >
-          {tabs.map((k) => (
-            <button
-              key={k}
-              type="button"
-              role="tab"
-              onClick={() => setTab(k)}
-              aria-selected={tab === k}
-              className={`flex-1 ds-seg-tab ${
-                tab === k ? 'ds-seg-tab-active' : 'ds-seg-tab-inactive'
-              }`}
-            >
-              {TAB_LABELS[k]}
-            </button>
-          ))}
-        </div>
+          ← <span>Back</span>
+        </a>
+      </div>
 
-        {/* Detail Panel */}
-        <div className="ds-glass-hero p-card min-h-32">
-          {loading ? (
-            <p className="font-mono text-xs tracking-[0.3em] text-pitch animate-pulse p-card text-center">
-              Loading…
-            </p>
-          ) : error ? (
-            <div className="p-card text-center space-y-3">
-              <p className="font-mono text-xs text-live">Failed to load data</p>
-              <button
-                type="button"
-                onClick={reload}
-                className="font-display text-sm text-chalk border border-overlay/10 rounded-pill px-5 py-1.5 hover:border-pitch hover:bg-overlay/5 transition-colors"
-              >
-                Retry
-              </button>
-            </div>
-          ) : detail && detail.kind === 'soccer' ? (
-            <>
-              {tab === 'stats' && <TeamStatsTab stats={detail.stats} />}
-              {tab === 'play' && (
-                <PlayByPlayTab
-                  allPlays={detail.allPlays}
-                  keyPlays={detail.keyPlays}
-                  homeId={homeId}
-                />
-              )}
-              {tab === 'lineup' && <LineupTab lineups={detail.lineups} homeId={homeId} />}
-              {(detail.venue || detail.attendance) && (
-                <div className="pt-card mt-card border-t border-overlay/5 ds-caption text-chalkdim space-y-1.5">
-                  {detail.venue && <div>{detail.venue}</div>}
-                  {detail.attendance && (
-                    <div>
-                      Attendance: {detail.attendance.toLocaleString()}
-                    </div>
-                  )}
+      {/* Hero Scoreboard (Apple Sports style) */}
+      <div className="ds-glass-hero p-card md:p-8 flex flex-col items-center justify-center relative overflow-hidden">
+        {/* Subtle radial glow background circles */}
+        <div className="absolute top-0 right-0 w-32 h-32 bg-pitch/5 rounded-pill blur-3xl pointer-events-none select-none" />
+        <div className="absolute bottom-0 left-0 w-32 h-32 bg-live/5 rounded-pill blur-3xl pointer-events-none select-none" />
+        {/* Stage/Group Label */}
+        {match.stage && (
+          <div className="text-center mb-4 shrink-0">
+            <span className="ds-caption uppercase tracking-[0.2em] text-chalkdim">
+              {stageLabel(match.stage, match.group)}
+            </span>
+          </div>
+        )}
+
+        <div className="flex items-center justify-between w-full max-w-2xl gap-card">
+          {/* Home Team */}
+          <TeamBadge flag={match.homeFlag} name={match.homeName} href={teamHref(match.homeId)} />
+
+          {/* Score & Status */}
+          <div className="flex flex-col items-center justify-center shrink-0 px-2 sm:px-6">
+            {match.status === 'upcoming' ? (
+              <div className="text-center">
+                <span className="font-mono text-xl md:text-3xl font-black tracking-wider text-chalk">
+                  {match.kickoff
+                    ? match.kickoff.toLocaleTimeString(undefined, {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        hour12: false,
+                      })
+                    : 'TBD'}
+                </span>
+                {match.kickoff && (
+                  <div className="ds-caption text-chalkdim mt-1.5">
+                    {match.kickoff.toLocaleDateString(undefined, {
+                      month: 'short',
+                      day: 'numeric',
+                    })}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="flex flex-col items-center">
+                <div className="flex items-center justify-center gap-card sm:gap-8 font-display text-4xl md:text-6xl font-black text-chalk tabular-nums select-none leading-none">
+                  {/* Penalty-shootout score (when decided on pens) sits beside
+                        each team's aggregate as a smaller pitch-colored number. */}
+                  <span>
+                    {match.homeScore ?? 0}
+                    {match.homeShootoutScore != null && (
+                      <sup className="ml-0.5 text-xl md:text-2xl font-bold text-pitch">
+                        ({match.homeShootoutScore})
+                      </sup>
+                    )}
+                  </span>
+                  <span className="text-chalkdim text-2xl md:text-3xl font-light font-body select-none">
+                    :
+                  </span>
+                  <span>
+                    {match.awayShootoutScore != null && (
+                      <sup className="mr-0.5 text-xl md:text-2xl font-bold text-pitch">
+                        ({match.awayShootoutScore})
+                      </sup>
+                    )}
+                    {match.awayScore ?? 0}
+                  </span>
                 </div>
-              )}
-            </>
-          ) : detail && detail.kind === 'basketball' ? (
-            <>
-              {tab === 'boxscore' && <BoxscoreTab tables={detail.playerTables} />}
-              {tab === 'stats' && <TeamStatsTab stats={detail.teamStats} />}
-              {(detail.venue || detail.attendance) && (
-                <div className="pt-card mt-card border-t border-overlay/5 ds-caption text-chalkdim space-y-1.5">
-                  {detail.venue && <div>{detail.venue}</div>}
-                  {detail.attendance && (
-                    <div>
-                      Attendance: {detail.attendance.toLocaleString()}
-                    </div>
-                  )}
+                <div className="mt-3">
+                  <StatusBadge
+                    status={match.status}
+                    progress={match.progress}
+                    finishType={match.finishType}
+                  />
                 </div>
-              )}
-            </>
-          ) : null}
+              </div>
+            )}
+          </div>
+
+          {/* Away Team */}
+          <TeamBadge flag={match.awayFlag} name={match.awayName} href={teamHref(match.awayId)} />
         </div>
+      </div>
+
+      {/* Tab List (Segmented Control style) */}
+      <div
+        role="tablist"
+        aria-label="Match detail tabs"
+        onKeyDown={onTabKey}
+        className="ds-segmented-blur w-full"
+      >
+        {tabs.map((k) => (
+          <button
+            key={k}
+            type="button"
+            role="tab"
+            onClick={() => setTab(k)}
+            aria-selected={tab === k}
+            className={`flex-1 ds-seg-tab ${
+              tab === k ? 'ds-seg-tab-active' : 'ds-seg-tab-inactive'
+            }`}
+          >
+            {TAB_LABELS[k]}
+          </button>
+        ))}
+      </div>
+
+      {/* Detail Panel */}
+      <div className="ds-glass-hero p-card min-h-32">
+        {loading ? (
+          <p className="font-mono text-xs tracking-[0.3em] text-pitch animate-pulse p-card text-center">
+            Loading…
+          </p>
+        ) : error ? (
+          <div className="p-card text-center space-y-3">
+            <p className="font-mono text-xs text-live">Failed to load data</p>
+            <button
+              type="button"
+              onClick={reload}
+              className="font-display text-sm text-chalk border border-overlay/10 rounded-pill px-5 py-1.5 hover:border-pitch hover:bg-overlay/5 transition-colors"
+            >
+              Retry
+            </button>
+          </div>
+        ) : detail && detail.kind === 'soccer' ? (
+          <>
+            {tab === 'stats' && <TeamStatsTab stats={detail.stats} />}
+            {tab === 'play' && (
+              <PlayByPlayTab
+                allPlays={detail.allPlays}
+                keyPlays={detail.keyPlays}
+                homeId={homeId}
+              />
+            )}
+            {tab === 'lineup' && <LineupTab lineups={detail.lineups} homeId={homeId} />}
+            {(detail.venue || detail.attendance) && (
+              <div className="pt-card mt-card border-t border-overlay/5 ds-caption text-chalkdim space-y-1.5">
+                {detail.venue && <div>{detail.venue}</div>}
+                {detail.attendance && <div>Attendance: {detail.attendance.toLocaleString()}</div>}
+              </div>
+            )}
+          </>
+        ) : detail && detail.kind === 'basketball' ? (
+          <>
+            {tab === 'boxscore' && <BoxscoreTab tables={detail.playerTables} />}
+            {tab === 'stats' && <TeamStatsTab stats={detail.teamStats} />}
+            {(detail.venue || detail.attendance) && (
+              <div className="pt-card mt-card border-t border-overlay/5 ds-caption text-chalkdim space-y-1.5">
+                {detail.venue && <div>{detail.venue}</div>}
+                {detail.attendance && <div>Attendance: {detail.attendance.toLocaleString()}</div>}
+              </div>
+            )}
+          </>
+        ) : null}
+      </div>
     </div>
   );
 }

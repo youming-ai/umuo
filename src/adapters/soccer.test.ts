@@ -314,6 +314,52 @@ describe('soccerAdapter.transform', () => {
     expect(sd).toEqual({ kind: 'soccer', groups: [] });
     expect(scorers).toEqual([]);
   });
+
+  it('preserves numeric scores returned by ESPN', () => {
+    const withNumericScores = structuredClone(scoreboard);
+    withNumericScores.events[0].competitions[0].competitors[0].score = 2 as unknown as string;
+    withNumericScores.events[0].competitions[0].competitors[1].score = 0 as unknown as string;
+
+    const { matches } = soccerAdapter.transform(withNumericScores, standings);
+    expect(matches[0].homeScore).toBe(2);
+    expect(matches[0].awayScore).toBe(0);
+  });
+
+  it('uses form from the latest event even when events arrive out of order', () => {
+    const event = (id: string, date: string, form: string) => ({
+      id,
+      date,
+      season: { slug: 'group-stage' },
+      competitions: [
+        {
+          status: { type: { state: 'post' } },
+          competitors: [
+            {
+              homeAway: 'home',
+              score: '1',
+              form,
+              team: { id: '1', displayName: 'Mexico' },
+            },
+            {
+              homeAway: 'away',
+              score: '0',
+              team: { id: '2', displayName: 'South Africa' },
+            },
+          ],
+        },
+      ],
+    });
+    const outOfOrder = {
+      events: [
+        event('new', '2026-06-20T19:00Z', 'WWDWW'),
+        event('old', '2026-06-10T19:00Z', 'LLDLL'),
+      ],
+    };
+
+    const { standings: result } = soccerAdapter.transform(outOfOrder, standings);
+    if (result.kind !== 'soccer') throw new Error('expected soccer');
+    expect(result.groups[0].standings[0].form).toBe('WWDWW');
+  });
 });
 
 // --- transformSummary (lifted from espn.test.ts parseSummary cases) ---
@@ -406,6 +452,14 @@ describe('soccerAdapter.transformSummary', () => {
       { label: 'Possession', home: '54%', away: '46%' },
       { label: 'Shots', home: '21', away: '14' },
     ]);
+  });
+
+  it('keeps a stat that is present only for the away team', () => {
+    const awayOnly = structuredClone(summary);
+    awayOnly.boxscore.teams[1].statistics.push({ label: 'Corners', displayValue: '7' });
+    const parsed = soccerAdapter.transformSummary(awayOnly);
+    if (parsed.kind !== 'soccer') throw new Error('expected soccer');
+    expect(parsed.stats).toContainEqual({ label: 'Corners', home: '', away: '7' });
   });
 
   it('reads commentary as allPlays and keyEvents as keyPlays', () => {

@@ -1,5 +1,5 @@
-import { fireEvent, render, screen } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { render, screen } from '@testing-library/react';
+import { describe, expect, it } from 'vitest';
 import type { CompMatch, ScorerEntry, WCGroup } from '../types';
 import PlayerPage from './PlayerPage';
 
@@ -70,9 +70,7 @@ function renderPage(props: Partial<React.ComponentProps<typeof PlayerPage>> = {}
     ],
     backHref: '/fifa.world',
   };
-  return render(
-    <PlayerPage {...defaults} {...props} />,
-  );
+  return render(<PlayerPage {...defaults} {...props} />);
 }
 
 describe('PlayerPage', () => {
@@ -167,7 +165,10 @@ describe('PlayerPage', () => {
     });
     // Vega scored for the away side (Canada) — the team link must be Canada,
     // not the home opponent Mexico.
-    expect(screen.getByRole('link', { name: 'Canada' })).toHaveAttribute('href', expect.stringContaining('/team/'));
+    expect(screen.getByRole('link', { name: 'Canada' })).toHaveAttribute(
+      'href',
+      expect.stringContaining('/team/'),
+    );
     expect(screen.queryByRole('button', { name: 'Mexico' })).not.toBeInTheDocument();
   });
 
