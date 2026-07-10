@@ -9,6 +9,11 @@ export function onRequest(
   next: () => Response | Promise<Response>,
 ) {
   const path = context.url.pathname;
+  const search = context.url.search;
+  // A dot in the final segment means a static asset (favicon.png, sw.js,
+  // manifest.webmanifest, og.jpg, …) or any file-like path — pass it through so
+  // a missing file 404s cleanly instead of being redirected into a comp path.
+  const lastSeg = path.slice(path.lastIndexOf('/') + 1);
 
   // Assets + API + known unprefixed routes pass through.
   if (
@@ -16,14 +21,7 @@ export function onRequest(
     path.startsWith('/api/') ||
     path === '/news' ||
     path.startsWith('/news/') ||
-    path === '/favicon.png' ||
-    path === '/apple-touch-icon.png' ||
-    path === '/icon-192.png' ||
-    path === '/icon-512.png' ||
-    path === '/manifest.webmanifest' ||
-    path === '/sw.js' ||
-    path === '/logo-full.png' ||
-    path === '/og.jpg'
+    lastSeg.includes('.')
   ) {
     return next();
   }
@@ -35,12 +33,13 @@ export function onRequest(
     }
   }
 
-  // Root redirect — news-first home.
+  // Root redirect — news-first home. Preserve the query string on every
+  // redirect so share/UTM params survive the hop.
   if (path === '/') {
-    return context.redirect('/news', 307);
+    return context.redirect(`/news${search}`, 307);
   }
 
   // Legacy unprefixed paths: redirect to the default competition.
   // /scorers → /fifa.world/scorers, /match/foo → /fifa.world/match/foo, etc.
-  return context.redirect(`/${DEFAULT_COMPETITION}${path}`, 307);
+  return context.redirect(`/${DEFAULT_COMPETITION}${path}${search}`, 307);
 }

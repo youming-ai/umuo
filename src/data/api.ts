@@ -19,10 +19,18 @@ import type { NewsParams } from '../news';
 // `keep`  = how long KV retains it (≥ fresh) so a stale copy can cover an outage.
 // KV TTL minimum is 60s.
 
-async function fetchWithRetry(url: string, init: RequestInit, retries = 1): Promise<Response> {
+async function fetchWithRetry(
+  url: string,
+  init: RequestInit,
+  retries = 1,
+  timeoutMs = 10_000,
+): Promise<Response> {
   for (let i = 0; i <= retries; i++) {
     try {
-      const res = await fetch(url, init);
+      // Fresh timeout per attempt: a single AbortSignal.timeout shared across
+      // retries is already aborted on the 2nd try, making the retry a no-op.
+      // ponytail: ceiling is (retries+1)*timeoutMs + backoff of total wall-time.
+      const res = await fetch(url, { ...init, signal: AbortSignal.timeout(timeoutMs) });
       if (res.ok || i === retries) return res;
       // 仅对 5xx 重试
       if (res.status >= 500) {
@@ -151,7 +159,6 @@ async function cached(
           accept: 'application/json, text/plain, */*',
           'accept-language': 'en-US,en;q=0.9',
         },
-        signal: AbortSignal.timeout(10_000),
       });
       if (!res.ok) throw new Error(`upstream ${res.status}`);
       return res.text();
