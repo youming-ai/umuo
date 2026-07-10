@@ -206,6 +206,8 @@ it('shows the NBA statusText and no stage label in the hero', async () => {
   await screen.findByText('L. James');
   // no soccer stage/group chip in the hero (nbaMatch has no stage)
   expect(screen.queryByText(/^Group /)).not.toBeInTheDocument();
+  // finished NBA fixture carries ESPN shortDetail as statusText
+  expect(screen.getByText('Final')).toBeInTheDocument();
 });
 
 it('does not link NBA team crests (no basketball team page exists)', async () => {

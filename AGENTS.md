@@ -1,7 +1,7 @@
 # Repository Guidelines
 
 ## Project Overview
-StreamCup is a high-performance, lightweight web app for tracking sports schedules, standings, scorers, brackets, match detail, news, and live streams (FIFA World Cup, Premier League, NBA). It is an **Astro 5 server-rendered (SSR) app with React islands**, deployed as a single Cloudflare Worker that both renders pages and edge-caches the upstream ESPN APIs in KV.
+**umuo** (repo still may say StreamCup in older docs) is a high-performance, lightweight web app for sports **news first**, plus schedules, standings, scorers, brackets, and match detail (FIFA World Cup, Premier League, NBA). It is an **Astro 5 server-rendered (SSR) app with React islands**, deployed as a single Cloudflare Worker that both renders pages and edge-caches the upstream ESPN APIs in KV.
 
 ## Architecture & Data Flow
 ```mermaid
@@ -18,7 +18,7 @@ graph TD
 ```
 * **Astro SSR shell**: `output: "server"` on `@astrojs/cloudflare` (`platformProxy` gives real KV bindings in dev). File-based routes under `src/pages/` render the first paint server-side by calling the shared data layer with `Astro.locals.runtime.env.CACHE` + `ctx`, then hydrate React islands (`@astrojs/react`, `client:only="react"`) seeded with `initialData`.
 * **React islands + client router**: Once hydrated, islands (`CompetitionIsland`, `RightRailIsland`, `MatchDetailIsland`, `TeamPageIsland`, `PlayerPageIsland`, `NewsIsland`, `Ticker`, `ThemeToggle`) own interactivity. Client-side navigation still uses the hand-rolled History API router (`src/utils/router.ts`: `navigate`/`useRouter`/`pathFor`, `app:routechange` event) — Astro owns the initial route, the router owns in-app navigation.
-* **Astro middleware** (`src/middleware.ts`): redirects `/` and legacy unprefixed paths to `/<DEFAULT_COMPETITION>` (`fifa.world`, 307); passes through comp-prefixed routes, `/api`, `/news`, `/player`, and asset paths.
+* **Astro middleware** (`src/middleware.ts`): redirects `/` to `/news` (news-first home, 307) and legacy unprefixed paths to their canonical forms; passes through comp-prefixed routes, `/api`, `/news`, `/player`, and asset paths.
 * **Shared data layer** (`src/data/api.ts`): the KV TTL/SWR cache core + in-memory request coalescing + serve-stale-on-outage, PLUS SSR composition helpers (`getCompetitionView`, `getPipelineLeaders`, `getCompMatchBySlug`, `getMatchSummary`, `fetchNewsItems`) and the low-level `serve`/`serveSummary`/`serveLeaders`/`serveNews`/`json`. Both the SSR pages and `worker/index.ts` call these — one cache, one code path.
 * **Worker wrapper** (`worker/index.ts`): a thin HTTP layer — URL parse → `serve*` dispatch. Mounted at `/api/*` by the Astro catch-all `src/pages/api/[...route].ts`, which forwards `worker.fetch(request, env, ctx)`. The browser's same-origin `/api/:comp/{scoreboard,standings,summary,leaders}` and `/api/news` go through it.
 * **SportAdapter system** (`src/adapters/`): abstract `SportAdapter` (`types.ts`) implemented by `soccer.ts` and `basketball.ts`, registered via `getAdapter(comp)` (`index.ts`). Defensive `obj()/arr()/str()` coercion normalizes untyped ESPN JSON into `CompMatch[]`, `StandingsData`, `MatchDetail` (discriminated unions on `kind`).
@@ -27,12 +27,12 @@ graph TD
 ## Key Directories
 * `src/pages/`: Astro file-based SSR routes — `[comp]/` (`index`, `scorers`, `bracket`, `match/[slug]`, `team/[id]`), `news/` (`index`, `[sport]`, `team/[abbrev]`, `league/[slug]`), `player/[id]`, `api/[...route]`.
 * `src/layouts/Layout.astro`: page shell — inline theme boot script, sticky Ticker + Header, opt-in left/right rail slots, Footer, PWA/OG head.
-* `src/components/`: `*.astro` shells (`Header`, `Footer`, `LeftNav`, `NewsPageShell`), React views (`FixturesView`, `StandingsView`, `BracketView`, `LeadersView`, `MatchDetailPage`, `TeamPage`, `PlayerPage`, `RightRail`, `NewsView`, `MatchCard`, `Player`), `*Island.tsx` hydration wrappers, and `AppProviders.tsx` (i18n + theme context for islands). `matchdetail/` holds the tab subviews.
+* `src/components/`: `*.astro` shells (`Header`, `Footer`, `LeftNav`, `NewsPageShell`), React views (`FixturesView`, `StandingsView`, `BracketView`, `LeadersView`, `MatchDetailPage`, `TeamPage`, `PlayerPage`, `RightRail`, `NewsView`, `MatchCard`, `Player`), `*Island.tsx` hydration wrappers, and `AppProviders.tsx` (theme context for islands). `matchdetail/` holds the tab subviews.
 * `src/data/api.ts`: shared KV cache + SSR composition helpers (see above).
-* `src/hooks/`: `useCompetition`, `useMatchDetail`, `useStreams`, `useLeaders`, `useBracket`, `useNews` — SWR + `AbortController` + visibility-gated polling.
+* `src/hooks/`: `useCompetition`, `useMatchDetail`, `useStreams`, `useLeaders`, `useBracket`, `useNews`, `useTicker` — SWR + `AbortController` + visibility-gated polling (`useTicker` is a module-level shared poller across islands).
 * `src/adapters/`: `types.ts`, `soccer.ts`, `basketball.ts`, `index.ts`.
 * `src/utils/`: `router.ts`, `calendar.ts` (`.ics`/Google Calendar), `streamSources.ts`, `streamMatch.ts`, `espn.ts` (soccer detail transforms), `wc.ts` (status/score/slug/stage helpers), `marquee.ts` (match selection for ticker display), `helpers.ts` (slugify).
-* `src/i18n/` & `src/theme/`: custom i18n (`messages.ts`, en/zh/ja/ko) and theme (`data-theme` dark/light) providers.
+* `src/theme/`: theme (`data-theme` dark/light) provider. UI copy is English-only (i18n was removed).
 * `src/competitions.ts`, `src/leaders.ts`, `src/news.ts`, `src/newsFeed.ts`, `src/types/`: registry, leaders pipeline, news params/parser, shared types.
 * `worker/`: `index.ts` HTTP wrapper + `index.test.ts`.
 * `docs/`: `espn-api.md` (upstream endpoints + quirks — read before touching URL building/parsing), `news-classification-spec.md`, `superpowers/` (specs + plans).
@@ -55,8 +55,8 @@ There is no `deploy` script and `wrangler` is not a dependency — deployment ru
 * **Glassmorphism style** (`.ds-glass`, `.ds-glass-hero`): rounded "Apple Sports" look, proportional radii (`--r-panel` 24px base; `rounded-micro` 3px; `rounded-pill` capsules). Don't reintroduce the removed zero-radius aesthetic.
 * **Naming**: PascalCase React components (`MatchCard.tsx`), PascalCase `.astro` files, camelCase hooks/utils/adapters. Tests colocated as `<name>.test.ts(x)`. Slugify via `src/utils/helpers.ts`.
 * **Async**: every fetching effect registers an `AbortController`; hooks poll (30s matches/competition, 60s streams/leaders, 120s news) and suspend on `visibilitychange`; reset cache + state when the `comp`/`eventId` key changes.
-* **Routing**: keep Astro middleware, file-based routes, and the client router consistent — every route carries its competition as the first URL segment. Wrap decoded path params in `safeDecode`.
-* **i18n**: `messages.ts` is a flat `key → string` map per language (en is the fallback); `messages.test.ts` enforces key parity — add a key to every language.
+* **Routing**: keep Astro middleware, file-based routes, and the client router consistent — competition routes carry the competition as the first URL segment; news lives under `/news`. Wrap decoded path params in `safeDecode`.
+* **Copy / theme**: UI strings are English hardcoding; theme is dark/light via `data-theme` (see `src/theme/`). Do not reintroduce a multi-language messages map without an explicit product decision.
 * Some inline comments are in Chinese (season/date logic, leaders pipeline, ESPN quirks) — preserve them when editing nearby code.
 
 ## Commit Attribution
