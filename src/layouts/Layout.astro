@@ -112,7 +112,11 @@ const canonicalUrl = `${SITE_ORIGIN}${canonicalPath}`;
     <div class="ds-floodlight" aria-hidden="true"></div>
     <div class="relative z-10 flex flex-col min-h-screen">
       <div class="sticky top-0 z-40 bg-night/95 backdrop-blur-md">
-        <Ticker client:only="react" />
+        {/* Reserve the ticker's row height so the client:only strip fills it on
+            hydration instead of popping in and shoving the header down (CLS). */}
+        <div class="min-h-[26px]">
+          <Ticker client:only="react" />
+        </div>
         <Header comp={comp} />
       </div>
       <div class={`flex-1 w-full ${frame}`}>
