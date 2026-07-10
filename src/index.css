@@ -135,7 +135,7 @@
     @apply ds-segmented backdrop-blur-md;
   }
   .ds-seg-tab {
-    @apply min-h-11 px-3.5 py-1 rounded-pill font-display text-sm transition-all duration-200;
+    @apply inline-flex shrink-0 items-center justify-center min-h-9 px-3.5 py-1 rounded-pill font-display text-sm transition-all duration-200;
   }
   .ds-seg-tab-active {
     @apply bg-overlay/10 text-chalk shadow-sm font-bold;
@@ -146,7 +146,7 @@
 
   /* Filter / stage chips */
   .ds-chip {
-    @apply min-h-11 shrink-0 px-3 py-1 rounded-pill font-mono text-caption uppercase tracking-wider transition-all duration-200 border;
+    @apply inline-flex shrink-0 items-center justify-center min-h-9 px-3 py-1 rounded-pill font-mono text-caption uppercase tracking-wider transition-all duration-200 border;
   }
   .ds-chip-active {
     @apply bg-overlay/10 text-chalk border-overlay/10 font-bold shadow-sm;
