@@ -12,19 +12,24 @@ const currentComp = Object.keys(COMPETITIONS).find(
 );
 const onScores = !onNews && !!currentComp;
 
-// Scores href preserves the current competition when already on a scores route;
-// otherwise defaults to World Cup. Switch competitions via LeftNav on score pages.
+// Scores keeps you on the current competition when already in scores; otherwise
+// opens the default (World Cup). Switch competitions via LeftNav.
 const scoresHref = currentComp ? `/${currentComp}` : `/${DEFAULT_COMPETITION}`;
 
-// One nav bar: News (All) + curated news categories + Scores. All items are real
-// <a> tabs so they share the same segmented-control layout.
-const NAV = [
-  { href: '/news', label: 'News', active: path === '/news' },
+// Top bar is only the two product areas — cramming news channels into the
+// same segmented pill made the control look broken and mixed news with scores.
+const PRIMARY = [
+  { href: '/news', label: 'News', active: onNews },
+  { href: scoresHref, label: 'Scores', active: onScores },
+];
+
+// News channels live on a second row (chips), only while browsing news.
+const NEWS_CHANNELS = [
+  { href: '/news', label: 'All', active: path === '/news' },
   { href: '/news/soccer', label: 'Soccer', active: path === '/news/soccer' },
   { href: '/news/basketball', label: 'Basketball', active: path === '/news/basketball' },
   { href: '/news/league/eng.1', label: 'EPL', active: path === '/news/league/eng.1' },
   { href: '/news/league/nba', label: 'NBA', active: path === '/news/league/nba' },
-  { href: scoresHref, label: 'Scores', active: onScores },
 ];
 ---
 <header class="border-b border-line/30 bg-panel/85 backdrop-blur-md">
@@ -33,12 +38,15 @@ const NAV = [
       umu<span class="text-pitch">o</span>
     </a>
 
-    <nav aria-label="Main" class="ds-segmented-blur overflow-x-auto no-scrollbar">
-      {NAV.map((item) => (
+    <nav aria-label="Main" class="ds-segmented-blur shrink-0">
+      {PRIMARY.map((item) => (
         <a
           href={item.href}
           aria-current={item.active ? 'page' : undefined}
-          class={`whitespace-nowrap ds-seg-tab ${item.active ? 'ds-seg-tab-active' : 'ds-seg-tab-inactive'}`}
+          class:list={[
+            'ds-seg-tab whitespace-nowrap',
+            item.active ? 'ds-seg-tab-active' : 'ds-seg-tab-inactive',
+          ]}
         >
           {item.label}
         </a>
@@ -49,4 +57,26 @@ const NAV = [
       <ThemeToggle client:only="react" />
     </div>
   </div>
+
+  {onNews && (
+    <div class="border-t border-line/20 px-page-x md:px-page-x-md py-2">
+      <nav
+        aria-label="News channels"
+        class="flex gap-1 overflow-x-auto no-scrollbar"
+      >
+        {NEWS_CHANNELS.map((item) => (
+          <a
+            href={item.href}
+            aria-current={item.active ? 'page' : undefined}
+            class:list={[
+              'ds-chip',
+              item.active ? 'ds-chip-active' : 'ds-chip-inactive',
+            ]}
+          >
+            {item.label}
+          </a>
+        ))}
+      </nav>
+    </div>
+  )}
 </header>
