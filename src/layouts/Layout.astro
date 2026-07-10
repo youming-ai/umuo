@@ -25,6 +25,14 @@ const cols =
       ? 'lg:grid lg:gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]'
       : 'lg:grid lg:gap-6 lg:grid-cols-[13rem_minmax(0,1fr)]';
 const frame = hasRails ? `px-page-x md:px-page-x-md py-page-y ${cols}` : '';
+
+// Canonical + og:url must match the actual page path (not a hardcoded /news).
+// Use the production origin so previews/dev still emit stable share URLs.
+const SITE_ORIGIN = 'https://cup.umuo.app';
+const rawPath = Astro.url.pathname;
+const canonicalPath =
+  rawPath.length > 1 && rawPath.endsWith('/') ? rawPath.slice(0, -1) : rawPath || '/';
+const canonicalUrl = `${SITE_ORIGIN}${canonicalPath}`;
 ---
 <!doctype html>
 <html lang="en">
@@ -41,12 +49,12 @@ const frame = hasRails ? `px-page-x md:px-page-x-md py-page-y ${cols}` : '';
     <title>{title}</title>
     <meta name="description" content="Sports news, live scores, fixtures, and standings for the World Cup, Premier League, NBA, and more — one fast, no-clutter hub." />
     <meta name="robots" content="index, follow" />
-    <link rel="canonical" href="https://cup.umuo.app/news" />
+    <link rel="canonical" href={canonicalUrl} />
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="umuo" />
-    <meta property="og:title" content="umuo — Sports news, scores &amp; standings" />
+    <meta property="og:title" content={title} />
     <meta property="og:description" content="Breaking sports news, live scores, fixtures, and standings — World Cup, Premier League, NBA, and more." />
-    <meta property="og:url" content="https://cup.umuo.app/news" />
+    <meta property="og:url" content={canonicalUrl} />
     <meta property="og:image" content="https://cup.umuo.app/og.jpg" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
@@ -55,7 +63,7 @@ const frame = hasRails ? `px-page-x md:px-page-x-md py-page-y ${cols}` : '';
     <meta property="og:locale:alternate" content="ja_JP" />
     <meta property="og:locale:alternate" content="ko_KR" />
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="umuo — Sports news, scores &amp; standings" />
+    <meta name="twitter:title" content={title} />
     <meta name="twitter:description" content="Breaking sports news, live scores, fixtures, and standings — World Cup, Premier League, NBA, and more." />
     <meta name="twitter:image" content="https://cup.umuo.app/og.jpg" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />

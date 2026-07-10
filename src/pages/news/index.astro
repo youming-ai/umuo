@@ -14,5 +14,5 @@ const items = await fetchNewsItems({ limit: 20 }, env, ctx);
   <main>
     <NewsIsland scope={scope} initialData={items} client:only="react" />
   </main>
-  <NewsRightRailIsland slot="right" client:only="react" />
+  <NewsRightRailIsland slot="right" initialNews={items} client:only="react" />
 </Layout>

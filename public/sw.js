@@ -1,5 +1,7 @@
-const CACHE_NAME = 'umuo-v1';
-const PRECACHE_URLS = ['/', '/index.html'];
+const CACHE_NAME = 'umuo-v2';
+// News-first home — do not precache `/` (middleware 307 → /news) or a
+// non-existent `/index.html` shell from the old SPA layout.
+const PRECACHE_URLS = ['/news'];
 
 // Install: precache app shell
 self.addEventListener('install', (event) => {
@@ -20,7 +22,7 @@ self.addEventListener('activate', (event) => {
 });
 
 // Fetch strategy:
-//  - HTML navigations: network-first, so a new deploy's index.html (with fresh
+//  - HTML navigations: network-first, so a new deploy's shell (with fresh
 //    asset hashes) always wins. Stale-cached HTML pointing at deleted hashed
 //    bundles is what causes the "MIME type text/html" module-load failure.
 //    Falls back to cache only when offline.
@@ -53,7 +55,7 @@ self.addEventListener('fetch', (event) => {
           cachePut(event, response);
           return response;
         })
-        .catch(() => caches.match(request).then((c) => c || caches.match('/index.html'))),
+        .catch(() => caches.match(request).then((c) => c || caches.match('/news'))),
     );
     return;
   }

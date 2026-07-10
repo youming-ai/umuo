@@ -1,5 +1,5 @@
 ---
-import { COMPETITIONS, DEFAULT_COMPETITION } from '../competitions';
+import { COMPETITIONS } from '../competitions';
 import ThemeToggle from './ThemeToggle';
 
 interface Props {
@@ -7,20 +7,23 @@ interface Props {
 }
 const path = Astro.url.pathname;
 const onNews = path === '/news' || path.startsWith('/news/');
-const onScores =
-  !onNews &&
-  Object.keys(COMPETITIONS).some((key) => path === `/${key}` || path.startsWith(`/${key}/`));
+const currentComp = Object.keys(COMPETITIONS).find(
+  (key) => path === `/${key}` || path.startsWith(`/${key}/`),
+);
+const onScores = !onNews && !!currentComp;
 
-// One nav bar: News (All) + a curated set of news categories + Scores. Other
-// leagues (La Liga, Serie A, …) stay reachable by URL — promote here if needed.
-const NAV = [
+// One nav bar: News (All) + curated news categories + Scores menu. The Scores
+// <details> is the primary path into each competition scoreboard (World Cup /
+// Premier League / NBA) after the old competition switcher was removed.
+const NEWS_NAV = [
   { href: '/news', label: 'News', active: path === '/news' },
   { href: '/news/soccer', label: 'Soccer', active: path === '/news/soccer' },
   { href: '/news/basketball', label: 'Basketball', active: path === '/news/basketball' },
   { href: '/news/league/eng.1', label: 'EPL', active: path === '/news/league/eng.1' },
   { href: '/news/league/nba', label: 'NBA', active: path === '/news/league/nba' },
-  { href: `/${DEFAULT_COMPETITION}`, label: 'Scores', active: onScores },
 ];
+
+const scoreComps = Object.values(COMPETITIONS);
 ---
 <header class="border-b border-line/30 bg-panel/85 backdrop-blur-md">
   <div class="flex items-center gap-4 px-page-x md:px-page-x-md h-14">
@@ -29,7 +32,7 @@ const NAV = [
     </a>
 
     <nav aria-label="Main" class="ds-segmented-blur overflow-x-auto no-scrollbar">
-      {NAV.map((item) => (
+      {NEWS_NAV.map((item) => (
         <a
           href={item.href}
           aria-current={item.active ? 'page' : undefined}
@@ -38,6 +41,37 @@ const NAV = [
           {item.label}
         </a>
       ))}
+
+      <details class="relative">
+        <summary
+          class={`whitespace-nowrap ds-seg-tab list-none cursor-pointer [&::-webkit-details-marker]:hidden ${
+            onScores ? 'ds-seg-tab-active' : 'ds-seg-tab-inactive'
+          }`}
+          aria-current={onScores ? 'true' : undefined}
+        >
+          Scores
+        </summary>
+        <div
+          class="absolute top-full left-0 z-50 mt-1 min-w-[11rem] rounded-card border border-line/30 bg-panel/95 p-1 shadow-lg backdrop-blur-md"
+          role="menu"
+          aria-label="Competition scores"
+        >
+          {scoreComps.map((c) => (
+            <a
+              href={`/${c.key}`}
+              role="menuitem"
+              aria-current={currentComp === c.key ? 'page' : undefined}
+              class={`block whitespace-nowrap rounded-card px-3 py-2 font-display text-sm transition-colors ${
+                currentComp === c.key
+                  ? 'bg-overlay/10 font-bold text-chalk'
+                  : 'text-chalkdim hover:bg-overlay/5 hover:text-chalk'
+              }`}
+            >
+              {c.label}
+            </a>
+          ))}
+        </div>
+      </details>
     </nav>
 
     <div class="ml-auto shrink-0">

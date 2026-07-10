@@ -57,4 +57,18 @@ describe('marqueeMatches', () => {
     const matches = [m('old', 'finished', at('2026-06-10T15:00:00Z'))];
     expect(marqueeMatches(matches, NOW)).toEqual([]);
   });
+
+  it('dedupes by composite comp:id when competitions are present', () => {
+    const a = { ...m('same', 'live', at('2026-06-16T11:00:00Z')), comp: 'nba' };
+    const b = { ...m('same', 'live', at('2026-06-16T11:30:00Z')), comp: 'eng.1' };
+    const out = marqueeMatches([a, b], NOW);
+    expect(out).toHaveLength(2);
+    expect(out.map((x) => x.comp)).toEqual(['nba', 'eng.1']);
+  });
+
+  it('still dedupes bare id when no comp is set', () => {
+    const a = m('dup', 'live', at('2026-06-16T11:00:00Z'));
+    const b = m('dup', 'live', at('2026-06-16T12:00:00Z'));
+    expect(marqueeMatches([a, b], NOW)).toHaveLength(1);
+  });
 });

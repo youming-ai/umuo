@@ -9,12 +9,14 @@ interface NewsRightRailProps {
   trending: NewsItem[];
   scores: TickerMatch[];
   newsLoading?: boolean;
+  scoresLoading?: boolean;
 }
 
 export default function NewsRightRail({
   trending,
   scores,
   newsLoading = false,
+  scoresLoading = false,
 }: NewsRightRailProps) {
   return (
     <div className="flex flex-col gap-4 w-full">
@@ -50,7 +52,9 @@ export default function NewsRightRail({
           <span>Today's Scores</span>
         </h3>
         {scores.length === 0 ? (
-          <p className="text-xs text-chalkdim px-1 py-2 italic">No matches right now.</p>
+          <p className="text-xs text-chalkdim px-1 py-2 italic">
+            {scoresLoading ? 'Loading scores...' : 'No matches right now.'}
+          </p>
         ) : (
           <div className="flex flex-col gap-2">
             {scores.map((m) => (

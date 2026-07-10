@@ -1,7 +1,7 @@
 import { type KeyboardEvent as ReactKeyboardEvent, useEffect, useState } from 'react';
-import { useMatchDetail } from '../hooks/useMatchDetail';
-import { COMPETITIONS } from '../competitions';
 import type { MatchDetail } from '../adapters/types';
+import { COMPETITIONS } from '../competitions';
+import { useMatchDetail } from '../hooks/useMatchDetail';
 import type { CompMatch } from '../types';
 import { pathFor, useRouter } from '../utils/router';
 import { stageLabel } from '../utils/wc';
@@ -23,13 +23,18 @@ function StatusBadge({
   status,
   progress,
   finishType,
+  statusText,
 }: {
   status: 'upcoming' | 'live' | 'finished';
   progress: CompMatch['progress'];
   finishType: CompMatch['finishType'];
+  /** ESPN shortDetail when present (period/OT clock for basketball). */
+  statusText?: string | null;
 }) {
   if (status === 'live') {
     const isHT = progress?.status === 'halftime';
+    // Prefer statusText (e.g. "3rd 4:12") over generic LIVE, matching MatchCard.
+    const liveLabel = isHT ? 'Half-time' : statusText || progress?.displayClock || 'LIVE';
     return (
       <span
         className={`inline-flex items-center gap-1.5 px-3 py-0.5 rounded-pill ds-caption font-bold tracking-wider uppercase select-none ${
@@ -39,13 +44,14 @@ function StatusBadge({
         }`}
       >
         {!isHT && <span className="w-1.5 h-1.5 rounded-pill bg-live animate-pulse" />}
-        {isHT ? 'Half-time' : progress?.displayClock || 'LIVE'}
+        {liveLabel}
       </span>
     );
   }
   if (status === 'finished') {
-    // Knockout finishes carry an AET / Pens tag instead of the plain FT.
-    const label = finishType === 'pens' ? 'Pens' : finishType === 'aet' ? 'AET' : 'Final';
+    // Prefer statusText for OT finals ("Final/OT"); else knockout AET/Pens tags.
+    const label =
+      statusText || (finishType === 'pens' ? 'Pens' : finishType === 'aet' ? 'AET' : 'Final');
     return (
       <span className="inline-flex items-center px-3 py-0.5 rounded-pill bg-chalkdim/10 text-chalkdim border border-overlay/10 ds-caption font-bold tracking-wider uppercase select-none">
         {label}
@@ -214,6 +220,7 @@ export default function MatchDetailPage({
                     status={match.status}
                     progress={match.progress}
                     finishType={match.finishType}
+                    statusText={match.statusText}
                   />
                 </div>
               </div>
