@@ -31,7 +31,9 @@ const scoreComps = Object.values(COMPETITIONS);
       umu<span class="text-pitch">o</span>
     </a>
 
-    <nav aria-label="Main" class="ds-segmented-blur overflow-x-auto no-scrollbar">
+    {/* News channels scroll horizontally; `min-w-0` lets this flex item shrink
+        so it scrolls internally instead of pushing the row wider. */}
+    <nav aria-label="News channels" class="ds-segmented-blur overflow-x-auto no-scrollbar min-w-0">
       {NEWS_NAV.map((item) => (
         <a
           href={item.href}
@@ -41,41 +43,66 @@ const scoreComps = Object.values(COMPETITIONS);
           {item.label}
         </a>
       ))}
-
-      <details class="relative">
-        <summary
-          class={`whitespace-nowrap ds-seg-tab list-none cursor-pointer [&::-webkit-details-marker]:hidden ${
-            onScores ? 'ds-seg-tab-active' : 'ds-seg-tab-inactive'
-          }`}
-          aria-current={onScores ? 'true' : undefined}
-        >
-          Scores
-        </summary>
-        <div
-          class="absolute top-full left-0 z-50 mt-1 min-w-[11rem] rounded-card border border-line/30 bg-panel/95 p-1 shadow-lg backdrop-blur-md"
-          role="menu"
-          aria-label="Competition scores"
-        >
-          {scoreComps.map((c) => (
-            <a
-              href={`/${c.key}`}
-              role="menuitem"
-              aria-current={currentComp === c.key ? 'page' : undefined}
-              class={`block whitespace-nowrap rounded-card px-3 py-2 font-display text-sm transition-colors ${
-                currentComp === c.key
-                  ? 'bg-overlay/10 font-bold text-chalk'
-                  : 'text-chalkdim hover:bg-overlay/5 hover:text-chalk'
-              }`}
-            >
-              {c.label}
-            </a>
-          ))}
-        </div>
-      </details>
     </nav>
+
+    {/* Scores disclosure lives OUTSIDE the scrolling nav: an `overflow-x-auto`
+        ancestor computes `overflow-y: auto` too, which would clip this dropdown.
+        Kept as its own pill so it can't be scrolled off and never gets clipped. */}
+    <details data-menu class="relative shrink-0 ds-segmented-blur">
+      <summary
+        aria-current={onScores ? 'page' : undefined}
+        class={`whitespace-nowrap ds-seg-tab list-none cursor-pointer [&::-webkit-details-marker]:hidden ${
+          onScores ? 'ds-seg-tab-active' : 'ds-seg-tab-inactive'
+        }`}
+      >
+        Scores
+      </summary>
+      <div
+        class="absolute top-full left-0 z-50 mt-1 min-w-[11rem] rounded-card border border-line/30 bg-panel/95 p-1 shadow-lg backdrop-blur-md"
+        aria-label="Competition scores"
+      >
+        {scoreComps.map((c) => (
+          <a
+            href={`/${c.key}`}
+            aria-current={currentComp === c.key ? 'page' : undefined}
+            class={`block whitespace-nowrap rounded-card px-3 py-2 font-display text-sm transition-colors ${
+              currentComp === c.key
+                ? 'bg-overlay/10 font-bold text-chalk'
+                : 'text-chalkdim hover:bg-overlay/5 hover:text-chalk'
+            }`}
+          >
+            {c.label}
+          </a>
+        ))}
+      </div>
+    </details>
 
     <div class="ml-auto shrink-0">
       <ThemeToggle client:only="react" />
     </div>
   </div>
 </header>
+
+<script>
+  // Native <details> closes only when its own summary is re-clicked — not on an
+  // outside click or Escape. Wire those up for [data-menu] disclosures (the
+  // Scores dropdown) so it behaves like a real menu. Scoped to [data-menu] so
+  // any other <details> on the page is left alone.
+  const closeMenus = (except: Element | null) => {
+    for (const d of document.querySelectorAll<HTMLDetailsElement>('details[data-menu][open]')) {
+      if (d !== except) d.open = false;
+    }
+  };
+  document.addEventListener('click', (e) => {
+    const target = e.target;
+    const inside = target instanceof Element ? target.closest('details[data-menu]') : null;
+    closeMenus(inside);
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape') return;
+    for (const d of document.querySelectorAll<HTMLDetailsElement>('details[data-menu][open]')) {
+      d.open = false;
+      d.querySelector<HTMLElement>('summary')?.focus();
+    }
+  });
+</script>
