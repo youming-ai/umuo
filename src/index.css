@@ -230,15 +230,23 @@
 
 @keyframes marquee-scroll {
   from {
-    transform: translateX(0);
+    transform: translateX(-50%);
   }
   to {
-    transform: translateX(-50%);
+    transform: translateX(0);
   }
 }
 
+.marquee-viewport {
+  overflow: hidden;
+}
+.marquee-group {
+  flex-shrink: 0;
+  min-width: 100vw;
+}
 .marquee-track {
   animation: marquee-scroll 45s linear infinite;
+  will-change: transform;
 }
 .marquee-track:hover {
   animation-play-state: paused;
@@ -250,6 +258,13 @@
   }
   .marquee-track {
     animation: none;
+    will-change: auto;
+  }
+  .marquee-viewport {
+    overflow-x: auto;
+  }
+  .marquee-copy {
+    display: none;
   }
 }
 
