@@ -207,7 +207,7 @@ async function cachedProducer(
 
 export async function serve(
   comp: Competition,
-  resource: 'scoreboard' | 'standings' | 'news',
+  resource: Resource,
   env: Env,
   ctx: ExecutionContext,
 ): Promise<Response> {

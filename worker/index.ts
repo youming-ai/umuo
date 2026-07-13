@@ -25,7 +25,7 @@ export default {
       if (resource === 'leaders') {
         return serveLeaders(comp, env, ctx);
       }
-      return serve(comp, resource as 'scoreboard' | 'standings' | 'news', env, ctx);
+      return serve(comp, resource, env, ctx);
     }
     if (url.pathname.startsWith('/api/')) return new Response('Not found', { status: 404 });
     return env.ASSETS.fetch(request); // static assets + SPA fallback

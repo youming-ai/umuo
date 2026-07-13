@@ -12,7 +12,7 @@ if (!comp || !Object.hasOwn(COMPETITIONS, comp) || !id) {
 }
 const competition = COMPETITIONS[comp]!;
 const env = Astro.locals.runtime.env;
-const ctx = Astro.locals.runtime.ctx as Parameters<typeof getTeamDetail>[2];
+const ctx = Astro.locals.runtime.ctx as Parameters<typeof getTeamDetail>[3];
 const [team, initialData] = await Promise.all([
   getTeamDetail(competition, id, env, ctx),
   getCompetitionView(competition, env, ctx),
