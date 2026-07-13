@@ -1,23 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { parseNewsFeed } from '../newsFeed';
-import type { NewsItem, NewsScope } from '../types';
+import type { NewsItem } from '../types';
 
-// The /api/news query for a scope. /api/news filters by sport/leagues/team;
-// the 'all' scope sends no filter. (leagues is plural — Phase-1 whitelist.)
-function scopeToQuery(s: NewsScope): string {
-  if (s.by === 'sport') return `?sport=${encodeURIComponent(s.sport)}`;
-  if (s.by === 'league') return `?leagues=${encodeURIComponent(s.league)}`;
-  if (s.by === 'team') return `?team=${encodeURIComponent(s.team)}`;
-  return '';
-}
-
-// News feed for the current scope. Same SWR + visibility-gated polling +
-// AbortController idiom as useLeaders; news changes moderately. Poll every 120s
-// (the global feed's fresh window; filtered feeds are fresher-capped at 300s, so
-// this just re-hits the edge cache — acceptable). Resets cache when the scope
-// changes so one scope's feed never flashes on another.
-export function useNews(scope: NewsScope, initialData?: NewsItem[]) {
-  const query = scopeToQuery(scope);
+// Per-competition news feed. Fetches the same-origin `/api/<comp>/news` (ESPN's
+// site.api league feed via the Worker). Same SWR + visibility-gated polling +
+// AbortController idiom as useLeaders; news changes moderately, so poll at 120s.
+// Resets cache when `comp` changes so one competition's feed never flashes on
+// another.
+export function useNews(comp: string, initialData?: NewsItem[]) {
   const seeded = !!initialData && initialData.length > 0;
   const [items, setItems] = useState<NewsItem[]>(initialData ?? []);
   const [loading, setLoading] = useState(!seeded);
@@ -27,11 +17,11 @@ export function useNews(scope: NewsScope, initialData?: NewsItem[]) {
     seeded ? { data: initialData, ts: Date.now() } : null,
   );
   const initialRef = useRef(!seeded);
-  const queryRef = useRef(query);
+  const compRef = useRef(comp);
 
   const fetchData = useCallback(async () => {
-    if (queryRef.current !== query) {
-      queryRef.current = query;
+    if (compRef.current !== comp) {
+      compRef.current = comp;
       cacheRef.current = null;
       initialRef.current = true;
       setItems([]);
@@ -49,7 +39,7 @@ export function useNews(scope: NewsScope, initialData?: NewsItem[]) {
       setError(null);
     }
     try {
-      const res = await fetch(`/api/news${query}`, { signal });
+      const res = await fetch(`/api/${comp}/news`, { signal });
       if (signal.aborted) return;
       if (!res.ok) throw new Error('Failed to load news');
       const json = await res.json();
@@ -68,12 +58,10 @@ export function useNews(scope: NewsScope, initialData?: NewsItem[]) {
         initialRef.current = false;
       }
     }
-  }, [query]);
+  }, [comp]);
 
   useEffect(() => {
-    // SSR seed suppresses only the first request for that same query. A client-side
-    // scope change must fetch immediately rather than waiting for the polling interval.
-    if (initialRef.current || queryRef.current !== query) fetchData();
+    if (initialRef.current || compRef.current !== comp) fetchData();
     const onVisible = () => {
       if (document.visibilityState === 'visible') fetchData();
     };
@@ -86,7 +74,7 @@ export function useNews(scope: NewsScope, initialData?: NewsItem[]) {
       clearInterval(id);
       document.removeEventListener('visibilitychange', onVisible);
     };
-  }, [fetchData, query]);
+  }, [fetchData, comp]);
 
   return { items, loading, error, refetch: fetchData };
 }

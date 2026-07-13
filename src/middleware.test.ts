@@ -15,9 +15,17 @@ function run(url: string) {
 const O = 'https://x.test';
 
 describe('middleware routing', () => {
-  it('redirects root to /news', () => {
+  it('redirects root to the default competition', () => {
     const { redirect } = run(`${O}/`);
-    expect(redirect).toHaveBeenCalledWith('/news', 307);
+    expect(redirect).toHaveBeenCalledWith(`/${DEFAULT_COMPETITION}`, 307);
+  });
+
+  it('redirects legacy /news paths to the default competition news', () => {
+    expect(run(`${O}/news`).redirect).toHaveBeenCalledWith(`/${DEFAULT_COMPETITION}/news`, 307);
+    expect(run(`${O}/news/soccer`).redirect).toHaveBeenCalledWith(
+      `/${DEFAULT_COMPETITION}/news`,
+      307,
+    );
   });
 
   it('redirects legacy unprefixed paths to the default competition', () => {
@@ -26,20 +34,19 @@ describe('middleware routing', () => {
   });
 
   it('preserves the query string across redirects', () => {
-    expect(run(`${O}/?ref=a`).redirect).toHaveBeenCalledWith('/news?ref=a', 307);
+    expect(run(`${O}/?ref=a`).redirect).toHaveBeenCalledWith(`/${DEFAULT_COMPETITION}?ref=a`, 307);
     expect(run(`${O}/match/foo?ref=share`).redirect).toHaveBeenCalledWith(
       `/${DEFAULT_COMPETITION}/match/foo?ref=share`,
       307,
     );
   });
 
-  it('passes through /api, /news, and comp-prefixed routes', () => {
+  it('passes through /api and comp-prefixed routes', () => {
     for (const p of [
       '/api',
       '/api/fifa.world/scoreboard',
-      '/news',
-      '/news/soccer',
       `/${DEFAULT_COMPETITION}`,
+      `/${DEFAULT_COMPETITION}/news`,
     ]) {
       const { next, redirect } = run(`${O}${p}`);
       expect(next, p).toHaveBeenCalled();

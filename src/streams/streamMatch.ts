@@ -1,5 +1,6 @@
-import type { CompMatch, Match } from '../types';
-import { slugify } from './helpers';
+import type { CompMatch } from '../types';
+import type { Match } from './types';
+import { slugify } from '../utils/helpers';
 
 // ESPN and ppv.to spell some nations differently (ESPN uses "Türkiye",
 // "Czechia", "United States"; ppv tends toward "Turkey", "Czech Republic",

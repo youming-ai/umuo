@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { Match, Substream } from '../types';
+import type { Match, Substream } from './types';
 import { slugify } from '../utils/helpers';
-import { isTrustedStreamUrl } from '../utils/streamSources';
+import { isTrustedStreamUrl } from './streamSources';
 
 interface APISub {
   name: string;

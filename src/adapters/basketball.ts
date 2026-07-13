@@ -7,6 +7,7 @@ import type {
   SportAdapter,
   StandingsData,
 } from './types';
+import { parseOdds, parseRecentForm } from './summaryExtras';
 
 function isPlainObject(v: unknown): v is Record<string, unknown> {
   return typeof v === 'object' && v !== null && !Array.isArray(v);
@@ -188,6 +189,8 @@ function transformSummary(json: unknown): MatchDetail {
     playerTables,
     venue: venueName && city ? `${venueName} · ${city}` : venueName,
     attendance: typeof att === 'number' ? att : null,
+    odds: parseOdds(d),
+    form: parseRecentForm(d),
   };
 }
 

@@ -6,44 +6,19 @@ interface Props {
   comp?: string; // accepted from Layout; nav derives active state from the URL
 }
 const path = Astro.url.pathname;
-const onNews = path === '/news' || path.startsWith('/news/');
 const currentComp = Object.keys(COMPETITIONS).find(
   (key) => path === `/${key}` || path.startsWith(`/${key}/`),
 );
-const onScores = !onNews && !!currentComp;
-
-// One nav bar: News (All) + curated news categories + Scores menu. The Scores
-// <details> is the primary path into each competition scoreboard (World Cup /
-// Premier League / NBA) after the old competition switcher was removed.
-const NEWS_NAV = [
-  { href: '/news', label: 'News', active: path === '/news' },
-  { href: '/news/soccer', label: 'Soccer', active: path === '/news/soccer' },
-  { href: '/news/basketball', label: 'Basketball', active: path === '/news/basketball' },
-  { href: '/news/league/eng.1', label: 'EPL', active: path === '/news/league/eng.1' },
-  { href: '/news/league/nba', label: 'NBA', active: path === '/news/league/nba' },
-];
+const onScores = !!currentComp;
 
 const scoreComps = Object.values(COMPETITIONS);
 ---
 <header class="border-b border-line/30 bg-panel/85 backdrop-blur-md">
   <div class="flex items-center gap-4 px-page-x md:px-page-x-md h-14">
-    <a href="/news" class="font-display font-bold text-lg tracking-wide text-chalk shrink-0">
+    <a href="/" class="font-display font-bold text-lg tracking-wide text-chalk shrink-0">
       umu<span class="text-pitch">o</span>
     </a>
 
-    {/* News channels scroll horizontally; `min-w-0` lets this flex item shrink
-        so it scrolls internally instead of pushing the row wider. */}
-    <nav aria-label="News channels" class="ds-segmented-blur overflow-x-auto no-scrollbar min-w-0">
-      {NEWS_NAV.map((item) => (
-        <a
-          href={item.href}
-          aria-current={item.active ? 'page' : undefined}
-          class={`whitespace-nowrap ds-seg-tab ${item.active ? 'ds-seg-tab-active' : 'ds-seg-tab-inactive'}`}
-        >
-          {item.label}
-        </a>
-      ))}
-    </nav>
 
     {/* Scores disclosure lives OUTSIDE the scrolling nav: an `overflow-x-auto`
         ancestor computes `overflow-y: auto` too, which would clip this dropdown.

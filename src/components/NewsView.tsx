@@ -1,16 +1,14 @@
-import { DEFAULT_COMPETITION } from '../competitions';
 import { useNews } from '../hooks/useNews';
-import type { NewsItem, NewsScope, NewsTag } from '../types';
-import { pathFor } from '../utils/router';
+import type { NewsItem, NewsTag } from '../types';
 
 export default function NewsView({
-  scope,
+  comp,
   initialData,
 }: {
-  scope: NewsScope;
+  comp: string;
   initialData?: NewsItem[];
 }) {
-  const { items, loading, error, refetch } = useNews(scope, initialData);
+  const { items, loading, error, refetch } = useNews(comp, initialData);
   const leadItem = items[0];
   const storyItems = items.slice(1);
 
@@ -125,23 +123,9 @@ function NewsCard({
   );
 }
 
-// team tags are clickable (→ that team's news feed); athlete/league are labels
-// only, because /api/news can't filter on them.
+// All tags render as plain labels. News is now per-competition (site.api league
+// feed); there is no team-scoped news route to link into.
 function Tag({ tag }: { tag: NewsTag }) {
   const cls = 'ds-caption rounded-micro px-1.5 py-0.5 bg-white/5';
-  if (tag.kind === 'team' && tag.team) {
-    return (
-      <a
-        href={pathFor({
-          kind: 'news',
-          comp: DEFAULT_COMPETITION,
-          scope: { by: 'team', team: tag.team },
-        })}
-        className={`${cls} text-chalk hover:bg-white/10 transition`}
-      >
-        {tag.label}
-      </a>
-    );
-  }
   return <span className={`${cls} text-chalkdim`}>{tag.label}</span>;
 }

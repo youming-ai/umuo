@@ -129,3 +129,97 @@ export async function assembleLeaders(
     };
   });
 }
+
+export interface LeaderboardSpec {
+  category: string; // leaders doc `categories[].name` (verified live per sport)
+  label: string; // board heading / stat column label
+  group: string; // ESPN-style grouping (Scoring / Discipline / …)
+}
+
+export interface Leaderboard {
+  key: string;
+  label: string;
+  group: string;
+  leaders: Leader[];
+}
+
+// Which categories to surface per sport, grouped ESPN-style. Kept to 4 boards ×
+// topN 5 so total $ref fan-out (athletes + deduped teams + the doc) stays well
+// under the Cloudflare Workers 50-subrequest cap.
+export const LEADERBOARDS_BY_SPORT: Record<string, LeaderboardSpec[]> = {
+  soccer: [
+    { category: 'goals', label: 'Goals', group: 'Scoring' },
+    { category: 'assists', label: 'Assists', group: 'Scoring' },
+    { category: 'yellowCards', label: 'Yellow Cards', group: 'Discipline' },
+    { category: 'saves', label: 'Saves', group: 'Goalkeeping' },
+  ],
+  basketball: [
+    { category: 'pointsPerGame', label: 'Points', group: 'Scoring' },
+    { category: 'assistsPerGame', label: 'Assists', group: 'Playmaking' },
+    { category: 'reboundsPerGame', label: 'Rebounds', group: 'Rebounding' },
+    { category: 'blocksPerGame', label: 'Blocks', group: 'Defense' },
+  ],
+};
+
+// Assemble MULTIPLE leaderboards from ONE leaders document: one upstream fetch,
+// then a single shared $ref resolution across every board's rows. Same failure
+// contract as assembleLeaders (primary doc throws → serve-stale covers it;
+// per-row ref failures degrade silently). Boards with no rows are dropped.
+export async function assembleLeaderboards(
+  fetchImpl: typeof fetch,
+  cfg: { sport: string; league: string; season: number; type: number; topN: number },
+  specs: LeaderboardSpec[],
+): Promise<Leaderboard[]> {
+  const url = `${CORE}/sports/${cfg.sport}/leagues/${cfg.league}/seasons/${cfg.season}/types/${cfg.type}/leaders`;
+  const res = await fetchImpl(url);
+  if (!res.ok) throw new Error(`leaders upstream ${res.status}`);
+  const payload = obj(await res.json());
+  const categories = arr(payload.categories).map(obj);
+
+  const perSpec = specs.map((spec) => {
+    const category = categories.find((c) => str(c.name) === spec.category);
+    const rows: RawRow[] = arr(category?.leaders)
+      .map(obj)
+      .map((l) => ({
+        displayValue: str(l.displayValue),
+        value: Number(l.value) || 0,
+        athleteRef: str(obj(l.athlete).$ref),
+        teamRef: str(obj(l.team).$ref),
+      }))
+      .sort((a, b) => b.value - a.value)
+      .slice(0, cfg.topN);
+    return { spec, rows };
+  });
+
+  const refs = [
+    ...new Set(
+      perSpec
+        .flatMap(({ rows }) => [...rows.map((r) => r.athleteRef), ...rows.map((r) => r.teamRef)])
+        .filter(Boolean),
+    ),
+  ];
+  const resolved = await resolveRefs(fetchImpl, refs);
+
+  return perSpec
+    .filter(({ rows }) => rows.length > 0)
+    .map(
+      ({ spec, rows }): Leaderboard => ({
+        key: spec.category,
+        label: spec.label,
+        group: spec.group,
+        leaders: rows.map((r, i): Leader => {
+          const athlete = resolved.get(r.athleteRef);
+          const team = resolved.get(r.teamRef);
+          const logos = team ? arr(team.logos) : [];
+          return {
+            rank: i + 1,
+            name: athlete ? str(athlete.displayName) || str(athlete.shortName) : '',
+            teamName: team ? str(team.displayName) : '',
+            teamLogo: logos.length ? str(obj(logos[0]).href) : '',
+            displayValue: r.displayValue,
+            value: r.value,
+          };
+        }),
+      }),
+    );
+}

@@ -2,12 +2,29 @@
 
 import { getAdapter } from '../adapters';
 import type { MatchDetail, StandingsData } from '../adapters/types';
-import { type Competition, type Resource, buildUrl, seasonForDate } from '../competitions';
-import { assembleLeaders, LEADERS_BY_SPORT } from '../leaders';
-import { buildNewsUrl, newsCacheKey, newsFresh, newsParamsFromQuery } from '../news';
+import { type Competition, type Resource, buildUrl, seasonForDate, teamUrl } from '../competitions';
+import {
+  assembleLeaderboards,
+  assembleLeaders,
+  LEADERBOARDS_BY_SPORT,
+  LEADERS_BY_SPORT,
+  type Leaderboard,
+} from '../leaders';
 import { parseNewsFeed } from '../newsFeed';
-import type { CompMatch, Leader, NewsItem, TopScorer } from '../types';
-import type { NewsParams } from '../news';
+import { parseTeams } from '../teams';
+import { parseTeamDetail, parseTeamInjuries } from '../teamDetail';
+import { parseLeagueInjuries, parseTransactions } from '../transactions';
+import type {
+  CompMatch,
+  Leader,
+  LeagueInjuryGroup,
+  NewsItem,
+  TeamDetail,
+  TeamInjury,
+  TeamSummary,
+  TopScorer,
+  TransactionItem,
+} from '../types';
 
 // Edge cache for the upstream data APIs. The SPA calls same-origin /api/*; the
 // Worker fetches the third-party source and caches the body in KV. Now lifted
@@ -73,6 +90,10 @@ const TTL: Record<Resource, { fresh: number; keep: number }> = {
   scoreboard: { fresh: 60, keep: 86400 },
   standings: { fresh: 300, keep: 86400 },
   summary: { fresh: 30, keep: 86400 },
+  news: { fresh: 300, keep: 86400 },
+  teams: { fresh: 86400, keep: 86400 },
+  injuries: { fresh: 300, keep: 86400 },
+  transactions: { fresh: 3600, keep: 86400 },
 };
 
 export function json(body: string, status: number, cache: CacheState): Response {
@@ -186,7 +207,7 @@ async function cachedProducer(
 
 export async function serve(
   comp: Competition,
-  resource: 'scoreboard' | 'standings',
+  resource: Resource,
   env: Env,
   ctx: ExecutionContext,
 ): Promise<Response> {
@@ -247,40 +268,156 @@ export async function serveLeaders(
   );
 }
 
-// Global/sport/league/team news feed (ESPN "now" core API). Transparent JSON
-// proxy: whitelist the query, fetch upstream, KV-cache the raw body under a
-// stable news key. Filtered feeds change slower than the global firehose, so
-// newsFresh() gives them a longer fresh window (PRD §5). keep is 1 day, matching
-// the other resources.
-export async function serveNews(
-  q: URLSearchParams,
+// Multi-category Stats board (Scoring/Discipline/… leaderboards) from the same
+// core.api leaders doc as serveLeaders, assembled into a grouped set. topN 5 ×
+// ≤4 categories keeps the $ref fan-out under the Workers subrequest cap. Same
+// serve-stale contract via cachedProducer.
+export async function serveLeaderboards(
+  comp: Competition,
   env: Env,
   ctx: ExecutionContext,
 ): Promise<Response> {
-  const params = newsParamsFromQuery(q);
-  return cached(newsCacheKey(params), buildNewsUrl(params), newsFresh(params), 86400, env, ctx);
+  const map = LEADERS_BY_SPORT[comp.sport];
+  const specs = LEADERBOARDS_BY_SPORT[comp.sport];
+  if (!map || !specs) return json('{"error":"stats not supported for this sport"}', 400, 'MISS');
+  const cfg = {
+    sport: comp.sport,
+    league: comp.league,
+    season: comp.season ?? seasonForDate(comp.sport, new Date()),
+    type: map.type,
+    topN: 5,
+  };
+  return cachedProducer(
+    `${comp.key}:leaderboards`,
+    () => assembleLeaderboards(fetch, cfg, specs),
+    3600,
+    86400,
+    env,
+    ctx,
+  );
 }
 
-// Compose serveNews + parseNewsFeed into one SSR-friendly call. Returns the
-// already-parsed NewsItem[] ready to render. Empty array on any failure
-// (non-ok, JSON error, upstream {"error":...}). Used by the Astro news pages.
-export async function fetchNewsItems(
-  params: NewsParams,
+// Per-competition news from ESPN's site.api league feed (site/v2/.../{league}/news).
+// Unlike the removed "now" firehose (which ignored the leagues filter and always
+// returned the global stream), this endpoint is genuinely league-scoped. Cached as
+// the `news` resource; parsed to NewsItem[] for SSR seeding. Empty on any failure.
+export async function getCompNews(
+  comp: Competition,
   env: Env,
   ctx: ExecutionContext,
 ): Promise<NewsItem[]> {
-  const q = new URLSearchParams();
-  if (params.limit !== undefined) q.set('limit', String(params.limit));
-  if (params.sport) q.set('sport', params.sport);
-  if (params.leagues) q.set('leagues', params.leagues);
-  if (params.team) q.set('team', params.team);
-  const res = await serveNews(q, env, ctx);
+  const res = await serve(comp, 'news', env, ctx);
   if (!res.ok) return [];
   try {
-    const body = await res.text();
-    const json: unknown = JSON.parse(body);
+    const json: unknown = JSON.parse(await res.text());
     if (json && typeof json === 'object' && 'error' in json) return [];
     return parseNewsFeed(json);
+  } catch {
+    return [];
+  }
+}
+
+// Per-competition team directory from ESPN's site.api teams list, parsed to
+// TeamSummary[] (name-sorted). Empty array on any failure path.
+export async function getTeams(
+  comp: Competition,
+  env: Env,
+  ctx: ExecutionContext,
+): Promise<TeamSummary[]> {
+  const res = await serve(comp, 'teams', env, ctx);
+  if (!res.ok) return [];
+  try {
+    return parseTeams(JSON.parse(await res.text()));
+  } catch {
+    return [];
+  }
+}
+
+// Full team detail (header + roster + schedule + filtered injuries) from
+// site.api. team/roster/schedule are cached per URL; injuries are cached per
+// team via cachedProducer (the raw league feed is large — filter once per TTL,
+// not per render). Returns null when the team endpoint fails or has no name.
+export async function getTeamDetail(
+  comp: Competition,
+  teamId: string,
+  env: Env,
+  ctx: ExecutionContext,
+): Promise<TeamDetail | null> {
+  try {
+    const [teamRes, rosterRes, schedRes, injRes] = await Promise.all([
+      cached(`team:${comp.key}:${teamId}`, teamUrl(comp, teamId, ''), 86400, 86400, env, ctx),
+      cached(
+        `roster:${comp.key}:${teamId}`,
+        teamUrl(comp, teamId, 'roster'),
+        86400,
+        86400,
+        env,
+        ctx,
+      ),
+      cached(
+        `schedule:${comp.key}:${teamId}`,
+        teamUrl(comp, teamId, 'schedule'),
+        3600,
+        86400,
+        env,
+        ctx,
+      ),
+      cachedProducer(
+        `injuries:${comp.key}:${teamId}`,
+        async () => {
+          const r = await serve(comp, 'injuries', env, ctx);
+          return r.ok ? parseTeamInjuries(await r.json(), teamId) : [];
+        },
+        300,
+        86400,
+        env,
+        ctx,
+      ),
+    ]);
+    if (!teamRes.ok) return null;
+    const [team, roster, sched] = await Promise.all([
+      teamRes.json(),
+      rosterRes.ok ? rosterRes.json() : {},
+      schedRes.ok ? schedRes.json() : {},
+    ]);
+    const detail = parseTeamDetail(team, roster, sched, teamId);
+    if (!detail.name) return null;
+    const injRaw: unknown = injRes.ok ? await injRes.json() : [];
+    detail.injuries = Array.isArray(injRaw) ? (injRaw as TeamInjury[]) : [];
+    return detail;
+  } catch {
+    return null;
+  }
+}
+
+// NBA roster moves: recent transactions from the league transactions feed.
+// Empty where the sport doesn't populate it (soccer). Used by the Astro
+// transactions page.
+export async function getTransactions(
+  comp: Competition,
+  env: Env,
+  ctx: ExecutionContext,
+): Promise<TransactionItem[]> {
+  const res = await serve(comp, 'transactions', env, ctx);
+  if (!res.ok) return [];
+  try {
+    return parseTransactions(JSON.parse(await res.text()));
+  } catch {
+    return [];
+  }
+}
+
+// Current league-wide injuries, grouped by team. Empty on failure / for sports
+// that don't populate it.
+export async function getLeagueInjuries(
+  comp: Competition,
+  env: Env,
+  ctx: ExecutionContext,
+): Promise<LeagueInjuryGroup[]> {
+  const res = await serve(comp, 'injuries', env, ctx);
+  if (!res.ok) return [];
+  try {
+    return parseLeagueInjuries(JSON.parse(await res.text()));
   } catch {
     return [];
   }
@@ -338,6 +475,23 @@ export async function getPipelineLeaders(
     if (!res.ok) return [];
     const raw: unknown = await res.json();
     return Array.isArray(raw) ? (raw as Leader[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+// Compose serveLeaderboards → Leaderboard[] for the Astro stats page. Empty
+// array on any failure path.
+export async function getLeaderboards(
+  comp: Competition,
+  env: Env,
+  ctx: ExecutionContext,
+): Promise<Leaderboard[]> {
+  try {
+    const res = await serveLeaderboards(comp, env, ctx);
+    if (!res.ok) return [];
+    const raw: unknown = await res.json();
+    return Array.isArray(raw) ? (raw as Leaderboard[]) : [];
   } catch {
     return [];
   }

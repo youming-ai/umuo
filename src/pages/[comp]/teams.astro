@@ -1,0 +1,30 @@
+---
+import { COMPETITIONS } from '../../competitions';
+import LeftNav from '../../components/LeftNav.astro';
+import RightRailIsland from '../../components/RightRailIsland';
+import TeamsIsland from '../../components/TeamsIsland';
+import { getCompetitionView, getTeams } from '../../data/api';
+import Layout from '../../layouts/Layout.astro';
+
+const { comp } = Astro.params;
+if (!comp || !Object.hasOwn(COMPETITIONS, comp)) {
+  return new Response('Not found', { status: 404 });
+}
+const competition = COMPETITIONS[comp]!;
+const env = Astro.locals.runtime.env;
+const ctx = Astro.locals.runtime.ctx as Parameters<typeof getTeams>[2];
+const [teams, initialData] = await Promise.all([
+  getTeams(competition, env, ctx),
+  getCompetitionView(competition, env, ctx),
+]);
+---
+<Layout title={`umuo — ${competition.label} Teams`} comp={comp}>
+  <LeftNav slot="left" comp={comp} active="teams" />
+  <main>
+    <h1 class="mb-card font-display text-2xl font-bold tracking-wide text-chalk">
+      {competition.label} Teams
+    </h1>
+    <TeamsIsland comp={comp} teams={teams} client:only="react" />
+  </main>
+  <RightRailIsland slot="right" comp={comp} initialData={initialData} client:only="react" />
+</Layout>

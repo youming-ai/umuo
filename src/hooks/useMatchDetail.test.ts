@@ -63,22 +63,24 @@ it('refetches on reload() and populates detail on success', async () => {
   expect(result.current.detail?.homeId).toBe('7');
 });
 
-  it('skips the first fetch when initialData is provided (non-null)', async () => {
-    const seed: MatchDetail = {
-      kind: 'soccer',
-      homeId: '1',
-      awayId: '2',
-      stats: [],
-      allPlays: [],
-      keyPlays: [],
-      lineups: [],
-      venue: '',
-      attendance: null,
-    };
-    const { result } = renderHook(() => useMatchDetail('760420', 'fifa.world', seed));
-    expect(result.current.loading).toBe(false);
-    expect(result.current.detail).toEqual(seed);
-    expect(result.current.error).toBeNull();
-    await new Promise((r) => setTimeout(r, 10));
-    expect(fetchMock).not.toHaveBeenCalled();
-  });
+it('skips the first fetch when initialData is provided (non-null)', async () => {
+  const seed: MatchDetail = {
+    kind: 'soccer',
+    homeId: '1',
+    awayId: '2',
+    stats: [],
+    allPlays: [],
+    keyPlays: [],
+    lineups: [],
+    venue: '',
+    attendance: null,
+    odds: null,
+    form: [],
+  };
+  const { result } = renderHook(() => useMatchDetail('760420', 'fifa.world', seed));
+  expect(result.current.loading).toBe(false);
+  expect(result.current.detail).toEqual(seed);
+  expect(result.current.error).toBeNull();
+  await new Promise((r) => setTimeout(r, 10));
+  expect(fetchMock).not.toHaveBeenCalled();
+});

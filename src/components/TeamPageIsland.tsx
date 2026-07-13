@@ -1,33 +1,16 @@
-import type { CompMatch, TopScorer, WCGroup } from '../types';
-import { useRouter, pathFor } from '../utils/router';
-import TeamPage from './TeamPage';
+import type { TeamDetail } from '../types';
+import { pathFor, useRouter } from '../utils/router';
 import AppProviders from './AppProviders';
+import TeamPage from './TeamPage';
 
-// Thin island wrapper. Passes schedule up-link + SSR-fetched data through to
-// TeamPage. client:only — none of the React hooks run server-side.
-export default function TeamPageIsland({
-  teamId,
-  groups,
-  matches,
-  scorers,
-}: {
-  teamId: string;
-  groups: WCGroup[];
-  matches: CompMatch[];
-  scorers: TopScorer[];
-}) {
+// Thin island wrapper. Derives the back-link to the team directory from the
+// current route and renders the SSR-seeded team detail.
+export default function TeamPageIsland({ team }: { team: TeamDetail }) {
   const { route } = useRouter();
-  const backHref = pathFor({ kind: 'section', comp: route.comp, section: 'matches' });
-
+  const backHref = pathFor({ kind: 'section', comp: route.comp, section: 'teams' });
   return (
     <AppProviders>
-      <TeamPage
-        teamId={teamId}
-        groups={groups}
-        matches={matches}
-        scorers={scorers}
-        backHref={backHref}
-      />
+      <TeamPage team={team} backHref={backHref} />
     </AppProviders>
   );
 }

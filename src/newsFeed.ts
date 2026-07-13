@@ -55,7 +55,11 @@ function tagsFrom(categories: unknown): NewsTag[] {
 }
 
 export function parseNewsFeed(json: unknown): NewsItem[] {
-  return arr(obj(json).headlines).map((raw): NewsItem => {
+  const root = obj(json);
+  // site.api per-league news wraps items in `articles`; the article object shape
+  // (headline/description/published/images/categories/links) is otherwise identical.
+  const list = arr(root.articles).length ? arr(root.articles) : arr(root.headlines);
+  return list.map((raw): NewsItem => {
     const h = obj(raw);
     return {
       id: str(h.id) || str(h.nowId),

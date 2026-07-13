@@ -1,5 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
-import { assembleLeaders, LEADERS_BY_SPORT, type LeadersConfig } from './leaders';
+import {
+  assembleLeaderboards,
+  assembleLeaders,
+  LEADERBOARDS_BY_SPORT,
+  LEADERS_BY_SPORT,
+  type LeadersConfig,
+} from './leaders';
 
 // --- canned upstream payloads keyed by URL (NO network) ---
 const LEADERS_URL =
@@ -169,5 +175,48 @@ describe('assembleLeaders', () => {
     await assembleLeaders(fetchImpl, eplCfg);
     const spy = fetchImpl as unknown as ReturnType<typeof vi.fn>;
     expect(spy.mock.calls.some((c) => String(c[0]) === LEADERS_URL)).toBe(true);
+  });
+});
+
+describe('assembleLeaderboards', () => {
+  const cfg = { sport: 'soccer', league: 'eng.1', season: 2026, type: 1, topN: 15 };
+
+  it('assembles multiple grouped boards from one doc, dropping empty categories', async () => {
+    const specs = [
+      { category: 'goals', label: 'Goals', group: 'Scoring' },
+      { category: 'assists', label: 'Assists', group: 'Scoring' },
+      { category: 'saves', label: 'Saves', group: 'Goalkeeping' }, // absent → dropped
+    ];
+    const boards = await assembleLeaderboards(makeFetch(), cfg, specs);
+    expect(boards.map((b) => b.key)).toEqual(['goals', 'assists']);
+    const goals = boards[0];
+    expect(goals.label).toBe('Goals');
+    expect(goals.group).toBe('Scoring');
+    // sorted by value desc, refs resolved to names + team logos
+    expect(goals.leaders.map((l) => l.name)).toEqual([
+      'Erling Haaland',
+      'Bukayo Saka',
+      'Julián Álvarez',
+    ]);
+    expect(goals.leaders[0]).toMatchObject({
+      rank: 1,
+      displayValue: '27',
+      teamName: 'Manchester City',
+      teamLogo: 'mci.png',
+    });
+  });
+
+  it('throws when the leaders doc fetch fails (so serve-stale can cover it)', async () => {
+    const fetchImpl = makeFetch({ [LEADERS_URL]: '__404__' });
+    await expect(
+      assembleLeaderboards(fetchImpl, cfg, [
+        { category: 'goals', label: 'Goals', group: 'Scoring' },
+      ]),
+    ).rejects.toThrow();
+  });
+
+  it('curates board specs per sport', () => {
+    expect(LEADERBOARDS_BY_SPORT.soccer.some((s) => s.category === 'goals')).toBe(true);
+    expect(LEADERBOARDS_BY_SPORT.basketball.some((s) => s.category === 'pointsPerGame')).toBe(true);
   });
 });

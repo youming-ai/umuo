@@ -1,26 +1,3 @@
-export interface Substream {
-  name: string;
-  source_tag: string;
-  iframe: string;
-}
-
-export interface Match {
-  id: number;
-  name: string;
-  category_name: string;
-  iframe: string;
-  viewers: string;
-  sourceTag?: string;
-  substreams: Substream[];
-  slug: string;
-  poster?: string;
-  colors?: string[];
-  tag?: string;
-  startsAt?: number; // unix seconds
-  endsAt?: number; // unix seconds
-  alwaysLive?: boolean;
-}
-
 export type MatchStatus = 'finished' | 'live' | 'upcoming';
 
 // ESPN's finer-grained status for an in-progress or recently-completed match.
@@ -173,18 +150,10 @@ export interface Leader {
 }
 
 // --- news (Phase 2) ---
-// What the news feed is scoped to. Drives both the /api/news query and the
-// /news/... route. NOTE: /api/news only filters by sport/leagues/team — there
-// is no athlete filter (see NewsTag).
-export type NewsScope =
-  | { by: 'all' }
-  | { by: 'sport'; sport: string }
-  | { by: 'league'; league: string }
-  | { by: 'team'; team: string };
 
-// An entity parsed from a headline's ESPN `categories`. `team` (lowercase
-// abbreviation) is set only for kind 'team' — that's the only kind /api/news
-// can filter on, so it's the only clickable Tag.
+// An entity parsed from an article's ESPN `categories` (team/athlete/league).
+// Rendered as a plain label — news is per-competition, so there is no
+// entity-scoped news route to link into.
 export interface NewsTag {
   kind: 'team' | 'athlete' | 'league';
   label: string;
@@ -200,4 +169,53 @@ export interface NewsItem {
   imageUrl: string; // '' when the headline has no image
   link: string; // external espn.com article URL (links.web.href)
   tags: NewsTag[];
+}
+
+// A team directory entry from ESPN's site.api teams list.
+export interface TeamSummary {
+  id: string;
+  name: string;
+  abbrev: string;
+  logo: string;
+  color: string; // hex without '#', may be ''
+}
+
+// --- team detail (site.api teams/{id} + roster + schedule + injuries) ---
+export interface RosterPlayer {
+  id: string;
+  name: string;
+  jersey: string;
+  position: string;
+}
+export interface TeamGame {
+  id: string;
+  date: string; // ISO
+  name: string; // e.g. "Switzerland at Argentina"
+  detail: string; // final score ("2-1") when played, else status text
+}
+export interface TeamInjury {
+  name: string;
+  status: string; // "Out" / "Day-To-Day" / …
+  detail: string; // short comment
+}
+export interface TeamDetail {
+  id: string;
+  name: string;
+  logo: string;
+  record: string; // "46-36" / "" 
+  standingSummary: string; // e.g. "3rd in Group A"
+  roster: RosterPlayer[];
+  schedule: TeamGame[];
+  injuries: TeamInjury[];
+}
+
+// --- roster moves (NBA transactions + league injuries) ---
+export interface TransactionItem {
+  date: string; // ISO
+  description: string;
+  team: string; // team display name
+}
+export interface LeagueInjuryGroup {
+  team: string;
+  players: { name: string; status: string }[];
 }
