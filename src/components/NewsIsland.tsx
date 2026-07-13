@@ -1,4 +1,4 @@
-import type { NewsItem, NewsScope } from '../types';
+import type { NewsItem } from '../types';
 import NewsView from './NewsView';
 import AppProviders from './AppProviders';
 
@@ -6,15 +6,15 @@ import AppProviders from './AppProviders';
 // providers so theme context works inside the island. Previously, providers
 // came from AppIsland via the catch-all; now each island is self-contained.
 export default function NewsIsland({
-  scope,
+  comp,
   initialData,
 }: {
-  scope: NewsScope;
+  comp: string;
   initialData?: NewsItem[];
 }) {
   return (
     <AppProviders>
-      <NewsView scope={scope} initialData={initialData} />
+      <NewsView comp={comp} initialData={initialData} />
     </AppProviders>
   );
 }

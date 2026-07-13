@@ -1,0 +1,24 @@
+---
+import { COMPETITIONS } from '../../competitions';
+import LeftNav from '../../components/LeftNav.astro';
+import NewsIsland from '../../components/NewsIsland';
+import NewsRightRailIsland from '../../components/NewsRightRailIsland';
+import { getCompNews } from '../../data/api';
+import Layout from '../../layouts/Layout.astro';
+
+const { comp } = Astro.params;
+if (!comp || !Object.hasOwn(COMPETITIONS, comp)) {
+  return new Response('Not found', { status: 404 });
+}
+const competition = COMPETITIONS[comp]!;
+const env = Astro.locals.runtime.env;
+const ctx = Astro.locals.runtime.ctx as Parameters<typeof getCompNews>[2];
+const items = await getCompNews(competition, env, ctx);
+---
+<Layout title={`umuo — ${competition.label} News`} comp={comp}>
+  <LeftNav slot="left" comp={comp} active="news" />
+  <main>
+    <NewsIsland comp={comp} initialData={items} client:only="react" />
+  </main>
+  <NewsRightRailIsland slot="right" comp={comp} initialNews={items} client:only="react" />
+</Layout>

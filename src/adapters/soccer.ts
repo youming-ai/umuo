@@ -17,6 +17,7 @@ import {
   stageFromSlug,
   statusFromState,
 } from '../utils/wc';
+import { parseOdds, parseRecentForm } from './summaryExtras';
 import type { MatchDetail, SportAdapter, StandingsData } from './types';
 
 function isPlainObject(v: unknown): v is Record<string, unknown> {
@@ -384,6 +385,8 @@ function transformSummary(json: unknown): MatchDetail {
     lineups,
     venue: venueName && city ? `${venueName} · ${city}` : venueName,
     attendance: typeof att === 'number' ? att : null,
+    odds: parseOdds(d),
+    form: parseRecentForm(d),
   };
 }
 

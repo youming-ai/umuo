@@ -1,9 +1,9 @@
 ---
 import { COMPETITIONS } from '../../competitions';
-import CompetitionIsland from '../../components/CompetitionIsland';
 import LeftNav from '../../components/LeftNav.astro';
 import RightRailIsland from '../../components/RightRailIsland';
-import { getCompetitionView, getPipelineLeaders } from '../../data/api';
+import StatsIsland from '../../components/StatsIsland';
+import { getCompetitionView, getLeaderboards } from '../../data/api';
 import Layout from '../../layouts/Layout.astro';
 
 const { comp } = Astro.params;
@@ -17,23 +17,16 @@ if (!competition.capabilities.scorers) {
   return Astro.redirect(`/${comp}`, 307);
 }
 const env = Astro.locals.runtime.env;
-const ctx = Astro.locals.runtime.ctx as Parameters<typeof getCompetitionView>[2];
-const initialData = await getCompetitionView(competition, env, ctx);
-const initialPipelineLeaders =
-  competition.leadersSource === 'pipeline'
-    ? await getPipelineLeaders(competition, env, ctx)
-    : undefined;
+const ctx = Astro.locals.runtime.ctx as Parameters<typeof getLeaderboards>[2];
+const [boards, initialData] = await Promise.all([
+  getLeaderboards(competition, env, ctx),
+  getCompetitionView(competition, env, ctx),
+]);
 ---
-<Layout title={`umuo — ${competition.label} — Scorers`} comp={comp}>
+<Layout title={`umuo — ${competition.label} Stats`} comp={comp}>
   <LeftNav slot="left" comp={comp} active="scorers" />
   <main>
-    <CompetitionIsland
-      comp={comp}
-      section="scorers"
-      initialData={initialData}
-      initialPipelineLeaders={initialPipelineLeaders}
-      client:only="react"
-    />
+    <StatsIsland boards={boards} client:only="react" />
   </main>
   <RightRailIsland slot="right" comp={comp} initialData={initialData} client:only="react" />
 </Layout>

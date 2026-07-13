@@ -5,7 +5,14 @@
 // (app tsconfig + tsconfig.worker.json) compile it.
 
 export type Sport = 'soccer' | 'basketball' | 'football' | 'baseball' | 'hockey';
-export type Resource = 'scoreboard' | 'standings' | 'summary';
+export type Resource =
+  | 'scoreboard'
+  | 'standings'
+  | 'summary'
+  | 'news'
+  | 'teams'
+  | 'injuries'
+  | 'transactions';
 
 export interface Competition {
   key: string; // URL first segment, e.g. 'fifa.world'
@@ -21,6 +28,7 @@ export interface Competition {
     scorers: boolean;
     lineups: boolean;
     boxscore: boolean;
+    transactions?: boolean; // roster moves feed (US sports; soccer sparse)
   };
   // Where the scorers/leaders tab gets its data. 'scoreboard' = aggregated
   // from the scoreboard's per-team leaders (World Cup, unchanged). 'pipeline'
@@ -72,6 +80,7 @@ export const COMPETITIONS: Record<string, Competition> = {
       scorers: true,
       lineups: false,
       boxscore: true,
+      transactions: true,
     },
     leadersSource: 'pipeline',
   },
@@ -110,9 +119,28 @@ export function buildUrl(c: Competition, resource: Resource, event?: string): st
   if (resource === 'summary') {
     return `${ESPN}/site/v2/${path}/summary?event=${event}`;
   }
+  if (resource === 'news') {
+    return `${ESPN}/site/v2/${path}/news`;
+  }
+  if (resource === 'teams') {
+    return `${ESPN}/site/v2/${path}/teams`;
+  }
+  if (resource === 'injuries') {
+    return `${ESPN}/site/v2/${path}/injuries`;
+  }
+  if (resource === 'transactions') {
+    return `${ESPN}/site/v2/${path}/transactions`;
+  }
   // scoreboard
   const q = new URLSearchParams();
   if (c.dates) q.set('dates', c.dates);
   q.set('limit', '300'); // ponytail: hardcoded cap; make it a Competition field when a comp needs a different one
   return `${ESPN}/site/v2/${path}/scoreboard?${q}`;
+}
+
+// Team-scoped site.api URLs for the team detail page (header + roster +
+// schedule). teamId comes from the /<comp>/team/[id] route segment.
+export function teamUrl(c: Competition, teamId: string, sub: '' | 'roster' | 'schedule'): string {
+  const base = `${ESPN}/site/v2/sports/${c.sport}/${c.league}/teams/${teamId}`;
+  return sub ? `${base}/${sub}` : base;
 }

@@ -3,105 +3,30 @@ import { COMPETITIONS } from '../../../competitions';
 import LeftNav from '../../../components/LeftNav.astro';
 import RightRailIsland from '../../../components/RightRailIsland';
 import TeamPageIsland from '../../../components/TeamPageIsland';
-import { getCompetitionView } from '../../../data/api';
+import { getCompetitionView, getTeamDetail } from '../../../data/api';
 import Layout from '../../../layouts/Layout.astro';
-import type { WCStanding } from '../../../types';
 
 const { comp, id } = Astro.params;
-if (!comp || !Object.hasOwn(COMPETITIONS, comp)) {
-  return new Response('Not found', { status: 404 });
-}
-if (!id) {
+if (!comp || !Object.hasOwn(COMPETITIONS, comp) || !id) {
   return new Response('Not found', { status: 404 });
 }
 const competition = COMPETITIONS[comp]!;
 const env = Astro.locals.runtime.env;
-const ctx = Astro.locals.runtime.ctx as Parameters<typeof getCompetitionView>[2];
-const view = await getCompetitionView(competition, env, ctx);
-
-// Find the team in the standings groups.
-let standing: WCStanding | null = null;
-let groupLetter = '';
-if (view.standings.kind === 'soccer') {
-  const groups = view.standings.groups;
-  for (const g of groups) {
-    const row = g.standings.find((s) => s.teamId === id);
-    if (row) {
-      standing = row;
-      groupLetter = g.name;
-      break;
-    }
-  }
-}
-const teamName = standing?.name ?? 'Team not found';
-const teamFlag = standing?.flag ?? '';
-if (!standing) Astro.response.status = 404;
+const ctx = Astro.locals.runtime.ctx as Parameters<typeof getTeamDetail>[2];
+const [team, initialData] = await Promise.all([
+  getTeamDetail(competition, id, env, ctx),
+  getCompetitionView(competition, env, ctx),
+]);
+if (!team) Astro.response.status = 404;
 ---
-
-<Layout title={`umuo — ${teamName}`} comp={comp}>
-  <LeftNav slot="left" comp={comp} />
+<Layout title={`umuo — ${team?.name ?? 'Team'}`} comp={comp}>
+  <LeftNav slot="left" comp={comp} active="teams" />
   <main>
-    <div class="space-y-section">
-
-      {standing ? (
-        <>
-          <!-- Team Header -->
-          <div class="flex items-center gap-3">
-            {teamFlag ? (
-              <img src={teamFlag} alt={teamName} class="w-12 h-8 object-cover rounded-micro" />
-            ) : (
-              <span class="w-12 h-8 bg-overlay/5 rounded-micro" aria-hidden="true"></span>
-            )}
-            <div>
-              <h1 class="font-display font-bold text-2xl text-chalk tracking-wide">{teamName}</h1>
-              {groupLetter && (
-                <span class="ds-caption uppercase tracking-[0.18em] text-chalkdim">
-                  Group {groupLetter}
-                </span>
-              )}
-            </div>
-          </div>
-
-          <!-- Stats strip -->
-          <div class="grid grid-cols-2 sm:grid-cols-5 gap-3 sm:gap-card ds-glass p-card">
-            <div class="flex flex-col items-center">
-              <span class="ds-caption uppercase tracking-wider text-chalkdim">MP</span>
-              <span class="font-mono tabular-nums text-base text-chalk">{standing.mp}</span>
-            </div>
-            <div class="flex flex-col items-center">
-              <span class="ds-caption uppercase tracking-wider text-chalkdim">W</span>
-              <span class="font-mono tabular-nums text-base text-pitch">{standing.w}</span>
-            </div>
-            <div class="flex flex-col items-center">
-              <span class="ds-caption uppercase tracking-wider text-chalkdim">D</span>
-              <span class="font-mono tabular-nums text-base text-chalk">{standing.d}</span>
-            </div>
-            <div class="flex flex-col items-center">
-              <span class="ds-caption uppercase tracking-wider text-chalkdim">L</span>
-              <span class="font-mono tabular-nums text-base text-live">{standing.l}</span>
-            </div>
-            <div class="flex flex-col items-center">
-              <span class="ds-caption uppercase tracking-wider text-chalkdim">GD</span>
-              <span class={`font-mono tabular-nums text-base ${standing.gd > 0 ? 'text-pitch' : standing.gd < 0 ? 'text-live' : 'text-chalk'}`}>
-                {standing.gd > 0 ? `+${standing.gd}` : standing.gd}
-              </span>
-            </div>
-          </div>
-        </>
-      ) : (
-        <p class="font-mono text-xs text-chalkdim p-card text-center">Team not found</p>
-      )}
-
-      <!-- Island: takes over for matches list, scorers list, back button, form pill -->
-      <TeamPageIsland
-        teamId={id}
-        groups={view.standings.kind === 'soccer' ? view.standings.groups : []}
-        matches={view.matches}
-        scorers={view.scorers}
-        client:only="react"
-      />
-
-    </div>
+    {team ? (
+      <TeamPageIsland team={team} client:only="react" />
+    ) : (
+      <p class="p-card text-center font-mono text-xs text-chalkdim">Team not found</p>
+    )}
   </main>
-  <RightRailIsland slot="right" comp={comp} initialData={view} client:only="react" />
+  <RightRailIsland slot="right" comp={comp} initialData={initialData} client:only="react" />
 </Layout>

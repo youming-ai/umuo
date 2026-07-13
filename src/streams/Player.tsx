@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import type { Match } from '../types';
-import { isTrustedStreamUrl } from '../utils/streamSources';
+import type { Match } from './types';
+import { isTrustedStreamUrl } from './streamSources';
 
 interface PlayerProps {
   match: Match | null;

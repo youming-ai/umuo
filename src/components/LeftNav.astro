@@ -12,11 +12,16 @@ const comps = Object.values(COMPETITIONS);
 
 const items: { section: Section; label: string; href: string }[] = [
   { section: 'matches', label: 'Matches', href: `/${comp}` },
+  { section: 'news', label: 'News', href: `/${comp}/news` },
+  { section: 'teams', label: 'Teams', href: `/${comp}/teams` },
   ...(caps?.scorers
-    ? [{ section: 'scorers' as Section, label: 'Scorers', href: `/${comp}/scorers` }]
+    ? [{ section: 'scorers' as Section, label: 'Stats', href: `/${comp}/scorers` }]
     : []),
   ...(caps?.bracket
     ? [{ section: 'bracket' as Section, label: 'Bracket', href: `/${comp}/bracket` }]
+    : []),
+  ...(caps?.transactions
+    ? [{ section: 'transactions' as Section, label: 'Moves', href: `/${comp}/transactions` }]
     : []),
 ];
 ---

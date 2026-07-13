@@ -13,7 +13,7 @@ afterEach(() => {
 });
 
 const feed = {
-  headlines: [
+  articles: [
     {
       id: 7,
       headline: 'Big trade',
@@ -28,28 +28,24 @@ const feed = {
 };
 
 function renderView() {
-  return render(
-    <NewsView scope={{ by: 'all' }} />,
-  );
+  return render(<NewsView comp="nba" />);
 }
 
 describe('NewsView', () => {
-  it('renders headlines with an external link and the team tag', async () => {
+  it('renders headlines with an external link and a plain team tag', async () => {
     fetchMock.mockResolvedValue({ ok: true, json: async () => feed });
     renderView();
     await waitFor(() => expect(screen.getByText('Big trade')).toBeInTheDocument());
     const link = screen.getByRole('link', { name: /Big trade/ });
     expect(link).toHaveAttribute('href', 'https://www.espn.com/story/7');
     expect(link).toHaveAttribute('target', '_blank');
-    // team tag is a real news-feed link; athlete/league would be plain text
-    expect(screen.getByRole('link', { name: 'Lakers' })).toHaveAttribute(
-      'href',
-      '/news/team/lal',
-    );
+    // tags are plain labels now — news is per-competition, no entity-scoped route
+    expect(screen.getByText('Lakers')).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Lakers' })).not.toBeInTheDocument();
   });
 
   it('shows the empty message when there are no headlines', async () => {
-    fetchMock.mockResolvedValue({ ok: true, json: async () => ({ headlines: [] }) });
+    fetchMock.mockResolvedValue({ ok: true, json: async () => ({ articles: [] }) });
     renderView();
     await waitFor(() => expect(screen.getByText('No news right now')).toBeInTheDocument());
   });
@@ -58,7 +54,7 @@ describe('NewsView', () => {
     fetchMock.mockResolvedValue({
       ok: true,
       json: async () => ({
-        headlines: [
+        articles: [
           {
             id: 9,
             headline: 'No link here',

@@ -9,6 +9,7 @@ import BoxscoreTab from './matchdetail/BoxscoreTab';
 import LineupTab from './matchdetail/LineupTab';
 import PlayByPlayTab from './matchdetail/PlayByPlayTab';
 import TeamStatsTab from './matchdetail/TeamStatsTab';
+import OddsFormPanel from './matchdetail/OddsFormPanel';
 
 type Tab = 'stats' | 'play' | 'lineup' | 'boxscore';
 
@@ -231,6 +232,8 @@ export default function MatchDetailPage({
           <TeamBadge flag={match.awayFlag} name={match.awayName} href={teamHref(match.awayId)} />
         </div>
       </div>
+
+      {detail && <OddsFormPanel odds={detail.odds} form={detail.form} />}
 
       {/* Tab List (Segmented Control style) */}
       <div

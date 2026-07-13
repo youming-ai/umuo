@@ -1,238 +1,87 @@
-import type { CompMatch, TopScorer, WCGroup, WCStanding } from '../types';
-import { pathFor, useRouter } from '../utils/router';
-import MatchCard from './MatchCard';
+import type { TeamDetail } from '../types';
 
-interface TeamPageProps {
-  teamId: string;
-  groups: WCGroup[];
-  matches: CompMatch[];
-  scorers: TopScorer[];
-  /** Schedule URL for the up-navigation control (real `<a href>`). */
-  backHref: string;
-}
-
-// Find the WCStanding row for the team by id, along with the parent
-// group's name. The standings table is grouped per group letter, and
-// we want to render that letter under the team name on the page.
-function findStanding(
-  groups: WCGroup[],
-  teamId: string,
-): { standing: WCStanding; group: string } | null {
-  for (const g of groups) {
-    const row = g.standings.find((s) => s.teamId === teamId);
-    if (row) return { standing: row, group: g.name };
-  }
-  return null;
-}
-
-// All matches where the team is on either side, sorted by kickoff
-// (upcoming first when there are scheduled matches, otherwise just date
-// order). Finished matches group naturally by date.
-function teamMatches(matches: CompMatch[], teamId: string): CompMatch[] {
-  return matches
-    .filter((m) => m.homeId === teamId || m.awayId === teamId)
-    .sort((a, b) => (a.kickoff?.getTime() ?? 0) - (b.kickoff?.getTime() ?? 0));
-}
-
-export default function TeamPage({ teamId, groups, matches, scorers, backHref }: TeamPageProps) {
-  const { route } = useRouter();
-  const comp = route.comp;
-  const found = findStanding(groups, teamId);
-  const standing = found?.standing ?? null;
-  const groupLetter = found?.group ?? '';
-  const teamName = standing?.name ?? '';
-  const teamFlag = standing?.flag ?? '';
-  const ownMatches = teamMatches(matches, teamId);
-  const ownScorers = scorers.filter((s) => s.teamId === teamId);
-  const backClass =
-    'font-mono text-xs tracking-widest text-chalkdim hover:text-chalk transition-colors inline-flex items-center gap-1';
-
-  if (!standing) {
-    return (
-      <div className="space-y-section w-full">
-        <a href={backHref} className={backClass}>
-          ← <span>Back</span>
-        </a>
-        <p className="font-mono text-xs text-chalkdim p-card text-center">Team not found</p>
-      </div>
-    );
-  }
-
-  // Split matches into upcoming vs finished so the user sees the next
-  // match first without scrolling through history.
-  const upcoming = ownMatches.filter((m) => m.status !== 'finished');
-  const finished = ownMatches.filter((m) => m.status === 'finished').reverse(); // newest first
-
+// Sport-general team page rendered from ESPN's site.api team detail
+// (header + injuries + schedule + roster). Works for soccer and basketball.
+export default function TeamPage({ team, backHref }: { team: TeamDetail; backHref: string }) {
   return (
-    // Width + page padding come from the app shell; stack sections only.
     <div className="space-y-section">
-      <a href={backHref} className={backClass}>
-        ← <span>Back</span>
+      <a href={backHref} className="ds-caption text-chalkdim transition-colors hover:text-chalk">
+        ← Teams
       </a>
 
-      {/* Header */}
-      <div className="flex items-center gap-3">
-        {teamFlag ? (
-          <img src={teamFlag} alt={teamName} className="w-12 h-8 object-cover rounded-micro" />
-        ) : (
-          <span className="w-12 h-8 bg-overlay/5 rounded-micro" aria-hidden />
-        )}
+      <header className="ds-glass-hero flex items-center gap-4 p-card">
+        {team.logo && <img src={team.logo} alt="" className="h-14 w-14 object-contain" />}
         <div>
-          <h1 className="font-display font-bold text-2xl text-chalk tracking-wide">{teamName}</h1>
-          {groupLetter && (
-            <span className="ds-caption uppercase tracking-[0.18em] text-chalkdim">
-              Group {groupLetter}
-            </span>
+          <h1 className="font-display text-2xl font-bold tracking-wide text-chalk">{team.name}</h1>
+          {(team.record || team.standingSummary) && (
+            <p className="ds-caption text-chalkdim">
+              {[team.record, team.standingSummary].filter(Boolean).join(' · ')}
+            </p>
           )}
         </div>
-      </div>
+      </header>
 
-      {/* Stats strip */}
-      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 sm:gap-card ds-glass p-card">
-        <Stat label="MP" value={standing.mp} />
-        <Stat label="W" value={standing.w} tone="pitch" />
-        <Stat label="D" value={standing.d} />
-        <Stat label="L" value={standing.l} tone="live" />
-        <Stat
-          label="GD"
-          value={standing.gd > 0 ? `+${standing.gd}` : standing.gd}
-          tone={standing.gd > 0 ? 'pitch' : standing.gd < 0 ? 'live' : undefined}
-        />
-        <Stat label="Pts" value={standing.pts} bold />
-        {standing.form && (
-          <div className="col-span-2 sm:col-span-5 flex items-center gap-2 pt-1">
-            <span className="ds-caption uppercase tracking-wider text-chalkdim">Form:</span>
-            <TeamFormPill form={standing.form} />
-          </div>
-        )}
-      </div>
-
-      {/* Matches */}
-      <section className="space-y-3">
-        <h2 className="font-display font-bold text-lg text-chalk tracking-wide">Matches</h2>
-        {ownMatches.length === 0 ? (
-          <p className="font-mono text-xs text-chalkdim">No matches scheduled</p>
-        ) : (
-          <div className="space-y-3">
-            {upcoming.length > 0 && <SubHeader>Upcoming</SubHeader>}
-            {upcoming.map((m) => (
-              <MatchCard
-                key={m.id}
-                homeName={m.homeName}
-                awayName={m.awayName}
-                homeFlag={m.homeFlag}
-                awayFlag={m.awayFlag}
-                homeScore={m.homeScore}
-                awayScore={m.awayScore}
-                status={m.status}
-                kickoff={m.kickoff}
-                stage={m.stage}
-                group={m.group}
-                progress={m.progress}
-                href={pathFor({ kind: 'match', comp, slug: m.slug })}
-              />
-            ))}
-            {finished.length > 0 && <SubHeader>Results</SubHeader>}
-            {finished.map((m) => (
-              <MatchCard
-                key={m.id}
-                homeName={m.homeName}
-                awayName={m.awayName}
-                homeFlag={m.homeFlag}
-                awayFlag={m.awayFlag}
-                homeScore={m.homeScore}
-                awayScore={m.awayScore}
-                status={m.status}
-                kickoff={m.kickoff}
-                stage={m.stage}
-                group={m.group}
-                progress={m.progress}
-                finishType={m.finishType}
-                homeShootoutScore={m.homeShootoutScore}
-                awayShootoutScore={m.awayShootoutScore}
-                winner={m.winner}
-                href={pathFor({ kind: 'match', comp, slug: m.slug })}
-              />
-            ))}
-          </div>
-        )}
-      </section>
-
-      {/* Scorers from this team */}
-      {ownScorers.length > 0 && (
-        <section className="space-y-3">
-          <h2 className="font-display font-bold text-lg text-chalk tracking-wide">Top Scorers</h2>
-          <ul className="space-y-2 ds-glass p-card">
-            {ownScorers.map((s) => (
-              <li key={s.athleteId}>
-                <a
-                  href={pathFor({ kind: 'player', comp, athleteId: s.athleteId })}
-                  className="flex items-center justify-between font-mono text-xs hover:text-pitch transition-colors"
-                >
-                  <span className="font-display text-sm text-chalk">{s.name}</span>
-                  <span className="tabular-nums text-chalk">{s.goals}</span>
-                </a>
+      {team.injuries.length > 0 && (
+        <section className="space-y-card">
+          <h2 className="font-display text-lg font-bold text-chalk">Injuries</h2>
+          <ul className="ds-glass divide-y divide-overlay/5 rounded-card">
+            {team.injuries.map((inj) => (
+              <li key={inj.name} className="flex items-start justify-between gap-3 p-3">
+                <span className="font-display text-sm text-chalk">{inj.name}</span>
+                <span className="ds-caption shrink-0 text-live">{inj.status}</span>
               </li>
             ))}
           </ul>
         </section>
       )}
+
+      <section className="space-y-card">
+        <h2 className="font-display text-lg font-bold text-chalk">Schedule</h2>
+        {team.schedule.length === 0 ? (
+          <p className="font-mono text-xs text-chalkdim">No scheduled games.</p>
+        ) : (
+          <ul className="ds-glass divide-y divide-overlay/5 rounded-card">
+            {team.schedule.map((g) => (
+              <li key={g.id} className="flex items-center justify-between gap-3 p-3">
+                <span className="truncate font-display text-sm text-chalk">{g.name}</span>
+                <span className="ds-caption shrink-0 tabular-nums text-chalkdim">{g.detail}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      <section className="space-y-card">
+        <h2 className="font-display text-lg font-bold text-chalk">Roster</h2>
+        {team.roster.length === 0 ? (
+          <p className="font-mono text-xs text-chalkdim">No roster available.</p>
+        ) : (
+          <table className="ds-glass w-full overflow-hidden rounded-card text-sm">
+            <thead className="ds-caption uppercase text-chalkdim">
+              <tr className="border-b border-overlay/5">
+                <th scope="col" className="w-10 px-3 py-2 text-left">
+                  #
+                </th>
+                <th scope="col" className="px-3 py-2 text-left">
+                  Player
+                </th>
+                <th scope="col" className="px-3 py-2 text-right">
+                  Pos
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {team.roster.map((p) => (
+                <tr key={p.id} className="border-b border-overlay/5 last:border-b-0">
+                  <td className="px-3 py-2 font-mono tabular-nums text-chalkdim">{p.jersey}</td>
+                  <td className="px-3 py-2 font-display text-chalk">{p.name}</td>
+                  <td className="px-3 py-2 text-right font-mono text-chalkdim">{p.position}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </section>
     </div>
-  );
-}
-
-function Stat({
-  label,
-  value,
-  tone,
-  bold,
-}: {
-  label: string;
-  value: string | number;
-  tone?: 'pitch' | 'live';
-  bold?: boolean;
-}) {
-  const valueClass = `font-mono tabular-nums ${bold ? 'text-xl font-bold' : 'text-base'} ${
-    tone === 'pitch' ? 'text-pitch' : tone === 'live' ? 'text-live' : 'text-chalk'
-  }`;
-  return (
-    <div className="flex flex-col items-center">
-      <span className="ds-caption uppercase tracking-wider text-chalkdim">{label}</span>
-      <span className={valueClass}>{value}</span>
-    </div>
-  );
-}
-
-function SubHeader({ children }: { children: React.ReactNode }) {
-  return <h3 className="ds-caption uppercase tracking-[0.2em] text-chalkdim pt-2">{children}</h3>;
-}
-
-// Same colour-coded pill as the standings Form column. Inlined here
-// rather than extracted to keep TeamPage self-contained; the duplication
-// is small (~15 lines) and the visual contract is fixed.
-function TeamFormPill({ form }: { form: string }) {
-  return (
-    <span role="img" aria-label={`Last 5 matches: ${form}`} className="inline-flex gap-0.5">
-      {form.split('').map((c, _i, arr) => {
-        const key = `${c}-${arr.length - 1 - _i}`;
-        const label = c === 'W' ? 'win' : c === 'D' ? 'draw' : 'loss';
-        return (
-          <span
-            key={key}
-            title={label}
-            className={`inline-block w-3.5 h-3.5 ds-micro font-bold leading-[14px] text-center rounded-micro ${
-              c === 'W'
-                ? 'bg-pitch text-onaccent'
-                : c === 'D'
-                  ? 'bg-chalkdim/30 text-chalk'
-                  : 'bg-live/20 text-live'
-            }`}
-            aria-hidden
-          >
-            {c}
-          </span>
-        );
-      })}
-    </span>
   );
 }

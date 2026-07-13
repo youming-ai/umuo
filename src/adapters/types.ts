@@ -7,6 +7,7 @@ import type {
   TopScorer,
   WCGroup,
 } from '../types';
+import type { MatchOdds, TeamForm } from './summaryExtras';
 
 export interface ConferenceTable {
   name: string; // 'Eastern Conference' | 'Western Conference'
@@ -43,6 +44,8 @@ export type MatchDetail =
       lineups: TeamLineup[];
       venue: string;
       attendance: number | null;
+      odds: MatchOdds | null;
+      form: TeamForm[];
     }
   | {
       kind: 'basketball';
@@ -52,6 +55,8 @@ export type MatchDetail =
       playerTables: BoxscoreTable[];
       venue: string;
       attendance: number | null;
+      odds: MatchOdds | null;
+      form: TeamForm[];
     };
 
 export interface SportAdapter {

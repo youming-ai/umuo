@@ -7,6 +7,7 @@ describe('isTrustedStreamUrl', () => {
     expect(isTrustedStreamUrl('https://live.embedindia.st/embed/wc/game')).toBe(true);
     expect(isTrustedStreamUrl('https://ppv.st/embed/game')).toBe(true);
     expect(isTrustedStreamUrl('https://vileembeds.pages.dev/embed/fox-usa')).toBe(true);
+    expect(isTrustedStreamUrl('https://ritzembeds.pages.dev/embed/dirtvision-1')).toBe(true);
   });
 
   it('rejects non-HTTPS, malformed, and unknown stream URLs', () => {

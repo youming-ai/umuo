@@ -2,7 +2,7 @@ import { COMPETITIONS, DEFAULT_COMPETITION } from './competitions';
 
 // Astro middleware: runs on every request (SSR and static). Redirects the
 // root and legacy unprefixed paths to their canonical forms under the
-// default competition. Known routes (with comp prefixes, /api, /news)
+// default competition. Known routes (comp prefixes, /api) and asset-like paths
 // pass through unchanged.
 export function onRequest(
   context: { request: Request; redirect: (url: string, status?: number) => Response; url: URL },
@@ -16,13 +16,7 @@ export function onRequest(
   const lastSeg = path.slice(path.lastIndexOf('/') + 1);
 
   // Assets + API + known unprefixed routes pass through.
-  if (
-    path === '/api' ||
-    path.startsWith('/api/') ||
-    path === '/news' ||
-    path.startsWith('/news/') ||
-    lastSeg.includes('.')
-  ) {
+  if (path === '/api' || path.startsWith('/api/') || lastSeg.includes('.')) {
     return next();
   }
 
@@ -33,10 +27,16 @@ export function onRequest(
     }
   }
 
-  // Root redirect — news-first home. Preserve the query string on every
-  // redirect so share/UTM params survive the hop.
+  // Root redirect — the default competition's home. Preserve the query string
+  // on every redirect so share/UTM params survive the hop.
   if (path === '/') {
-    return context.redirect(`/news${search}`, 307);
+    return context.redirect(`/${DEFAULT_COMPETITION}${search}`, 307);
+  }
+
+  // Legacy global news (removed) → the default competition's news page, so old
+  // /news, /news/soccer, /news/league/* links land on a real 200 in one hop.
+  if (path === '/news' || path.startsWith('/news/')) {
+    return context.redirect(`/${DEFAULT_COMPETITION}/news${search}`, 307);
   }
 
   // Legacy unprefixed paths: redirect to the default competition.

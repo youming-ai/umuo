@@ -1,7 +1,8 @@
-const CACHE_NAME = 'umuo-v2';
-// News-first home — do not precache `/` (middleware 307 → /news) or a
+const CACHE_NAME = 'umuo-v3';
+// Home is the default competition (mirrors DEFAULT_COMPETITION in
+// src/competitions.ts). Don't precache `/` (middleware 307 → /fifa.world) or a
 // non-existent `/index.html` shell from the old SPA layout.
-const PRECACHE_URLS = ['/news'];
+const PRECACHE_URLS = ['/fifa.world'];
 
 // Install: precache app shell
 self.addEventListener('install', (event) => {
@@ -55,7 +56,7 @@ self.addEventListener('fetch', (event) => {
           cachePut(event, response);
           return response;
         })
-        .catch(() => caches.match(request).then((c) => c || caches.match('/news'))),
+        .catch(() => caches.match(request).then((c) => c || caches.match('/fifa.world'))),
     );
     return;
   }

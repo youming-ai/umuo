@@ -5,14 +5,15 @@ import AppProviders from './AppProviders';
 import NewsRightRail from './NewsRightRail';
 
 interface Props {
-  /** SSR-seeded global headlines when the main column is also `by: 'all'`. */
+  comp: string;
+  /** SSR-seeded league headlines for the same competition's news feed. */
   initialNews?: NewsItem[];
 }
 
-export default function NewsRightRailIsland({ initialNews }: Props) {
-  // Top Headlines always use the global feed; seed when the page already
-  // fetched it so we avoid a duplicate cold fetch + loading flash on /news.
-  const { items: trending, loading: newsLoading } = useNews({ by: 'all' }, initialNews);
+export default function NewsRightRailIsland({ comp, initialNews }: Props) {
+  // Top Headlines use the active competition's league feed; seed when the page
+  // already fetched it so we avoid a duplicate cold fetch + loading flash.
+  const { items: trending, loading: newsLoading } = useNews(comp, initialNews);
   // Shares the module-level poller with the global Ticker strip.
   const { items: scores, loading: scoresLoading } = useTicker();
 
