@@ -1,6 +1,6 @@
 /// <reference types="@cloudflare/workers-types" />
 
-import { COMPETITIONS } from '../src/competitions';
+import { COMPETITIONS, type Resource } from '../src/competitions';
 import { type Env, json, serve, serveLeaders, serveSummary } from '../src/data/api';
 
 // Thin HTTP wrapper around the shared data layer (src/data/api.ts). The SWR
@@ -25,7 +25,7 @@ export default {
       if (resource === 'leaders') {
         return serveLeaders(comp, env, ctx);
       }
-      return serve(comp, resource, env, ctx);
+      return serve(comp, resource as Resource, env, ctx);
     }
     if (url.pathname.startsWith('/api/')) return new Response('Not found', { status: 404 });
     return env.ASSETS.fetch(request); // static assets + SPA fallback
