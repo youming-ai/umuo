@@ -8,11 +8,11 @@ import FixturesView from './FixturesView';
 function renderView(matches: CompMatch[], groups: WCGroup[] = [], scorers: never[] = []) {
   return render(
     <FixturesView
-        section="matches"
-        matches={matches}
-        standings={{ kind: 'soccer', groups }}
-        scorers={scorers}
-      />,
+      section="matches"
+      matches={matches}
+      standings={{ kind: 'soccer', groups }}
+      scorers={scorers}
+    />,
   );
 }
 
@@ -192,11 +192,11 @@ it('shows the league table above fixtures for a season competition', () => {
   setPath('/eng.1');
   render(
     <FixturesView
-        section="matches"
-        matches={[]}
-        standings={{ kind: 'soccer', groups: league }}
-        scorers={[]}
-      />,
+      section="matches"
+      matches={[]}
+      standings={{ kind: 'soccer', groups: league }}
+      scorers={[]}
+    />,
   );
   // league standings surface without needing a group-stage filter
   expect(screen.getByText('Arsenal')).toBeInTheDocument();
@@ -206,11 +206,11 @@ it('falls back to matches when a disabled section is requested (eng.1 bracket)',
   setPath('/eng.1');
   render(
     <FixturesView
-        section="bracket"
-        matches={[]}
-        standings={{ kind: 'soccer', groups: league }}
-        scorers={[]}
-      />,
+      section="bracket"
+      matches={[]}
+      standings={{ kind: 'soccer', groups: league }}
+      scorers={[]}
+    />,
   );
   // Should NOT render the bracket TBD grid; league table is shown instead
   expect(screen.queryByText('TBD')).not.toBeInTheDocument();
@@ -225,11 +225,11 @@ it('does not client-navigate for a disabled section (server owns the redirect)',
   const navSpy = vi.spyOn(router, 'navigate').mockImplementation(() => {});
   render(
     <FixturesView
-        section="bracket"
-        matches={[]}
-        standings={{ kind: 'soccer', groups: league }}
-        scorers={[]}
-      />,
+      section="bracket"
+      matches={[]}
+      standings={{ kind: 'soccer', groups: league }}
+      scorers={[]}
+    />,
   );
   expect(navSpy).not.toHaveBeenCalled();
   expect(screen.getByText('Arsenal')).toBeInTheDocument();
@@ -247,11 +247,11 @@ it('renders conference standings and hides stage chips for a basketball season c
   setPath('/nba');
   render(
     <FixturesView
-        section="matches"
-        matches={[]}
-        standings={{ kind: 'basketball', conferences }}
-        scorers={[]}
-      />,
+      section="matches"
+      matches={[]}
+      standings={{ kind: 'basketball', conferences }}
+      scorers={[]}
+    />,
   );
   expect(screen.getByText('Boston Celtics')).toBeInTheDocument();
   // season shape → no stage filter chips (no lone "Group stage")
@@ -273,11 +273,11 @@ it('renders scoreboard-sourced scorers as a leaders board (World Cup)', () => {
   ];
   render(
     <FixturesView
-        section="scorers"
-        matches={[]}
-        standings={{ kind: 'soccer', groups: [] }}
-        scorers={scorers}
-      />,
+      section="scorers"
+      matches={[]}
+      standings={{ kind: 'soccer', groups: [] }}
+      scorers={scorers}
+    />,
   );
   expect(screen.getByText('Erling Haaland')).toBeInTheDocument();
   // value cell shows the goal count as displayValue
@@ -305,11 +305,11 @@ it('does not fetch the leaders pipeline for a scoreboard-sourced comp (World Cup
   ];
   render(
     <FixturesView
-        section="scorers"
-        matches={[]}
-        standings={{ kind: 'soccer', groups: [] }}
-        scorers={scorers}
-      />,
+      section="scorers"
+      matches={[]}
+      standings={{ kind: 'soccer', groups: [] }}
+      scorers={scorers}
+    />,
   );
   expect(fetchMock).not.toHaveBeenCalled();
   vi.unstubAllGlobals();
@@ -332,11 +332,11 @@ describe('FixturesView pipeline leaders loading/error states', () => {
     );
     render(
       <FixturesView
-          section="scorers"
-          matches={[]}
-          standings={{ kind: 'soccer', groups: [] }}
-          scorers={[]}
-        />,
+        section="scorers"
+        matches={[]}
+        standings={{ kind: 'soccer', groups: [] }}
+        scorers={[]}
+      />,
     );
     expect(screen.getByText('Loading…')).toBeInTheDocument();
     expect(screen.queryByText('No goals scored yet')).not.toBeInTheDocument();
@@ -347,11 +347,11 @@ describe('FixturesView pipeline leaders loading/error states', () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, json: async () => ({}) }));
     render(
       <FixturesView
-          section="scorers"
-          matches={[]}
-          standings={{ kind: 'soccer', groups: [] }}
-          scorers={[]}
-        />,
+        section="scorers"
+        matches={[]}
+        standings={{ kind: 'soccer', groups: [] }}
+        scorers={[]}
+      />,
     );
     expect(await screen.findByRole('button', { name: 'Retry' })).toBeInTheDocument();
     expect(screen.queryByText('No goals scored yet')).not.toBeInTheDocument();

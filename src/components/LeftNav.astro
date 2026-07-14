@@ -8,7 +8,6 @@ interface Props {
 }
 const { comp, active } = Astro.props;
 const caps = COMPETITIONS[comp]?.capabilities;
-const comps = Object.values(COMPETITIONS);
 
 const items: { section: Section; label: string; href: string }[] = [
   { section: 'matches', label: 'Matches', href: `/${comp}` },
@@ -23,25 +22,10 @@ const items: { section: Section; label: string; href: string }[] = [
   ...(caps?.transactions
     ? [{ section: 'transactions' as Section, label: 'Moves', href: `/${comp}/transactions` }]
     : []),
+  ...(caps?.odds ? [{ section: 'odds' as Section, label: 'Odds', href: `/${comp}/odds` }] : []),
 ];
 ---
 <div class="flex flex-col gap-4 lg:sticky lg:top-[var(--h-topbar)]">
-  <nav aria-label="Competitions" class="flex gap-1 overflow-x-auto no-scrollbar lg:flex-col lg:overflow-visible">
-    {comps.map((c) => (
-      <a
-        href={`/${c.key}`}
-        aria-current={c.key === comp ? 'page' : undefined}
-        class={`shrink-0 whitespace-nowrap rounded-card px-3 py-2 font-display text-sm tracking-wide transition-colors ${
-          c.key === comp
-            ? 'bg-overlay/10 text-chalk font-bold'
-            : 'text-chalkdim hover:text-chalk hover:bg-overlay/5'
-        }`}
-      >
-        {c.label}
-      </a>
-    ))}
-  </nav>
-
   <nav
     aria-label="Sections"
     class="flex gap-1 overflow-x-auto no-scrollbar lg:flex-col lg:overflow-visible"

@@ -1,10 +1,8 @@
-import type { Leader } from '../types';
 import type { StandingsData } from '../adapters/types';
 import type { CompMatch, TopScorer } from '../types';
 import { useCompetition } from '../hooks/useCompetition';
-import FixturesView from './FixturesView';
 import AppProviders from './AppProviders';
-import type { Section } from '../utils/router';
+import OddsView from './OddsView';
 
 interface CompetitionInitialData {
   matches: CompMatch[];
@@ -12,21 +10,17 @@ interface CompetitionInitialData {
   scorers: TopScorer[];
 }
 
-function CompetitionIslandInner({
+// Odds tab island. Reuses the scoreboard SWR loop (odds ride along on each
+// CompMatch) so lines refresh with the same visibility-gated poll as the
+// Matches view; no dedicated fetch/endpoint.
+function OddsIslandInner({
   comp,
-  section,
   initialData,
-  initialPipelineLeaders,
 }: {
   comp: string;
-  section: Section;
   initialData: CompetitionInitialData;
-  initialPipelineLeaders?: Leader[];
 }) {
-  const { matches, standings, scorers, loading, error, refetch } = useCompetition(
-    comp,
-    initialData,
-  );
+  const { matches, loading, error, refetch } = useCompetition(comp, initialData);
 
   if (error && matches.length === 0) {
     return (
@@ -51,36 +45,19 @@ function CompetitionIslandInner({
     );
   }
 
-  return (
-    <FixturesView
-      section={section}
-      matches={matches}
-      standings={standings}
-      scorers={scorers}
-      pipelineLeaders={initialPipelineLeaders}
-    />
-  );
+  return <OddsView matches={matches} />;
 }
 
-export default function CompetitionIsland({
+export default function OddsIsland({
   comp,
-  section,
   initialData,
-  initialPipelineLeaders,
 }: {
   comp: string;
-  section: Section;
   initialData: CompetitionInitialData;
-  initialPipelineLeaders?: Leader[];
 }) {
   return (
     <AppProviders>
-      <CompetitionIslandInner
-        comp={comp}
-        section={section}
-        initialData={initialData}
-        initialPipelineLeaders={initialPipelineLeaders}
-      />
+      <OddsIslandInner comp={comp} initialData={initialData} />
     </AppProviders>
   );
 }

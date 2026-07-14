@@ -2,7 +2,11 @@ import { useEffect, useRef, useState } from 'react';
 import { getAdapter } from '../adapters';
 import type { MatchDetail } from '../adapters/types';
 
-export function useMatchDetail(eventId: string | null, comp: string, initialData?: MatchDetail | null) {
+export function useMatchDetail(
+  eventId: string | null,
+  comp: string,
+  initialData?: MatchDetail | null,
+) {
   const seeded = !!initialData;
   const [detail, setDetail] = useState<MatchDetail | null>(initialData ?? null);
   const [loading, setLoading] = useState(!seeded);

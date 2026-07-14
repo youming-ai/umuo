@@ -21,9 +21,7 @@ const conferences: ConferenceTable[] = [
 
 describe('ConferenceStandings', () => {
   it('renders one table per conference with team rows', () => {
-    render(
-      <ConferenceStandings conferences={conferences} />,
-    );
+    render(<ConferenceStandings conferences={conferences} />);
     expect(screen.getByText('Eastern Conference')).toBeInTheDocument();
     expect(screen.getByText('Western Conference')).toBeInTheDocument();
     expect(screen.getByText('Boston Celtics')).toBeInTheDocument();
@@ -32,25 +30,19 @@ describe('ConferenceStandings', () => {
   });
 
   it('renders W/L/PCT/GB values', () => {
-    render(
-      <ConferenceStandings conferences={conferences} />,
-    );
+    render(<ConferenceStandings conferences={conferences} />);
     expect(screen.getByText('.714')).toBeInTheDocument();
     expect(screen.getByText('3')).toBeInTheDocument(); // Knicks GB
   });
 
   it('does not make rows clickable (no buttons/links in the tables)', () => {
-    render(
-      <ConferenceStandings conferences={conferences} />,
-    );
+    render(<ConferenceStandings conferences={conferences} />);
     expect(screen.queryByRole('button')).not.toBeInTheDocument();
     expect(screen.queryByRole('link')).not.toBeInTheDocument();
   });
 
   it('shows the empty message when there are no conferences', () => {
-    render(
-      <ConferenceStandings conferences={[]} />,
-    );
+    render(<ConferenceStandings conferences={[]} />);
     expect(screen.getByText('No results found')).toBeInTheDocument();
   });
 });

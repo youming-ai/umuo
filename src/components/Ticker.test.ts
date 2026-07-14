@@ -45,7 +45,9 @@ describe('formatTickerLine', () => {
 
   it('shows kickoff time and teams for an upcoming match', () => {
     const kickoff = new Date('2026-06-13T19:00Z');
-    const line = formatTickerLine(m({ status: 'upcoming', homeScore: null, awayScore: null, kickoff }));
+    const line = formatTickerLine(
+      m({ status: 'upcoming', homeScore: null, awayScore: null, kickoff }),
+    );
     expect(line).toMatch(/Mexico – South Africa/);
     expect(line).toMatch(/\d{2}:\d{2}/);
   });

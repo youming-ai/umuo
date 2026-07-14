@@ -20,7 +20,11 @@ describe('navigate', () => {
   const original = window.location;
 
   afterEach(() => {
-    Object.defineProperty(window, 'location', { value: original, writable: true, configurable: true });
+    Object.defineProperty(window, 'location', {
+      value: original,
+      writable: true,
+      configurable: true,
+    });
   });
 
   // jsdom's location.assign/replace aren't individually spy-able — stub the

@@ -4,9 +4,7 @@ import type { WCGroup, WCStanding } from '../types';
 import StandingsView from './StandingsView';
 
 function renderView(groups: WCGroup[]) {
-  return render(
-    <StandingsView groups={groups} />,
-  );
+  return render(<StandingsView groups={groups} />);
 }
 
 function team(overrides: Partial<WCStanding> & { teamId: string; name: string }): WCStanding {
@@ -277,9 +275,7 @@ describe('StandingsView', () => {
     ];
 
     it('renders teams without the qualification legend', () => {
-      render(
-        <StandingsView groups={league} mode="league" />,
-      );
+      render(<StandingsView groups={league} mode="league" />);
       expect(screen.getByText('Arsenal')).toBeInTheDocument();
       // WC-only "advance (top 2)" legend must not render in league mode
       expect(screen.queryByText('Top 2 advance')).not.toBeInTheDocument();
@@ -287,17 +283,13 @@ describe('StandingsView', () => {
     });
 
     it('does not prefix the card header with "Group"', () => {
-      render(
-        <StandingsView groups={league} mode="league" />,
-      );
+      render(<StandingsView groups={league} mode="league" />);
       expect(screen.getAllByText('English Premier League')).toHaveLength(2); // visible span + sr-only caption
       expect(screen.queryByText(/^Group /)).not.toBeInTheDocument();
     });
 
     it('does not apply direct/third qualification highlighting to rows', () => {
-      render(
-        <StandingsView groups={league} mode="league" />,
-      );
+      render(<StandingsView groups={league} mode="league" />);
       const rows = screen.getAllByRole('row');
       // rows[0] = thead, rows[1-2] = tbody rows (Arsenal, Chelsea)
       expect(rows[1].className).not.toContain('bg-pitch');

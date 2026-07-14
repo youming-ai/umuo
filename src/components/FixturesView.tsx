@@ -131,13 +131,7 @@ export default function FixturesView({
             })
           : 'TBD'}
       </h3>
-      <div
-        className={
-          list.length === 1
-            ? 'mx-auto max-w-md'
-            : 'grid grid-cols-1 gap-stack sm:grid-cols-2 sm:gap-card'
-        }
-      >
+      <div className="grid grid-cols-2 gap-stack sm:gap-card">
         {list.map((m) => (
           <MatchCard
             key={m.id}

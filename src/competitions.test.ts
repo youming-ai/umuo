@@ -94,6 +94,7 @@ describe('nba (season-shape basketball)', () => {
       lineups: false,
       boxscore: true,
       transactions: true,
+      odds: true,
     });
     expect(nba.leadersSource).toBe('pipeline');
   });

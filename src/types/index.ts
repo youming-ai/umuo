@@ -28,6 +28,21 @@ export interface ScorerEntry {
   tag: '' | ' (p)' | ' (OG)';
 }
 
+// Betting line for a match — home/draw/away moneyline, handicap spread, and
+// over/under total, plus the sportsbook name and ESPN's own summary string.
+// Sourced from either a scoreboard event's odds[0] (Odds tab) or a summary
+// payload's pickcenter (match detail); both sport adapters parse into this one
+// shape. Fields are null when the feed omits them; drawMoneyLine is soccer-only.
+export interface MatchOdds {
+  provider: string;
+  details: string; // ESPN's own line summary, e.g. "MEX -230"
+  spread: number | null;
+  overUnder: number | null;
+  homeMoneyLine: number | null;
+  awayMoneyLine: number | null;
+  drawMoneyLine?: number | null; // soccer 3-way price; unset for 2-way sports
+}
+
 export interface CompMatch {
   id: string;
   homeName: string;
@@ -70,6 +85,10 @@ export interface CompMatch {
   // aggregate (often level), so these carry the actual decider.
   homeShootoutScore?: number;
   awayShootoutScore?: number;
+  // Betting line from the scoreboard event's competition.odds[0] (moneyline /
+  // spread / total). null when the feed omits odds for this fixture. Powers the
+  // per-competition Odds tab; parsed in each sport adapter's scoreboard transform.
+  odds?: MatchOdds | null;
 }
 
 export interface WCStanding {
@@ -202,7 +221,7 @@ export interface TeamDetail {
   id: string;
   name: string;
   logo: string;
-  record: string; // "46-36" / "" 
+  record: string; // "46-36" / ""
   standingSummary: string; // e.g. "3rd in Group A"
   roster: RosterPlayer[];
   schedule: TeamGame[];
