@@ -28,7 +28,7 @@ const comps = Object.values(COMPETITIONS);
     >
       {comps.map((c) => (
         <a
-          href={`/${c.key}`}
+          href={`/${c.key}/news`}
           aria-current={currentComp === c.key ? 'page' : undefined}
           class={`shrink-0 whitespace-nowrap rounded-card px-3 py-2 font-display text-sm tracking-wide transition-colors ${
             currentComp === c.key

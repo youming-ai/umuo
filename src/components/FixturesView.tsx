@@ -131,7 +131,7 @@ export default function FixturesView({
             })
           : 'TBD'}
       </h3>
-      <div className="grid grid-cols-2 gap-stack sm:gap-card">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-stack sm:gap-card">
         {list.map((m) => (
           <MatchCard
             key={m.id}

@@ -13,7 +13,7 @@ if (!comp || !Object.hasOwn(COMPETITIONS, comp)) {
 const competition = COMPETITIONS[comp]!;
 // Capability gate: only NBA (or future US sports) exposes the transactions feed.
 if (!competition.capabilities.transactions) {
-  return Astro.redirect(`/${comp}`, 307);
+  return Astro.redirect(`/${comp}/news`, 307);
 }
 const env = Astro.locals.runtime.env;
 const ctx = Astro.locals.runtime.ctx as Parameters<typeof getTransactions>[2];

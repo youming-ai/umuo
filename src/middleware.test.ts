@@ -17,7 +17,7 @@ const O = 'https://x.test';
 describe('middleware routing', () => {
   it('redirects root to the default competition', () => {
     const { redirect } = run(`${O}/`);
-    expect(redirect).toHaveBeenCalledWith(`/${DEFAULT_COMPETITION}`, 307);
+    expect(redirect).toHaveBeenCalledWith(`/${DEFAULT_COMPETITION}/news`, 307);
   });
 
   it('redirects legacy /news paths to the default competition news', () => {
@@ -34,7 +34,10 @@ describe('middleware routing', () => {
   });
 
   it('preserves the query string across redirects', () => {
-    expect(run(`${O}/?ref=a`).redirect).toHaveBeenCalledWith(`/${DEFAULT_COMPETITION}?ref=a`, 307);
+    expect(run(`${O}/?ref=a`).redirect).toHaveBeenCalledWith(
+      `/${DEFAULT_COMPETITION}/news?ref=a`,
+      307,
+    );
     expect(run(`${O}/match/foo?ref=share`).redirect).toHaveBeenCalledWith(
       `/${DEFAULT_COMPETITION}/match/foo?ref=share`,
       307,
