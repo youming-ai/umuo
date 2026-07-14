@@ -1,3 +1,5 @@
+import type { MatchOdds } from '../types';
+
 // Shared parsers for the "extras" blocks of an ESPN summary payload — betting
 // odds (pickcenter) and each team's recent form (lastFiveGames). Both sport
 // adapters' transformSummary reuse these. Own defensive coercion (obj/arr/str/
@@ -17,14 +19,13 @@ function str(v: unknown): string {
 function num(v: unknown): number | null {
   return typeof v === 'number' && Number.isFinite(v) ? v : null;
 }
-
-export interface MatchOdds {
-  provider: string;
-  details: string; // ESPN's own line summary, e.g. "MEX -230"
-  spread: number | null;
-  overUnder: number | null;
-  homeMoneyLine: number | null;
-  awayMoneyLine: number | null;
+// Scoreboard odds encode prices as strings ("+140", "-0.5"); parse to a finite
+// number or null. parseInt/parseFloat both handle a leading '+'.
+function numStr(v: unknown): number | null {
+  if (typeof v === 'number') return Number.isFinite(v) ? v : null;
+  if (typeof v !== 'string') return null;
+  const n = Number.parseFloat(v);
+  return Number.isFinite(n) ? n : null;
 }
 
 export type FormResult = 'W' | 'L' | 'D';
@@ -48,6 +49,29 @@ export function parseOdds(summary: Record<string, unknown>): MatchOdds | null {
     overUnder: num(pc.overUnder),
     homeMoneyLine: num(obj(pc.homeTeamOdds).moneyLine),
     awayMoneyLine: num(obj(pc.awayTeamOdds).moneyLine),
+  };
+}
+
+// Odds off a scoreboard event's competition.odds[0]. That block differs from the
+// summary pickcenter: moneylines live under moneyline.{home,away}.close.odds as
+// strings ("+140"), the spread under pointSpread.home.close.line, the total
+// under a top-level overUnder, and soccer's draw price under drawOdds.moneyLine.
+// Maps to the shared MatchOdds so the Odds tab reuses one type. null when no
+// provider/details present (feed omits odds for many fixtures).
+export function parseScoreboardOdds(oddsList: unknown): MatchOdds | null {
+  const o = obj(arr(oddsList)[0]);
+  const provider = str(obj(o.provider).name);
+  const details = str(o.details);
+  if (!provider && !details) return null;
+  const ml = obj(o.moneyline);
+  return {
+    provider,
+    details,
+    spread: numStr(obj(obj(obj(o.pointSpread).home).close).line),
+    overUnder: num(o.overUnder),
+    homeMoneyLine: numStr(obj(obj(ml.home).close).odds),
+    awayMoneyLine: numStr(obj(obj(ml.away).close).odds),
+    drawMoneyLine: num(obj(o.drawOdds).moneyLine),
   };
 }
 

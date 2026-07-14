@@ -18,9 +18,7 @@ function homePct(home: string, away: string): number | null {
 
 export default function TeamStatsTab({ stats }: { stats: TeamStatRow[] }) {
   if (stats.length === 0) {
-    return (
-      <p className="font-mono text-xs tracking-wider text-chalkdim p-card">No data yet</p>
-    );
+    return <p className="font-mono text-xs tracking-wider text-chalkdim p-card">No data yet</p>;
   }
   return (
     <div className="space-y-card p-card">

@@ -9,9 +9,8 @@ const path = Astro.url.pathname;
 const currentComp = Object.keys(COMPETITIONS).find(
   (key) => path === `/${key}` || path.startsWith(`/${key}/`),
 );
-const onScores = !!currentComp;
 
-const scoreComps = Object.values(COMPETITIONS);
+const comps = Object.values(COMPETITIONS);
 ---
 <header class="border-b border-line/30 bg-panel/85 backdrop-blur-md">
   <div class="flex items-center gap-4 px-page-x md:px-page-x-md h-14">
@@ -19,65 +18,31 @@ const scoreComps = Object.values(COMPETITIONS);
       umu<span class="text-pitch">o</span>
     </a>
 
+    {/* First-level routing: competition switcher. Each link lands on that
+        competition's root (Matches). Horizontally scrollable so it never
+        clips on narrow viewports; this is the only comp switcher (LeftNav
+        carries the per-competition section nav). */}
+    <nav
+      aria-label="Competitions"
+      class="flex min-w-0 flex-1 gap-1 overflow-x-auto no-scrollbar"
+    >
+      {comps.map((c) => (
+        <a
+          href={`/${c.key}`}
+          aria-current={currentComp === c.key ? 'page' : undefined}
+          class={`shrink-0 whitespace-nowrap rounded-card px-3 py-2 font-display text-sm tracking-wide transition-colors ${
+            currentComp === c.key
+              ? 'bg-overlay/10 font-bold text-chalk'
+              : 'text-chalkdim hover:bg-overlay/5 hover:text-chalk'
+          }`}
+        >
+          {c.label}
+        </a>
+      ))}
+    </nav>
 
-    {/* Scores disclosure lives OUTSIDE the scrolling nav: an `overflow-x-auto`
-        ancestor computes `overflow-y: auto` too, which would clip this dropdown.
-        Kept as its own pill so it can't be scrolled off and never gets clipped. */}
-    <details data-menu class="relative shrink-0 ds-segmented-blur">
-      <summary
-        aria-current={onScores ? 'page' : undefined}
-        class={`whitespace-nowrap ds-seg-tab list-none cursor-pointer [&::-webkit-details-marker]:hidden ${
-          onScores ? 'ds-seg-tab-active' : 'ds-seg-tab-inactive'
-        }`}
-      >
-        Scores
-      </summary>
-      <div
-        class="absolute top-full left-0 z-50 mt-1 min-w-[11rem] rounded-card border border-line/30 bg-panel/95 p-1 shadow-lg backdrop-blur-md"
-        aria-label="Competition scores"
-      >
-        {scoreComps.map((c) => (
-          <a
-            href={`/${c.key}`}
-            aria-current={currentComp === c.key ? 'page' : undefined}
-            class={`block whitespace-nowrap rounded-card px-3 py-2 font-display text-sm transition-colors ${
-              currentComp === c.key
-                ? 'bg-overlay/10 font-bold text-chalk'
-                : 'text-chalkdim hover:bg-overlay/5 hover:text-chalk'
-            }`}
-          >
-            {c.label}
-          </a>
-        ))}
-      </div>
-    </details>
-
-    <div class="ml-auto shrink-0">
+    <div class="shrink-0">
       <ThemeToggle client:only="react" />
     </div>
   </div>
 </header>
-
-<script>
-  // Native <details> closes only when its own summary is re-clicked — not on an
-  // outside click or Escape. Wire those up for [data-menu] disclosures (the
-  // Scores dropdown) so it behaves like a real menu. Scoped to [data-menu] so
-  // any other <details> on the page is left alone.
-  const closeMenus = (except: Element | null) => {
-    for (const d of document.querySelectorAll<HTMLDetailsElement>('details[data-menu][open]')) {
-      if (d !== except) d.open = false;
-    }
-  };
-  document.addEventListener('click', (e) => {
-    const target = e.target;
-    const inside = target instanceof Element ? target.closest('details[data-menu]') : null;
-    closeMenus(inside);
-  });
-  document.addEventListener('keydown', (e) => {
-    if (e.key !== 'Escape') return;
-    for (const d of document.querySelectorAll<HTMLDetailsElement>('details[data-menu][open]')) {
-      d.open = false;
-      d.querySelector<HTMLElement>('summary')?.focus();
-    }
-  });
-</script>

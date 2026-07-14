@@ -7,7 +7,7 @@ import type {
   SportAdapter,
   StandingsData,
 } from './types';
-import { parseOdds, parseRecentForm } from './summaryExtras';
+import { parseOdds, parseRecentForm, parseScoreboardOdds } from './summaryExtras';
 
 function isPlainObject(v: unknown): v is Record<string, unknown> {
   return typeof v === 'object' && v !== null && !Array.isArray(v);
@@ -115,6 +115,7 @@ function transform(
       awayScorers: [],
       venue: venueName && city ? `${venueName} · ${city}` : venueName,
       slug: matchSlug(str(homeTeam.displayName), str(awayTeam.displayName), str(ev.id)),
+      odds: parseScoreboardOdds(comp.odds),
       ...(statusText ? { statusText } : {}),
       ...(winner ? { winner } : {}),
     };

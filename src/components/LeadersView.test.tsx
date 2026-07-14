@@ -79,7 +79,13 @@ describe('LeadersView', () => {
   });
 
   it('renders the passed title/subtitle (basketball → Scoring Leaders)', () => {
-    renderView(rows, 'PTS', 'No stats yet', 'Scoring Leaders', "Points per the season's top scorers");
+    renderView(
+      rows,
+      'PTS',
+      'No stats yet',
+      'Scoring Leaders',
+      "Points per the season's top scorers",
+    );
     expect(screen.getAllByText('Scoring Leaders').length).toBeGreaterThan(0);
     expect(screen.getByText("Points per the season's top scorers")).toBeInTheDocument();
     expect(screen.queryByText('Top Scorers')).not.toBeInTheDocument();

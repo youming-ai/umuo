@@ -29,6 +29,7 @@ export interface Competition {
     lineups: boolean;
     boxscore: boolean;
     transactions?: boolean; // roster moves feed (US sports; soccer sparse)
+    odds?: boolean; // betting lines from the scoreboard feed → Odds tab
   };
   // Where the scorers/leaders tab gets its data. 'scoreboard' = aggregated
   // from the scoreboard's per-team leaders (World Cup, unchanged). 'pipeline'
@@ -47,7 +48,7 @@ export const COMPETITIONS: Record<string, Competition> = {
     dates: '20260611-20260719',
     standingsLevel: 3,
     shape: 'tournament',
-    capabilities: { bracket: true, scorers: true, lineups: true, boxscore: false },
+    capabilities: { bracket: true, scorers: true, lineups: true, boxscore: false, odds: true },
     leadersSource: 'scoreboard',
   },
   'eng.1': {
@@ -63,6 +64,7 @@ export const COMPETITIONS: Record<string, Competition> = {
       scorers: true,
       lineups: true,
       boxscore: false,
+      odds: true,
     },
     leadersSource: 'pipeline',
   },
@@ -81,6 +83,7 @@ export const COMPETITIONS: Record<string, Competition> = {
       lineups: false,
       boxscore: true,
       transactions: true,
+      odds: true,
     },
     leadersSource: 'pipeline',
   },

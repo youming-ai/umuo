@@ -17,7 +17,14 @@ import { COMPETITIONS, DEFAULT_COMPETITION } from '../competitions';
 // Unprefixed legacy paths (pre-multi-comp links) resolve under DEFAULT_COMPETITION.
 
 // The schedule sections (group standings are folded into the matches view).
-export type Section = 'matches' | 'scorers' | 'bracket' | 'news' | 'teams' | 'transactions';
+export type Section =
+  | 'matches'
+  | 'scorers'
+  | 'bracket'
+  | 'news'
+  | 'teams'
+  | 'transactions'
+  | 'odds';
 
 // Every route carries the competition it belongs to (URL first segment).
 export type Route =
@@ -34,6 +41,7 @@ const SECTION_SUFFIX: Record<Section, string> = {
   news: '/news',
   teams: '/teams',
   transactions: '/transactions',
+  odds: '/odds',
 };
 
 // decodeURIComponent throws URIError on malformed input (e.g. "/match/%").
@@ -60,6 +68,7 @@ function parseView(comp: string, seg: string[]): Route {
   if (seg.length === 1 && seg[0] === 'teams') return { kind: 'section', comp, section: 'teams' };
   if (seg.length === 1 && seg[0] === 'transactions')
     return { kind: 'section', comp, section: 'transactions' };
+  if (seg.length === 1 && seg[0] === 'odds') return { kind: 'section', comp, section: 'odds' };
   if (seg.length === 2 && seg[0] === 'match') {
     const slug = safeDecode(seg[1]!);
     if (slug !== null) return { kind: 'match', comp, slug };

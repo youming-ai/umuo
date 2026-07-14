@@ -99,7 +99,7 @@ export default function RightRail({
                         <img
                           src={row.flag}
                           alt=""
-                          className="w-4 h-3.5 object-cover rounded-micro border border-line/30"
+                          className="w-4 h-3.5 object-cover rounded-micro"
                           loading="lazy"
                         />
                       )}

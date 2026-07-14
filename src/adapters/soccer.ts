@@ -17,7 +17,7 @@ import {
   stageFromSlug,
   statusFromState,
 } from '../utils/wc';
-import { parseOdds, parseRecentForm } from './summaryExtras';
+import { parseOdds, parseRecentForm, parseScoreboardOdds } from './summaryExtras';
 import type { MatchDetail, SportAdapter, StandingsData } from './types';
 
 function isPlainObject(v: unknown): v is Record<string, unknown> {
@@ -227,6 +227,7 @@ function transform(
       awayScorers: status === 'upcoming' ? [] : awayScorers,
       venue: venueName && city ? `${venueName} · ${city}` : venueName,
       slug: matchSlug(str(homeTeam.displayName), str(awayTeam.displayName), str(ev.id)),
+      odds: parseScoreboardOdds(comp.odds),
       ...(progress ? { progress } : {}),
       ...(winner ? { winner } : {}),
       ...(finishType ? { finishType } : {}),

@@ -3,11 +3,12 @@ import type {
   LineupPlayer,
   PlayEvent,
   TeamLineup,
+  MatchOdds,
   TeamStatRow,
   TopScorer,
   WCGroup,
 } from '../types';
-import type { MatchOdds, TeamForm } from './summaryExtras';
+import type { TeamForm } from './summaryExtras';
 
 export interface ConferenceTable {
   name: string; // 'Eastern Conference' | 'Western Conference'

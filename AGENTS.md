@@ -25,7 +25,7 @@ graph TD
 - **Not a SPA**: the client router was removed. `src/utils/router.ts` only builds/reads URLs (`parseRoute`/`pathFor`); `navigate()` does a real `window.location` navigation — every view is its own SSR document.
 
 ## Key Directories
-- `src/pages/` — file-based SSR routes: `[comp]/` (`index`, `news`, `scorers`, `bracket`, `transactions`, `match/[slug]`, `team/[id]`, `player/[id]`, `teams`), `api/[...route].ts`, `sitemap.xml.ts`. News is per-competition; there is no global `/news`. `transactions` is capability-gated (NBA only; soccer 307-redirects).
+- `src/pages/` — file-based SSR routes: `[comp]/` (`index`, `news`, `scorers`, `bracket`, `transactions`, `odds`, `match/[slug]`, `team/[id]`, `player/[id]`, `teams`), `api/[...route].ts`, `sitemap.xml.ts`. News is per-competition; there is no global `/news`. `transactions` is capability-gated (NBA only; soccer 307-redirects); `odds` is capability-gated (all current comps carry scoreboard betting lines).
 - `src/data/api.ts` — KV cache core + SSR composition helpers.
 - `src/adapters/` — `types.ts`, `soccer.ts`, `basketball.ts`, `index.ts` (per-sport ESPN normalization).
 - `src/hooks/` — `useCompetition`, `useMatchDetail`, `useNews`, `useLeaders`, `useStreams`, `useBracket`, `useTicker`.
@@ -61,7 +61,7 @@ There is **no `deploy` script** and **`wrangler` is not a dependency** — deplo
 - `wrangler.jsonc` — Worker `main` (`dist/_worker.js/index.js`), `ASSETS` (`dist/`), `CACHE` KV binding, `nodejs_compat`.
 - `src/middleware.ts` — canonical-path redirects (`/` → `/<default comp>` 307; legacy `/news*` → `/<comp>/news`; query preserved).
 - `src/data/api.ts` — shared cache + SSR composition helpers (`getCompetitionView`, `getTeams`, `getTeamDetail`, `getTransactions`, `getLeagueInjuries`, `getPipelineLeaders`, `getCompNews`, `getMatchSummary`).
-- `src/competitions.ts` — competition registry, `buildUrl()`, `seasonForDate()`, `DEFAULT_COMPETITION='fifa.world'`. Capabilities (`bracket`, `scorers`, `lineups`, `boxscore`, `transactions?`) gate nav items and routes.
+- `src/competitions.ts` — competition registry, `buildUrl()`, `seasonForDate()`, `DEFAULT_COMPETITION='fifa.world'`. Capabilities (`bracket`, `scorers`, `lineups`, `boxscore`, `transactions?`, `odds?`) gate nav items and routes.
 - `src/teams.ts` / `src/teamDetail.ts` / `src/transactions.ts` — pure parsers for team directory, team detail (roster/schedule/injuries), and league transactions/injuries feeds.
 - `worker/index.ts` — `/api/*` HTTP wrapper.
 - `src/pages/api/[...route].ts` — Astro↔Worker bridge.
