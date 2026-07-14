@@ -34,7 +34,10 @@ describe('middleware routing', () => {
   });
 
   it('preserves the query string across redirects', () => {
-    expect(run(`${O}/?ref=a`).redirect).toHaveBeenCalledWith(`/${DEFAULT_COMPETITION}?ref=a`, 307);
+    expect(run(`${O}/?ref=a`).redirect).toHaveBeenCalledWith(
+      `/${DEFAULT_COMPETITION}?ref=a`,
+      307,
+    );
     expect(run(`${O}/match/foo?ref=share`).redirect).toHaveBeenCalledWith(
       `/${DEFAULT_COMPETITION}/match/foo?ref=share`,
       307,
