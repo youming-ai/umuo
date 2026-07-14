@@ -13,7 +13,7 @@ const competition = COMPETITIONS[comp]!;
 // Capability deep-link: redirect unsupported sections server-side so the
 // client never SSR-mounts then full-page-replaces (post-SPA navigate cost).
 if (!competition.capabilities.bracket) {
-  return Astro.redirect(`/${comp}/news`, 307);
+  return Astro.redirect(`/${comp}`, 307);
 }
 const env = Astro.locals.runtime.env;
 const ctx = Astro.locals.runtime.ctx as Parameters<typeof getCompetitionView>[2];

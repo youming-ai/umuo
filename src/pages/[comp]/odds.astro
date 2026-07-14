@@ -14,7 +14,7 @@ const competition = COMPETITIONS[comp]!;
 // Capability gate: only competitions whose scoreboard feed carries betting
 // lines expose the Odds tab. Others 307 back to the competition root.
 if (!competition.capabilities.odds) {
-  return Astro.redirect(`/${comp}/news`, 307);
+  return Astro.redirect(`/${comp}`, 307);
 }
 const env = Astro.locals.runtime.env;
 const ctx = Astro.locals.runtime.ctx as Parameters<typeof getCompetitionView>[2];
