@@ -27,10 +27,10 @@ export function onRequest(
     }
   }
 
-  // Root redirect — the default competition's home. Preserve the query string
-  // on every redirect so share/UTM params survive the hop.
+  // Root redirect — the default competition's news page. Preserve the query
+  // string on every redirect so share/UTM params survive the hop.
   if (path === '/') {
-    return context.redirect(`/${DEFAULT_COMPETITION}${search}`, 307);
+    return context.redirect(`/${DEFAULT_COMPETITION}/news${search}`, 307);
   }
 
   // Legacy global news (removed) → the default competition's news page, so old
