@@ -123,7 +123,7 @@ export function buildUrl(c: Competition, resource: Resource, event?: string): st
     return `${ESPN}/site/v2/${path}/summary?event=${event}`;
   }
   if (resource === 'news') {
-    return `${ESPN}/site/v2/${path}/news`;
+    return `${ESPN}/site/v2/${path}/news?limit=50`;
   }
   if (resource === 'teams') {
     return `${ESPN}/site/v2/${path}/teams`;

@@ -400,7 +400,7 @@ describe('per-competition news', () => {
     expect(res.status).toBe(200);
     expect(await res.text()).toBe('{"articles":[]}');
     expect(fetchMock.mock.calls[0][0]).toBe(
-      'https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/news',
+      'https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/news?limit=50',
     );
     expect(env.CACHE.put).toHaveBeenCalledWith(
       'fifa.world:news',
@@ -420,7 +420,7 @@ describe('per-competition news', () => {
     );
     expect(res.status).toBe(200);
     expect(fetchMock.mock.calls[0][0]).toBe(
-      'https://site.api.espn.com/apis/site/v2/sports/basketball/nba/news',
+      'https://site.api.espn.com/apis/site/v2/sports/basketball/nba/news?limit=50',
     );
   });
 });
