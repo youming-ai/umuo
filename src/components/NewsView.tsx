@@ -1,5 +1,8 @@
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNews } from '../hooks/useNews';
 import type { NewsItem, NewsTag } from '../types';
+
+const PAGE_SIZE = 12;
 
 export default function NewsView({
   comp,
@@ -9,8 +12,36 @@ export default function NewsView({
   initialData?: NewsItem[];
 }) {
   const { items, loading, error, refetch } = useNews(comp, initialData);
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+
+  // Reset visible count on competition switch — NOT on [items], which gets a new
+  // array ref on every poll/refocus and would snap the user back to page 1.
+  useEffect(() => {
+    setVisibleCount(PAGE_SIZE);
+  }, [comp]);
+
+  // IntersectionObserver on the sentinel — reveal the next batch when it enters viewport
+  const observerRef = useRef<IntersectionObserver | null>(null);
+  const sentinelCallback = useCallback(
+    (node: HTMLDivElement | null) => {
+      if (observerRef.current) observerRef.current.disconnect();
+      if (!node) return;
+      observerRef.current = new IntersectionObserver(
+        (entries) => {
+          if (entries[0]?.isIntersecting) {
+            setVisibleCount((prev) => prev + PAGE_SIZE);
+          }
+        },
+        { rootMargin: '200px' },
+      );
+      observerRef.current.observe(node);
+    },
+    [],
+  );
+
   const leadItem = items[0];
-  const storyItems = items.slice(1);
+  const storyItems = items.slice(1, visibleCount);
+  const hasMore = visibleCount < items.length;
 
   return (
     <div className="w-full">
@@ -39,6 +70,14 @@ export default function NewsView({
                   <NewsCard item={item} />
                 </div>
               ))}
+            </div>
+          )}
+          {hasMore && (
+            <div
+              ref={sentinelCallback}
+              className="flex justify-center py-6"
+            >
+              <span className="ds-caption text-chalkdim">Loading more…</span>
             </div>
           )}
         </div>

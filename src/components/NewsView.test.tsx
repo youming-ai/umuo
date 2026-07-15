@@ -72,4 +72,32 @@ describe('NewsView', () => {
     await waitFor(() => expect(screen.getByText('No link here')).toBeInTheDocument());
     expect(screen.queryByRole('link', { name: /No link here/ })).not.toBeInTheDocument();
   });
+
+  it('initially renders only PAGE_SIZE items and shows the sentinel when there are more', async () => {
+    const articles = Array.from({ length: 20 }, (_, i) => ({
+      id: i + 1,
+      headline: `Story ${i + 1}`,
+      description: `Desc ${i + 1}`,
+      published: '2026-07-07T00:00:00Z',
+      byline: 'ESPN',
+      images: [],
+      links: { web: { href: `https://www.espn.com/story/${i + 1}` } },
+      categories: [],
+    }));
+    fetchMock.mockResolvedValue({ ok: true, json: async () => ({ articles }) });
+    // jsdom has no IntersectionObserver — stub it so the ref callback doesn't throw
+    const observe = vi.fn();
+    const disconnect = vi.fn();
+    vi.stubGlobal(
+      'IntersectionObserver',
+      vi.fn(() => ({ observe, disconnect, unobserve: vi.fn() })),
+    );
+    renderView();
+    await waitFor(() => expect(screen.getByText('Story 1')).toBeInTheDocument());
+    // PAGE_SIZE = 12: lead (Story 1) + 11 story cards (Story 2–12)
+    expect(screen.getByText('Story 12')).toBeInTheDocument();
+    expect(screen.queryByText('Story 13')).not.toBeInTheDocument();
+    // Sentinel is visible because there are more items
+    expect(screen.getByText('Loading more…')).toBeInTheDocument();
+  });
 });
