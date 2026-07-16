@@ -1,6 +1,6 @@
+import { act, type ReactNode } from 'react';
+import { renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { renderHook, act } from '@testing-library/react';
-import { type ReactNode } from 'react';
 import { ThemeProvider, useTheme } from './index';
 
 function wrapper({ children }: { children: ReactNode }) {
@@ -23,20 +23,20 @@ describe('ThemeProvider', () => {
     expect(document.documentElement.dataset.theme).toBe('dark');
   });
 
-  it('persists explicit dark theme choice', () => {
+  it('persists explicit dark theme choice', async () => {
     const { result } = renderHook(() => useTheme(), { wrapper });
 
-    act(() => result.current.setTheme('dark'));
+    await act(async () => result.current.setTheme('dark'));
 
     expect(result.current.theme).toBe('dark');
     expect(localStorage.getItem('theme')).toBe('dark');
     expect(document.documentElement.dataset.theme).toBe('dark');
   });
 
-  it('persists explicit light theme choice', () => {
+  it('persists explicit light theme choice', async () => {
     const { result } = renderHook(() => useTheme(), { wrapper });
 
-    act(() => result.current.setTheme('light'));
+    await act(async () => result.current.setTheme('light'));
 
     expect(result.current.theme).toBe('light');
     expect(localStorage.getItem('theme')).toBe('light');

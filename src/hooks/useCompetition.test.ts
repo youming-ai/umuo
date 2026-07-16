@@ -1,4 +1,5 @@
-import { act, renderHook, waitFor } from '@testing-library/react';
+import { act } from 'react';
+import { renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useCompetition } from './useCompetition';
 
@@ -316,7 +317,7 @@ describe('useCompetition', () => {
     await waitFor(() => expect(fetchMock).toHaveBeenCalled());
     expect(firstSignal?.aborted).toBe(false);
 
-    act(() => {
+    await act(async () => {
       result.current.refetch();
     });
     expect(firstSignal?.aborted).toBe(true);

@@ -1,4 +1,5 @@
-import { act, renderHook, waitFor } from '@testing-library/react';
+import { act } from 'react';
+import { renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, expect, it, vi } from 'vitest';
 import type { MatchDetail } from '../adapters/types';
 import { useMatchDetail } from './useMatchDetail';
@@ -56,7 +57,7 @@ it('refetches on reload() and populates detail on success', async () => {
   expect(result.current.error).toBeTruthy();
   expect(fetchMock).toHaveBeenCalledTimes(1);
 
-  act(() => result.current.reload());
+  await act(async () => result.current.reload());
   await waitFor(() => expect(result.current.loading).toBe(false));
   expect(fetchMock).toHaveBeenCalledTimes(2);
   expect(result.current.error).toBeNull();
