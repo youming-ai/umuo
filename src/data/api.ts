@@ -29,8 +29,8 @@ import type {
 // Edge cache for the upstream data APIs. The SPA calls same-origin /api/*; the
 // Worker fetches the third-party source and caches the body in KV. Now lifted
 // out of `worker/index.ts` so Astro SSR pages can call these functions
-// directly (Astro.locals.runtime.env.CACHE + ctx) and share the same KV cache
-// + in-flight coalescing + serve-stale-on-outage semantics.
+// directly (env from 'cloudflare:workers' + Astro.locals.cfContext) and share
+// the same KV cache + in-flight coalescing + serve-stale-on-outage semantics.
 //
 // `fresh` = seconds a cached copy is served without revalidating.
 // `keep`  = how long KV retains it (≥ fresh) so a stale copy can cover an outage.

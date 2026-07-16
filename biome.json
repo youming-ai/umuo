@@ -6,6 +6,7 @@
       "!**/dist",
       "!**/node_modules",
       "!**/.wrangler",
+      "!**/.astro",
       "!**/bun.lock",
       "!**/worker-configuration.d.ts",
       "!**/*.css"

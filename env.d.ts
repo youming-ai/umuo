@@ -1,12 +1,17 @@
 /// <reference path=".astro/types.d.ts" />
 /// <reference types="astro/client" />
 
-interface Env {
-  CACHE: KVNamespace;
-  ASSETS: Fetcher;
+// `import { env } from 'cloudflare:workers'` types to `Cloudflare.Env`. Declare
+// our bindings here so SSR pages get CACHE/ASSETS typed regardless of whether
+// the CI-generated worker-configuration.d.ts is merged into this program.
+declare namespace Cloudflare {
+  interface Env {
+    CACHE: KVNamespace;
+    ASSETS: Fetcher;
+  }
 }
 
-type Runtime = import('@astrojs/cloudflare').Runtime<Env>;
+type Runtime = import('@astrojs/cloudflare').Runtime;
 
 declare namespace App {
   interface Locals extends Runtime {}
