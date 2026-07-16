@@ -3,7 +3,7 @@
   "name": "umuo",
   "compatibility_date": "2026-06-24",
   "compatibility_flags": ["nodejs_compat"],
-  "main": "./dist/_worker.js/index.js",
+  "main": "@astrojs/cloudflare/entrypoints/server",
   "observability": {
     "enabled": false,
     "head_sampling_rate": 1,

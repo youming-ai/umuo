@@ -1,4 +1,5 @@
 ---
+import { env } from 'cloudflare:workers';
 import { COMPETITIONS } from '../../../competitions';
 import LeftNav from '../../../components/LeftNav.astro';
 import MatchDetailIsland from '../../../components/MatchDetailIsland';
@@ -10,8 +11,7 @@ if (!comp || !Object.hasOwn(COMPETITIONS, comp)) {
   return new Response('Not found', { status: 404 });
 }
 const competition = COMPETITIONS[comp]!;
-const env = Astro.locals.runtime.env;
-const ctx = Astro.locals.runtime.ctx as Parameters<typeof getCompMatchBySlug>[3];
+const ctx = Astro.locals.cfContext;
 const match = await getCompMatchBySlug(competition, slug!, env, ctx);
 if (!match) {
   return new Response('Not found', { status: 404 });

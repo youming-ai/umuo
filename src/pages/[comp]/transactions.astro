@@ -1,4 +1,5 @@
 ---
+import { env } from 'cloudflare:workers';
 import { COMPETITIONS } from '../../competitions';
 import LeftNav from '../../components/LeftNav.astro';
 import RightRailIsland from '../../components/RightRailIsland';
@@ -15,8 +16,7 @@ const competition = COMPETITIONS[comp]!;
 if (!competition.capabilities.transactions) {
   return Astro.redirect(`/${comp}`, 307);
 }
-const env = Astro.locals.runtime.env;
-const ctx = Astro.locals.runtime.ctx as Parameters<typeof getTransactions>[2];
+const ctx = Astro.locals.cfContext;
 const [transactions, injuries, initialData] = await Promise.all([
   getTransactions(competition, env, ctx),
   getLeagueInjuries(competition, env, ctx),

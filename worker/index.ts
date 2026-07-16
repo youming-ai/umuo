@@ -5,8 +5,8 @@ import { type Env, json, serve, serveLeaders, serveSummary } from '../src/data/a
 
 // Thin HTTP wrapper around the shared data layer (src/data/api.ts). The SWR
 // primitives + composed serve* functions live there so Astro SSR pages can
-// call them directly with Astro.locals.runtime.env.CACHE. This file only does
-// URL parsing → serve* dispatch, and the SPA-fallback passthrough to ASSETS.
+// call them directly (env from 'cloudflare:workers' + Astro.locals.cfContext).
+// This file only does URL parsing → serve* dispatch, and the ASSETS passthrough.
 
 export { json, serve, serveSummary, serveLeaders };
 export type { Env };

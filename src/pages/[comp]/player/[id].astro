@@ -1,4 +1,5 @@
 ---
+import { env } from 'cloudflare:workers';
 import { COMPETITIONS } from '../../../competitions';
 import LeftNav from '../../../components/LeftNav.astro';
 import PlayerPageIsland from '../../../components/PlayerPageIsland';
@@ -14,8 +15,7 @@ if (!id) {
   return new Response('Not found', { status: 404 });
 }
 const competition = COMPETITIONS[comp]!;
-const env = Astro.locals.runtime.env;
-const ctx = Astro.locals.runtime.ctx as Parameters<typeof getCompetitionView>[2];
+const ctx = Astro.locals.cfContext;
 const view = await getCompetitionView(competition, env, ctx);
 
 const scorer = view.scorers.find((s) => s.athleteId === id);

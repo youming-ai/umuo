@@ -90,7 +90,11 @@ describe('NewsView', () => {
     const disconnect = vi.fn();
     vi.stubGlobal(
       'IntersectionObserver',
-      vi.fn(() => ({ observe, disconnect, unobserve: vi.fn() })),
+      class {
+        observe = observe;
+        disconnect = disconnect;
+        unobserve = vi.fn();
+      },
     );
     renderView();
     await waitFor(() => expect(screen.getByText('Story 1')).toBeInTheDocument());
