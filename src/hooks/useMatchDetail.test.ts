@@ -64,6 +64,29 @@ it('refetches on reload() and populates detail on success', async () => {
   expect(result.current.detail?.homeId).toBe('7');
 });
 
+it('keeps stale detail when a reload fails after a successful fetch', async () => {
+  fetchMock
+    .mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        header: { competitions: [{ competitors: [{ homeAway: 'home', team: { id: '1' } }] }] },
+        boxscore: { teams: [] },
+        gameInfo: {},
+      }),
+    })
+    .mockResolvedValueOnce({ ok: false });
+  const { result } = renderHook(() => useMatchDetail('1', 'fifa.world'));
+  await waitFor(() => expect(result.current.loading).toBe(false));
+  expect(result.current.detail?.homeId).toBe('1');
+  expect(result.current.error).toBeNull();
+
+  await act(async () => result.current.reload());
+  await waitFor(() => expect(result.current.loading).toBe(false));
+  // Stale detail is retained; no error surfaced since we still have data to show.
+  expect(result.current.detail?.homeId).toBe('1');
+  expect(result.current.error).toBeNull();
+});
+
 it('skips the first fetch when initialData is provided (non-null)', async () => {
   const seed: MatchDetail = {
     kind: 'soccer',

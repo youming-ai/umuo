@@ -93,6 +93,20 @@ describe('serve', () => {
     expect(body).toBe('{"data":"fresh"}');
   });
 
+  it('treats a KV read failure as a miss and still serves upstream (no 500)', async () => {
+    fetchMock.mockResolvedValueOnce({ ok: true, text: async () => '{"data":"fresh"}' });
+    const env = mockEnv(null);
+    // Transient isolate-level KV hiccup: the read rejects. runCached must
+    // swallow it, treat stored as null, and revalidate from upstream.
+    vi.mocked(env.CACHE.get).mockRejectedValueOnce(new Error('kv down'));
+    const ctx = mockCtx();
+
+    const res = await serve(WC, 'standings', env as unknown as Env, ctx);
+    expect(res.status).toBe(200);
+    expect(res.headers.get('x-cache')).toBe('MISS');
+    expect(await res.text()).toBe('{"data":"fresh"}');
+  });
+
   it('returns REVALIDATED when stored data is stale but fetch succeeds', async () => {
     fetchMock.mockResolvedValueOnce({ ok: true, text: async () => '{"data":"updated"}' });
 

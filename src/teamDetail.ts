@@ -2,19 +2,7 @@
 // /roster + /schedule) plus the league injuries feed into one TeamDetail.
 // Sport-agnostic: soccer and basketball share these shapes. No DOM/React.
 import type { RosterPlayer, TeamDetail, TeamGame, TeamInjury } from './types';
-
-function isObj(v: unknown): v is Record<string, unknown> {
-  return typeof v === 'object' && v !== null && !Array.isArray(v);
-}
-function obj(v: unknown): Record<string, unknown> {
-  return isObj(v) ? v : {};
-}
-function arr(v: unknown): unknown[] {
-  return Array.isArray(v) ? v : [];
-}
-function str(v: unknown): string {
-  return typeof v === 'string' ? v : typeof v === 'number' ? String(v) : '';
-}
+import { arr, obj, str } from './utils/coerce';
 
 function parseRoster(rosterJson: unknown): RosterPlayer[] {
   return arr(obj(rosterJson).athletes)

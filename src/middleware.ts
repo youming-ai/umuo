@@ -20,6 +20,19 @@ export function onRequest(
     return next();
   }
 
+  // Legacy /scorers slug → /stats (the page now renders season stat
+  // leaderboards). Redirect the unprefixed legacy form and comp-scoped
+  // /<comp>/scorers for KNOWN competitions only — an unknown /foo/scorers or
+  // /news/scorers falls through to the legacy/news handlers below instead of
+  // being masked into a non-existent /foo/stats.
+  if (path === '/scorers') return context.redirect(`/${DEFAULT_COMPETITION}/stats${search}`, 307);
+  const slash = path.indexOf('/', 1);
+  if (slash !== -1) {
+    const comp = path.slice(1, slash);
+    if (Object.hasOwn(COMPETITIONS, comp) && path === `/${comp}/scorers`)
+      return context.redirect(`/${comp}/stats${search}`, 307);
+  }
+
   // Known competition prefixes pass through.
   for (const key of Object.keys(COMPETITIONS)) {
     if (path === `/${key}` || path.startsWith(`/${key}/`)) {

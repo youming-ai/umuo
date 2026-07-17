@@ -36,8 +36,8 @@ export default function TeamStatsTab({ stats }: { stats: TeamStatRow[] }) {
                 {/* Home side bar: right-aligned, grows to the left */}
                 <div className="flex-1 bg-overlay/5 h-1.5 rounded-pill overflow-hidden flex justify-end">
                   <div
-                    className={`${pct >= 50 ? 'bg-overlay' : 'bg-overlay/45'} h-full rounded-pill transition-all duration-300`}
-                    style={{ width: `${pct}%` }}
+                    className={`${pct >= 50 ? 'bg-overlay' : 'bg-overlay/45'} h-full w-full rounded-pill origin-right transition-transform duration-300 ease-out`}
+                    style={{ transform: `scaleX(${pct / 100})` }}
                   />
                 </div>
                 {/* Center marker */}
@@ -45,8 +45,8 @@ export default function TeamStatsTab({ stats }: { stats: TeamStatRow[] }) {
                 {/* Away side bar: left-aligned, grows to the right */}
                 <div className="flex-1 bg-overlay/5 h-1.5 rounded-pill overflow-hidden flex justify-start">
                   <div
-                    className={`${pct < 50 ? 'bg-overlay' : 'bg-overlay/45'} h-full rounded-pill transition-all duration-300`}
-                    style={{ width: `${100 - pct}%` }}
+                    className={`${pct < 50 ? 'bg-overlay' : 'bg-overlay/45'} h-full w-full rounded-pill origin-left transition-transform duration-300 ease-out`}
+                    style={{ transform: `scaleX(${(100 - pct) / 100})` }}
                   />
                 </div>
               </div>

@@ -14,7 +14,7 @@ const items: { section: Section; label: string; href: string }[] = [
   { section: 'matches', label: 'Matches', href: `/${comp}` },
   { section: 'teams', label: 'Teams', href: `/${comp}/teams` },
   ...(caps?.scorers
-    ? [{ section: 'scorers' as Section, label: 'Stats', href: `/${comp}/scorers` }]
+    ? [{ section: 'stats' as Section, label: 'Stats', href: `/${comp}/stats` }]
     : []),
   ...(caps?.bracket
     ? [{ section: 'bracket' as Section, label: 'Bracket', href: `/${comp}/bracket` }]
@@ -34,7 +34,7 @@ const items: { section: Section; label: string; href: string }[] = [
       <a
         href={it.href}
         aria-current={active === it.section ? 'page' : undefined}
-        class={`shrink-0 whitespace-nowrap rounded-card px-3 py-2 font-display text-sm tracking-wide transition-colors ${
+        class={`shrink-0 whitespace-nowrap rounded-card px-3 py-2 font-display text-sm tracking-wide ds-press ${
           active === it.section
             ? 'bg-overlay/10 text-chalk font-bold'
             : 'text-chalkdim hover:text-chalk hover:bg-overlay/5'

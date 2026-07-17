@@ -40,13 +40,16 @@ describe('sitemap.xml', () => {
     const { body } = await render();
     for (const path of [
       '/fifa.world',
-      '/fifa.world/scorers',
+      '/fifa.world/stats',
       '/fifa.world/bracket',
+      '/fifa.world/odds',
       '/eng.1',
-      '/eng.1/scorers',
+      '/eng.1/stats',
+      '/eng.1/odds',
       '/nba',
-      '/nba/scorers',
+      '/nba/stats',
       '/nba/transactions',
+      '/nba/odds',
     ]) {
       expect(body).toContain(`<loc>${SITE_ORIGIN}${path}</loc>`);
     }

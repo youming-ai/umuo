@@ -2,19 +2,7 @@
 // NBA-rich (year-round), soccer sparse/empty → graceful empty arrays. No
 // DOM/React.
 import type { LeagueInjuryGroup, TransactionItem } from './types';
-
-function isObj(v: unknown): v is Record<string, unknown> {
-  return typeof v === 'object' && v !== null && !Array.isArray(v);
-}
-function obj(v: unknown): Record<string, unknown> {
-  return isObj(v) ? v : {};
-}
-function arr(v: unknown): unknown[] {
-  return Array.isArray(v) ? v : [];
-}
-function str(v: unknown): string {
-  return typeof v === 'string' ? v : typeof v === 'number' ? String(v) : '';
-}
+import { arr, obj, str } from './utils/coerce';
 
 export function parseTransactions(json: unknown): TransactionItem[] {
   return arr(obj(json).transactions)

@@ -20,9 +20,10 @@ export const GET: APIRoute = () => {
     paths.push(`/${c.key}`);
     paths.push(`/${c.key}/news`);
     paths.push(`/${c.key}/teams`);
-    if (c.capabilities.scorers) paths.push(`/${c.key}/scorers`);
+    if (c.capabilities.scorers) paths.push(`/${c.key}/stats`);
     if (c.capabilities.bracket) paths.push(`/${c.key}/bracket`);
     if (c.capabilities.transactions) paths.push(`/${c.key}/transactions`);
+    if (c.capabilities.odds) paths.push(`/${c.key}/odds`);
   }
 
   const urls = paths.map((p) => `  <url>\n    <loc>${SITE_ORIGIN}${p}</loc>\n  </url>`).join('\n');

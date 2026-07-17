@@ -29,8 +29,14 @@ describe('middleware routing', () => {
   });
 
   it('redirects legacy unprefixed paths to the default competition', () => {
-    const { redirect } = run(`${O}/scorers`);
-    expect(redirect).toHaveBeenCalledWith(`/${DEFAULT_COMPETITION}/scorers`, 307);
+    const { redirect } = run(`${O}/bracket`);
+    expect(redirect).toHaveBeenCalledWith(`/${DEFAULT_COMPETITION}/bracket`, 307);
+  });
+
+  it('redirects the legacy /scorers slug to /stats (unprefixed and comp-scoped)', () => {
+    expect(run(`${O}/scorers`).redirect).toHaveBeenCalledWith(`/${DEFAULT_COMPETITION}/stats`, 307);
+    expect(run(`${O}/fifa.world/scorers`).redirect).toHaveBeenCalledWith(`/fifa.world/stats`, 307);
+    expect(run(`${O}/eng.1/scorers`).redirect).toHaveBeenCalledWith(`/eng.1/stats`, 307);
   });
 
   it('preserves the query string across redirects', () => {

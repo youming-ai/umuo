@@ -29,7 +29,7 @@ function OddsIslandInner({
         <button
           type="button"
           onClick={refetch}
-          className="px-4 py-2 bg-pitch text-onaccent font-display font-semibold tracking-wide hover:brightness-110 transition"
+          className="px-4 py-2 bg-pitch text-onaccent font-display font-semibold tracking-wide hover:brightness-110 ds-press"
         >
           Retry
         </button>

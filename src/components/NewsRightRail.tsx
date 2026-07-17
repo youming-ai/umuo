@@ -31,17 +31,30 @@ export default function NewsRightRail({
           </p>
         ) : (
           <div className="flex flex-col gap-2">
-            {trending.map((item, i) => (
-              <a
-                key={item.id || `trend-${i}`}
-                href={item.link}
-                target={item.link.startsWith('https://') ? '_blank' : undefined}
-                rel={item.link.startsWith('https://') ? 'noopener noreferrer' : undefined}
-                className="text-xs text-chalk hover:text-pitch transition-colors leading-snug line-clamp-2 px-1"
-              >
-                {item.headline}
-              </a>
-            ))}
+            {trending.map((item, i) => {
+              // Defense-in-depth: only render a clickable anchor for http(s)
+              // or same-origin (/) links — anything else (javascript:/data:)
+              // degrades to a non-clickable span. Mirrors NewsView's guard.
+              const external = item.link.startsWith('https://');
+              const linked = external || item.link.startsWith('/');
+              const key = item.id || `trend-${i}`;
+              const cls = 'text-xs leading-snug line-clamp-2 px-1';
+              return linked ? (
+                <a
+                  key={key}
+                  href={item.link}
+                  target={external ? '_blank' : undefined}
+                  rel={external ? 'noopener noreferrer' : undefined}
+                  className={`${cls} text-chalk hover:text-pitch transition-colors`}
+                >
+                  {item.headline}
+                </a>
+              ) : (
+                <span key={key} aria-disabled className={`${cls} text-chalkdim`}>
+                  {item.headline}
+                </span>
+              );
+            })}
           </div>
         )}
       </div>
@@ -61,7 +74,7 @@ export default function NewsRightRail({
               <a
                 key={`${m.comp}-${m.id}`}
                 href={pathFor({ kind: 'match', comp: m.comp, slug: m.slug })}
-                className="flex flex-col gap-0.5 p-2 rounded-card bg-overlay/5 border border-line/25 hover:bg-overlay/10 hover:border-line/50 text-left transition-all duration-200"
+                className="flex flex-col gap-0.5 p-2 rounded-card bg-overlay/5 border border-line/25 hover:bg-overlay/10 hover:border-line/50 text-left ds-press"
               >
                 <span className="text-caption font-mono uppercase text-chalkdim">
                   {COMPETITIONS[m.comp]?.label ?? m.comp}

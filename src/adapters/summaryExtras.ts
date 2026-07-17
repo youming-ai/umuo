@@ -1,21 +1,10 @@
-import type { MatchOdds } from '../types';
+import type { MatchOdds, TeamStatRow } from '../types';
+import { arr, obj, str } from '../utils/coerce';
 
 // Shared parsers for the "extras" blocks of an ESPN summary payload — betting
 // odds (pickcenter) and each team's recent form (lastFiveGames). Both sport
-// adapters' transformSummary reuse these. Own defensive coercion (obj/arr/str/
-// num) so a shape drift degrades to null/[] instead of throwing.
-function isObj(v: unknown): v is Record<string, unknown> {
-  return typeof v === 'object' && v !== null && !Array.isArray(v);
-}
-function obj(v: unknown): Record<string, unknown> {
-  return isObj(v) ? v : {};
-}
-function arr(v: unknown): unknown[] {
-  return Array.isArray(v) ? v : [];
-}
-function str(v: unknown): string {
-  return typeof v === 'string' ? v : typeof v === 'number' ? String(v) : '';
-}
+// adapters' transformSummary reuse these. Defensive coercion (obj/arr/str via
+// utils/coerce; num/numStr local) so a shape drift degrades to null/[] not throw.
 function num(v: unknown): number | null {
   return typeof v === 'number' && Number.isFinite(v) ? v : null;
 }
@@ -89,4 +78,65 @@ export function parseRecentForm(summary: Record<string, unknown>): TeamForm[] {
       return { teamId: str(team.id), teamName: str(team.displayName), results };
     })
     .filter((f) => f.results.length > 0);
+}
+
+// Shared base of a MatchDetail — the parts soccer and basketball summaries
+// have in common: home/away ids from the header, team-vs-team boxscore stats,
+// venue/attendance, and the odds/form extras. Each sport's transformSummary
+// calls this then layers its sport-specific fields (soccer: plays/lineups;
+// basketball: player tables) onto the returned base.
+export interface SummaryBase {
+  homeId: string;
+  awayId: string;
+  teamStats: TeamStatRow[];
+  venue: string;
+  attendance: number | null;
+  odds: MatchOdds | null;
+  form: TeamForm[];
+}
+
+export function parseSummaryBase(d: Record<string, unknown>): SummaryBase {
+  const competitors = arr(obj(arr(obj(d.header).competitions)[0]).competitors).map(obj);
+  const homeId = str(obj(competitors.find((c) => c.homeAway === 'home')?.team).id);
+  const awayId = str(obj(competitors.find((c) => c.homeAway === 'away')?.team).id);
+
+  // Team-vs-team stats: map each boxscore team's label→displayValue, pair by
+  // the home team's order (union of labels, home first).
+  const byTeam = new Map<string, Map<string, string>>();
+  for (const rawTeam of arr(obj(d.boxscore).teams)) {
+    const t = obj(rawTeam);
+    const id = str(obj(t.team).id);
+    const m = new Map<string, string>();
+    for (const rawStat of arr(t.statistics)) {
+      const s = obj(rawStat);
+      m.set(str(s.label), str(s.displayValue));
+    }
+    byTeam.set(id, m);
+  }
+  const homeStats = byTeam.get(homeId) ?? new Map();
+  const awayStats = byTeam.get(awayId) ?? new Map();
+  const statLabels = [
+    ...homeStats.keys(),
+    ...[...awayStats.keys()].filter((label) => !homeStats.has(label)),
+  ];
+  const teamStats: TeamStatRow[] = statLabels.map((label) => ({
+    label,
+    home: homeStats.get(label) ?? '',
+    away: awayStats.get(label) ?? '',
+  }));
+
+  const venueObj = obj(obj(d.gameInfo).venue);
+  const city = str(obj(venueObj.address).city);
+  const venueName = str(venueObj.fullName);
+  const att = obj(d.gameInfo).attendance;
+
+  return {
+    homeId,
+    awayId,
+    teamStats,
+    venue: venueName && city ? `${venueName} · ${city}` : venueName,
+    attendance: typeof att === 'number' ? att : null,
+    odds: parseOdds(d),
+    form: parseRecentForm(d),
+  };
 }

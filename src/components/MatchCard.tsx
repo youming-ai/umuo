@@ -167,7 +167,7 @@ export default memo(function MatchCard({
     // The clickable region (`<a href>`) and the action footer are siblings —
     // not nested — so a footer click can't activate the link.
     <div
-      className={`block w-full rounded-card border border-line bg-panel shadow-panel transition-all duration-200 ${
+      className={`block w-full rounded-card border border-line bg-panel shadow-panel ds-press ${
         clickable ? 'hover:border-pitch' : 'hover:border-chalkdim'
       }`}
     >

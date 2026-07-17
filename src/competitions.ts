@@ -31,10 +31,11 @@ export interface Competition {
     transactions?: boolean; // roster moves feed (US sports; soccer sparse)
     odds?: boolean; // betting lines from the scoreboard feed → Odds tab
   };
-  // Where the scorers/leaders tab gets its data. 'scoreboard' = aggregated
-  // from the scoreboard's per-team leaders (World Cup, unchanged). 'pipeline'
-  // = server-side assembleLeaders over ESPN core.api (eng.1 goals / nba
-  // points). Omit for comps with no leaders tab.
+  // Where the right-rail Top Scorers get their data. 'scoreboard' = aggregated
+  // from the scoreboard's per-team leaders (World Cup). 'pipeline' = server-
+  // side assembleLeaders over ESPN core.api (eng.1 goals / nba points). Omit
+  // for comps with no top-scorers display. (The /stats page uses
+  // getLeaderboards independently of this field.)
   leadersSource?: 'scoreboard' | 'pipeline';
 }
 
