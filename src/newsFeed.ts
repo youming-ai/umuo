@@ -3,21 +3,7 @@
 // topic/…), so coerce with obj()/arr()/str() rather than trusting shapes —
 // same discipline as the sport adapters. No DOM/React: unit-testable in isolation.
 import type { NewsItem, NewsTag } from './types';
-
-function isObj(v: unknown): v is Record<string, unknown> {
-  return typeof v === 'object' && v !== null && !Array.isArray(v);
-}
-function obj(v: unknown): Record<string, unknown> {
-  return isObj(v) ? v : {};
-}
-function arr(v: unknown): unknown[] {
-  return Array.isArray(v) ? v : [];
-}
-function str(v: unknown): string {
-  if (typeof v === 'string') return v;
-  if (typeof v === 'number') return String(v);
-  return '';
-}
+import { arr, obj, str } from './utils/coerce';
 
 // Pull team/athlete/league entities out of a headline's `categories`, deduped.
 function tagsFrom(categories: unknown): NewsTag[] {

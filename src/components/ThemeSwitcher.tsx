@@ -29,7 +29,7 @@ export default function ThemeSwitcher() {
       onClick={cycle}
       aria-label={label}
       title={label}
-      className="flex min-h-11 min-w-11 items-center justify-center rounded-pill hover:bg-overlay/10 text-chalkdim hover:text-chalk transition-all duration-200"
+      className="flex min-h-11 min-w-11 items-center justify-center rounded-pill hover:bg-overlay/10 text-chalkdim hover:text-chalk ds-press"
     >
       <Icon className="w-5 h-5" aria-hidden />
     </button>

@@ -1,6 +1,6 @@
 # StreamCup — 体育赛事数据与直播导航系统
 
-StreamCup 是一个高性能、轻量级的体育赛事数据追踪与在线直播导航 Web 系统，支持世界杯（FIFA World Cup）、英超（Premier League）以及 NBA 等多项赛事，并内置赛事资讯（News）流。系统基于 **Astro 5 服务端渲染（SSR）+ React 群岛（Islands）** 架构，整站以单个 Cloudflare Worker 部署，边缘节点同时负责页面渲染与上游数据源的 KV 缓存代理，提供极致平滑的交互体验与可靠的数据兜底。
+StreamCup 是一个高性能、轻量级的体育赛事数据追踪与在线直播导航 Web 系统，支持世界杯（FIFA World Cup）、英超（Premier League）以及 NBA 等多项赛事，并内置赛事资讯（News）流。系统基于 **Astro 7 服务端渲染（SSR）+ React 群岛（Islands）** 架构，整站以单个 Cloudflare Worker 部署，边缘节点同时负责页面渲染与上游数据源的 KV 缓存代理，提供极致平滑的交互体验与可靠的数据兜底。
 
 ---
 
@@ -22,22 +22,22 @@ graph TD
 ```
 
 ### 1.1 Astro SSR 外壳与 React 群岛
-* **技术栈**：Astro 5（`output: "server"`）、`@astrojs/cloudflare` 适配器（本地开发通过 `platformProxy` 获得真实 KV 绑定）、`@astrojs/react`（群岛）、Tailwind CSS 3、Biome。
-* **两段式渲染**：`src/pages/` 下的 Astro 文件式路由在服务端通过共享数据层（`Astro.locals.runtime.env.CACHE` + `ctx`）拉取初始数据、渲染首屏，再把数据作为 `initialData` 传给以 `client:only="react"` 挂载的 React 群岛。群岛水合后用初始数据 seed 各自的 Hook，接管后续交互与轮询。`AppProviders.tsx` 为每个群岛注入 i18n 与主题上下文。
+* **技术栈**：Astro 7（`output: "server"`）、`@astrojs/cloudflare` v14 适配器（本地开发由适配器经 wrangler/miniflare 提供真实 KV 绑定，无 `platformProxy` 字段）、`@astrojs/react`（群岛）、Tailwind CSS 3、Biome。
+* **两段式渲染**：`src/pages/` 下的 Astro 文件式路由在服务端通过共享数据层（`cloudflare:workers` 的 `env` + `Astro.locals.cfContext` 的 `ctx`）拉取初始数据、渲染首屏，再把数据作为 `initialData` 传给以 `client:only="react"` 挂载的 React 群岛。群岛水合后用初始数据 seed 各自的 Hook，接管后续交互与轮询。`AppProviders.tsx` 为每个群岛注入主题上下文。
 * **数据轮询与 SWR**：前端数据 Hook（`useCompetition`、`useMatchDetail`、`useLeaders`、`useBracket`、`useStreams`、`useNews`）均支持可见性感知（Page Visibility API）——标签页后台时暂停轮询，返回前台立即静默刷新——并统一以 `AbortController` 取消在途请求避免竞态。
 
 ### 1.2 路由分层：Astro 管入口，自定义路由管站内跳转
-* **Astro 中间件**（`src/middleware.ts`）：每次请求都会运行，将 `/` 与遗留的无赛事前缀路径 307 重定向到默认赛事 `/<DEFAULT_COMPETITION>`（`fifa.world`）；带赛事前缀的路由、`/api`、`/news`、`/player` 及静态资源路径原样放行。
-* **文件式路由**：`[comp]/{index,scorers,bracket}`、`[comp]/match/[slug]`、`[comp]/team/[id]`、`player/[id]`、`news/{index,[sport]}`、`news/team/[abbrev]`、`news/league/[slug]`、`api/[...route]`。
-* **站内客户端路由**：`src/utils/router.ts`（手写的 History API 路由：`Route` 联合类型、`parseRoute`/`pathFor`/`navigate`/`useRouter`）在群岛水合后接管站内跳转（点击比赛、切换页签等），不依赖第三方路由库。每条路由都以赛事 key 作为 URL 首段；由于 `pushState` 不触发 `popstate`，`navigate()` 会派发自定义 `app:routechange` 事件，`useRouter` 监听该事件保持同步。路径参数视为不可信输入，用 `safeDecode` 防御式解码以避免 `URIError`。
+* **Astro 中间件**（`src/middleware.ts`）：每次请求都会运行，将 `/` 与遗留的无赛事前缀路径 307 重定向到默认赛事 `/<DEFAULT_COMPETITION>`（`fifa.world`）；带赛事前缀的路由、`/api` 及静态资源路径原样放行，遗留 `/scorers` slug（含 `/<comp>/scorers`）307 跳转到 `/<comp>/stats`。
+* **文件式路由**：`[comp]/{index,news,stats,bracket,transactions,odds,teams}`、`[comp]/match/[slug]`、`[comp]/team/[id]`、`[comp]/player/[id]`、`api/[...route]`、`sitemap.xml.ts`。（无全局 `/news`，也无顶层 `/player`。）
+* **站内客户端路由**：`src/utils/router.ts` 是一个极薄的纯 URL 构造/读取工具——`Route` 联合类型、`parseRoute`/`pathFor`，以及 `navigate()`（真实 `window.location` 跳转，**非** pushState——客户端路由器已移除，每个视图都是独立的 SSR 文档）。每条路由都以赛事 key 作为 URL 首段；`useRouter()` 仅解析 `window.location.pathname`（无订阅，跳转即整页重载）。路径参数视为不可信输入，用 `safeDecode` 防御式解码以避免 `URIError`。
 
 ### 1.3 共享数据层与边缘 Worker 包装
 * **共享数据层**（`src/data/api.ts`）：KV 缓存 + 请求合并 + 陈旧兜底的核心逻辑与 SSR 组合函数集中于此，保证只有一条缓存路径。
   * **边缘 TTL / SWR 缓存**：在 Cloudflare KV 中存储原始 JSON，按资源类型配置 `fresh`/`keep` 两级 TTL（Scoreboard、Standings、Summary、Leaders、News 各有窗口；`keep` 统一约 1 天）。`fresh` 窗口内直接命中返回，过期后同步向上游 revalidate。注意：**Worker 层是"TTL 缓存 + 陈旧兜底"，"先返回陈旧、后台异步刷新"的完整 SWR 语义在前端 Hook 层（§1.1）。**
   * **并发请求合并（Request Coalescing）**：用模块级内存 `Map` 对同一端点的在途请求做惊群保护，`fresh` 过期瞬间的并发只触发一次上游 Fetch，其余搭车共享同一份 JSON 载荷（各自再构造独立 `Response`）。注意：`workerd` 每节点多个 V8 isolate 且**内存互不共享**，故合并仅在**单个 isolate 内**生效；真正把上游流量压到最低的是 KV `fresh` 缓存窗口，合并只是边界上的补充优化。
   * **容灾降级（Serve-Stale）**：上游 ESPN 发生错误时自动后台重试；彻底不可用时直接下发 KV 中已过期的 STALE 副本，仅在毫无缓存时才返回错误。
-  * **SSR 组合函数**：`getCompetitionView`（scoreboard + standings + 适配器 → 可直接渲染的视图）、`getPipelineLeaders`、`getCompMatchBySlug`、`getMatchSummary`、`fetchNewsItems`——供 Astro 页面服务端直接调用；群岛则走同源 `/api/*`。
-* **Worker 包装层**（`worker/index.ts`）：极薄的 HTTP 分发层——解析 URL → 分发到 `serve*`（`/api/<comp>/(scoreboard|standings|summary|leaders)`、`/api/news`；未知赛事 404）。在 Astro 部署中由 catch-all 路由 `src/pages/api/[...route].ts` 转发 `worker.fetch(request, env, ctx)` 挂载在 `/api/*`；其余请求（SSR 页面 + `dist/` 静态资源）由 Astro 自身处理。
+  * **SSR 组合函数**：`getCompetitionView`（scoreboard + standings + 适配器 → 可直接渲染的视图）、`getLeaderboards`（Stats 页）、`getCompMatchBySlug`、`getMatchSummary`、`getCompNews`、`getTeams`、`getTeamDetail`、`getTransactions`、`getLeagueInjuries`——供 Astro 页面服务端直接调用；群岛则走同源 `/api/*`。
+* **Worker 包装层**（`worker/index.ts`）：极薄的 HTTP 分发层——解析 URL → 分发到 `serve*`（`/api/<comp>/(scoreboard|standings|summary|leaders|news)`；未知赛事 404）。在 Astro 部署中由 catch-all 路由 `src/pages/api/[...route].ts` 转发 `worker.fetch(request, env, ctx)` 挂载在 `/api/*`；其余请求（SSR 页面 + `dist/` 静态资源）由 Astro 自身处理。
 
 ### 1.4 已知约束与运营注意事项
 以下是架构固有的约束与需要在部署侧处理的事项，代码无法单独消除，特此记录并给出处置建议：
@@ -82,14 +82,12 @@ graph TD
 * **多线路切换与状态感知**：内置线路切换菜单，加载时渲染动画遮罩，信号丢失时提供 Standby（待机）与恢复机制。
 
 ### 2.7 赛事资讯流 (News Feed)
-* **多维资讯**：接入 ESPN "now" 核心 API，支持全局、按运动（sport）、按联赛（league）、按球队（team）四种维度的新闻流。`src/news.ts` 定义 `NewsParams` 与 `newsFresh()`（过滤流比全局"消防栓"给更长的 fresh 窗口），`src/newsFeed.ts` 的 `parseNewsFeed` 将上游归一化为 `NewsItem[]`。
-* **SSR + 群岛**：`news/*` 页面服务端用 `fetchNewsItems` 拉取并由 `NewsPageShell.astro` 渲染，随后 `NewsIsland` + `NewsView` + `useNews.ts` 客户端接管刷新。顶部粘性栏的 `Ticker` 群岛（由 `useStreams` 驱动，展示正在直播与即将开赛的比赛）独立于资讯流。
+* **按赛事资讯**：接入 ESPN site.api 的按联赛新闻流（`site/v2/.../{league}/news`，真正按联赛限定——旧的全局"now"消防栓已移除）。`src/newsFeed.ts` 的 `parseNewsFeed` 将上游归一化为 `NewsItem[]`；`src/data/api.ts` 的 `getCompNews` 组合 `serve(news)` + 解析，任一失败返回空数组。
+* **SSR + 群岛**：`[comp]/news` 页面服务端用 `getCompNews` 拉取（组合 `serve(news)` + `parseNewsFeed`，任一失败返回空数组）并由 Astro SSR 渲染首屏，随后 `NewsIsland` + `NewsView` + `useNews.ts` 客端接管刷新（120s 可见性轮询、滚动加载更多）。顶部粘性栏的 `Ticker` 群岛（由模块级共享轮询器 `useTicker` 驱动，展示正在直播与即将开赛的比赛）独立于资讯流。
 * 分类规则详见 `docs/news-classification-spec.md`。
 
-### 2.8 个性化设置与国际化 (User Preferences & i18n)
-* **多语言本地化**：支持中、英、日、韩四国语言（en 为兜底）；`messages.test.ts` 强制各语言 key 对齐。
-* **系统级主题切换**：Light/Dark 主题，`Layout.astro` 内联脚本在水合前设置 `data-theme` 避免闪烁；界面采用玻璃拟态卡片设计（Rounded Glassmorphism，比例圆角，Apple Sports 风格）。
-* **多端同步**：监听 `localStorage` 变化事件，实现不同标签页间主题与语言同步。
+### 2.8 主题切换 (Theme)
+* **系统级主题切换**：Light/Dark 主题，`src/theme/` 提供 `ThemeProvider`/`useTheme`（持久化于 `localStorage`，默认 dark）。`Layout.astro` 内联脚本在水合前设置 `data-theme` 避免闪烁；界面采用玻璃拟态卡片设计（Rounded Glassmorphism，比例圆角，Apple Sports 风格）。（UI 文案为英文硬编码——国际化已在重构中移除。）
 
 ---
 
@@ -142,9 +140,7 @@ graph TD
 ├── public/               # PWA 清单、图标、og.jpg、sw.js（生产环境中由 Layout.astro 注册）
 ├── src/
 │   ├── pages/            # Astro 文件式 SSR 路由
-│   │   ├── [comp]/       # index / scorers / bracket / match/[slug] / team/[id]
-│   │   ├── news/         # index / [sport] / team/[abbrev] / league/[slug]
-│   │   ├── player/[id].astro
+│   │   ├── [comp]/       # index / news / stats / bracket / transactions / odds / teams / match/[slug] / team/[id] / player/[id]
 │   │   └── api/[...route].ts   # 将 /api/* 转发给 worker/index.ts
 │   ├── layouts/          # Layout.astro（外壳：Ticker / Header / 左右栏 / Footer）
 │   ├── components/       # *.astro 外壳 + React 视图 + *Island.tsx 水合包装 + AppProviders
@@ -153,7 +149,7 @@ graph TD
 │   ├── middleware.ts     # 规范化路径重定向
 │   ├── adapters/         # 体育数据适配归一化层 (types / soccer / basketball / index)
 │   ├── hooks/            # 自定义 React Hooks（SWR + 可见性轮询）
-│   ├── i18n/  theme/     # 自定义国际化与主题 Provider
+│   ├── theme/            # 主题 Provider（ThemeProvider/useTheme，dark/light）
 │   ├── utils/            # router / calendar / marquee / streamMatch / espn / wc / streamSources ...
 │   ├── competitions.ts   # 赛事注册表（单一事实源）
 │   ├── leaders.ts        # assembleLeaders 服务端聚合管线

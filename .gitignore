@@ -36,6 +36,12 @@ bower_components
 node_modules/
 jspm_packages/
 
+# Non-Bun lockfiles — Bun (bun.lock) is the only supported package manager
+# (see package.json `packageManager`). npm/yarn/pnpm locks must not be committed.
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
 # TypeScript v1.x command line compiler build cache
 tsconfig.tsbuildinfo
 

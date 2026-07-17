@@ -7,7 +7,7 @@ import { COMPETITIONS, DEFAULT_COMPETITION } from '../competitions';
 //
 // Route scheme (every view is addressable — shareable, back/forward, refresh):
 //   /<comp>              matches (schedule; group standings live under the group filter)
-//   /<comp>/scorers      top scorers
+//   /<comp>/stats       season stats leaderboards (Goals/Assists/Cards/Saves)
 //   /<comp>/bracket      knockout bracket
 //   /<comp>/news         league news
 //   /<comp>/match/<slug> ESPN fixture detail (hosts the live stream player when one
@@ -17,14 +17,7 @@ import { COMPETITIONS, DEFAULT_COMPETITION } from '../competitions';
 // Unprefixed legacy paths (pre-multi-comp links) resolve under DEFAULT_COMPETITION.
 
 // The schedule sections (group standings are folded into the matches view).
-export type Section =
-  | 'matches'
-  | 'scorers'
-  | 'bracket'
-  | 'news'
-  | 'teams'
-  | 'transactions'
-  | 'odds';
+export type Section = 'matches' | 'stats' | 'bracket' | 'news' | 'teams' | 'transactions' | 'odds';
 
 // Every route carries the competition it belongs to (URL first segment).
 export type Route =
@@ -36,7 +29,7 @@ export type Route =
 // section → path suffix under /<comp> (matches is the competition root).
 const SECTION_SUFFIX: Record<Section, string> = {
   matches: '',
-  scorers: '/scorers',
+  stats: '/stats',
   bracket: '/bracket',
   news: '/news',
   teams: '/teams',
@@ -60,8 +53,7 @@ function safeDecode(segment: string): string | null {
 // matches section, never throw.
 function parseView(comp: string, seg: string[]): Route {
   if (seg.length === 0) return { kind: 'section', comp, section: 'matches' };
-  if (seg.length === 1 && seg[0] === 'scorers')
-    return { kind: 'section', comp, section: 'scorers' };
+  if (seg.length === 1 && seg[0] === 'stats') return { kind: 'section', comp, section: 'stats' };
   if (seg.length === 1 && seg[0] === 'bracket')
     return { kind: 'section', comp, section: 'bracket' };
   if (seg.length === 1 && seg[0] === 'news') return { kind: 'section', comp, section: 'news' };

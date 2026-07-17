@@ -16,7 +16,6 @@ import { parseTeamDetail, parseTeamInjuries } from '../teamDetail';
 import { parseLeagueInjuries, parseTransactions } from '../transactions';
 import type {
   CompMatch,
-  Leader,
   LeagueInjuryGroup,
   NewsItem,
   TeamDetail,
@@ -62,6 +61,17 @@ async function fetchWithRetry(
   }
   throw new Error('unreachable');
 }
+
+// Leaders pipeline fetch: TIMEOUT-ONLY (no retry). assembleLeaders /
+// assembleLeaderboards fan out one primary doc + up to ~40 $ref subrequests
+// for a multi-board stats page; retrying each would risk blowing the Workers
+// 50-subrequest cap on a partial outage. So unlike the single-URL cached()
+// path (which retries), every leaders fetch gets exactly one attempt with a
+// 10s timeout — a hung $ref fails fast and degrades silently (resolveRefs
+// leaves it unresolved), and a transient primary-doc failure throws so
+// runCached serves stale. retries=0 = one attempt.
+const leadersFetch = (url: string, init?: RequestInit): Promise<Response> =>
+  fetchWithRetry(url, init ?? {}, 0, 10_000);
 
 export interface Env {
   ASSETS: Fetcher;
@@ -123,7 +133,15 @@ async function runCached(
   env: Env,
   ctx: ExecutionContext,
 ): Promise<Response> {
-  const stored = await env.CACHE.get<Entry>(cacheKey, 'json');
+  let stored: Entry | null = null;
+  try {
+    stored = await env.CACHE.get<Entry>(cacheKey, 'json');
+  } catch (err) {
+    // A KV read hiccup (transient isolate-level failure) must not 500 the
+    // request — treat it as a miss and revalidate from upstream. The produce
+    // path below still owns serve-stale-on-outage for upstream failures.
+    console.error(`[data] KV get failed for ${cacheKey}:`, err);
+  }
   const now = Date.now();
 
   if (stored && now - stored.at < fresh * 1000) {
@@ -253,14 +271,14 @@ export async function serveLeaders(
   const cfg = {
     sport: comp.sport,
     league: comp.league,
-    season: seasonForDate(comp.sport, new Date()),
+    season: comp.season ?? seasonForDate(comp.sport, new Date()),
     type: map.type,
     category: map.category,
     topN: 15,
   };
   return cachedProducer(
     `${comp.key}:leaders`,
-    () => assembleLeaders(fetch, cfg),
+    () => assembleLeaders(leadersFetch, cfg),
     3600,
     86400,
     env,
@@ -289,7 +307,7 @@ export async function serveLeaderboards(
   };
   return cachedProducer(
     `${comp.key}:leaderboards`,
-    () => assembleLeaderboards(fetch, cfg, specs),
+    () => assembleLeaderboards(leadersFetch, cfg, specs),
     3600,
     86400,
     env,
@@ -458,25 +476,6 @@ export async function getCompetitionView(
     return getAdapter(comp.key).transform(sbJson, stJson);
   } catch {
     return emptyCompetitionView(comp);
-  }
-}
-
-// Compose serveLeaders → Leader[] (the same cachedProducer + assembleLeaders
-// pipeline the worker uses, but returning the parsed array directly).
-// Used by the Astro scorers page for comps with leadersSource === 'pipeline'
-// (NBA, eng.1). Empty array on any failure path.
-export async function getPipelineLeaders(
-  comp: Competition,
-  env: Env,
-  ctx: ExecutionContext,
-): Promise<Leader[]> {
-  try {
-    const res = await serveLeaders(comp, env, ctx);
-    if (!res.ok) return [];
-    const raw: unknown = await res.json();
-    return Array.isArray(raw) ? (raw as Leader[]) : [];
-  } catch {
-    return [];
   }
 }
 

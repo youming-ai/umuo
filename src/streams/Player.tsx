@@ -201,7 +201,7 @@ export default function Player({ match, selectedIframeUrl, setSelectedIframeUrl 
                   type="button"
                   onClick={() => setSelectedIframeUrl(src.iframe)}
                   aria-pressed={active}
-                  className={`inline-flex min-h-11 items-center gap-2 px-4 py-1.5 rounded-pill border text-sm transition-all duration-200 ${
+                  className={`inline-flex min-h-11 items-center gap-2 px-4 py-1.5 rounded-pill border text-sm ds-press ${
                     active
                       ? 'bg-pitch text-onaccent border-pitch font-bold shadow-sm'
                       : 'border-line bg-panel2 text-chalkdim hover:text-chalk hover:bg-panel'

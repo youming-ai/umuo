@@ -44,7 +44,9 @@ function StatusBadge({
             : 'bg-live/25 text-live border border-live/30'
         }`}
       >
-        {!isHT && <span className="w-1.5 h-1.5 rounded-pill bg-live animate-pulse" />}
+        {!isHT && (
+          <span className="w-1.5 h-1.5 rounded-pill bg-live animate-pulse motion-reduce:animate-none" />
+        )}
         {liveLabel}
       </span>
     );
@@ -261,7 +263,7 @@ export default function MatchDetailPage({
       {/* Detail Panel */}
       <div className="ds-glass-hero p-card min-h-32">
         {loading ? (
-          <p className="font-mono text-xs tracking-[0.3em] text-pitch animate-pulse p-card text-center">
+          <p className="font-mono text-xs tracking-[0.3em] text-pitch animate-pulse motion-reduce:animate-none p-card text-center">
             Loading…
           </p>
         ) : error ? (
@@ -270,7 +272,7 @@ export default function MatchDetailPage({
             <button
               type="button"
               onClick={reload}
-              className="font-display text-sm text-chalk border border-overlay/10 rounded-pill px-5 py-1.5 hover:border-pitch hover:bg-overlay/5 transition-colors"
+              className="font-display text-sm text-chalk border border-overlay/10 rounded-pill px-5 py-1.5 hover:border-pitch hover:bg-overlay/5 ds-press"
             >
               Retry
             </button>

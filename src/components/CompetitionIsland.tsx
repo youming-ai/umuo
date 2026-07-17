@@ -1,4 +1,3 @@
-import type { Leader } from '../types';
 import type { StandingsData } from '../adapters/types';
 import type { CompMatch, TopScorer } from '../types';
 import { useCompetition } from '../hooks/useCompetition';
@@ -16,17 +15,12 @@ function CompetitionIslandInner({
   comp,
   section,
   initialData,
-  initialPipelineLeaders,
 }: {
   comp: string;
   section: Section;
   initialData: CompetitionInitialData;
-  initialPipelineLeaders?: Leader[];
 }) {
-  const { matches, standings, scorers, loading, error, refetch } = useCompetition(
-    comp,
-    initialData,
-  );
+  const { matches, standings, loading, error, refetch } = useCompetition(comp, initialData);
 
   if (error && matches.length === 0) {
     return (
@@ -35,7 +29,7 @@ function CompetitionIslandInner({
         <button
           type="button"
           onClick={refetch}
-          className="px-4 py-2 bg-pitch text-onaccent font-display font-semibold tracking-wide hover:brightness-110 transition"
+          className="px-4 py-2 bg-pitch text-onaccent font-display font-semibold tracking-wide hover:brightness-110 ds-press"
         >
           Retry
         </button>
@@ -51,36 +45,21 @@ function CompetitionIslandInner({
     );
   }
 
-  return (
-    <FixturesView
-      section={section}
-      matches={matches}
-      standings={standings}
-      scorers={scorers}
-      pipelineLeaders={initialPipelineLeaders}
-    />
-  );
+  return <FixturesView section={section} matches={matches} standings={standings} />;
 }
 
 export default function CompetitionIsland({
   comp,
   section,
   initialData,
-  initialPipelineLeaders,
 }: {
   comp: string;
   section: Section;
   initialData: CompetitionInitialData;
-  initialPipelineLeaders?: Leader[];
 }) {
   return (
     <AppProviders>
-      <CompetitionIslandInner
-        comp={comp}
-        section={section}
-        initialData={initialData}
-        initialPipelineLeaders={initialPipelineLeaders}
-      />
+      <CompetitionIslandInner comp={comp} section={section} initialData={initialData} />
     </AppProviders>
   );
 }

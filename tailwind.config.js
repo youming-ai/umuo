@@ -56,6 +56,10 @@ export default {
         hero: 'var(--shadow-hero)',
         float: 'var(--shadow-float)',
       },
+      transitionTimingFunction: {
+        // Strong ease-out for UI motion; mirrors --ease-out in index.css.
+        out: 'var(--ease-out)',
+      },
       fontFamily: {
         display: ['"Saira Condensed"', 'system-ui', 'sans-serif'],
         body: ['"Hanken Grotesk"', 'system-ui', 'sans-serif'],

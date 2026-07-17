@@ -1,4 +1,4 @@
-import type { CompMatch, TeamStatRow, TopScorer } from '../types';
+import type { CompMatch, TopScorer } from '../types';
 import { matchSlug, parseScore, statusFromState } from '../utils/wc';
 import type {
   BoxscoreTable,
@@ -7,20 +7,8 @@ import type {
   SportAdapter,
   StandingsData,
 } from './types';
-import { parseOdds, parseRecentForm, parseScoreboardOdds } from './summaryExtras';
-
-function isPlainObject(v: unknown): v is Record<string, unknown> {
-  return typeof v === 'object' && v !== null && !Array.isArray(v);
-}
-function arr(v: unknown): unknown[] {
-  return Array.isArray(v) ? v : [];
-}
-function obj(v: unknown): Record<string, unknown> {
-  return isPlainObject(v) ? v : {};
-}
-function str(v: unknown): string {
-  return typeof v === 'string' ? v : '';
-}
+import { parseScoreboardOdds, parseSummaryBase } from './summaryExtras';
+import { arr, obj, str } from '../utils/coerce';
 
 function score(v: unknown): number | null {
   return typeof v === 'string' || typeof v === 'number' ? parseScore(v) : null;
@@ -126,34 +114,7 @@ function transform(
 
 function transformSummary(json: unknown): MatchDetail {
   const d = obj(json);
-
-  const competitors = arr(obj(arr(obj(d.header).competitions)[0]).competitors).map(obj);
-  const homeId = str(obj(competitors.find((c) => c.homeAway === 'home')?.team).id);
-  const awayId = str(obj(competitors.find((c) => c.homeAway === 'away')?.team).id);
-
-  // team stats: map each boxscore team's label→displayValue, pair by home order
-  const byTeam = new Map<string, Map<string, string>>();
-  for (const rawTeam of arr(obj(d.boxscore).teams)) {
-    const t = obj(rawTeam);
-    const id = str(obj(t.team).id);
-    const m = new Map<string, string>();
-    for (const rawStat of arr(t.statistics)) {
-      const s = obj(rawStat);
-      m.set(str(s.label), str(s.displayValue));
-    }
-    byTeam.set(id, m);
-  }
-  const homeStats = byTeam.get(homeId) ?? new Map();
-  const awayStats = byTeam.get(awayId) ?? new Map();
-  const statLabels = [
-    ...homeStats.keys(),
-    ...[...awayStats.keys()].filter((label) => !homeStats.has(label)),
-  ];
-  const teamStats: TeamStatRow[] = statLabels.map((label) => ({
-    label,
-    home: homeStats.get(label) ?? '',
-    away: awayStats.get(label) ?? '',
-  }));
+  const base = parseSummaryBase(d);
 
   // player boxscore tables: one per team. ESPN nests labels + athletes under
   // boxscore.players[].statistics[0].
@@ -174,24 +135,20 @@ function transformSummary(json: unknown): MatchDetail {
     return { teamId: str(team.id), teamName: str(team.displayName), labels, players };
   });
   // Enforce [home, away] regardless of ESPN order.
-  const rank = (b: BoxscoreTable) => (b.teamId === homeId ? 0 : b.teamId === awayId ? 1 : 2);
+  const rank = (b: BoxscoreTable) =>
+    b.teamId === base.homeId ? 0 : b.teamId === base.awayId ? 1 : 2;
   playerTables.sort((a, b) => rank(a) - rank(b));
-
-  const venueObj = obj(obj(d.gameInfo).venue);
-  const city = str(obj(venueObj.address).city);
-  const venueName = str(venueObj.fullName);
-  const att = obj(d.gameInfo).attendance;
 
   return {
     kind: 'basketball',
-    homeId,
-    awayId,
-    teamStats,
+    homeId: base.homeId,
+    awayId: base.awayId,
+    teamStats: base.teamStats,
     playerTables,
-    venue: venueName && city ? `${venueName} · ${city}` : venueName,
-    attendance: typeof att === 'number' ? att : null,
-    odds: parseOdds(d),
-    form: parseRecentForm(d),
+    venue: base.venue,
+    attendance: base.attendance,
+    odds: base.odds,
+    form: base.form,
   };
 }
 

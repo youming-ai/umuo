@@ -16,28 +16,26 @@ export default function NewsView({
 
   // Reset visible count on competition switch — NOT on [items], which gets a new
   // array ref on every poll/refocus and would snap the user back to page 1.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: comp is intentionally the only trigger; resetting when it changes keeps pagination aligned with the new feed.
   useEffect(() => {
     setVisibleCount(PAGE_SIZE);
   }, [comp]);
 
   // IntersectionObserver on the sentinel — reveal the next batch when it enters viewport
   const observerRef = useRef<IntersectionObserver | null>(null);
-  const sentinelCallback = useCallback(
-    (node: HTMLDivElement | null) => {
-      if (observerRef.current) observerRef.current.disconnect();
-      if (!node) return;
-      observerRef.current = new IntersectionObserver(
-        (entries) => {
-          if (entries[0]?.isIntersecting) {
-            setVisibleCount((prev) => prev + PAGE_SIZE);
-          }
-        },
-        { rootMargin: '200px' },
-      );
-      observerRef.current.observe(node);
-    },
-    [],
-  );
+  const sentinelCallback = useCallback((node: HTMLDivElement | null) => {
+    if (observerRef.current) observerRef.current.disconnect();
+    if (!node) return;
+    observerRef.current = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) {
+          setVisibleCount((prev) => prev + PAGE_SIZE);
+        }
+      },
+      { rootMargin: '200px' },
+    );
+    observerRef.current.observe(node);
+  }, []);
 
   const leadItem = items[0];
   const storyItems = items.slice(1, visibleCount);
@@ -53,7 +51,7 @@ export default function NewsView({
           <button
             type="button"
             onClick={refetch}
-            className="px-4 py-2 bg-pitch text-onaccent font-display font-semibold tracking-wide rounded-card hover:brightness-110 transition"
+            className="px-4 py-2 bg-pitch text-onaccent font-display font-semibold tracking-wide rounded-card hover:brightness-110 ds-press"
           >
             Retry
           </button>
@@ -73,10 +71,7 @@ export default function NewsView({
             </div>
           )}
           {hasMore && (
-            <div
-              ref={sentinelCallback}
-              className="flex justify-center py-6"
-            >
+            <div ref={sentinelCallback} className="flex justify-center py-6">
               <span className="ds-caption text-chalkdim">Loading more…</span>
             </div>
           )}
@@ -140,7 +135,7 @@ function NewsCard({
           href={item.link}
           target={external ? '_blank' : undefined}
           rel={external ? 'noopener noreferrer' : undefined}
-          className="block hover:opacity-95 transition"
+          className="block hover:opacity-95 transition-opacity duration-150 ease-out"
         >
           {body}
         </a>

@@ -4,7 +4,6 @@ import type {
   PlayEvent,
   ScorerEntry,
   TeamLineup,
-  TeamStatRow,
   TopScorer,
   WCGroup,
   WCStanding,
@@ -17,21 +16,9 @@ import {
   stageFromSlug,
   statusFromState,
 } from '../utils/wc';
-import { parseOdds, parseRecentForm, parseScoreboardOdds } from './summaryExtras';
+import { parseScoreboardOdds, parseSummaryBase } from './summaryExtras';
 import type { MatchDetail, SportAdapter, StandingsData } from './types';
-
-function isPlainObject(v: unknown): v is Record<string, unknown> {
-  return typeof v === 'object' && v !== null && !Array.isArray(v);
-}
-function arr(v: unknown): unknown[] {
-  return Array.isArray(v) ? v : [];
-}
-function obj(v: unknown): Record<string, unknown> {
-  return isPlainObject(v) ? v : {};
-}
-function str(v: unknown): string {
-  return typeof v === 'string' ? v : '';
-}
+import { arr, obj, str } from '../utils/coerce';
 
 function score(v: unknown): number | null {
   return typeof v === 'string' || typeof v === 'number' ? parseScore(v) : null;
@@ -297,35 +284,7 @@ function transform(
 
 function transformSummary(json: unknown): MatchDetail {
   const d = obj(json);
-
-  // home/away ids from the header competitors
-  const competitors = arr(obj(arr(obj(d.header).competitions)[0]).competitors).map(obj);
-  const homeId = str(obj(competitors.find((c) => c.homeAway === 'home')?.team).id);
-  const awayId = str(obj(competitors.find((c) => c.homeAway === 'away')?.team).id);
-
-  // stats: map each boxscore team's label→displayValue, pair by home team's order
-  const byTeam = new Map<string, Map<string, string>>();
-  for (const rawTeam of arr(obj(d.boxscore).teams)) {
-    const t = obj(rawTeam);
-    const id = str(obj(t.team).id);
-    const m = new Map<string, string>();
-    for (const rawStat of arr(t.statistics)) {
-      const s = obj(rawStat);
-      m.set(str(s.label), str(s.displayValue));
-    }
-    byTeam.set(id, m);
-  }
-  const homeStats = byTeam.get(homeId) ?? new Map();
-  const awayStats = byTeam.get(awayId) ?? new Map();
-  const statLabels = [
-    ...homeStats.keys(),
-    ...[...awayStats.keys()].filter((label) => !homeStats.has(label)),
-  ];
-  const stats: TeamStatRow[] = statLabels.map((label) => ({
-    label,
-    home: homeStats.get(label) ?? '',
-    away: awayStats.get(label) ?? '',
-  }));
+  const base = parseSummaryBase(d);
 
   const allPlays: PlayEvent[] = arr(d.commentary).map((raw) => {
     const c = obj(raw);
@@ -368,26 +327,21 @@ function transformSummary(json: unknown): MatchDetail {
     };
   });
   // Enforce the [home, away] contract regardless of ESPN roster order.
-  const rank = (l: TeamLineup) => (l.teamId === homeId ? 0 : l.teamId === awayId ? 1 : 2);
+  const rank = (l: TeamLineup) => (l.teamId === base.homeId ? 0 : l.teamId === base.awayId ? 1 : 2);
   lineups.sort((a, b) => rank(a) - rank(b));
-
-  const venueObj = obj(obj(d.gameInfo).venue);
-  const city = str(obj(venueObj.address).city);
-  const venueName = str(venueObj.fullName);
-  const att = obj(d.gameInfo).attendance;
 
   return {
     kind: 'soccer',
-    homeId,
-    awayId,
-    stats,
+    homeId: base.homeId,
+    awayId: base.awayId,
+    stats: base.teamStats,
     allPlays,
     keyPlays,
     lineups,
-    venue: venueName && city ? `${venueName} · ${city}` : venueName,
-    attendance: typeof att === 'number' ? att : null,
-    odds: parseOdds(d),
-    form: parseRecentForm(d),
+    venue: base.venue,
+    attendance: base.attendance,
+    odds: base.odds,
+    form: base.form,
   };
 }
 

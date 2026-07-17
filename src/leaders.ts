@@ -5,12 +5,19 @@
 // `fetch` is injected so tests can supply a canned fake (zero network).
 
 import type { Leader } from './types';
+import { arr, obj, str } from './utils/coerce';
 
 // ESPN's season leaders live on the CORE api (not site.api), one document per
 // sport/league/season/type. Each category (`goals`, `points`, `assists`, …)
 // holds `leaders[]`, and every leader references its athlete/team by $ref
 // (no inline names) — hence the fan-out below.
 const CORE = 'https://sports.core.api.espn.com/v2';
+
+// The leaders pipeline only fetches by URL string. Narrowing this from
+// `typeof fetch` lets src/data/api.ts inject a timeout/retry-wrapped fetch
+// (fetchWithRetry) so a hung ESPN $ref fails fast instead of hanging every
+// coalesced caller until the Workers subrequest cap.
+type FetchByURL = (url: string, init?: RequestInit) => Promise<Response>;
 
 export interface LeadersConfig {
   sport: string; // ESPN sport slug, e.g. 'soccer' / 'basketball'
@@ -28,19 +35,6 @@ export const LEADERS_BY_SPORT: Record<string, { type: number; category: string }
   basketball: { type: 2, category: 'points' },
 };
 
-function isPlainObject(v: unknown): v is Record<string, unknown> {
-  return typeof v === 'object' && v !== null && !Array.isArray(v);
-}
-function arr(v: unknown): unknown[] {
-  return Array.isArray(v) ? v : [];
-}
-function obj(v: unknown): Record<string, unknown> {
-  return isPlainObject(v) ? v : {};
-}
-function str(v: unknown): string {
-  return typeof v === 'string' ? v : '';
-}
-
 // A single leaders row before its refs are resolved.
 interface RawRow {
   displayValue: string;
@@ -52,7 +46,7 @@ interface RawRow {
 // Resolve $refs with a small concurrency cap so we never blow past the
 // Cloudflare Workers 50-subrequest limit (topN 15 + deduped teams ≈ ≤25).
 async function resolveRefs(
-  fetchImpl: typeof fetch,
+  fetchImpl: FetchByURL,
   refs: string[],
 ): Promise<Map<string, Record<string, unknown>>> {
   const out = new Map<string, Record<string, unknown>>();
@@ -75,7 +69,7 @@ async function resolveRefs(
 }
 
 export async function assembleLeaders(
-  fetchImpl: typeof fetch,
+  fetchImpl: FetchByURL,
   cfg: LeadersConfig,
 ): Promise<Leader[]> {
   const url = `${CORE}/sports/${cfg.sport}/leagues/${cfg.league}/seasons/${cfg.season}/types/${cfg.type}/leaders`;
@@ -166,7 +160,7 @@ export const LEADERBOARDS_BY_SPORT: Record<string, LeaderboardSpec[]> = {
 // contract as assembleLeaders (primary doc throws → serve-stale covers it;
 // per-row ref failures degrade silently). Boards with no rows are dropped.
 export async function assembleLeaderboards(
-  fetchImpl: typeof fetch,
+  fetchImpl: FetchByURL,
   cfg: { sport: string; league: string; season: number; type: number; topN: number },
   specs: LeaderboardSpec[],
 ): Promise<Leaderboard[]> {

@@ -14,7 +14,7 @@ export function ReminderMenu({ title, start }: { title: string; start: Date }) {
       }}
     >
       <summary
-        className="flex min-h-11 min-w-11 list-none cursor-pointer items-center justify-center rounded-pill hover:bg-overlay/10 transition-colors"
+        className="flex min-h-11 min-w-11 list-none cursor-pointer items-center justify-center rounded-pill hover:bg-overlay/10 ds-press"
         aria-label="Set a reminder"
         title="Set a reminder"
       >

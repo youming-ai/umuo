@@ -29,7 +29,7 @@ describe('registry', () => {
     expect(COMPETITIONS[DEFAULT_COMPETITION].sport).toBe('soccer');
   });
 
-  it('marks the World Cup as scoreboard-sourced scorers', () => {
+  it('marks the World Cup as scoreboard-sourced top scorers', () => {
     expect(COMPETITIONS['fifa.world'].leadersSource).toBe('scoreboard');
     expect(COMPETITIONS['fifa.world'].capabilities.scorers).toBe(true);
   });

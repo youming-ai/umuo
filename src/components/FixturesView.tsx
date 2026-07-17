@@ -1,30 +1,15 @@
 import { useMemo, useState } from 'react';
 import type { StandingsData } from '../adapters/types';
 import { COMPETITIONS } from '../competitions';
-import { useLeaders } from '../hooks/useLeaders';
-import type { CompMatch, Leader, Stage, TopScorer } from '../types';
+import type { CompMatch, Stage } from '../types';
 import { pathFor, type Section, useRouter } from '../utils/router';
 import { stageLabel } from '../utils/wc';
 import BracketView from './BracketView';
 import ConferenceStandings from './ConferenceStandings';
-import LeadersView from './LeadersView';
 import MatchCard from './MatchCard';
 import StandingsView from './StandingsView';
 
 const KNOWN_STAGES: Stage[] = ['group', 'r32', 'r16', 'qf', 'sf', 'third', 'final'];
-
-// World Cup keeps its scoreboard-sourced TopScorer[]; normalize it to the
-// shared Leader[] shape at the render boundary (data path unchanged).
-function scorersToLeaders(scorers: TopScorer[]): Leader[] {
-  return scorers.map((s, i) => ({
-    rank: i + 1,
-    name: s.name,
-    teamName: s.teamName,
-    teamLogo: s.teamFlag,
-    displayValue: String(s.goals),
-    value: s.goals,
-  }));
-}
 
 // Quick filter: which match statuses to show. Tournament-stage chips below
 // further narrow by stage; this is a coarser "is the match still to play or
@@ -35,37 +20,22 @@ export default function FixturesView({
   section,
   matches,
   standings,
-  scorers,
-  pipelineLeaders,
 }: {
   section: Section;
   matches: CompMatch[];
   standings: StandingsData;
-  scorers: TopScorer[];
-  // Optional SSR seed for pipeline leaders (NBA / eng.1 scorers page).
-  // Always still owned by useLeaders below — the seed only skips the first
-  // paint fetch when non-empty. Do NOT gate the hook on truthiness of this
-  // array: `[]` is a valid empty seed and must still poll/fetch.
-  pipelineLeaders?: Leader[];
 }) {
   const { route } = useRouter();
   const comp = route.comp;
   const groups = standings.kind === 'soccer' ? standings.groups : [];
   const competition = COMPETITIONS[comp];
   const shape = competition?.shape ?? 'tournament';
-  const leadersSource = competition?.leadersSource;
-  // Single owner of pipeline leaders for this island (CompetitionIsland only
-  // forwards the SSR seed; it does not run a second useLeaders).
-  const pipeline = useLeaders(leadersSource === 'pipeline' ? comp : null, pipelineLeaders);
   const caps = competition?.capabilities;
   // Unsupported capability deep-links (e.g. /eng.1/bracket) are redirected
   // server-side in the Astro pages. Keep a render-time fallback so a stale
   // client navigation still shows matches instead of an empty section.
   const effectiveSection: Section =
-    (section === 'bracket' && caps && !caps.bracket) ||
-    (section === 'scorers' && caps && !caps.scorers)
-      ? 'matches'
-      : section;
+    section === 'bracket' && caps && !caps.bracket ? 'matches' : section;
   const [stage, setStage] = useState<Stage | 'all'>('all');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('upcoming');
 
@@ -167,46 +137,7 @@ export default function FixturesView({
     // Width + page padding come from the app shell (Layout.astro) now; this
     // just stacks its sections inside the shell's center column.
     <div className="space-y-section">
-      {effectiveSection === 'scorers' ? (
-        leadersSource === 'pipeline' ? (
-          pipeline.loading && pipeline.leaders.length === 0 ? (
-            <p className="font-mono text-xs tracking-[0.3em] text-pitch animate-pulse motion-reduce:animate-none">
-              Loading…
-            </p>
-          ) : pipeline.error && pipeline.leaders.length === 0 ? (
-            <div className="flex flex-col items-start gap-3">
-              <p className="font-mono text-xs tracking-wider text-chalkdim">{pipeline.error}</p>
-              <button
-                type="button"
-                onClick={pipeline.refetch}
-                className="px-4 py-2 bg-pitch text-onaccent font-display font-semibold tracking-wide hover:brightness-110 transition"
-              >
-                Retry
-              </button>
-            </div>
-          ) : (
-            <LeadersView
-              leaders={pipeline.leaders}
-              statLabel={competition?.sport === 'basketball' ? 'PTS' : 'G'}
-              title={competition?.sport === 'basketball' ? 'Scoring Leaders' : 'Top Scorers'}
-              subtitle={
-                competition?.sport === 'basketball'
-                  ? "Points per the season's top scorers"
-                  : 'Golden Boot race'
-              }
-              empty="No goals scored yet"
-            />
-          )
-        ) : (
-          <LeadersView
-            leaders={scorersToLeaders(scorers)}
-            statLabel="G"
-            title="Top Scorers"
-            subtitle="Golden Boot race"
-            empty="No goals scored yet"
-          />
-        )
-      ) : effectiveSection === 'bracket' ? (
+      {effectiveSection === 'bracket' ? (
         <BracketView groups={groups} matches={matches} />
       ) : (
         <>
