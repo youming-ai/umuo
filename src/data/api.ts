@@ -2,7 +2,14 @@
 
 import { getAdapter } from '../adapters';
 import type { MatchDetail, StandingsData } from '../adapters/types';
-import { type Competition, type Resource, buildUrl, seasonForDate, teamUrl } from '../competitions';
+import {
+  COMPETITIONS,
+  type Competition,
+  type Resource,
+  buildUrl,
+  seasonForDate,
+  teamUrl,
+} from '../competitions';
 import {
   assembleLeaderboards,
   assembleLeaders,
@@ -332,6 +339,31 @@ export async function getCompNews(
   } catch {
     return [];
   }
+}
+
+// Merge per-competition news lists into one feed: dedupe by id, newest first.
+// Pure (no I/O) so it's unit-testable in isolation; getAggregatedNews fans out
+// then calls this. Items without an id are kept (never deduped).
+export function mergeNewsLists(lists: NewsItem[][]): NewsItem[] {
+  const seen = new Set<string>();
+  const merged: NewsItem[] = [];
+  for (const item of lists.flat()) {
+    if (item.id) {
+      if (seen.has(item.id)) continue;
+      seen.add(item.id);
+    }
+    merged.push(item);
+  }
+  merged.sort((a, b) => b.published.localeCompare(a.published));
+  return merged;
+}
+
+// Cross-competition news for the global home: fan out getCompNews over every
+// registered competition, then merge (dedupe by id, newest first). Each comp
+// fails soft (empty array on outage), so one comp's failure never sinks the feed.
+export async function getAggregatedNews(env: Env, ctx: ExecutionContext): Promise<NewsItem[]> {
+  const lists = await Promise.all(Object.values(COMPETITIONS).map((c) => getCompNews(c, env, ctx)));
+  return mergeNewsLists(lists);
 }
 
 // Per-competition team directory from ESPN's site.api teams list, parsed to
