@@ -2,9 +2,8 @@ import { useMemo, useState } from 'react';
 import type { StandingsData } from '../adapters/types';
 import { COMPETITIONS } from '../competitions';
 import type { CompMatch, Stage } from '../types';
-import { pathFor, type Section, useRouter } from '../utils/router';
+import { pathFor, useRouter } from '../utils/router';
 import { stageLabel } from '../utils/wc';
-import BracketView from './BracketView';
 import ConferenceStandings from './ConferenceStandings';
 import MatchCard from './MatchCard';
 import StandingsView from './StandingsView';
@@ -17,11 +16,9 @@ const KNOWN_STAGES: Stage[] = ['group', 'r32', 'r16', 'qf', 'sf', 'third', 'fina
 type StatusFilter = 'upcoming' | 'finished';
 
 export default function FixturesView({
-  section,
   matches,
   standings,
 }: {
-  section: Section;
   matches: CompMatch[];
   standings: StandingsData;
 }) {
@@ -30,12 +27,6 @@ export default function FixturesView({
   const groups = standings.kind === 'soccer' ? standings.groups : [];
   const competition = COMPETITIONS[comp];
   const shape = competition?.shape ?? 'tournament';
-  const caps = competition?.capabilities;
-  // Unsupported capability deep-links (e.g. /eng.1/bracket) are redirected
-  // server-side in the Astro pages. Keep a render-time fallback so a stale
-  // client navigation still shows matches instead of an empty section.
-  const effectiveSection: Section =
-    section === 'bracket' && caps && !caps.bracket ? 'matches' : section;
   const [stage, setStage] = useState<Stage | 'all'>('all');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('upcoming');
 
@@ -137,113 +128,103 @@ export default function FixturesView({
     // Width + page padding come from the app shell (Layout.astro) now; this
     // just stacks its sections inside the shell's center column.
     <div className="space-y-section">
-      {effectiveSection === 'bracket' ? (
-        <BracketView groups={groups} matches={matches} />
-      ) : (
-        <>
-          {/* Quick filter: Upcoming / Finished. Counts are taken from the
+      {/* Quick filter: Upcoming / Finished. Counts are taken from the
               unfiltered match list so users always see how many matches exist
               in each bucket regardless of the stage selection below. */}
-          <div className="flex gap-2 overflow-x-auto no-scrollbar">
-            {(
-              [
-                {
-                  key: 'upcoming',
-                  label: 'Upcoming',
-                  count: counts.upcoming,
-                },
-                {
-                  key: 'finished',
-                  label: 'Finished',
-                  count: counts.finished,
-                },
-              ] as { key: StatusFilter; label: string; count: number }[]
-            ).map(({ key, label, count }) => (
-              <button
-                key={key}
-                type="button"
-                onClick={() => setStatusFilter(key)}
-                aria-pressed={statusFilter === key}
-                className={`ds-chip ${statusFilter === key ? 'ds-chip-active' : 'ds-chip-inactive'}`}
-              >
-                {label}
-                <span className="ml-1.5 tabular-nums text-chalkdim">{count}</span>
-              </button>
-            ))}
-          </div>
+      <div className="flex gap-2 overflow-x-auto no-scrollbar">
+        {(
+          [
+            {
+              key: 'upcoming',
+              label: 'Upcoming',
+              count: counts.upcoming,
+            },
+            {
+              key: 'finished',
+              label: 'Finished',
+              count: counts.finished,
+            },
+          ] as { key: StatusFilter; label: string; count: number }[]
+        ).map(({ key, label, count }) => (
+          <button
+            key={key}
+            type="button"
+            onClick={() => setStatusFilter(key)}
+            aria-pressed={statusFilter === key}
+            className={`ds-chip ${statusFilter === key ? 'ds-chip-active' : 'ds-chip-inactive'}`}
+          >
+            {label}
+            <span className="ml-1.5 tabular-nums text-chalkdim">{count}</span>
+          </button>
+        ))}
+      </div>
 
-          {shape !== 'season' && (
-            <div className="flex gap-2 overflow-x-auto no-scrollbar">
-              {stages.map((s) => (
-                <button
-                  key={s}
-                  type="button"
-                  onClick={() => setStage(s)}
-                  aria-pressed={stage === s}
-                  className={`ds-chip ${stage === s ? 'ds-chip-active' : 'ds-chip-inactive'}`}
-                >
-                  {s === 'all' ? 'All' : stageLabel(s)}
-                </button>
-              ))}
-            </div>
-          )}
+      {shape !== 'season' && (
+        <div className="flex gap-2 overflow-x-auto no-scrollbar">
+          {stages.map((s) => (
+            <button
+              key={s}
+              type="button"
+              onClick={() => setStage(s)}
+              aria-pressed={stage === s}
+              className={`ds-chip ${stage === s ? 'ds-chip-active' : 'ds-chip-inactive'}`}
+            >
+              {s === 'all' ? 'All' : stageLabel(s)}
+            </button>
+          ))}
+        </div>
+      )}
 
-          {/* Season-shape competitions (e.g. a domestic league) have a
+      {/* Season-shape competitions (e.g. a domestic league) have a
                 single always-visible table — there's no group stage to gate
                 it behind. Tournament-shape competitions keep the existing
                 behaviour: standings surface on top only while the group
                 filter is active. Basketball comps render conference tables
                 instead of the soccer group/league StandingsView. */}
-          {standings.kind === 'basketball' ? (
-            standings.conferences.length > 0 && (
-              <section className="space-y-stack">
-                <h3 className="font-mono text-xs tracking-[0.2em] text-chalkdim uppercase">
-                  Standings
-                </h3>
-                <ConferenceStandings conferences={standings.conferences} />
-              </section>
-            )
-          ) : shape === 'season' && groups.length > 0 ? (
-            <section className="space-y-stack">
-              <h3 className="font-mono text-xs tracking-[0.2em] text-chalkdim uppercase">
-                Standings
-              </h3>
-              <StandingsView groups={groups} mode="league" />
-            </section>
-          ) : (
-            stage === 'group' &&
-            groups.length > 0 && (
-              <section className="space-y-stack">
-                <h3 className="font-mono text-xs tracking-[0.2em] text-chalkdim uppercase">
-                  Standings
-                </h3>
-                <StandingsView groups={groups} mode="group" />
-              </section>
-            )
-          )}
-
-          {(() => {
-            const days = statusFilter === 'finished' ? finished : upcoming;
-            if (days.length === 0) {
-              // The status-filter counts above are unfiltered by stage, so a
-              // status-specific message ("No finished matches yet") would
-              // contradict a non-zero chip count when an empty stage is also
-              // selected. Only assert that global truth when no stage narrows
-              // the view; otherwise fall back to the neutral "no results".
-              const emptyMessage =
-                stage !== 'all'
-                  ? 'No results found'
-                  : statusFilter === 'finished'
-                    ? 'No finished matches yet'
-                    : 'No upcoming matches';
-              return (
-                <p className="font-mono text-xs tracking-wider text-chalkdim">{emptyMessage}</p>
-              );
-            }
-            return <>{days.map(renderDay)}</>;
-          })()}
-        </>
+      {standings.kind === 'basketball' ? (
+        standings.conferences.length > 0 && (
+          <section className="space-y-stack">
+            <h3 className="font-mono text-xs tracking-[0.2em] text-chalkdim uppercase">
+              Standings
+            </h3>
+            <ConferenceStandings conferences={standings.conferences} />
+          </section>
+        )
+      ) : shape === 'season' && groups.length > 0 ? (
+        <section className="space-y-stack">
+          <h3 className="font-mono text-xs tracking-[0.2em] text-chalkdim uppercase">Standings</h3>
+          <StandingsView groups={groups} mode="league" />
+        </section>
+      ) : (
+        stage === 'group' &&
+        groups.length > 0 && (
+          <section className="space-y-stack">
+            <h3 className="font-mono text-xs tracking-[0.2em] text-chalkdim uppercase">
+              Standings
+            </h3>
+            <StandingsView groups={groups} mode="group" />
+          </section>
+        )
       )}
+
+      {(() => {
+        const days = statusFilter === 'finished' ? finished : upcoming;
+        if (days.length === 0) {
+          // The status-filter counts above are unfiltered by stage, so a
+          // status-specific message ("No finished matches yet") would
+          // contradict a non-zero chip count when an empty stage is also
+          // selected. Only assert that global truth when no stage narrows
+          // the view; otherwise fall back to the neutral "no results".
+          const emptyMessage =
+            stage !== 'all'
+              ? 'No results found'
+              : statusFilter === 'finished'
+                ? 'No finished matches yet'
+                : 'No upcoming matches';
+          return <p className="font-mono text-xs tracking-wider text-chalkdim">{emptyMessage}</p>;
+        }
+        return <>{days.map(renderDay)}</>;
+      })()}
     </div>
   );
 }

@@ -44,8 +44,7 @@ describe('eng.1 (season-shape league)', () => {
     expect(pl.shape).toBe('season');
   });
 
-  it('hides bracket but exposes scorers (leaders pipeline)', () => {
-    expect(pl.capabilities.bracket).toBe(false);
+  it('exposes scorers (leaders pipeline)', () => {
     expect(pl.capabilities.scorers).toBe(true);
     expect(pl.leadersSource).toBe('pipeline');
   });
@@ -89,7 +88,6 @@ describe('nba (season-shape basketball)', () => {
 
   it('exposes boxscore and scorers capabilities', () => {
     expect(nba.capabilities).toEqual({
-      bracket: false,
       scorers: true,
       lineups: false,
       boxscore: true,

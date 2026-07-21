@@ -24,7 +24,6 @@ export interface Competition {
   standingsLevel?: number; // soccer standings depth (World Cup = 3 → the group tables)
   shape: 'tournament' | 'season';
   capabilities: {
-    bracket: boolean;
     scorers: boolean;
     lineups: boolean;
     boxscore: boolean;
@@ -49,7 +48,7 @@ export const COMPETITIONS: Record<string, Competition> = {
     dates: '20260611-20260719',
     standingsLevel: 3,
     shape: 'tournament',
-    capabilities: { bracket: true, scorers: true, lineups: true, boxscore: false, odds: true },
+    capabilities: { scorers: true, lineups: true, boxscore: false, odds: true },
     leadersSource: 'scoreboard',
   },
   'eng.1': {
@@ -61,7 +60,6 @@ export const COMPETITIONS: Record<string, Competition> = {
     // 避免写死年份的时间引信。scoreboard 无 dates → ESPN 返回当前窗口。见 spec §7。
     shape: 'season',
     capabilities: {
-      bracket: false,
       scorers: true,
       lineups: true,
       boxscore: false,
@@ -79,7 +77,6 @@ export const COMPETITIONS: Record<string, Competition> = {
     // off-season（7–9 月）当日为空由现有空态处理。见 spec §3。
     shape: 'season',
     capabilities: {
-      bracket: false,
       scorers: true,
       lineups: false,
       boxscore: true,

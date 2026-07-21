@@ -3,7 +3,6 @@ import type { CompMatch, TopScorer } from '../types';
 import { useCompetition } from '../hooks/useCompetition';
 import FixturesView from './FixturesView';
 import AppProviders from './AppProviders';
-import type { Section } from '../utils/router';
 
 interface CompetitionInitialData {
   matches: CompMatch[];
@@ -13,11 +12,9 @@ interface CompetitionInitialData {
 
 function CompetitionIslandInner({
   comp,
-  section,
   initialData,
 }: {
   comp: string;
-  section: Section;
   initialData: CompetitionInitialData;
 }) {
   const { matches, standings, loading, error, refetch } = useCompetition(comp, initialData);
@@ -45,21 +42,19 @@ function CompetitionIslandInner({
     );
   }
 
-  return <FixturesView section={section} matches={matches} standings={standings} />;
+  return <FixturesView matches={matches} standings={standings} />;
 }
 
 export default function CompetitionIsland({
   comp,
-  section,
   initialData,
 }: {
   comp: string;
-  section: Section;
   initialData: CompetitionInitialData;
 }) {
   return (
     <AppProviders>
-      <CompetitionIslandInner comp={comp} section={section} initialData={initialData} />
+      <CompetitionIslandInner comp={comp} initialData={initialData} />
     </AppProviders>
   );
 }

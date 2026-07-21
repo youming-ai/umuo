@@ -16,9 +16,6 @@ const items: { section: Section; label: string; href: string }[] = [
   ...(caps?.scorers
     ? [{ section: 'stats' as Section, label: 'Stats', href: `/${comp}/stats` }]
     : []),
-  ...(caps?.bracket
-    ? [{ section: 'bracket' as Section, label: 'Bracket', href: `/${comp}/bracket` }]
-    : []),
   ...(caps?.transactions
     ? [{ section: 'transactions' as Section, label: 'Moves', href: `/${comp}/transactions` }]
     : []),

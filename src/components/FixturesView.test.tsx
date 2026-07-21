@@ -1,14 +1,11 @@
 import { fireEvent, render, screen, within } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import type { ConferenceTable } from '../adapters/types';
 import type { CompMatch, WCGroup } from '../types';
-import * as router from '../utils/router';
 import FixturesView from './FixturesView';
 
 function renderView(matches: CompMatch[], groups: WCGroup[] = []) {
-  return render(
-    <FixturesView section="matches" matches={matches} standings={{ kind: 'soccer', groups }} />,
-  );
+  return render(<FixturesView matches={matches} standings={{ kind: 'soccer', groups }} />);
 }
 
 function match(overrides: Partial<CompMatch> & { id: string }): CompMatch {
@@ -185,35 +182,9 @@ const league: WCGroup[] = [{ name: 'Premier League', standings: [row('1', 'Arsen
 
 it('shows the league table above fixtures for a season competition', () => {
   setPath('/eng.1');
-  render(
-    <FixturesView section="matches" matches={[]} standings={{ kind: 'soccer', groups: league }} />,
-  );
+  render(<FixturesView matches={[]} standings={{ kind: 'soccer', groups: league }} />);
   // league standings surface without needing a group-stage filter
   expect(screen.getByText('Arsenal')).toBeInTheDocument();
-});
-
-it('falls back to matches when a disabled section is requested (eng.1 bracket)', () => {
-  setPath('/eng.1');
-  render(
-    <FixturesView section="bracket" matches={[]} standings={{ kind: 'soccer', groups: league }} />,
-  );
-  // Should NOT render the bracket TBD grid; league table is shown instead
-  expect(screen.queryByText('TBD')).not.toBeInTheDocument();
-  expect(screen.getByText('Arsenal')).toBeInTheDocument();
-});
-
-it('does not client-navigate for a disabled section (server owns the redirect)', () => {
-  // Unsupported deep links (e.g. /eng.1/bracket) are 307'd in the Astro page.
-  // FixturesView still falls back to matches if it ever sees a bad section,
-  // but must not issue a second full-page location.replace.
-  setPath('/eng.1/bracket');
-  const navSpy = vi.spyOn(router, 'navigate').mockImplementation(() => {});
-  render(
-    <FixturesView section="bracket" matches={[]} standings={{ kind: 'soccer', groups: league }} />,
-  );
-  expect(navSpy).not.toHaveBeenCalled();
-  expect(screen.getByText('Arsenal')).toBeInTheDocument();
-  navSpy.mockRestore();
 });
 
 const conferences: ConferenceTable[] = [
@@ -225,9 +196,7 @@ const conferences: ConferenceTable[] = [
 
 it('renders conference standings and hides stage chips for a basketball season comp', () => {
   setPath('/nba');
-  render(
-    <FixturesView section="matches" matches={[]} standings={{ kind: 'basketball', conferences }} />,
-  );
+  render(<FixturesView matches={[]} standings={{ kind: 'basketball', conferences }} />);
   expect(screen.getByText('Boston Celtics')).toBeInTheDocument();
   // season shape → no stage filter chips (no lone "Group stage")
   expect(screen.queryByRole('button', { name: 'Group stage' })).not.toBeInTheDocument();

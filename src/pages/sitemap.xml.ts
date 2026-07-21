@@ -6,7 +6,7 @@ export const prerender = false;
 
 // SSR sitemap of the stable, crawlable pages. We list only routes that return
 // 200 directly — no redirects (the `/` → default-competition home hop, or capability
-// deep-links like eng.1/nba `/bracket` that 307 back to `/${comp}`), which
+// deep-links like eng.1/nba `/scorers` that 307 back to `/${comp}/stats`), which
 // search engines flag as "Page with redirect" and drop. Dynamic detail pages
 // (match/team/player) are intentionally omitted: they churn with live ESPN
 // data, are enumerable only by hitting upstream, and go stale/404 fast — the
@@ -15,13 +15,12 @@ export const GET: APIRoute = () => {
   const paths: string[] = [];
 
   // Per-competition pages, derived from the registry and gated on capabilities
-  // so we never emit a section that redirects (scorers/bracket 307 when off).
+  // so we never emit a section that redirects (scorers 307 when off).
   for (const c of Object.values(COMPETITIONS)) {
     paths.push(`/${c.key}`);
     paths.push(`/${c.key}/news`);
     paths.push(`/${c.key}/teams`);
     if (c.capabilities.scorers) paths.push(`/${c.key}/stats`);
-    if (c.capabilities.bracket) paths.push(`/${c.key}/bracket`);
     if (c.capabilities.transactions) paths.push(`/${c.key}/transactions`);
     if (c.capabilities.odds) paths.push(`/${c.key}/odds`);
   }

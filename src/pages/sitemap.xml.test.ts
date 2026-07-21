@@ -41,7 +41,6 @@ describe('sitemap.xml', () => {
     for (const path of [
       '/fifa.world',
       '/fifa.world/stats',
-      '/fifa.world/bracket',
       '/fifa.world/odds',
       '/eng.1',
       '/eng.1/stats',
@@ -57,9 +56,6 @@ describe('sitemap.xml', () => {
 
   it('omits capability-gated sections that would 307-redirect', async () => {
     const { body } = await render();
-    // Only fifa.world has bracket; eng.1/nba /bracket redirect to /${comp}.
-    expect(body).not.toContain(`<loc>${SITE_ORIGIN}/eng.1/bracket</loc>`);
-    expect(body).not.toContain(`<loc>${SITE_ORIGIN}/nba/bracket</loc>`);
     // Only nba has transactions; soccer comps redirect.
     expect(body).not.toContain(`<loc>${SITE_ORIGIN}/fifa.world/transactions</loc>`);
     expect(body).not.toContain(`<loc>${SITE_ORIGIN}/eng.1/transactions</loc>`);

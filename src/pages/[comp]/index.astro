@@ -20,7 +20,6 @@ const initialData = await getCompetitionView(competition, env, ctx);
   <main>
     <CompetitionIsland
       comp={comp}
-      section="matches"
       initialData={initialData}
       client:only="react"
     />

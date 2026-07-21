@@ -72,8 +72,8 @@ export interface CompMatch {
   // carries the FT clock; for 'live' it carries the current minute or HT.
   progress?: MatchProgress;
   // Which side won (from ESPN's competitor.winner). Set for finished knockout
-  // matches; lets the bracket resolve penalty-shootout winners where the
-  // regulation/ET score is level. Undefined for draws and group games.
+  // matches; resolves penalty-shootout winners where the regulation/ET score
+  // is level. Undefined for draws and group games.
   winner?: 'home' | 'away';
   // How a finished knockout match was decided when not in regulation:
   // 'aet' = after extra time, 'pens' = decided on penalties. Derived from
