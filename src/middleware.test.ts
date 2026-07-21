@@ -15,17 +15,30 @@ function run(url: string) {
 const O = 'https://x.test';
 
 describe('middleware routing', () => {
-  it('redirects root to the default competition news', () => {
-    const { redirect } = run(`${O}/`);
-    expect(redirect).toHaveBeenCalledWith(`/${DEFAULT_COMPETITION}/news`, 307);
+  it('passes the root through to the global home', () => {
+    const { next, redirect } = run(`${O}/`);
+    expect(next).toHaveBeenCalled();
+    expect(redirect).not.toHaveBeenCalled();
   });
 
-  it('redirects legacy /news paths to the default competition news', () => {
-    expect(run(`${O}/news`).redirect).toHaveBeenCalledWith(`/${DEFAULT_COMPETITION}/news`, 307);
-    expect(run(`${O}/news/soccer`).redirect).toHaveBeenCalledWith(
-      `/${DEFAULT_COMPETITION}/news`,
-      307,
-    );
+  it('redirects removed World Cup paths to the global home', () => {
+    expect(run(`${O}/fifa.world/schedule`).redirect).toHaveBeenCalledWith('/', 307);
+    expect(run(`${O}/fifa.world`).redirect).toHaveBeenCalledWith('/', 307);
+    expect(run(`${O}/fifa.world/news`).redirect).toHaveBeenCalledWith('/', 307);
+  });
+
+  it('redirects a comp news path to its hub', () => {
+    expect(run(`${O}/eng.1/news`).redirect).toHaveBeenCalledWith('/eng.1', 307);
+    expect(run(`${O}/nba/news`).redirect).toHaveBeenCalledWith('/nba', 307);
+  });
+
+  it('redirects a removed bracket path to the comp hub', () => {
+    expect(run(`${O}/eng.1/bracket`).redirect).toHaveBeenCalledWith('/eng.1', 307);
+  });
+
+  it('redirects legacy /news paths to the default competition hub', () => {
+    expect(run(`${O}/news`).redirect).toHaveBeenCalledWith(`/${DEFAULT_COMPETITION}`, 307);
+    expect(run(`${O}/news/soccer`).redirect).toHaveBeenCalledWith(`/${DEFAULT_COMPETITION}`, 307);
   });
 
   it('redirects legacy unprefixed paths to the default competition', () => {
@@ -40,22 +53,21 @@ describe('middleware routing', () => {
   });
 
   it('preserves the query string across redirects', () => {
-    expect(run(`${O}/?ref=a`).redirect).toHaveBeenCalledWith(
-      `/${DEFAULT_COMPETITION}/news?ref=a`,
-      307,
-    );
+    expect(run(`${O}/fifa.world/x?ref=a`).redirect).toHaveBeenCalledWith('/?ref=a', 307);
+    expect(run(`${O}/eng.1/news?ref=share`).redirect).toHaveBeenCalledWith('/eng.1?ref=share', 307);
     expect(run(`${O}/match/foo?ref=share`).redirect).toHaveBeenCalledWith(
       `/${DEFAULT_COMPETITION}/match/foo?ref=share`,
       307,
     );
   });
 
-  it('passes through /api and comp-prefixed routes', () => {
+  it('passes through /api, root, and comp-prefixed routes', () => {
     for (const p of [
       '/api',
       '/api/eng.1/scoreboard',
+      '/',
       `/${DEFAULT_COMPETITION}`,
-      `/${DEFAULT_COMPETITION}/news`,
+      `/${DEFAULT_COMPETITION}/schedule`,
     ]) {
       const { next, redirect } = run(`${O}${p}`);
       expect(next, p).toHaveBeenCalled();
