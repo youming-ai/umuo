@@ -20,7 +20,7 @@ function m(over: Partial<CompMatch> & { comp?: string }): TickerMatch {
     awayScorers: [],
     venue: '',
     slug: 'mexico-vs-south-africa',
-    comp: 'fifa.world',
+    comp: 'eng.1',
     ...over,
   };
 }

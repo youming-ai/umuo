@@ -155,7 +155,7 @@ export interface TopScorer {
 
 // A single leaderboard row for the season leaders pipeline (eng.1 goals /
 // nba points). Unlike TopScorer (tournament scoreboard aggregation, kept for
-// the World Cup), this is assembled server-side from ESPN's core.api leaders
+// future tournament comps), this is assembled server-side from ESPN's core.api leaders
 // endpoint + athlete/team $ref fan-out. `displayValue` is ESPN's own format
 // ("27" / "30.2") so we sidestep the total-vs-per-game question; `value` is
 // the numeric sort key. Rows are NOT clickable (no player-page nav).

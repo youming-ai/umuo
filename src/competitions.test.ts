@@ -2,23 +2,25 @@ import { describe, expect, it } from 'vitest';
 import { buildUrl, COMPETITIONS, DEFAULT_COMPETITION, seasonForDate } from './competitions';
 
 describe('buildUrl', () => {
-  const wc = COMPETITIONS[DEFAULT_COMPETITION];
+  it('includes the date window when a competition sets dates', () => {
+    const c = { ...COMPETITIONS['eng.1'], dates: '20260611-20260719' };
+    expect(buildUrl(c, 'scoreboard')).toContain('dates=20260611-20260719');
+  });
 
-  it('builds the World Cup scoreboard URL with the date window and limit', () => {
-    expect(buildUrl(wc, 'scoreboard')).toBe(
-      'https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard?dates=20260611-20260719&limit=300',
-    );
+  it('includes the standings level when a competition sets one', () => {
+    const c = { ...COMPETITIONS['eng.1'], standingsLevel: 3 };
+    expect(buildUrl(c, 'standings')).toContain('level=3');
   });
 
   it('builds the standings URL WITHOUT the site/ path segment', () => {
-    expect(buildUrl(wc, 'standings')).toBe(
-      'https://site.api.espn.com/apis/v2/sports/soccer/fifa.world/standings?season=2026&level=3',
+    expect(buildUrl(COMPETITIONS['eng.1'], 'standings')).toBe(
+      `https://site.api.espn.com/apis/v2/sports/soccer/eng.1/standings?season=${seasonForDate('soccer', new Date())}`,
     );
   });
 
   it('builds the summary URL with the event id', () => {
-    expect(buildUrl(wc, 'summary', '760420')).toBe(
-      'https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/summary?event=760420',
+    expect(buildUrl(COMPETITIONS['eng.1'], 'summary', '760420')).toBe(
+      'https://site.api.espn.com/apis/site/v2/sports/soccer/eng.1/summary?event=760420',
     );
   });
 });
@@ -27,11 +29,6 @@ describe('registry', () => {
   it('exposes the default competition', () => {
     expect(COMPETITIONS[DEFAULT_COMPETITION]).toBeDefined();
     expect(COMPETITIONS[DEFAULT_COMPETITION].sport).toBe('soccer');
-  });
-
-  it('marks the World Cup as scoreboard-sourced top scorers', () => {
-    expect(COMPETITIONS['fifa.world'].leadersSource).toBe('scoreboard');
-    expect(COMPETITIONS['fifa.world'].capabilities.scorers).toBe(true);
   });
 });
 

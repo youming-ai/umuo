@@ -76,7 +76,7 @@ export function useCompetition(
         fetch(`${BASE}/standings`, { signal }),
       ]);
       if (signal.aborted) return;
-      if (!sbRes.ok || !stRes.ok) throw new Error('Failed to load World Cup data');
+      if (!sbRes.ok || !stRes.ok) throw new Error('Failed to load fixtures');
       const [sbJson, stJson] = await Promise.all([sbRes.json(), stRes.json()]);
 
       const adapter = getAdapter(comp);
@@ -92,7 +92,7 @@ export function useCompetition(
       if (signal.aborted || (err instanceof Error && err.name === 'AbortError')) return;
       console.error('useCompetition fetch failed:', err);
       if (!cacheRef.current)
-        setError(err instanceof Error ? err.message : 'Failed to load World Cup data');
+        setError(err instanceof Error ? err.message : 'Failed to load fixtures');
     } finally {
       if (!signal.aborted) {
         setLoading(false);

@@ -68,7 +68,7 @@ function renderPage(props: Partial<React.ComponentProps<typeof PlayerPage>> = {}
         goals: 2,
       },
     ],
-    backHref: '/fifa.world',
+    backHref: '/eng.1',
   };
   return render(<PlayerPage {...defaults} {...props} />);
 }
@@ -175,7 +175,7 @@ describe('PlayerPage', () => {
   it('renders the back control as a real schedule link', () => {
     renderPage({});
     const back = screen.getByRole('link', { name: /Back/ });
-    expect(back).toHaveAttribute('href', '/fifa.world');
+    expect(back).toHaveAttribute('href', '/eng.1');
   });
 
   it('clicking a goal row navigates to the match detail', () => {
@@ -191,7 +191,7 @@ describe('PlayerPage', () => {
     // Goal rows link to the match detail page.
     expect(screen.getByRole('link', { name: /Mexico vs Canada/ })).toHaveAttribute(
       'href',
-      '/fifa.world/match/mexico-vs-canada',
+      '/eng.1/match/mexico-vs-canada',
     );
   });
 });

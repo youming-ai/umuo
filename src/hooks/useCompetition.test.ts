@@ -126,7 +126,7 @@ describe('useCompetition', () => {
   it('normalizes ESPN scoreboard + standings', async () => {
     fetchMock.mockResolvedValueOnce(ok(scoreboard)).mockResolvedValueOnce(ok(standings));
 
-    const { result } = renderHook(() => useCompetition('fifa.world'));
+    const { result } = renderHook(() => useCompetition('eng.1'));
     await waitFor(() => expect(result.current.loading).toBe(false));
 
     expect(result.current.error).toBeNull();
@@ -200,7 +200,7 @@ describe('useCompetition', () => {
       ],
     };
     fetchMock.mockResolvedValueOnce(ok(pens)).mockResolvedValueOnce(ok({}));
-    const { result } = renderHook(() => useCompetition('fifa.world'));
+    const { result } = renderHook(() => useCompetition('eng.1'));
     await waitFor(() => expect(result.current.loading).toBe(false));
 
     const m = result.current.matches[0];
@@ -246,7 +246,7 @@ describe('useCompetition', () => {
       ],
     };
     fetchMock.mockResolvedValueOnce(ok(aet)).mockResolvedValueOnce(ok({}));
-    const { result } = renderHook(() => useCompetition('fifa.world'));
+    const { result } = renderHook(() => useCompetition('eng.1'));
     await waitFor(() => expect(result.current.loading).toBe(false));
 
     const m = result.current.matches[0];
@@ -257,20 +257,20 @@ describe('useCompetition', () => {
 
   it('sets error when a request fails', async () => {
     fetchMock.mockResolvedValueOnce({ ok: false }).mockResolvedValueOnce(ok(standings));
-    const { result } = renderHook(() => useCompetition('fifa.world'));
+    const { result } = renderHook(() => useCompetition('eng.1'));
     await waitFor(() => expect(result.current.loading).toBe(false));
-    expect(result.current.error).toBe('Failed to load World Cup data');
+    expect(result.current.error).toBe('Failed to load fixtures');
   });
 
   it('fails closed on a competition switch: no stale cross-comp data, error not suppressed', async () => {
     // First comp loads successfully.
     fetchMock.mockResolvedValueOnce(ok(scoreboard)).mockResolvedValueOnce(ok(standings));
     const { result, rerender } = renderHook(({ comp }) => useCompetition(comp), {
-      initialProps: { comp: 'fifa.world' },
+      initialProps: { comp: 'eng.1' },
     });
     await waitFor(() => expect(result.current.matches.length).toBeGreaterThan(0));
 
-    // Switch to a different competition whose fetch fails. The stale fifa.world
+    // Switch to a different competition whose fetch fails. The stale eng.1
     // cache must NOT be served, and the new comp's error must NOT be suppressed.
     fetchMock.mockReset();
     fetchMock.mockRejectedValue(new TypeError('nba down'));
@@ -284,14 +284,14 @@ describe('useCompetition', () => {
 
   it('sets error when fetch throws (network failure)', async () => {
     fetchMock.mockRejectedValue(new TypeError('Network error'));
-    const { result } = renderHook(() => useCompetition('fifa.world'));
+    const { result } = renderHook(() => useCompetition('eng.1'));
     await waitFor(() => expect(result.current.loading).toBe(false));
     expect(result.current.error).toBeTruthy();
   });
 
   it('tolerates missing/empty payloads without throwing', async () => {
     fetchMock.mockResolvedValueOnce(ok({})).mockResolvedValueOnce(ok({}));
-    const { result } = renderHook(() => useCompetition('fifa.world'));
+    const { result } = renderHook(() => useCompetition('eng.1'));
     await waitFor(() => expect(result.current.loading).toBe(false));
     expect(result.current.error).toBeNull();
     expect(result.current.matches).toEqual([]);
@@ -313,7 +313,7 @@ describe('useCompetition', () => {
       });
     });
 
-    const { result } = renderHook(() => useCompetition('fifa.world'));
+    const { result } = renderHook(() => useCompetition('eng.1'));
     await waitFor(() => expect(fetchMock).toHaveBeenCalled());
     expect(firstSignal?.aborted).toBe(false);
 
@@ -338,7 +338,7 @@ describe('useCompetition', () => {
       });
     });
 
-    const { unmount } = renderHook(() => useCompetition('fifa.world'));
+    const { unmount } = renderHook(() => useCompetition('eng.1'));
     await waitFor(() => expect(fetchMock).toHaveBeenCalled());
     expect(firstSignal?.aborted).toBe(false);
 
@@ -370,7 +370,7 @@ describe('useCompetition', () => {
       standings: { kind: 'soccer' as const, groups: [] },
       scorers: [],
     };
-    const { result } = renderHook(() => useCompetition('fifa.world', seed));
+    const { result } = renderHook(() => useCompetition('eng.1', seed));
     // synchronous: the seeded state is visible without waiting for any fetch
     expect(result.current.loading).toBe(false);
     expect(result.current.matches).toEqual(seed.matches);

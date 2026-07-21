@@ -53,6 +53,6 @@ export function onRequest(
   }
 
   // Legacy unprefixed paths: redirect to the default competition.
-  // /scorers → /fifa.world/scorers, /match/foo → /fifa.world/match/foo, etc.
+  // /scorers → /eng.1/scorers, /match/foo → /eng.1/match/foo, etc.
   return context.redirect(`/${DEFAULT_COMPETITION}${path}${search}`, 307);
 }

@@ -15,13 +15,16 @@ export type Resource =
   | 'transactions';
 
 export interface Competition {
-  key: string; // URL first segment, e.g. 'fifa.world'
+  key: string; // URL first segment, e.g. 'eng.1'
   sport: Sport;
   league: string; // ESPN league slug
   label: string; // display name
   season?: number; // fixed season year; omit for cross-year leagues → derived per request (seasonForDate)
   dates?: string; // scoreboard date window — tournaments need it, season comps omit it
-  standingsLevel?: number; // soccer standings depth (World Cup = 3 → the group tables)
+  standingsLevel?: number; // soccer standings depth
+  // ponytail: 'tournament' shape + dates/standingsLevel are now unused (World Cup
+  // removed 2026-07). Prune with the adapter tournament branches if another
+  // tournament is never added.
   shape: 'tournament' | 'season';
   capabilities: {
     scorers: boolean;
@@ -31,7 +34,7 @@ export interface Competition {
     odds?: boolean; // betting lines from the scoreboard feed → Odds tab
   };
   // Where the right-rail Top Scorers get their data. 'scoreboard' = aggregated
-  // from the scoreboard's per-team leaders (World Cup). 'pipeline' = server-
+  // from the scoreboard's per-team leaders (tournaments). 'pipeline' = server-
   // side assembleLeaders over ESPN core.api (eng.1 goals / nba points). Omit
   // for comps with no top-scorers display. (The /stats page uses
   // getLeaderboards independently of this field.)
@@ -39,18 +42,6 @@ export interface Competition {
 }
 
 export const COMPETITIONS: Record<string, Competition> = {
-  'fifa.world': {
-    key: 'fifa.world',
-    sport: 'soccer',
-    league: 'fifa.world',
-    label: 'World Cup',
-    season: 2026,
-    dates: '20260611-20260719',
-    standingsLevel: 3,
-    shape: 'tournament',
-    capabilities: { scorers: true, lineups: true, boxscore: false, odds: true },
-    leadersSource: 'scoreboard',
-  },
   'eng.1': {
     key: 'eng.1',
     sport: 'soccer',
@@ -87,7 +78,7 @@ export const COMPETITIONS: Record<string, Competition> = {
   },
 };
 
-export const DEFAULT_COMPETITION = 'fifa.world';
+export const DEFAULT_COMPETITION = 'eng.1';
 
 const ESPN = 'https://site.api.espn.com/apis';
 

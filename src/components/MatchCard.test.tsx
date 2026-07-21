@@ -229,7 +229,7 @@ describe('MatchCard', () => {
       kickoff: new Date(2026, 5, 24, 18, 0),
       stage: 'group',
       group: 'C',
-      href: '/fifa.world/match/brazil-vs-argentina',
+      href: '/eng.1/match/brazil-vs-argentina',
     });
     const reminder = screen.getByLabelText('Set a reminder');
     expect(reminder).toBeInTheDocument();
@@ -237,7 +237,7 @@ describe('MatchCard', () => {
     // never activates navigation.
     expect(reminder.closest('a')).toBeNull();
     const cardLink = screen.getByRole('link', { name: /Brazil/ });
-    expect(cardLink).toHaveAttribute('href', '/fifa.world/match/brazil-vs-argentina');
+    expect(cardLink).toHaveAttribute('href', '/eng.1/match/brazil-vs-argentina');
   });
 
   it('shows no reminder (no action footer) for a finished match', () => {

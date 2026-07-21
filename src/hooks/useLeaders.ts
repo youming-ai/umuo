@@ -3,7 +3,7 @@ import type { Leader } from '../types';
 
 // Season leaders (eng.1 goals / nba points) from the server-side pipeline
 // (/api/<comp>/leaders → Worker cachedProducer → assembleLeaders). Only called
-// when COMPETITIONS[comp].leadersSource === 'pipeline' (the World Cup keeps its
+// when COMPETITIONS[comp].leadersSource === 'pipeline' (tournament comps keep
 // scoreboard-sourced scorers). `comp` is `string | null` (mirrors
 // useMatchDetail's `eventId: string | null`) — the caller passes null for
 // scoreboard-sourced comps so this never fetches or polls for a result that

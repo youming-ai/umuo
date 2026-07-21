@@ -24,14 +24,7 @@ describe('sitemap.xml', () => {
 
   it('lists each competition news feed and team directory', async () => {
     const { body } = await render();
-    for (const path of [
-      '/fifa.world/news',
-      '/eng.1/news',
-      '/nba/news',
-      '/fifa.world/teams',
-      '/eng.1/teams',
-      '/nba/teams',
-    ]) {
+    for (const path of ['/eng.1/news', '/nba/news', '/eng.1/teams', '/nba/teams']) {
       expect(body).toContain(`<loc>${SITE_ORIGIN}${path}</loc>`);
     }
   });
@@ -39,9 +32,6 @@ describe('sitemap.xml', () => {
   it('lists each competition landing + its enabled sections', async () => {
     const { body } = await render();
     for (const path of [
-      '/fifa.world',
-      '/fifa.world/stats',
-      '/fifa.world/odds',
       '/eng.1',
       '/eng.1/stats',
       '/eng.1/odds',
@@ -57,7 +47,6 @@ describe('sitemap.xml', () => {
   it('omits capability-gated sections that would 307-redirect', async () => {
     const { body } = await render();
     // Only nba has transactions; soccer comps redirect.
-    expect(body).not.toContain(`<loc>${SITE_ORIGIN}/fifa.world/transactions</loc>`);
     expect(body).not.toContain(`<loc>${SITE_ORIGIN}/eng.1/transactions</loc>`);
   });
 

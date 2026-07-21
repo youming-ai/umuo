@@ -1,7 +1,7 @@
 import type { Leader } from '../types';
 
 // Season leaderboard (eng.1 goals / nba points, and — via a TopScorer→Leader
-// map at the call site — the World Cup scorers). Rows are NOT clickable
+// map at the call site — tournament scoreboard scorers). Rows are NOT clickable
 // (spec §2: no player-page nav from the board).
 export default function LeadersView({
   leaders,

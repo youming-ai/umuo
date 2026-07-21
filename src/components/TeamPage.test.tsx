@@ -21,7 +21,7 @@ function team(partial: Partial<TeamDetail> = {}): TeamDetail {
 
 describe('TeamPage', () => {
   it('renders header, roster, schedule and injuries', () => {
-    render(<TeamPage team={team()} backHref="/fifa.world/teams" />);
+    render(<TeamPage team={team()} backHref="/eng.1/teams" />);
     expect(screen.getByRole('heading', { name: 'Argentina', level: 1 })).toBeInTheDocument();
     expect(screen.getByText('5-1 · 1st in Group A')).toBeInTheDocument();
     expect(screen.getByText('Lionel Messi')).toBeInTheDocument();
@@ -29,10 +29,7 @@ describe('TeamPage', () => {
     expect(screen.getByText('2 - 1')).toBeInTheDocument();
     expect(screen.getByText('Ángel Di María')).toBeInTheDocument();
     expect(screen.getByText('Out')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /Teams/ })).toHaveAttribute(
-      'href',
-      '/fifa.world/teams',
-    );
+    expect(screen.getByRole('link', { name: /Teams/ })).toHaveAttribute('href', '/eng.1/teams');
   });
 
   it('omits injuries when none and shows empty roster/schedule states', () => {

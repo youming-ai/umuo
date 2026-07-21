@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import type { ConferenceTable } from '../adapters/types';
 import type { CompMatch, WCGroup } from '../types';
@@ -86,75 +86,12 @@ describe('FixturesView status filter', () => {
     expect(screen.queryByText('Results')).not.toBeInTheDocument();
   });
 
-  it('shows the group standings table only when the Group stage filter is active', () => {
-    const group: WCGroup = {
-      name: 'A',
-      standings: [
-        {
-          teamId: '203',
-          name: 'Mexico',
-          flag: '',
-          mp: 1,
-          w: 1,
-          d: 0,
-          l: 0,
-          gf: 2,
-          ga: 0,
-          gd: 2,
-          pts: 3,
-        },
-        {
-          teamId: '224',
-          name: 'Canada',
-          flag: '',
-          mp: 1,
-          w: 0,
-          d: 0,
-          l: 1,
-          gf: 0,
-          ga: 2,
-          gd: -2,
-          pts: 0,
-        },
-      ],
-    };
-    renderView([match({ id: '1', stage: 'group' })], [group]);
-    // Default 'all' stage: standings are not shown (no table).
-    expect(screen.queryByRole('table')).not.toBeInTheDocument();
-
-    const stageChip = screen.getByRole('button', { name: 'Group stage' });
-    fireEvent.click(within(stageChip.parentElement!).getByRole('button', { name: 'Group stage' }));
-
-    // Selecting the group stage surfaces the standings table on top.
-    expect(screen.getByRole('table')).toBeInTheDocument();
-  });
-
   it('shows a friendly empty state when filter has no matches', () => {
     renderView([match({ id: '1', status: 'upcoming' })]);
 
     fireEvent.click(screen.getByRole('button', { name: /^Finished\s+0$/ }));
 
     expect(screen.getByText('No finished matches yet')).toBeInTheDocument();
-  });
-
-  it('keeps stage filter chips functional alongside the status filter', () => {
-    renderView([
-      match({ id: '1', status: 'finished', stage: 'group' }),
-      match({ id: '2', status: 'finished', stage: 'qf' }),
-    ]);
-
-    fireEvent.click(screen.getByRole('button', { name: /^Finished\s+2$/ }));
-
-    // Click the Group stage chip within the stage filter row (not the status filter row)
-    const stageChip = screen.getByRole('button', { name: 'Group stage' });
-    const stageBar = stageChip.parentElement!;
-    fireEvent.click(within(stageBar).getByRole('button', { name: 'Group stage' }));
-
-    // Both finished matches were in different stages; filtering by Group
-    // should leave only the group match visible. The status-filter counts
-    // remain unfiltered (still 2).
-    expect(screen.getAllByText('Mexico').length).toBe(1);
-    expect(screen.getByRole('button', { name: /^Finished\s+2$/ })).toBeInTheDocument();
   });
 });
 

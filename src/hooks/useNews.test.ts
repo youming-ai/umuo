@@ -45,9 +45,9 @@ const seed: NewsItem[] = [
 describe('useNews', () => {
   it('fetches /api/<comp>/news and exposes parsed items', async () => {
     fetchMock.mockResolvedValue({ ok: true, json: async () => feed });
-    const { result } = renderHook(() => useNews('fifa.world'));
+    const { result } = renderHook(() => useNews('eng.1'));
     await waitFor(() => expect(result.current.loading).toBe(false));
-    expect(fetchMock).toHaveBeenCalledWith('/api/fifa.world/news', expect.any(Object));
+    expect(fetchMock).toHaveBeenCalledWith('/api/eng.1/news', expect.any(Object));
     expect(result.current.items[0].headline).toBe('Hello');
     expect(result.current.error).toBeNull();
   });
@@ -69,7 +69,7 @@ describe('useNews', () => {
   });
 
   it('skips the first fetch when initialData is provided and non-empty', async () => {
-    const { result } = renderHook(() => useNews('fifa.world', seed));
+    const { result } = renderHook(() => useNews('eng.1', seed));
     // synchronous: the seeded state is visible without waiting for any fetch
     expect(result.current.loading).toBe(false);
     expect(result.current.items).toEqual(seed);
@@ -79,7 +79,7 @@ describe('useNews', () => {
   it('fetches the new comp immediately when a seeded hook changes comp', async () => {
     fetchMock.mockResolvedValue({ ok: true, json: async () => feed });
     const { rerender, result } = renderHook(({ comp }: { comp: string }) => useNews(comp, seed), {
-      initialProps: { comp: 'fifa.world' },
+      initialProps: { comp: 'eng.1' },
     });
     rerender({ comp: 'nba' });
     await waitFor(() =>

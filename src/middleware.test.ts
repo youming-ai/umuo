@@ -35,7 +35,7 @@ describe('middleware routing', () => {
 
   it('redirects the legacy /scorers slug to /stats (unprefixed and comp-scoped)', () => {
     expect(run(`${O}/scorers`).redirect).toHaveBeenCalledWith(`/${DEFAULT_COMPETITION}/stats`, 307);
-    expect(run(`${O}/fifa.world/scorers`).redirect).toHaveBeenCalledWith(`/fifa.world/stats`, 307);
+    expect(run(`${O}/eng.1/scorers`).redirect).toHaveBeenCalledWith(`/eng.1/stats`, 307);
     expect(run(`${O}/eng.1/scorers`).redirect).toHaveBeenCalledWith(`/eng.1/stats`, 307);
   });
 
@@ -53,7 +53,7 @@ describe('middleware routing', () => {
   it('passes through /api and comp-prefixed routes', () => {
     for (const p of [
       '/api',
-      '/api/fifa.world/scoreboard',
+      '/api/eng.1/scoreboard',
       `/${DEFAULT_COMPETITION}`,
       `/${DEFAULT_COMPETITION}/news`,
     ]) {
