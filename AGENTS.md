@@ -1,12 +1,12 @@
 # Repository Guidelines
 
 ## Project Overview
-**umuo** (package `streamcup-web`, older docs say StreamCup) is a lightweight, high-performance sports web app for the FIFA World Cup, Premier League, and NBA — per-competition fixtures, standings, scorers, brackets, news, and match detail. It is an **Astro 7 server-rendered (SSR) app with React islands**, deployed as a **single Cloudflare Worker** that both renders pages and edge-caches the upstream ESPN APIs in KV. All data comes from ESPN's unofficial public APIs; live streams come from third-party aggregators fetched browser-side.
+**umuo** (package `streamcup-web`, older docs say StreamCup) is a lightweight, high-performance sports web app for the English Premier League and NBA — per-competition news hubs, schedule, standings, scorers, and match detail, plus a global aggregated-news home. It is an **Astro 7 server-rendered (SSR) app with React islands**, deployed as a **single Cloudflare Worker** that both renders pages and edge-caches the upstream ESPN APIs in KV. All data comes from ESPN's unofficial public APIs.
 
 ## Architecture & Data Flow
 ```mermaid
 graph TD
-  User([Browser]) -->|Page request| MW[middleware.ts: / → /fifa.world, legacy → default comp]
+  User([Browser]) -->|Page request| MW[middleware.ts: / home, legacy/removed → 307]
   MW --> Page[Astro SSR page src/pages/**]
   Page -->|initialData via src/data/api.ts composer| Layer[Shared data layer]
   User -->|/api/:comp/:resource| Bridge[api/[...route].ts → worker/index.ts]
@@ -15,7 +15,6 @@ graph TD
   Layer -->|on miss/revalidate| ESPN[ESPN site/core APIs]
   Page -->|client:only=react + initialData| Island[React island]
   Island -->|AbortController + visibility-gated SWR poll| Bridge
-  User -->|browser-direct, bypasses Worker| Streams[ppv.st / embedindia.st / *.pages.dev]
 ```
 - **SSR pages** (`src/pages/**.astro`): `output: 'server'` on `@astrojs/cloudflare`. Each page validates params against `COMPETITIONS`, pulls `env` from `cloudflare:workers` and `ctx` from `Astro.locals.cfContext`, calls a `src/data/api.ts` composer (`getCompetitionView`, `getCompNews`, `getMatchSummary`, `getLeaderboards`, `getCompMatchBySlug`, `getTeams`, `getTeamDetail`, `getTransactions`, `getLeagueInjuries`) to compute `initialData` server-side, then renders a React island `client:only="react"` seeded with that data.
 - **Shared data layer** (`src/data/api.ts`): ONE cache core (`runCached`) shared by SSR composers AND `/api/*`. Implements KV **stale-while-revalidate** (`Entry {body, at}`; fresh window → HIT), module-level **request coalescing** (`inflight` Map collapses concurrent identical fetches; each caller builds its own `Response` via `json()` since a body is one-shot), and **serve-stale-on-outage** (produce failure → stored stale body as `STALE`, else 502). `cached()` caches a URL fetch; `cachedProducer()` caches an arbitrary producer's JSON (e.g. leaders). `x-cache` header: `HIT|MISS|REVALIDATED|STALE`. Per-resource TTLs: scoreboard `{fresh:60, keep:86400}`, standings `{fresh:300}`, summary `{fresh:30}`.
@@ -25,12 +24,12 @@ graph TD
 - **Not a SPA**: the client router was removed. `src/utils/router.ts` only builds/reads URLs (`parseRoute`/`pathFor`); `navigate()` does a real `window.location` navigation — every view is its own SSR document.
 
 ## Key Directories
-- `src/pages/` — file-based SSR routes: `[comp]/` (`index`, `news`, `stats`, `bracket`, `transactions`, `odds`, `match/[slug]`, `team/[id]`, `player/[id]`, `teams`), `api/[...route].ts`, `sitemap.xml.ts`. News is per-competition; there is no global `/news`. `transactions` is capability-gated (NBA only; soccer 307-redirects); `odds` is capability-gated (all current comps carry scoreboard betting lines); `/scorers` is a legacy slug that 307-redirects to `/stats`.
+- `src/pages/` — file-based SSR routes: a top-level `index` (global home), `[comp]/` (`index` = news hub, `schedule`, `stats`, `transactions`, `odds`, `match/[slug]`, `team/[id]`, `player/[id]`, `teams`), `api/[...route].ts`, `sitemap.xml.ts`. `/<comp>/news` 307-redirects to the hub. `transactions` is capability-gated (NBA only; soccer 307-redirects); `odds` is capability-gated (all current comps carry scoreboard betting lines); `/scorers` is a legacy slug that 307-redirects to `/stats`.
 - `src/data/api.ts` — KV cache core + SSR composition helpers.
 - `src/adapters/` — `types.ts`, `soccer.ts`, `basketball.ts`, `index.ts` (per-sport ESPN normalization).
-- `src/hooks/` — `useCompetition`, `useMatchDetail`, `useNews`, `useLeaders`, `useStreams`, `useBracket`, `useTicker`.
-- `src/components/` — `*Island.tsx` hydration wrappers (wrap `AppProviders`), presentational views (`FixturesView`, `StandingsView`, `LeadersView`, `StatsView`, `NewsView`, `BracketView`, `TeamsView`, `TeamPage`, `MovesView`, `MatchCard`, `Ticker`, `Player`), `.astro` shells (`Header`, `Footer`, `LeftNav`); `matchdetail/` holds tab panes.
-- `src/utils/` — pure helpers: `router.ts`, `wc.ts` (score/slug/status/stage primitives), `marquee.ts`, `calendar.ts`, `helpers.ts` (`slugify`), `streamMatch.ts`, `streamSources.ts`.
+- `src/hooks/` — `useCompetition`, `useMatchDetail`, `useNews`, `useLeaders`, `useTicker`.
+- `src/components/` — `*Island.tsx` hydration wrappers (wrap `AppProviders`), presentational views (`HomeView`, `FixturesView`, `StandingsView`, `LeadersView`, `StatsView`, `NewsView`, `TeamsView`, `TeamPage`, `MovesView`, `MatchCard`, `Ticker`, `Player`), `.astro` shells (`Header`, `Footer`, `LeftNav`); `matchdetail/` holds tab panes.
+- `src/utils/` — pure helpers: `router.ts`, `wc.ts` (score/slug/status/stage primitives), `marquee.ts`, `calendar.ts`, `helpers.ts` (`slugify`), `coerce.ts` (defensive ESPN coercion).
 - `src/competitions.ts`, `src/leaders.ts`, `src/teams.ts`, `src/teamDetail.ts`, `src/transactions.ts`, `src/newsFeed.ts`, `src/types/index.ts` — registry, leaders pipeline, team parsers, transactions/injuries parsers, news parser, central domain types.
 - `worker/` — `index.ts` HTTP wrapper + `index.test.ts`.
 - `docs/` — `espn-api.md` (upstream endpoints + quirks; read before touching URL building/parsing), `news-classification-spec.md`, `superpowers/` (historical specs + plans).
@@ -51,7 +50,7 @@ There is **no `deploy` script** and **`wrangler` is not a dependency** — deplo
 - **Naming**: PascalCase React components & `.astro` files (`MatchCard.tsx`); island wrappers suffixed `Island` (`CompetitionIsland.tsx`) and wrap `AppProviders`→`ThemeProvider`; `useXxx.ts` hooks; lowerCamelCase pure utils. Tests colocated as `<name>.test.ts(x)`. Slugify via `src/utils/helpers.ts`.
 - **Single source of truth**: `src/competitions.ts` (registry + `buildUrl()` + `seasonForDate()`) and `src/leaders.ts` are pure (no DOM/React) so they compile under BOTH tsconfigs and never drift between worker and app. Add a competition here; pages, worker routes, and the switcher read from it. Domain types live centralized in `src/types/index.ts`.
 - **Defensive ESPN coercion**: ESPN JSON is untyped/unstable. Every adapter plus `newsFeed.ts`/`leaders.ts` guards field access with the shared helpers in `src/utils/coerce.ts` (`obj(v)`, `arr(v)`, `str(v)` — string OR finite-number → string) plus `score(v)`, so a shape change degrades gracefully instead of throwing.
-- **Async**: every fetching effect registers an `AbortController`; hooks poll on a visibility-gated `setInterval` (30s scores/competition, 60s streams/leaders, 120s news) and only fetch when `document.visibilityState === 'visible'`; reset cache + state when the `comp`/`eventId`/query key changes. Wrap decoded path params in `safeDecode`.
+- **Async**: every fetching effect registers an `AbortController`; hooks poll on a visibility-gated `setInterval` (30s scores/competition, 60s leaders, 120s news) and only fetch when `document.visibilityState === 'visible'`; reset cache + state when the `comp`/`eventId`/query key changes. Wrap decoded path params in `safeDecode`.
 - **Error handling**: SSR composers swallow failures into empty shapes / `null` (the page never crashes); hooks ignore `AbortError`, keep stale data on failure, and surface an error only when no cached data exists.
 - **Colors only through tokens**: CSS variables in `src/index.css` `:root`/`[data-theme]` (`--c-*` as `"R G B"` channels), mapped in `tailwind.config.js` via `rgb(var(--c-x) / <alpha-value>)` (enables `bg-panel/85`). Never hardcode hex/`rgba()` or Tailwind's named palette for semantic colors. Reusable `.ds-*` component classes live in `src/index.css`.
 - **Copy / theme**: UI strings are English-hardcoded; theme is dark/light via `data-theme` (`src/theme/`, anti-FOUC inline script in `Layout.astro`). Some inline comments are Chinese (season/date logic, leaders pipeline, ESPN quirks) — preserve them when editing nearby code.
@@ -59,9 +58,9 @@ There is **no `deploy` script** and **`wrangler` is not a dependency** — deplo
 ## Important Files
 - `astro.config.mjs` — `output: 'server'`, `@astrojs/cloudflare` v14 adapter (bindings via wrangler/miniflare; no `platformProxy` field), React integration.
 - `wrangler.jsonc` — Worker `main` (`@astrojs/cloudflare/entrypoints/server`), `ASSETS` (`dist/`), `CACHE` KV binding, `nodejs_compat`.
-- `src/middleware.ts` — canonical-path redirects (`/` → `/<default comp>` 307; legacy `/news*` → `/<comp>/news`; query preserved).
-- `src/data/api.ts` — shared cache + SSR composition helpers (`getCompetitionView`, `getTeams`, `getTeamDetail`, `getTransactions`, `getLeagueInjuries`, `getLeaderboards`, `getCompNews`, `getMatchSummary`).
-- `src/competitions.ts` — competition registry, `buildUrl()`, `seasonForDate()`, `DEFAULT_COMPETITION='fifa.world'`. Capabilities (`bracket`, `scorers`, `lineups`, `boxscore`, `transactions?`, `odds?`) gate nav items and routes.
+- `src/middleware.ts` — passes `/` (global home), comp-prefixed routes, `/api`, and assets through; 307-redirects `/fifa.world/**` → `/`, `/<comp>/news|bracket` → `/<comp>`, legacy `/news*` → the default-comp hub (query preserved).
+- `src/data/api.ts` — shared cache + SSR composition helpers (`getCompetitionView`, `getTeams`, `getTeamDetail`, `getTransactions`, `getLeagueInjuries`, `getLeaderboards`, `getCompNews`, `getAggregatedNews`, `getMatchSummary`).
+- `src/competitions.ts` — competition registry, `buildUrl()`, `seasonForDate()`, `DEFAULT_COMPETITION='eng.1'`. Capabilities (`scorers`, `lineups`, `boxscore`, `transactions?`, `odds?`) gate nav items and routes.
 - `src/teams.ts` / `src/teamDetail.ts` / `src/transactions.ts` — pure parsers for team directory, team detail (roster/schedule/injuries), and league transactions/injuries feeds.
 - `worker/index.ts` — `/api/*` HTTP wrapper.
 - `src/pages/api/[...route].ts` — Astro↔Worker bridge.

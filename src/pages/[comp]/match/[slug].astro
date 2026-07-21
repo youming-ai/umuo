@@ -20,7 +20,7 @@ const initialDetail = await getMatchSummary(competition, match.id, env, ctx);
 
 // client:only islands do not hydrate pre-rendered siblings — an SSR hero here
 // would permanently stack under the React hero. The island owns the full
-// match detail (back, stream, live scoreboard, tabs) and seeds from SSR data.
+// match detail (back, live scoreboard, tabs) and seeds from SSR data.
 ---
 
 <Layout title={`umuo — ${match.homeName} vs ${match.awayName}`} comp={comp}>

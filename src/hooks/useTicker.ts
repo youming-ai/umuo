@@ -89,7 +89,7 @@ function stopPolling() {
 
 // Cross-competition scoreboard strip for the global ticker. Fetches every
 // registered competition's scoreboard in parallel (worker KV-cached), merges,
-// and selects via marqueeMatches. No ppv.st — ESPN only.
+// and selects via marqueeMatches. ESPN only.
 export function useTicker(): TickerState {
   const [state, setState] = useState<TickerState>(shared);
 

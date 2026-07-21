@@ -8,7 +8,7 @@ import type { Leader } from '../types';
 // useMatchDetail's `eventId: string | null`) — the caller passes null for
 // scoreboard-sourced comps so this never fetches or polls for a result that
 // would be discarded. Same SWR + visibility-gated polling + AbortController
-// pattern as useStreams; season stats change slowly so we poll at 60s.
+// pattern; season stats change slowly so we poll at 60s.
 export function useLeaders(comp: string | null, initialData?: Leader[]) {
   const seeded = !!initialData && initialData.length > 0;
   const [leaders, setLeaders] = useState<Leader[]>(initialData ?? []);
