@@ -94,8 +94,7 @@ interface CachedResult {
 // Per-resource cache TTLs (seconds). `fresh` = served without revalidating;
 // `keep` = how long KV retains a copy so a stale one can cover an outage.
 // Scoreboard refreshes often (live scores), standings change slowly, summary
-// is per-event. ppv.to streams are still fetched browser-side (datacenter-IP
-// blocked), so they never touch this layer.
+// is per-event.
 const TTL: Record<Resource, { fresh: number; keep: number }> = {
   scoreboard: { fresh: 60, keep: 86400 },
   standings: { fresh: 300, keep: 86400 },
