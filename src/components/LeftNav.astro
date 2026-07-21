@@ -10,8 +10,8 @@ const { comp, active } = Astro.props;
 const caps = COMPETITIONS[comp]?.capabilities;
 
 const items: { section: Section; label: string; href: string }[] = [
-  { section: 'news', label: 'News', href: `/${comp}/news` },
-  { section: 'matches', label: 'Matches', href: `/${comp}` },
+  { section: 'home', label: 'News', href: `/${comp}` },
+  { section: 'schedule', label: 'Schedule', href: `/${comp}/schedule` },
   { section: 'teams', label: 'Teams', href: `/${comp}/teams` },
   ...(caps?.scorers
     ? [{ section: 'stats' as Section, label: 'Stats', href: `/${comp}/stats` }]

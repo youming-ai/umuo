@@ -6,17 +6,16 @@ import { COMPETITIONS, DEFAULT_COMPETITION } from '../competitions';
 // `navigate()` performs a real browser navigation to move between them.
 //
 // Route scheme (every view is addressable — shareable, back/forward, refresh):
-//   /<comp>              matches (schedule; group standings live under the group filter)
-//   /<comp>/stats       season stats leaderboards (Goals/Assists/Cards/Saves)
-//   /<comp>/news         league news
-//   /<comp>/match/<slug> ESPN fixture detail (hosts the live stream player when one
-//                        matches — there is no separate /live page anymore)
+//   /<comp>              news-first hub (cross-comp Ticker scores + comp news)
+//   /<comp>/schedule     fixtures + standings (group tables live under the group filter)
+//   /<comp>/stats        season stats leaderboards (Goals/Assists/Cards/Saves)
+//   /<comp>/match/<slug> ESPN fixture detail
 //   /<comp>/team/<id>    team page
 //   /<comp>/player/<id>  player page
 // Unprefixed legacy paths (pre-multi-comp links) resolve under DEFAULT_COMPETITION.
 
-// The schedule sections (group standings are folded into the matches view).
-export type Section = 'matches' | 'stats' | 'news' | 'teams' | 'transactions' | 'odds';
+// Top-level sections (standings stay folded into the schedule view).
+export type Section = 'home' | 'schedule' | 'stats' | 'teams' | 'transactions' | 'odds';
 
 // Every route carries the competition it belongs to (URL first segment).
 export type Route =
@@ -25,11 +24,11 @@ export type Route =
   | { kind: 'team'; comp: string; teamId: string }
   | { kind: 'player'; comp: string; athleteId: string };
 
-// section → path suffix under /<comp> (matches is the competition root).
+// section → path suffix under /<comp> (home is the competition root).
 const SECTION_SUFFIX: Record<Section, string> = {
-  matches: '',
+  home: '',
+  schedule: '/schedule',
   stats: '/stats',
-  news: '/news',
   teams: '/teams',
   transactions: '/transactions',
   odds: '/odds',
@@ -48,11 +47,12 @@ function safeDecode(segment: string): string | null {
 
 // Parse the view segments (everything AFTER the competition prefix) into a
 // Route body for the resolved competition. Unknown shapes fall back to the
-// matches section, never throw.
+// home section, never throw.
 function parseView(comp: string, seg: string[]): Route {
-  if (seg.length === 0) return { kind: 'section', comp, section: 'matches' };
+  if (seg.length === 0) return { kind: 'section', comp, section: 'home' };
+  if (seg.length === 1 && seg[0] === 'schedule')
+    return { kind: 'section', comp, section: 'schedule' };
   if (seg.length === 1 && seg[0] === 'stats') return { kind: 'section', comp, section: 'stats' };
-  if (seg.length === 1 && seg[0] === 'news') return { kind: 'section', comp, section: 'news' };
   if (seg.length === 1 && seg[0] === 'teams') return { kind: 'section', comp, section: 'teams' };
   if (seg.length === 1 && seg[0] === 'transactions')
     return { kind: 'section', comp, section: 'transactions' };
@@ -69,7 +69,7 @@ function parseView(comp: string, seg: string[]): Route {
     const athleteId = safeDecode(seg[1]!);
     if (athleteId !== null) return { kind: 'player', comp, athleteId };
   }
-  return { kind: 'section', comp, section: 'matches' };
+  return { kind: 'section', comp, section: 'home' };
 }
 
 export function parseRoute(pathname: string): Route {

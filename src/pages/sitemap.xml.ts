@@ -18,7 +18,7 @@ export const GET: APIRoute = () => {
   // so we never emit a section that redirects (scorers 307 when off).
   for (const c of Object.values(COMPETITIONS)) {
     paths.push(`/${c.key}`);
-    paths.push(`/${c.key}/news`);
+    paths.push(`/${c.key}/schedule`);
     paths.push(`/${c.key}/teams`);
     if (c.capabilities.scorers) paths.push(`/${c.key}/stats`);
     if (c.capabilities.transactions) paths.push(`/${c.key}/transactions`);

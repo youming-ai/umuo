@@ -17,7 +17,7 @@ export default function PlayerPageIsland({
   scorers: TopScorer[];
 }) {
   const { route } = useRouter();
-  const backHref = pathFor({ kind: 'section', comp: route.comp, section: 'matches' });
+  const backHref = pathFor({ kind: 'section', comp: route.comp, section: 'schedule' });
 
   return (
     <AppProviders>

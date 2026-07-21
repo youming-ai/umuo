@@ -1,10 +1,10 @@
 import { render } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { navigate, pathFor, useRouter } from './router';
+import { navigate, parseRoute, pathFor, useRouter } from './router';
 
 describe('pathFor', () => {
   it('prefixes the competition and URI-encodes special characters in slugs', () => {
-    expect(pathFor({ kind: 'section', comp: 'eng.1', section: 'matches' })).toBe('/eng.1');
+    expect(pathFor({ kind: 'section', comp: 'eng.1', section: 'home' })).toBe('/eng.1');
     expect(pathFor({ kind: 'match', comp: 'eng.1', slug: 'foo bar' })).toBe(
       '/eng.1/match/foo%20bar',
     );
@@ -76,5 +76,25 @@ describe('useRouter', () => {
     let captured!: ReturnType<typeof useRouter>;
     render(<Harness onReady={(route) => (captured = route)} />);
     expect(captured.route).toEqual({ kind: 'match', comp: 'eng.1', slug: 'foo' });
+  });
+});
+
+describe('parseRoute (hub + schedule)', () => {
+  it('parses the comp root as the home section', () => {
+    expect(parseRoute('/eng.1')).toEqual({ kind: 'section', comp: 'eng.1', section: 'home' });
+  });
+
+  it('parses /schedule', () => {
+    expect(parseRoute('/eng.1/schedule')).toEqual({
+      kind: 'section',
+      comp: 'eng.1',
+      section: 'schedule',
+    });
+  });
+
+  it('builds the schedule path', () => {
+    expect(pathFor({ kind: 'section', comp: 'eng.1', section: 'schedule' })).toBe(
+      '/eng.1/schedule',
+    );
   });
 });
