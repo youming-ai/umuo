@@ -8,7 +8,11 @@ export function onRequest(
   context: { request: Request; redirect: (url: string, status?: number) => Response; url: URL },
   next: () => Response | Promise<Response>,
 ) {
-  const path = context.url.pathname;
+  // Normalise a trailing slash (except root) so legacy bookmarks/crawler URLs
+  // like /<comp>/news/ or /<comp>/bracket/ hit the same redirects as their
+  // slashless form instead of falling through to a deleted Astro route (404).
+  const rawPath = context.url.pathname;
+  const path = rawPath.length > 1 ? rawPath.replace(/\/+$/, '') : rawPath;
   const search = context.url.search;
   // A dot in the final segment means a static asset (favicon.png, sw.js,
   // manifest.webmanifest, og.jpg, …) or any file-like path — pass it through so

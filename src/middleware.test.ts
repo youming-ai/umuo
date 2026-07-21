@@ -36,6 +36,12 @@ describe('middleware routing', () => {
     expect(run(`${O}/eng.1/bracket`).redirect).toHaveBeenCalledWith('/eng.1', 307);
   });
 
+  it('collapses trailing-slash legacy paths to the hub', () => {
+    expect(run(`${O}/eng.1/news/`).redirect).toHaveBeenCalledWith('/eng.1', 307);
+    expect(run(`${O}/nba/bracket/`).redirect).toHaveBeenCalledWith('/nba', 307);
+    expect(run(`${O}/eng.1/news/?ref=a`).redirect).toHaveBeenCalledWith('/eng.1?ref=a', 307);
+  });
+
   it('redirects legacy /news paths to the default competition hub', () => {
     expect(run(`${O}/news`).redirect).toHaveBeenCalledWith(`/${DEFAULT_COMPETITION}`, 307);
     expect(run(`${O}/news/soccer`).redirect).toHaveBeenCalledWith(`/${DEFAULT_COMPETITION}`, 307);
