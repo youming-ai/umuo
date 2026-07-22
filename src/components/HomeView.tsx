@@ -1,50 +1,7 @@
 import { COMPETITIONS } from '../competitions';
 import type { NewsItem } from '../types';
 import AppProviders from './AppProviders';
-
-function HomeNewsCard({ item }: { item: NewsItem }) {
-  const external = item.link.startsWith('https://');
-  const linked = external || item.link.startsWith('/');
-  const body = (
-    <div>
-      {item.imageUrl && (
-        <img
-          src={item.imageUrl}
-          alt=""
-          loading="lazy"
-          onError={(e) => {
-            e.currentTarget.style.display = 'none';
-          }}
-          className="aspect-video w-full object-cover"
-        />
-      )}
-      <div className="p-3">
-        <h3 className="font-display text-sm font-semibold leading-snug text-chalk line-clamp-2">
-          {item.headline}
-        </h3>
-        {item.description && (
-          <p className="mt-1 font-body text-xs text-chalkdim line-clamp-2">{item.description}</p>
-        )}
-      </div>
-    </div>
-  );
-  return (
-    <article className="ds-glass overflow-hidden rounded-card shadow-panel">
-      {linked ? (
-        <a
-          href={item.link}
-          target={external ? '_blank' : undefined}
-          rel={external ? 'noopener noreferrer' : undefined}
-          className="block transition-opacity duration-150 ease-out hover:opacity-95"
-        >
-          {body}
-        </a>
-      ) : (
-        <div>{body}</div>
-      )}
-    </article>
-  );
-}
+import NewsCard from './NewsCard';
 
 function HomeInner({ news }: { news: NewsItem[] }) {
   return (
@@ -69,7 +26,7 @@ function HomeInner({ news }: { news: NewsItem[] }) {
         <div className="columns-1 gap-3 sm:columns-2 xl:columns-3 2xl:columns-4">
           {news.map((item, i) => (
             <div key={item.id || `home-news-${i}`} className="mb-3 break-inside-avoid">
-              <HomeNewsCard item={item} />
+              <NewsCard item={item} />
             </div>
           ))}
         </div>
