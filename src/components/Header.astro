@@ -1,16 +1,46 @@
 ---
+import { COMPETITIONS } from '../competitions';
 import ThemeToggle from './ThemeToggle';
 
-// Minimal top bar: brand + theme toggle. Competition/section switching lives in
-// the left rail (LeftNav / HomeNav), not here — the header no longer carries a
-// competition switcher.
+// Top bar = primary navigation (the leagues), ESPN-style. The active league
+// carries a brand-green underline — deliberately different from the left rail's
+// filled-pill section tabs, so the two nav levels read as a hierarchy rather
+// than the same control repeated. Active state is derived from the URL.
+const path = Astro.url.pathname;
+const currentComp = Object.keys(COMPETITIONS).find(
+  (key) => path === `/${key}` || path.startsWith(`/${key}/`),
+);
+const comps = Object.values(COMPETITIONS);
 ---
 <header class="border-b border-line/30 bg-panel/85 backdrop-blur-md">
-  <div class="flex items-center gap-4 mx-auto w-full max-w-6xl px-page-x md:px-page-x-md h-14">
-    <a href="/" class="font-display font-bold text-lg tracking-wide text-chalk shrink-0">
+  <div class="mx-auto flex h-14 w-full max-w-6xl items-center gap-6 px-page-x md:px-page-x-md">
+    <a href="/" class="shrink-0 font-display text-lg font-bold tracking-wide text-chalk">
       umu<span class="text-pitch">o</span>
     </a>
-    <div class="min-w-0 flex-1"></div>
+
+    <nav
+      aria-label="Leagues"
+      class="flex h-full min-w-0 flex-1 items-stretch gap-1 overflow-x-auto no-scrollbar"
+    >
+      {comps.map((c) => {
+        const active = currentComp === c.key;
+        return (
+          <a
+            href={`/${c.key}`}
+            aria-current={active ? 'page' : undefined}
+            class={`relative flex shrink-0 items-center whitespace-nowrap px-3 font-display text-sm tracking-wide ds-press ${
+              active ? 'font-semibold text-chalk' : 'text-chalkdim hover:text-chalk'
+            }`}
+          >
+            {c.label}
+            {active && (
+              <span class="absolute inset-x-2 -bottom-px h-0.5 rounded-full bg-pitch" aria-hidden="true"></span>
+            )}
+          </a>
+        );
+      })}
+    </nav>
+
     <div class="shrink-0">
       <ThemeToggle client:only="react" />
     </div>
