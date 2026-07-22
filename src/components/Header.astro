@@ -1,46 +1,16 @@
 ---
-import { COMPETITIONS } from '../competitions';
 import ThemeToggle from './ThemeToggle';
 
-interface Props {
-  comp?: string; // accepted from Layout; nav derives active state from the URL
-}
-const path = Astro.url.pathname;
-const currentComp = Object.keys(COMPETITIONS).find(
-  (key) => path === `/${key}` || path.startsWith(`/${key}/`),
-);
-
-const comps = Object.values(COMPETITIONS);
+// Minimal top bar: brand + theme toggle. Competition/section switching lives in
+// the left rail (LeftNav / HomeNav), not here — the header no longer carries a
+// competition switcher.
 ---
 <header class="border-b border-line/30 bg-panel/85 backdrop-blur-md">
   <div class="flex items-center gap-4 px-page-x md:px-page-x-md h-14">
     <a href="/" class="font-display font-bold text-lg tracking-wide text-chalk shrink-0">
       umu<span class="text-pitch">o</span>
     </a>
-
-    {/* First-level routing: competition switcher. Each link lands on that
-        competition's root (Matches). Horizontally scrollable so it never
-        clips on narrow viewports; this is the only comp switcher (LeftNav
-        carries the per-competition section nav). */}
-    <nav
-      aria-label="Competitions"
-      class="flex min-w-0 flex-1 gap-1 overflow-x-auto no-scrollbar"
-    >
-      {comps.map((c) => (
-        <a
-          href={`/${c.key}`}
-          aria-current={currentComp === c.key ? 'page' : undefined}
-          class={`shrink-0 whitespace-nowrap rounded-card px-3 py-2 font-display text-sm tracking-wide ds-press ${
-            currentComp === c.key
-              ? 'bg-overlay/10 font-bold text-chalk'
-              : 'text-chalkdim hover:bg-overlay/5 hover:text-chalk'
-          }`}
-        >
-          {c.label}
-        </a>
-      ))}
-    </nav>
-
+    <div class="min-w-0 flex-1"></div>
     <div class="shrink-0">
       <ThemeToggle client:only="react" />
     </div>

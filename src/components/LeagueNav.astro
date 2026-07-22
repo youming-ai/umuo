@@ -1,0 +1,35 @@
+---
+import { COMPETITIONS } from '../competitions';
+import { pathFor } from '../utils/router';
+
+// Shared league switcher for the left rail. On the home it leads with an active
+// "Home" item; on a competition page the current comp is highlighted. Used by
+// both HomeNav and LeftNav so the leagues row is identical across pages.
+interface Props {
+  activeComp?: string; // highlighted competition (omit on home)
+  home?: boolean; // render the leading "Home" item, active
+}
+const { activeComp, home = false } = Astro.props;
+const leagues = Object.values(COMPETITIONS);
+const base =
+  'shrink-0 whitespace-nowrap rounded-card px-3 py-2 font-display text-sm tracking-wide ds-press';
+const on = 'bg-overlay/10 text-chalk font-bold';
+const off = 'text-chalkdim hover:text-chalk hover:bg-overlay/5';
+---
+<nav
+  aria-label="Leagues"
+  class="flex gap-1 overflow-x-auto no-scrollbar lg:flex-col lg:overflow-visible"
+>
+  {home && (
+    <a href="/" aria-current="page" class={`${base} ${on}`}>Home</a>
+  )}
+  {leagues.map((c) => (
+    <a
+      href={pathFor({ kind: 'section', comp: c.key, section: 'news' })}
+      aria-current={activeComp === c.key ? 'page' : undefined}
+      class={`${base} ${activeComp === c.key ? on : off}`}
+    >
+      {c.label}
+    </a>
+  ))}
+</nav>

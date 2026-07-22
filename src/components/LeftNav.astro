@@ -2,6 +2,7 @@
 import { COMPETITIONS } from '../competitions';
 import { SECTIONS } from '../sections';
 import { pathFor, type Section } from '../utils/router';
+import LeagueNav from './LeagueNav.astro';
 
 interface Props {
   comp: string;
@@ -19,6 +20,7 @@ const items = SECTIONS.filter((s) => !s.capability || caps?.[s.capability]).map(
 }));
 ---
 <div class="flex flex-col gap-4 lg:sticky lg:top-[var(--h-topbar)]">
+  <LeagueNav activeComp={comp} />
   <nav
     aria-label="Sections"
     class="flex gap-1 overflow-x-auto no-scrollbar lg:flex-col lg:overflow-visible"

@@ -1,17 +1,21 @@
 ---
 import { env } from 'cloudflare:workers';
+import HomeNav from '../components/HomeNav.astro';
+import HomeRightRailIsland from '../components/HomeRightRailIsland';
 import HomeView from '../components/HomeView';
 import { getAggregatedNews } from '../data/api';
 import Layout from '../layouts/Layout.astro';
 
-// Global home: cross-comp scores strip (the Layout's Ticker) + per-comp entry
-// cards + an aggregated news feed merged across every competition. No comp
-// prop → the shell renders comp-agnostic.
+// Global home on the shared 3-col shell: league nav (left), aggregated
+// cross-comp news (center), top headlines + today's scores (right). No comp
+// prop → the Header renders comp-agnostic.
 const ctx = Astro.locals.cfContext;
 const news = await getAggregatedNews(env, ctx);
 ---
 <Layout title="umuo — Sports news, scores & standings">
+  <HomeNav slot="left" />
   <main>
     <HomeView news={news} client:only="react" />
   </main>
+  <HomeRightRailIsland slot="right" news={news} client:only="react" />
 </Layout>
