@@ -12,7 +12,7 @@ function HomeInner({ news }: { news: NewsItem[] }) {
   return (
     <div className="flex flex-col gap-3">
       {news.map((item, i) => (
-        <NewsCard key={item.id || `home-news-${i}`} item={item} />
+        <NewsCard key={item.id || `home-news-${i}`} item={item} variant="row" />
       ))}
     </div>
   );

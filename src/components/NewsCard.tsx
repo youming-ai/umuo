@@ -1,19 +1,47 @@
 import type { NewsItem, NewsTag } from '../types';
 
-// Shared article card for the news surfaces (per-comp NewsView + global
-// HomeView). `variant='lead'` is the large hero card NewsView puts at the top
-// of its feed; 'standard' is the masonry card both views use for the rest.
+// Shared article card for the news surfaces.
+//  - 'lead'     : large hero (image + text side-by-side on md), one at the top of a feed
+//  - 'row'      : compact horizontal list item (image left, text right) for a
+//                 single-column feed — keeps a wide column from becoming a
+//                 stack of oversized images
+//  - 'standard' : image-on-top card (used in narrow/grid contexts)
 export default function NewsCard({
   item,
   variant = 'standard',
 }: {
   item: NewsItem;
-  variant?: 'standard' | 'lead';
+  variant?: 'standard' | 'lead' | 'row';
 }) {
   const external = item.link.startsWith('https://');
   const linked = external || item.link.startsWith('/');
   const isLead = variant === 'lead';
-  const body = (
+  const isRow = variant === 'row';
+
+  const body = isRow ? (
+    <div className="flex items-stretch gap-3">
+      {item.imageUrl && (
+        <img
+          src={item.imageUrl}
+          alt=""
+          onError={(e) => {
+            e.currentTarget.style.display = 'none';
+          }}
+          className="aspect-video w-32 shrink-0 rounded-card object-cover sm:w-44"
+          loading="lazy"
+        />
+      )}
+      <div className="flex min-w-0 flex-1 flex-col justify-center py-2.5 pr-1">
+        <h3 className="font-display text-sm font-semibold leading-snug text-chalk line-clamp-2">
+          {item.headline}
+        </h3>
+        {item.description && (
+          <p className="mt-1 font-body text-xs text-chalkdim line-clamp-2">{item.description}</p>
+        )}
+        {item.byline && <p className="mt-1.5 ds-caption text-chalkdim">{item.byline}</p>}
+      </div>
+    </div>
+  ) : (
     <div className={isLead ? 'md:flex' : undefined}>
       {item.imageUrl && (
         <img
@@ -51,20 +79,21 @@ export default function NewsCard({
   );
 
   return (
-    <article className="ds-glass rounded-card shadow-panel overflow-hidden">
+    <article className={`ds-glass rounded-card shadow-panel ${isRow ? 'p-1.5' : 'overflow-hidden'}`}>
       {linked ? (
         <a
           href={item.link}
           target={external ? '_blank' : undefined}
           rel={external ? 'noopener noreferrer' : undefined}
-          className="block hover:opacity-95 transition-opacity duration-150 ease-out"
+          className="block rounded-card hover:opacity-95 transition-opacity duration-150 ease-out"
         >
           {body}
         </a>
       ) : (
         <div>{body}</div>
       )}
-      {item.tags.length > 0 && (
+      {/* Tags only on the fuller cards; the compact row stays a clean list. */}
+      {!isRow && item.tags.length > 0 && (
         <div className="px-3 pb-3 flex flex-wrap gap-1.5">
           {item.tags.map((tag, i) => (
             <Tag

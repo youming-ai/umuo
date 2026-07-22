@@ -65,7 +65,7 @@ export default function NewsView({
           {storyItems.length > 0 && (
             <div className="flex flex-col gap-3">
               {storyItems.map((item, i) => (
-                <NewsCard key={item.id || `news-${i}`} item={item} />
+                <NewsCard key={item.id || `news-${i}`} item={item} variant="row" />
               ))}
             </div>
           )}
