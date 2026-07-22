@@ -6,7 +6,7 @@ import { usePolledResource } from './usePolledResource';
 // league feed via the Worker). Thin wrapper over usePolledResource: 120s poll,
 // reset on comp change.
 export function useNews(comp: string, initialData?: NewsItem[]) {
-  const seeded = !!initialData && initialData.length > 0;
+  const seeded = initialData !== undefined;
   const { data, loading, error, refetch } = usePolledResource<NewsItem[]>({
     key: comp,
     fallback: [],

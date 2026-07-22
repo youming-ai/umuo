@@ -14,7 +14,7 @@ const EMPTY: CompetitionData = { matches: [], standings: { kind: 'soccer', group
 // the sport adapter). Thin wrapper over usePolledResource: 30s poll, reset on
 // comp change.
 export function useCompetition(comp: string, initialData?: CompetitionData) {
-  const seeded = !!initialData && initialData.matches.length > 0;
+  const seeded = initialData !== undefined;
   const { data, loading, error, refetch } = usePolledResource<CompetitionData>({
     key: comp,
     fallback: EMPTY,

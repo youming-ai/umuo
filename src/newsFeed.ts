@@ -4,6 +4,7 @@
 // same discipline as the sport adapters. No DOM/React: unit-testable in isolation.
 import type { NewsItem, NewsTag } from './types';
 import { arr, obj, str } from './utils/coerce';
+import { slugify } from './utils/helpers';
 
 // Pull team/athlete/league entities out of a headline's `categories`, deduped.
 function tagsFrom(categories: unknown): NewsTag[] {
@@ -47,14 +48,20 @@ export function parseNewsFeed(json: unknown): NewsItem[] {
   const list = arr(root.articles).length ? arr(root.articles) : arr(root.headlines);
   return list.map((raw): NewsItem => {
     const h = obj(raw);
+    const rawId = str(h.id) || str(h.nowId);
+    const link = str(obj(obj(h.links).web).href);
+    const headline = str(h.headline) || str(h.title);
+    const published = str(h.published);
+    const fallbackId = link ? slugify(link) : headline ? slugify(`${headline}-${published}`) : '';
+    const id = rawId || fallbackId;
     return {
-      id: str(h.id) || str(h.nowId),
-      headline: str(h.headline) || str(h.title),
+      id,
+      headline,
       description: str(h.description),
-      published: str(h.published),
+      published,
       byline: str(h.byline),
       imageUrl: str(obj(arr(h.images)[0]).url),
-      link: str(obj(obj(h.links).web).href),
+      link,
       tags: tagsFrom(h.categories),
     };
   });
