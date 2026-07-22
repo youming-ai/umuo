@@ -33,6 +33,19 @@ export interface Competition {
   leadersSource?: 'pipeline';
 }
 
+// A European soccer league: season derived per request, goals leaders via the
+// pipeline, lineups + odds from the scoreboard. Only slug + label vary.
+function soccerLeague(key: string, label: string): Competition {
+  return {
+    key,
+    sport: 'soccer',
+    league: key,
+    label,
+    capabilities: { scorers: true, lineups: true, boxscore: false, odds: true },
+    leadersSource: 'pipeline',
+  };
+}
+
 export const COMPETITIONS: Record<string, Competition> = {
   'eng.1': {
     key: 'eng.1',
@@ -66,6 +79,14 @@ export const COMPETITIONS: Record<string, Competition> = {
     },
     leadersSource: 'pipeline',
   },
+  // European soccer leagues — same shape/capabilities as eng.1 (season-derived,
+  // goals leaders pipeline), differing only by ESPN league slug + label. All
+  // reuse the soccer adapter.
+  'esp.1': soccerLeague('esp.1', 'La Liga'),
+  'ger.1': soccerLeague('ger.1', 'Bundesliga'),
+  'ita.1': soccerLeague('ita.1', 'Serie A'),
+  'fra.1': soccerLeague('fra.1', 'Ligue 1'),
+  'uefa.champions': soccerLeague('uefa.champions', 'Champions League'),
 };
 
 export const DEFAULT_COMPETITION = 'eng.1';

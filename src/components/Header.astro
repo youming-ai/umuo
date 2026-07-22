@@ -2,15 +2,29 @@
 import { COMPETITIONS } from '../competitions';
 import ThemeToggle from './ThemeToggle';
 
-// Top bar = primary navigation (the leagues), ESPN-style. The active league
+// Top bar = primary navigation (the leagues), ESPN-style. The active item
 // carries a brand-green underline — deliberately different from the left rail's
-// filled-pill section tabs, so the two nav levels read as a hierarchy rather
-// than the same control repeated. Active state is derived from the URL.
+// filled-pill section tabs, so the two nav levels read as a hierarchy. Beyond
+// INLINE_MAX leagues the tail collapses into a native "More" dropdown (no JS).
 const path = Astro.url.pathname;
 const currentComp = Object.keys(COMPETITIONS).find(
   (key) => path === `/${key}` || path.startsWith(`/${key}/`),
 );
-const comps = Object.values(COMPETITIONS);
+
+const INLINE_MAX = 6;
+const all = [
+  { key: '', label: 'Home', href: '/' },
+  ...Object.values(COMPETITIONS).map((c) => ({ key: c.key, label: c.label, href: `/${c.key}` })),
+];
+const inline = all.slice(0, INLINE_MAX + 1); // +1 for the always-present Home
+const overflow = all.slice(INLINE_MAX + 1);
+const isActive = (key: string) => (key === '' ? path === '/' : currentComp === key);
+const overflowActive = overflow.some((it) => isActive(it.key));
+
+const tab =
+  'relative flex shrink-0 items-center whitespace-nowrap px-3 font-display text-sm tracking-wide ds-press';
+const on = 'font-semibold text-chalk';
+const off = 'text-chalkdim hover:text-chalk';
 ---
 <header class="border-b border-line/30 bg-panel/85 backdrop-blur-md">
   <div class="mx-auto flex h-14 w-full max-w-6xl items-center gap-6 px-page-x md:px-page-x-md">
@@ -22,23 +36,39 @@ const comps = Object.values(COMPETITIONS);
       aria-label="Primary"
       class="flex h-full min-w-0 flex-1 items-stretch gap-1 overflow-x-auto no-scrollbar"
     >
-      {[{ key: '', label: 'Home', href: '/' }, ...comps.map((c) => ({ key: c.key, label: c.label, href: `/${c.key}` }))].map((it) => {
-        const active = it.key === '' ? path === '/' : currentComp === it.key;
-        return (
-          <a
-            href={it.href}
-            aria-current={active ? 'page' : undefined}
-            class={`relative flex shrink-0 items-center whitespace-nowrap px-3 font-display text-sm tracking-wide ds-press ${
-              active ? 'font-semibold text-chalk' : 'text-chalkdim hover:text-chalk'
-            }`}
-          >
-            {it.label}
-            {active && (
+      {inline.map((it) => (
+        <a href={it.href} aria-current={isActive(it.key) ? 'page' : undefined} class={`${tab} ${isActive(it.key) ? on : off}`}>
+          {it.label}
+          {isActive(it.key) && (
+            <span class="absolute inset-x-2 -bottom-px h-0.5 rounded-full bg-pitch" aria-hidden="true"></span>
+          )}
+        </a>
+      ))}
+
+      {overflow.length > 0 && (
+        <details class="relative flex shrink-0 items-stretch">
+          <summary class={`${tab} cursor-pointer list-none ${overflowActive ? on : off}`}>
+            More
+            <span class="ml-1 text-[0.6rem]" aria-hidden="true">▾</span>
+            {overflowActive && (
               <span class="absolute inset-x-2 -bottom-px h-0.5 rounded-full bg-pitch" aria-hidden="true"></span>
             )}
-          </a>
-        );
-      })}
+          </summary>
+          <div class="absolute right-0 top-full z-50 mt-1 flex min-w-44 flex-col gap-1 rounded-card border border-line bg-panel p-1 shadow-panel">
+            {overflow.map((it) => (
+              <a
+                href={it.href}
+                aria-current={isActive(it.key) ? 'page' : undefined}
+                class={`rounded-card px-3 py-2 font-display text-sm tracking-wide ds-press ${
+                  isActive(it.key) ? 'bg-overlay/10 font-semibold text-chalk' : 'text-chalkdim hover:bg-overlay/5 hover:text-chalk'
+                }`}
+              >
+                {it.label}
+              </a>
+            ))}
+          </div>
+        </details>
+      )}
     </nav>
 
     <div class="shrink-0">

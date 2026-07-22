@@ -1,8 +1,15 @@
 import { renderHook, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { COMPETITIONS } from '../competitions';
 import { __resetTickerForTests, useTicker } from './useTicker';
 
 const emptyBoard = { events: [] };
+// The ticker fans out over every registered competition — derive the expected
+// call count / URLs from the registry so this stays correct as comps are added.
+const COMP_COUNT = Object.keys(COMPETITIONS).length;
+const EXPECTED_URLS = Object.keys(COMPETITIONS)
+  .map((k) => `/api/${k}/scoreboard`)
+  .sort();
 
 describe('useTicker shared poller', () => {
   beforeEach(() => {
@@ -31,25 +38,25 @@ describe('useTicker shared poller', () => {
       expect(b.current.loading).toBe(false);
     });
 
-    // 2 competitions × 1 shared poll (not 2 independent polls).
-    expect(fetch).toHaveBeenCalledTimes(2);
+    // every competition × 1 shared poll (not one poll per hook instance).
+    expect(fetch).toHaveBeenCalledTimes(COMP_COUNT);
     const urls = vi
       .mocked(fetch)
       .mock.calls.map((c) => String(c[0]))
       .sort();
-    expect(urls).toEqual(['/api/eng.1/scoreboard', '/api/nba/scoreboard']);
+    expect(urls).toEqual(EXPECTED_URLS);
   });
 
   it('does not start a second poll while the first is still subscribed', async () => {
     const { unmount: unmountA } = renderHook(() => useTicker());
-    await waitFor(() => expect(fetch).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(fetch).toHaveBeenCalledTimes(COMP_COUNT));
 
     renderHook(() => useTicker());
     // Still only the initial shared fetch — second mount reuses state.
-    expect(fetch).toHaveBeenCalledTimes(2);
+    expect(fetch).toHaveBeenCalledTimes(COMP_COUNT);
 
     unmountA();
     // Remaining subscriber keeps the poller alive; no extra fan-out.
-    expect(fetch).toHaveBeenCalledTimes(2);
+    expect(fetch).toHaveBeenCalledTimes(COMP_COUNT);
   });
 });
