@@ -10,11 +10,9 @@ function HomeInner({ news }: { news: NewsItem[] }) {
     return <p className="ds-caption text-chalkdim py-12 text-center">No news right now</p>;
   }
   return (
-    <div className="columns-1 gap-3 sm:columns-2 2xl:columns-3">
+    <div className="flex flex-col gap-3">
       {news.map((item, i) => (
-        <div key={item.id || `home-news-${i}`} className="mb-3 break-inside-avoid">
-          <NewsCard item={item} />
-        </div>
+        <NewsCard key={item.id || `home-news-${i}`} item={item} />
       ))}
     </div>
   );
