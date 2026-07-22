@@ -1,4 +1,7 @@
 import { COMPETITIONS, DEFAULT_COMPETITION } from '../competitions';
+import { type Section, SECTIONS } from '../sections';
+
+export type { Section };
 
 // Every route is a real Astro SSR page (no client router / catch-all SPA
 // anymore — see commit 81b71fc). `parseRoute`/`pathFor` are shared purely to
@@ -14,9 +17,6 @@ import { COMPETITIONS, DEFAULT_COMPETITION } from '../competitions';
 //   /<comp>/player/<id>  player page
 // Unprefixed legacy paths (pre-multi-comp links) resolve under DEFAULT_COMPETITION.
 
-// Top-level sections (standings stay folded into the schedule view).
-export type Section = 'home' | 'schedule' | 'stats' | 'teams' | 'transactions' | 'odds';
-
 // Every route carries the competition it belongs to (URL first segment).
 export type Route =
   | { kind: 'section'; comp: string; section: Section }
@@ -24,15 +24,12 @@ export type Route =
   | { kind: 'team'; comp: string; teamId: string }
   | { kind: 'player'; comp: string; athleteId: string };
 
-// section → path suffix under /<comp> (home is the competition root).
-const SECTION_SUFFIX: Record<Section, string> = {
-  home: '',
-  schedule: '/schedule',
-  stats: '/stats',
-  teams: '/teams',
-  transactions: '/transactions',
-  odds: '/odds',
-};
+// section ↔ path suffix, both derived from the one SECTIONS table.
+const SECTION_SUFFIX = Object.fromEntries(SECTIONS.map((s) => [s.section, s.suffix])) as Record<
+  Section,
+  string
+>;
+const SECTION_BY_SUFFIX = new Map(SECTIONS.map((s) => [s.suffix, s.section]));
 
 // decodeURIComponent throws URIError on malformed input (e.g. "/match/%").
 // Path segments are untrusted, so decode defensively and treat a bad segment
@@ -47,16 +44,13 @@ function safeDecode(segment: string): string | null {
 
 // Parse the view segments (everything AFTER the competition prefix) into a
 // Route body for the resolved competition. Unknown shapes fall back to the
-// home section, never throw.
+// news hub, never throw.
 function parseView(comp: string, seg: string[]): Route {
-  if (seg.length === 0) return { kind: 'section', comp, section: 'home' };
-  if (seg.length === 1 && seg[0] === 'schedule')
-    return { kind: 'section', comp, section: 'schedule' };
-  if (seg.length === 1 && seg[0] === 'stats') return { kind: 'section', comp, section: 'stats' };
-  if (seg.length === 1 && seg[0] === 'teams') return { kind: 'section', comp, section: 'teams' };
-  if (seg.length === 1 && seg[0] === 'transactions')
-    return { kind: 'section', comp, section: 'transactions' };
-  if (seg.length === 1 && seg[0] === 'odds') return { kind: 'section', comp, section: 'odds' };
+  if (seg.length === 0) return { kind: 'section', comp, section: 'news' };
+  if (seg.length === 1) {
+    const section = SECTION_BY_SUFFIX.get(`/${seg[0]}`);
+    if (section) return { kind: 'section', comp, section };
+  }
   if (seg.length === 2 && seg[0] === 'match') {
     const slug = safeDecode(seg[1]!);
     if (slug !== null) return { kind: 'match', comp, slug };
@@ -69,7 +63,7 @@ function parseView(comp: string, seg: string[]): Route {
     const athleteId = safeDecode(seg[1]!);
     if (athleteId !== null) return { kind: 'player', comp, athleteId };
   }
-  return { kind: 'section', comp, section: 'home' };
+  return { kind: 'section', comp, section: 'news' };
 }
 
 export function parseRoute(pathname: string): Route {

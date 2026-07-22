@@ -1,6 +1,8 @@
 import type { APIRoute } from 'astro';
 import { COMPETITIONS } from '../competitions';
+import { SECTIONS } from '../sections';
 import { SITE_ORIGIN } from '../site';
+import { pathFor } from '../utils/router';
 
 export const prerender = false;
 
@@ -14,15 +16,13 @@ export const prerender = false;
 export const GET: APIRoute = () => {
   const paths: string[] = [];
 
-  // Per-competition pages, derived from the registry and gated on capabilities
-  // so we never emit a section that redirects (scorers 307 when off).
+  // Per-competition pages, derived from the one SECTIONS table and gated on
+  // capabilities so we never emit a section that redirects (scorers 307 when off).
   for (const c of Object.values(COMPETITIONS)) {
-    paths.push(`/${c.key}`);
-    paths.push(`/${c.key}/schedule`);
-    paths.push(`/${c.key}/teams`);
-    if (c.capabilities.scorers) paths.push(`/${c.key}/stats`);
-    if (c.capabilities.transactions) paths.push(`/${c.key}/transactions`);
-    if (c.capabilities.odds) paths.push(`/${c.key}/odds`);
+    for (const s of SECTIONS) {
+      if (s.capability && !c.capabilities[s.capability]) continue;
+      paths.push(pathFor({ kind: 'section', comp: c.key, section: s.section }));
+    }
   }
 
   const urls = paths.map((p) => `  <url>\n    <loc>${SITE_ORIGIN}${p}</loc>\n  </url>`).join('\n');

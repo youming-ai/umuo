@@ -1,10 +1,11 @@
 import { render } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { SECTIONS } from '../sections';
 import { navigate, parseRoute, pathFor, useRouter } from './router';
 
 describe('pathFor', () => {
   it('prefixes the competition and URI-encodes special characters in slugs', () => {
-    expect(pathFor({ kind: 'section', comp: 'eng.1', section: 'home' })).toBe('/eng.1');
+    expect(pathFor({ kind: 'section', comp: 'eng.1', section: 'news' })).toBe('/eng.1');
     expect(pathFor({ kind: 'match', comp: 'eng.1', slug: 'foo bar' })).toBe(
       '/eng.1/match/foo%20bar',
     );
@@ -80,8 +81,8 @@ describe('useRouter', () => {
 });
 
 describe('parseRoute (hub + schedule)', () => {
-  it('parses the comp root as the home section', () => {
-    expect(parseRoute('/eng.1')).toEqual({ kind: 'section', comp: 'eng.1', section: 'home' });
+  it('parses the comp root as the news section', () => {
+    expect(parseRoute('/eng.1')).toEqual({ kind: 'section', comp: 'eng.1', section: 'news' });
   });
 
   it('parses /schedule', () => {
@@ -96,5 +97,12 @@ describe('parseRoute (hub + schedule)', () => {
     expect(pathFor({ kind: 'section', comp: 'eng.1', section: 'schedule' })).toBe(
       '/eng.1/schedule',
     );
+  });
+
+  it('round-trips every section in the SECTIONS table', () => {
+    for (const s of SECTIONS) {
+      const route = { kind: 'section', comp: 'eng.1', section: s.section } as const;
+      expect(parseRoute(pathFor(route))).toEqual(route);
+    }
   });
 });

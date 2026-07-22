@@ -1,6 +1,7 @@
 ---
 import { COMPETITIONS } from '../competitions';
-import type { Section } from '../utils/router';
+import { SECTIONS } from '../sections';
+import { pathFor, type Section } from '../utils/router';
 
 interface Props {
   comp: string;
@@ -9,18 +10,13 @@ interface Props {
 const { comp, active } = Astro.props;
 const caps = COMPETITIONS[comp]?.capabilities;
 
-const items: { section: Section; label: string; href: string }[] = [
-  { section: 'home', label: 'News', href: `/${comp}` },
-  { section: 'schedule', label: 'Schedule', href: `/${comp}/schedule` },
-  { section: 'teams', label: 'Teams', href: `/${comp}/teams` },
-  ...(caps?.scorers
-    ? [{ section: 'stats' as Section, label: 'Stats', href: `/${comp}/stats` }]
-    : []),
-  ...(caps?.transactions
-    ? [{ section: 'transactions' as Section, label: 'Moves', href: `/${comp}/transactions` }]
-    : []),
-  ...(caps?.odds ? [{ section: 'odds' as Section, label: 'Odds', href: `/${comp}/odds` }] : []),
-];
+// Derived from the one SECTIONS table: gate on capability, build hrefs via
+// pathFor so the nav never drifts from the router/sitemap.
+const items = SECTIONS.filter((s) => !s.capability || caps?.[s.capability]).map((s) => ({
+  section: s.section,
+  label: s.label,
+  href: pathFor({ kind: 'section', comp, section: s.section }),
+}));
 ---
 <div class="flex flex-col gap-4 lg:sticky lg:top-[var(--h-topbar)]">
   <nav

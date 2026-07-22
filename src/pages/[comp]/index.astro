@@ -16,7 +16,7 @@ const ctx = Astro.locals.cfContext;
 const items = await getCompNews(competition, env, ctx);
 ---
 <Layout title={`umuo — ${competition.label}`} comp={comp}>
-  <LeftNav slot="left" comp={comp} active="home" />
+  <LeftNav slot="left" comp={comp} active="news" />
   <main>
     <NewsIsland comp={comp} initialData={items} client:only="react" />
   </main>
