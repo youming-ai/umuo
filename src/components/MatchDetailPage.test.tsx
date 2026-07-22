@@ -15,7 +15,7 @@ const fetchMock = vi.fn();
 globalThis.fetch = fetchMock as unknown as typeof globalThis.fetch;
 beforeEach(() => {
   fetchMock.mockReset();
-  setPath('/fifa.world');
+  setPath('/eng.1');
 });
 
 const match: CompMatch = {
@@ -28,10 +28,8 @@ const match: CompMatch = {
   awayId: '492',
   homeScore: 2,
   awayScore: 0,
-  group: 'A',
   kickoff: new Date('2026-06-13T19:00Z'),
   status: 'finished',
-  stage: 'group',
   homeScorers: [],
   awayScorers: [],
   venue: '',
@@ -53,7 +51,7 @@ function summaryJson() {
 
 it('renders the match header (home : away) and the back button', async () => {
   fetchMock.mockResolvedValueOnce({ ok: true, json: async () => summaryJson() });
-  render(<MatchDetailPage match={match} backHref="/fifa.world" />);
+  render(<MatchDetailPage match={match} backHref="/eng.1" />);
   await waitFor(() => expect(screen.getByText('Shots')).toBeInTheDocument());
   // Header is rendered with the score and team names.
   expect(screen.getByText('Mexico')).toBeInTheDocument();
@@ -61,19 +59,16 @@ it('renders the match header (home : away) and the back button', async () => {
   expect(screen.getByText('2')).toBeInTheDocument();
   expect(screen.getByText('0')).toBeInTheDocument();
   const back = screen.getByRole('link', { name: /Back/ });
-  expect(back).toHaveAttribute('href', '/fifa.world');
+  expect(back).toHaveAttribute('href', '/eng.1');
 });
 
 it('links soccer team crests to their team page', async () => {
   fetchMock.mockResolvedValueOnce({ ok: true, json: async () => summaryJson() });
-  render(<MatchDetailPage match={match} backHref="/fifa.world" />);
+  render(<MatchDetailPage match={match} backHref="/eng.1" />);
   await waitFor(() => expect(screen.getByText('Shots')).toBeInTheDocument());
   // Team name sits inside an anchor pointing at /<comp>/team/<id>.
-  expect(screen.getByText('Mexico').closest('a')).toHaveAttribute('href', '/fifa.world/team/203');
-  expect(screen.getByText('South Africa').closest('a')).toHaveAttribute(
-    'href',
-    '/fifa.world/team/492',
-  );
+  expect(screen.getByText('Mexico').closest('a')).toHaveAttribute('href', '/eng.1/team/203');
+  expect(screen.getByText('South Africa').closest('a')).toHaveAttribute('href', '/eng.1/team/492');
 });
 
 it('shows the penalty-shootout score and a Pens badge for a pens match', async () => {
@@ -82,13 +77,12 @@ it('shows the penalty-shootout score and a Pens badge for a pens match', async (
     ...match,
     homeScore: 1,
     awayScore: 1,
-    stage: 'r16',
     finishType: 'pens',
     homeShootoutScore: 3,
     awayShootoutScore: 4,
     winner: 'away',
   };
-  render(<MatchDetailPage match={pensMatch} backHref="/fifa.world" />);
+  render(<MatchDetailPage match={pensMatch} backHref="/eng.1" />);
   await waitFor(() => expect(screen.getByText('Shots')).toBeInTheDocument());
   expect(screen.getByText('Pens')).toBeInTheDocument();
   expect(screen.getByText('(3)')).toBeInTheDocument();
@@ -97,8 +91,8 @@ it('shows the penalty-shootout score and a Pens badge for a pens match', async (
 
 it('shows an AET badge for an extra-time decider', async () => {
   fetchMock.mockResolvedValueOnce({ ok: true, json: async () => summaryJson() });
-  const aetMatch: CompMatch = { ...match, stage: 'qf', finishType: 'aet' };
-  render(<MatchDetailPage match={aetMatch} backHref="/fifa.world" />);
+  const aetMatch: CompMatch = { ...match, finishType: 'aet' };
+  render(<MatchDetailPage match={aetMatch} backHref="/eng.1" />);
   await waitFor(() => expect(screen.getByText('Shots')).toBeInTheDocument());
   expect(screen.getByText('AET')).toBeInTheDocument();
 });
@@ -107,7 +101,7 @@ it('shows an error with a retry button that refetches', async () => {
   fetchMock
     .mockResolvedValueOnce({ ok: false })
     .mockResolvedValueOnce({ ok: true, json: async () => summaryJson() });
-  render(<MatchDetailPage match={match} backHref="/fifa.world" />);
+  render(<MatchDetailPage match={match} backHref="/eng.1" />);
   await waitFor(() => expect(screen.getByText('Failed to load data')).toBeInTheDocument());
   fireEvent.click(screen.getByText('Retry'));
   await waitFor(() => expect(screen.getByText('Shots')).toBeInTheDocument());
@@ -173,7 +167,7 @@ function nbaSummaryJson() {
 it('shows Boxscore + Stats tabs for an NBA match (no Lineup / Play-By-Play)', async () => {
   setPath('/nba');
   fetchMock.mockResolvedValueOnce({ ok: true, json: async () => nbaSummaryJson() });
-  render(<MatchDetailPage match={nbaMatch} backHref="/fifa.world" />);
+  render(<MatchDetailPage match={nbaMatch} backHref="/eng.1" />);
   // Boxscore tab renders the player once the summary resolves
   expect(await screen.findByText('L. James')).toBeInTheDocument();
   expect(screen.getByRole('tab', { name: 'Box Score' })).toBeInTheDocument();
@@ -185,7 +179,7 @@ it('shows Boxscore + Stats tabs for an NBA match (no Lineup / Play-By-Play)', as
 it('shows the NBA statusText and no stage label in the hero', async () => {
   setPath('/nba');
   fetchMock.mockResolvedValueOnce({ ok: true, json: async () => nbaSummaryJson() });
-  render(<MatchDetailPage match={nbaMatch} backHref="/fifa.world" />);
+  render(<MatchDetailPage match={nbaMatch} backHref="/eng.1" />);
   await screen.findByText('L. James');
   // no soccer stage/group chip in the hero (nbaMatch has no stage)
   expect(screen.queryByText(/^Group /)).not.toBeInTheDocument();
@@ -196,7 +190,7 @@ it('shows the NBA statusText and no stage label in the hero', async () => {
 it('does not link NBA team crests (no basketball team page exists)', async () => {
   setPath('/nba');
   fetchMock.mockResolvedValueOnce({ ok: true, json: async () => nbaSummaryJson() });
-  render(<MatchDetailPage match={nbaMatch} backHref="/fifa.world" />);
+  render(<MatchDetailPage match={nbaMatch} backHref="/eng.1" />);
   await screen.findByText('L. James');
   // Team names render as plain text, not anchors → no dead /nba/team/<id>
   // links. (The name also appears in the boxscore; assert none are anchored.)

@@ -14,8 +14,6 @@ export interface MatchProgress {
   period: number;
 }
 
-export type Stage = 'group' | 'r32' | 'r16' | 'qf' | 'sf' | 'third' | 'final';
-
 // One scoring play: a player scoring in a specific match minute. Carries
 // the ESPN athlete id so the /player/[id] page can find goals without
 // name-matching. `tag` is a display-only suffix (e.g. " (p)" for
@@ -53,10 +51,8 @@ export interface CompMatch {
   awayId: string; // ESPN team id for the away side
   homeScore: number | null;
   awayScore: number | null;
-  group?: string; // was required; NBA doesn't provide a group
   kickoff: Date | null;
   status: MatchStatus;
-  stage?: Stage; // was required; NBA doesn't provide a stage
   homeScorers: ScorerEntry[];
   awayScorers: ScorerEntry[];
   venue: string; // "Estadio Azteca · Mexico City" or '' when unknown
@@ -72,8 +68,8 @@ export interface CompMatch {
   // carries the FT clock; for 'live' it carries the current minute or HT.
   progress?: MatchProgress;
   // Which side won (from ESPN's competitor.winner). Set for finished knockout
-  // matches; lets the bracket resolve penalty-shootout winners where the
-  // regulation/ET score is level. Undefined for draws and group games.
+  // matches; resolves penalty-shootout winners where the regulation/ET score
+  // is level. Undefined for draws and group games.
   winner?: 'home' | 'away';
   // How a finished knockout match was decided when not in regulation:
   // 'aet' = after extra time, 'pens' = decided on penalties. Derived from
@@ -111,7 +107,7 @@ export interface WCStanding {
   form?: string;
 }
 
-export interface WCGroup {
+export interface Group {
   name: string;
   standings: WCStanding[];
 }
@@ -155,7 +151,7 @@ export interface TopScorer {
 
 // A single leaderboard row for the season leaders pipeline (eng.1 goals /
 // nba points). Unlike TopScorer (tournament scoreboard aggregation, kept for
-// the World Cup), this is assembled server-side from ESPN's core.api leaders
+// future tournament comps), this is assembled server-side from ESPN's core.api leaders
 // endpoint + athlete/team $ref fan-out. `displayValue` is ESPN's own format
 // ("27" / "30.2") so we sidestep the total-vs-per-game question; `value` is
 // the numeric sort key. Rows are NOT clickable (no player-page nav).

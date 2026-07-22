@@ -5,6 +5,7 @@ import {
   LEADERBOARDS_BY_SPORT,
   LEADERS_BY_SPORT,
   type LeadersConfig,
+  normalizeRef,
 } from './leaders';
 
 // --- canned upstream payloads keyed by URL (NO network) ---
@@ -175,6 +176,59 @@ describe('assembleLeaders', () => {
     await assembleLeaders(fetchImpl, eplCfg);
     const spy = fetchImpl as unknown as ReturnType<typeof vi.fn>;
     expect(spy.mock.calls.some((c) => String(c[0]) === LEADERS_URL)).toBe(true);
+  });
+
+  // pseudo-r/Public-ESPN-API gotcha: core.api $ref URLs sometimes point at the
+  // internal sports.core.api.espn.pvt host, which is not publicly resolvable.
+  // We rewrite .pvt → .com so the ref resolves; without it the fake fetch
+  // would throw on the unknown .pvt URL and the row would degrade to name=''.
+  it('rewrites ESPN internal .pvt refs to .com before fetching', async () => {
+    const pvtAthlete =
+      'https://sports.core.api.espn.pvt/v2/sports/soccer/leagues/eng.1/athletes/999';
+    const comAthlete =
+      'https://sports.core.api.espn.com/v2/sports/soccer/leagues/eng.1/athletes/999';
+    const fetchImpl = makeFetch({
+      [LEADERS_URL]: {
+        categories: [
+          {
+            name: 'goals',
+            leaders: [
+              {
+                displayValue: '20',
+                value: 20,
+                athlete: { $ref: pvtAthlete },
+                team: { $ref: TEAM_MCI },
+              },
+            ],
+          },
+        ],
+      },
+      [comAthlete]: { displayName: 'Pvt-Resolved Player' },
+    });
+    const leaders = await assembleLeaders(fetchImpl, eplCfg);
+    expect(leaders[0].name).toBe('Pvt-Resolved Player');
+    // the .com URL was fetched, the internal .pvt URL never was
+    const spy = fetchImpl as unknown as ReturnType<typeof vi.fn>;
+    expect(spy.mock.calls.some((c) => String(c[0]) === comAthlete)).toBe(true);
+    expect(spy.mock.calls.some((c) => String(c[0]) === pvtAthlete)).toBe(false);
+  });
+});
+
+describe('normalizeRef', () => {
+  it('rewrites the internal .pvt host to the public .com host', () => {
+    expect(
+      normalizeRef('https://sports.core.api.espn.pvt/v2/sports/soccer/leagues/eng.1/athletes/1'),
+    ).toBe('https://sports.core.api.espn.com/v2/sports/soccer/leagues/eng.1/athletes/1');
+  });
+
+  it('leaves already-public .com refs untouched', () => {
+    const ref = 'https://sports.core.api.espn.com/v2/sports/soccer/leagues/eng.1/athletes/1';
+    expect(normalizeRef(ref)).toBe(ref);
+  });
+
+  it('does not touch unrelated .pvt substrings in other hosts', () => {
+    const ref = 'https://something.else.pvt/foo';
+    expect(normalizeRef(ref)).toBe(ref);
   });
 });
 

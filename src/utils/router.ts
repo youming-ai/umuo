@@ -1,4 +1,7 @@
 import { COMPETITIONS, DEFAULT_COMPETITION } from '../competitions';
+import { type Section, SECTIONS } from '../sections';
+
+export type { Section };
 
 // Every route is a real Astro SSR page (no client router / catch-all SPA
 // anymore — see commit 81b71fc). `parseRoute`/`pathFor` are shared purely to
@@ -6,18 +9,13 @@ import { COMPETITIONS, DEFAULT_COMPETITION } from '../competitions';
 // `navigate()` performs a real browser navigation to move between them.
 //
 // Route scheme (every view is addressable — shareable, back/forward, refresh):
-//   /<comp>              matches (schedule; group standings live under the group filter)
-//   /<comp>/stats       season stats leaderboards (Goals/Assists/Cards/Saves)
-//   /<comp>/bracket      knockout bracket
-//   /<comp>/news         league news
-//   /<comp>/match/<slug> ESPN fixture detail (hosts the live stream player when one
-//                        matches — there is no separate /live page anymore)
+//   /<comp>              news-first hub (cross-comp Ticker scores + comp news)
+//   /<comp>/schedule     fixtures + standings (group tables live under the group filter)
+//   /<comp>/stats        season stats leaderboards (Goals/Assists/Cards/Saves)
+//   /<comp>/match/<slug> ESPN fixture detail
 //   /<comp>/team/<id>    team page
 //   /<comp>/player/<id>  player page
 // Unprefixed legacy paths (pre-multi-comp links) resolve under DEFAULT_COMPETITION.
-
-// The schedule sections (group standings are folded into the matches view).
-export type Section = 'matches' | 'stats' | 'bracket' | 'news' | 'teams' | 'transactions' | 'odds';
 
 // Every route carries the competition it belongs to (URL first segment).
 export type Route =
@@ -26,16 +24,12 @@ export type Route =
   | { kind: 'team'; comp: string; teamId: string }
   | { kind: 'player'; comp: string; athleteId: string };
 
-// section → path suffix under /<comp> (matches is the competition root).
-const SECTION_SUFFIX: Record<Section, string> = {
-  matches: '',
-  stats: '/stats',
-  bracket: '/bracket',
-  news: '/news',
-  teams: '/teams',
-  transactions: '/transactions',
-  odds: '/odds',
-};
+// section ↔ path suffix, both derived from the one SECTIONS table.
+const SECTION_SUFFIX = Object.fromEntries(SECTIONS.map((s) => [s.section, s.suffix])) as Record<
+  Section,
+  string
+>;
+const SECTION_BY_SUFFIX = new Map(SECTIONS.map((s) => [s.suffix, s.section]));
 
 // decodeURIComponent throws URIError on malformed input (e.g. "/match/%").
 // Path segments are untrusted, so decode defensively and treat a bad segment
@@ -50,17 +44,13 @@ function safeDecode(segment: string): string | null {
 
 // Parse the view segments (everything AFTER the competition prefix) into a
 // Route body for the resolved competition. Unknown shapes fall back to the
-// matches section, never throw.
+// news hub, never throw.
 function parseView(comp: string, seg: string[]): Route {
-  if (seg.length === 0) return { kind: 'section', comp, section: 'matches' };
-  if (seg.length === 1 && seg[0] === 'stats') return { kind: 'section', comp, section: 'stats' };
-  if (seg.length === 1 && seg[0] === 'bracket')
-    return { kind: 'section', comp, section: 'bracket' };
-  if (seg.length === 1 && seg[0] === 'news') return { kind: 'section', comp, section: 'news' };
-  if (seg.length === 1 && seg[0] === 'teams') return { kind: 'section', comp, section: 'teams' };
-  if (seg.length === 1 && seg[0] === 'transactions')
-    return { kind: 'section', comp, section: 'transactions' };
-  if (seg.length === 1 && seg[0] === 'odds') return { kind: 'section', comp, section: 'odds' };
+  if (seg.length === 0) return { kind: 'section', comp, section: 'news' };
+  if (seg.length === 1) {
+    const section = SECTION_BY_SUFFIX.get(`/${seg[0]}`);
+    if (section) return { kind: 'section', comp, section };
+  }
   if (seg.length === 2 && seg[0] === 'match') {
     const slug = safeDecode(seg[1]!);
     if (slug !== null) return { kind: 'match', comp, slug };
@@ -73,7 +63,7 @@ function parseView(comp: string, seg: string[]): Route {
     const athleteId = safeDecode(seg[1]!);
     if (athleteId !== null) return { kind: 'player', comp, athleteId };
   }
-  return { kind: 'section', comp, section: 'matches' };
+  return { kind: 'section', comp, section: 'news' };
 }
 
 export function parseRoute(pathname: string): Route {

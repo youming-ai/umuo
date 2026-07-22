@@ -15,43 +15,38 @@ export type Resource =
   | 'transactions';
 
 export interface Competition {
-  key: string; // URL first segment, e.g. 'fifa.world'
+  key: string; // URL first segment, e.g. 'eng.1'
   sport: Sport;
   league: string; // ESPN league slug
   label: string; // display name
   season?: number; // fixed season year; omit for cross-year leagues → derived per request (seasonForDate)
-  dates?: string; // scoreboard date window — tournaments need it, season comps omit it
-  standingsLevel?: number; // soccer standings depth (World Cup = 3 → the group tables)
-  shape: 'tournament' | 'season';
   capabilities: {
-    bracket: boolean;
     scorers: boolean;
     lineups: boolean;
     boxscore: boolean;
     transactions?: boolean; // roster moves feed (US sports; soccer sparse)
     odds?: boolean; // betting lines from the scoreboard feed → Odds tab
   };
-  // Where the right-rail Top Scorers get their data. 'scoreboard' = aggregated
-  // from the scoreboard's per-team leaders (World Cup). 'pipeline' = server-
-  // side assembleLeaders over ESPN core.api (eng.1 goals / nba points). Omit
-  // for comps with no top-scorers display. (The /stats page uses
-  // getLeaderboards independently of this field.)
-  leadersSource?: 'scoreboard' | 'pipeline';
+  // Where the right-rail Top Scorers get their data: server-side assembleLeaders
+  // over ESPN core.api (eng.1 goals / nba points). Omit for comps with no
+  // top-scorers display. (The /stats page uses getLeaderboards independently.)
+  leadersSource?: 'pipeline';
+}
+
+// A European soccer league: season derived per request, goals leaders via the
+// pipeline, lineups + odds from the scoreboard. Only slug + label vary.
+function soccerLeague(key: string, label: string): Competition {
+  return {
+    key,
+    sport: 'soccer',
+    league: key,
+    label,
+    capabilities: { scorers: true, lineups: true, boxscore: false, odds: true },
+    leadersSource: 'pipeline',
+  };
 }
 
 export const COMPETITIONS: Record<string, Competition> = {
-  'fifa.world': {
-    key: 'fifa.world',
-    sport: 'soccer',
-    league: 'fifa.world',
-    label: 'World Cup',
-    season: 2026,
-    dates: '20260611-20260719',
-    standingsLevel: 3,
-    shape: 'tournament',
-    capabilities: { bracket: true, scorers: true, lineups: true, boxscore: false, odds: true },
-    leadersSource: 'scoreboard',
-  },
   'eng.1': {
     key: 'eng.1',
     sport: 'soccer',
@@ -59,9 +54,7 @@ export const COMPETITIONS: Record<string, Competition> = {
     label: 'Premier League',
     // season 省略 → buildUrl 用 seasonForDate 按请求时刻推导（跨年赛季 8 月翻转），
     // 避免写死年份的时间引信。scoreboard 无 dates → ESPN 返回当前窗口。见 spec §7。
-    shape: 'season',
     capabilities: {
-      bracket: false,
       scorers: true,
       lineups: true,
       boxscore: false,
@@ -77,9 +70,7 @@ export const COMPETITIONS: Record<string, Competition> = {
     // season 省略 → buildUrl 用 seasonForDate('basketball', …) 按请求时刻推导
     // （赛季制 10 月翻转，键为结束年）。scoreboard 无 dates → ESPN 返回当日窗口，
     // off-season（7–9 月）当日为空由现有空态处理。见 spec §3。
-    shape: 'season',
     capabilities: {
-      bracket: false,
       scorers: true,
       lineups: false,
       boxscore: true,
@@ -88,9 +79,17 @@ export const COMPETITIONS: Record<string, Competition> = {
     },
     leadersSource: 'pipeline',
   },
+  // European soccer leagues — same shape/capabilities as eng.1 (season-derived,
+  // goals leaders pipeline), differing only by ESPN league slug + label. All
+  // reuse the soccer adapter.
+  'esp.1': soccerLeague('esp.1', 'La Liga'),
+  'ger.1': soccerLeague('ger.1', 'Bundesliga'),
+  'ita.1': soccerLeague('ita.1', 'Serie A'),
+  'fra.1': soccerLeague('fra.1', 'Ligue 1'),
+  'uefa.champions': soccerLeague('uefa.champions', 'Champions League'),
 };
 
-export const DEFAULT_COMPETITION = 'fifa.world';
+export const DEFAULT_COMPETITION = 'eng.1';
 
 const ESPN = 'https://site.api.espn.com/apis';
 
@@ -117,7 +116,6 @@ export function buildUrl(c: Competition, resource: Resource, event?: string): st
     const q = new URLSearchParams({
       season: String(c.season ?? seasonForDate(c.sport, new Date())),
     });
-    if (c.standingsLevel) q.set('level', String(c.standingsLevel));
     return `${ESPN}/v2/${path}/standings?${q}`;
   }
   if (resource === 'summary') {
@@ -137,7 +135,6 @@ export function buildUrl(c: Competition, resource: Resource, event?: string): st
   }
   // scoreboard
   const q = new URLSearchParams();
-  if (c.dates) q.set('dates', c.dates);
   q.set('limit', '300'); // ponytail: hardcoded cap; make it a Competition field when a comp needs a different one
   return `${ESPN}/site/v2/${path}/scoreboard?${q}`;
 }

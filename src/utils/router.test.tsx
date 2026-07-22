@@ -1,18 +1,15 @@
 import { render } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { navigate, pathFor, useRouter } from './router';
+import { SECTIONS } from '../sections';
+import { navigate, parseRoute, pathFor, useRouter } from './router';
 
 describe('pathFor', () => {
   it('prefixes the competition and URI-encodes special characters in slugs', () => {
-    expect(pathFor({ kind: 'section', comp: 'fifa.world', section: 'matches' })).toBe(
-      '/fifa.world',
+    expect(pathFor({ kind: 'section', comp: 'eng.1', section: 'news' })).toBe('/eng.1');
+    expect(pathFor({ kind: 'match', comp: 'eng.1', slug: 'foo bar' })).toBe(
+      '/eng.1/match/foo%20bar',
     );
-    expect(pathFor({ kind: 'match', comp: 'fifa.world', slug: 'foo bar' })).toBe(
-      '/fifa.world/match/foo%20bar',
-    );
-    expect(pathFor({ kind: 'team', comp: 'fifa.world', teamId: 'a/b' })).toBe(
-      '/fifa.world/team/a%2Fb',
-    );
+    expect(pathFor({ kind: 'team', comp: 'eng.1', teamId: 'a/b' })).toBe('/eng.1/team/a%2Fb');
   });
 });
 
@@ -79,6 +76,33 @@ describe('useRouter', () => {
   it('returns the parsed route for the current URL', () => {
     let captured!: ReturnType<typeof useRouter>;
     render(<Harness onReady={(route) => (captured = route)} />);
-    expect(captured.route).toEqual({ kind: 'match', comp: 'fifa.world', slug: 'foo' });
+    expect(captured.route).toEqual({ kind: 'match', comp: 'eng.1', slug: 'foo' });
+  });
+});
+
+describe('parseRoute (hub + schedule)', () => {
+  it('parses the comp root as the news section', () => {
+    expect(parseRoute('/eng.1')).toEqual({ kind: 'section', comp: 'eng.1', section: 'news' });
+  });
+
+  it('parses /schedule', () => {
+    expect(parseRoute('/eng.1/schedule')).toEqual({
+      kind: 'section',
+      comp: 'eng.1',
+      section: 'schedule',
+    });
+  });
+
+  it('builds the schedule path', () => {
+    expect(pathFor({ kind: 'section', comp: 'eng.1', section: 'schedule' })).toBe(
+      '/eng.1/schedule',
+    );
+  });
+
+  it('round-trips every section in the SECTIONS table', () => {
+    for (const s of SECTIONS) {
+      const route = { kind: 'section', comp: 'eng.1', section: s.section } as const;
+      expect(parseRoute(pathFor(route))).toEqual(route);
+    }
   });
 });

@@ -3,6 +3,7 @@ import { env } from 'cloudflare:workers';
 import { COMPETITIONS } from '../../competitions';
 import CompetitionIsland from '../../components/CompetitionIsland';
 import LeftNav from '../../components/LeftNav.astro';
+import RightRailIsland from '../../components/RightRailIsland';
 import { getCompetitionView } from '../../data/api';
 import Layout from '../../layouts/Layout.astro';
 
@@ -11,22 +12,13 @@ if (!comp || !Object.hasOwn(COMPETITIONS, comp)) {
   return new Response('Not found', { status: 404 });
 }
 const competition = COMPETITIONS[comp]!;
-// Capability deep-link: redirect unsupported sections server-side so the
-// client never SSR-mounts then full-page-replaces (post-SPA navigate cost).
-if (!competition.capabilities.bracket) {
-  return Astro.redirect(`/${comp}`, 307);
-}
 const ctx = Astro.locals.cfContext;
 const initialData = await getCompetitionView(competition, env, ctx);
 ---
-<Layout title={`umuo — ${competition.label} — Bracket`} comp={comp}>
-  <LeftNav slot="left" comp={comp} active="bracket" />
+<Layout title={`umuo — ${competition.label} Schedule`} comp={comp}>
+  <LeftNav slot="left" comp={comp} active="schedule" />
   <main>
-    <CompetitionIsland
-      comp={comp}
-      section="bracket"
-      initialData={initialData}
-      client:only="react"
-    />
+    <CompetitionIsland comp={comp} initialData={initialData} client:only="react" />
   </main>
+  <RightRailIsland slot="right" comp={comp} initialData={initialData} client:only="react" />
 </Layout>

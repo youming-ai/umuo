@@ -1,9 +1,9 @@
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import type { WCGroup, WCStanding } from '../types';
+import type { Group, WCStanding } from '../types';
 import StandingsView from './StandingsView';
 
-function renderView(groups: WCGroup[]) {
+function renderView(groups: Group[]) {
   return render(<StandingsView groups={groups} />);
 }
 
@@ -29,7 +29,7 @@ describe('StandingsView', () => {
   });
 
   it('renders group names and team names', () => {
-    const groups: WCGroup[] = [
+    const groups: Group[] = [
       {
         name: 'A',
         standings: [
@@ -45,7 +45,7 @@ describe('StandingsView', () => {
   });
 
   it('renders multiple groups', () => {
-    const groups: WCGroup[] = [
+    const groups: Group[] = [
       { name: 'A', standings: [team({ teamId: '1', name: 'Team A1', pts: 3 })] },
       { name: 'B', standings: [team({ teamId: '2', name: 'Team B1', pts: 3 })] },
       { name: 'C', standings: [team({ teamId: '3', name: 'Team C1', pts: 3 })] },
@@ -59,7 +59,7 @@ describe('StandingsView', () => {
   // ---- bestThirdIds logic: top 2 direct, top 8 thirds ----
 
   it('marks top 2 teams with direct qualification indicator (pitch green bar)', () => {
-    const groups: WCGroup[] = [
+    const groups: Group[] = [
       {
         name: 'A',
         standings: [
@@ -83,7 +83,7 @@ describe('StandingsView', () => {
 
   it('marks best 8 third-placed teams with dim qualification indicator', () => {
     // Create 12 groups, the first 8 thirds have better records
-    const groups: WCGroup[] = Array.from({ length: 12 }, (_, i) => ({
+    const groups: Group[] = Array.from({ length: 12 }, (_, i) => ({
       name: String.fromCharCode(65 + i), // A-L
       standings: [
         team({ teamId: `${i}-1`, name: `G${String.fromCharCode(65 + i)}-1`, pts: 9 }),
@@ -109,7 +109,7 @@ describe('StandingsView', () => {
 
   it('uses tiebreakers (gd then gf) for best-third ranking', () => {
     // Two thirds with same points, but different gd
-    const groups: WCGroup[] = [
+    const groups: Group[] = [
       {
         name: 'A',
         standings: [
@@ -143,7 +143,7 @@ describe('StandingsView', () => {
   });
 
   it('renders legend with top-2 and best-third explanations', () => {
-    const groups: WCGroup[] = [
+    const groups: Group[] = [
       { name: 'A', standings: [team({ teamId: '1', name: 'T1', pts: 3 })] },
     ];
     renderView(groups);
@@ -152,7 +152,7 @@ describe('StandingsView', () => {
   });
 
   it('renders stat columns (MP, W, D, L, GD, Pts) for each team', () => {
-    const groups: WCGroup[] = [
+    const groups: Group[] = [
       {
         name: 'A',
         standings: [
@@ -178,7 +178,7 @@ describe('StandingsView', () => {
   });
 
   it('shows negative GD without plus sign', () => {
-    const groups: WCGroup[] = [
+    const groups: Group[] = [
       {
         name: 'A',
         standings: [
@@ -202,7 +202,7 @@ describe('StandingsView', () => {
   });
 
   it('handles group with no third-place team gracefully', () => {
-    const groups: WCGroup[] = [
+    const groups: Group[] = [
       {
         name: 'A',
         standings: [team({ teamId: '1', name: 'Only', pts: 3 })],
@@ -217,7 +217,7 @@ describe('StandingsView', () => {
   // ---- Form column ----
 
   it('renders a Form column header in the standings table', () => {
-    const groups: WCGroup[] = [
+    const groups: Group[] = [
       {
         name: 'A',
         standings: [team({ teamId: '1', name: 'Mexico', mp: 3, pts: 7, form: 'WWDWL' })],
@@ -229,7 +229,7 @@ describe('StandingsView', () => {
   });
 
   it('renders each W/D/L character as a colour-coded square in form order', () => {
-    const groups: WCGroup[] = [
+    const groups: Group[] = [
       {
         name: 'A',
         standings: [team({ teamId: '1', name: 'Mexico', mp: 5, pts: 10, form: 'WDWLW' })],
@@ -248,7 +248,7 @@ describe('StandingsView', () => {
   });
 
   it('shows an em-dash placeholder when standings rows lack a form field', () => {
-    const groups: WCGroup[] = [
+    const groups: Group[] = [
       {
         name: 'A',
         standings: [team({ teamId: '1', name: 'Mexico', mp: 0, pts: 0 })],
@@ -264,7 +264,7 @@ describe('StandingsView', () => {
   // ---- League (season) single-table mode ----
 
   describe('league mode', () => {
-    const league: WCGroup[] = [
+    const league: Group[] = [
       {
         name: 'English Premier League',
         standings: [

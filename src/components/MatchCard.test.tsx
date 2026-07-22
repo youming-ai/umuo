@@ -14,7 +14,7 @@ function scorer(name: string, minute: string, tag: '' | ' (p)' | ' (OG)' = ''): 
 }
 
 describe('MatchCard', () => {
-  it('shows the score and group for a finished match', () => {
+  it('shows the score for a finished match', () => {
     renderCard({
       homeName: 'Mexico',
       awayName: 'South Africa',
@@ -22,13 +22,10 @@ describe('MatchCard', () => {
       awayScore: 0,
       status: 'finished',
       kickoff: null,
-      stage: 'group',
-      group: 'A',
     });
     expect(screen.getByText('Mexico')).toBeInTheDocument();
     expect(screen.getByText('2 : 0')).toBeInTheDocument();
     expect(screen.getByText('Final')).toBeInTheDocument();
-    expect(screen.getByText('Group A')).toBeInTheDocument();
   });
 
   it('shows the kickoff time for an upcoming match', () => {
@@ -39,14 +36,12 @@ describe('MatchCard', () => {
       awayScore: null,
       status: 'upcoming',
       kickoff: new Date(2026, 5, 24, 18, 0),
-      stage: 'group',
-      group: 'C',
     });
     expect(screen.getByText('Upcoming')).toBeInTheDocument();
     expect(screen.queryByText('Final')).not.toBeInTheDocument();
   });
 
-  it('shows the LIVE status pill and stage for a knockout match', () => {
+  it('shows the LIVE status pill for a knockout match', () => {
     renderCard({
       homeName: 'Argentina',
       awayName: 'France',
@@ -54,12 +49,9 @@ describe('MatchCard', () => {
       awayScore: 1,
       status: 'live',
       kickoff: null,
-      stage: 'final',
-      group: 'Final',
     });
     expect(screen.getByText('1 : 1')).toBeInTheDocument();
     expect(screen.getByText('LIVE')).toBeInTheDocument();
-    expect(screen.getByText('Final')).toBeInTheDocument();
   });
 
   it('shows the current minute when progress is in', () => {
@@ -70,8 +62,6 @@ describe('MatchCard', () => {
       awayScore: 0,
       status: 'live',
       kickoff: null,
-      stage: 'group',
-      group: 'E',
       progress: { status: 'in', clock: 67, displayClock: "67'", period: 2 },
     });
     expect(screen.getByText('LIVE')).toBeInTheDocument();
@@ -86,8 +76,6 @@ describe('MatchCard', () => {
       awayScore: 2,
       status: 'live',
       kickoff: null,
-      stage: 'group',
-      group: 'E',
       progress: { status: 'in', clock: 47, displayClock: "45'+2'", period: 1 },
     });
     expect(screen.getByText("45'+2'")).toBeInTheDocument();
@@ -101,8 +89,6 @@ describe('MatchCard', () => {
       awayScore: 1,
       status: 'live',
       kickoff: null,
-      stage: 'group',
-      group: 'E',
       progress: { status: 'halftime', clock: 45, displayClock: 'HT', period: 1 },
     });
     expect(screen.queryByText('LIVE')).not.toBeInTheDocument();
@@ -119,8 +105,6 @@ describe('MatchCard', () => {
       awayScore: 0,
       status: 'finished',
       kickoff: null,
-      stage: 'sf',
-      group: 'SF',
       progress: { status: 'post', clock: 95, displayClock: "90'+5'", period: 2 },
     });
     expect(screen.getByText('Final')).toBeInTheDocument();
@@ -136,8 +120,6 @@ describe('MatchCard', () => {
       awayScore: 2,
       status: 'live',
       kickoff: null,
-      stage: 'qf',
-      group: 'QF',
       // Period 3 = extra time 1st half. ESPN's displayClock would
       // typically read "91'" or "105'" — the label takes precedence.
       progress: { status: 'in', clock: 95, displayClock: '91', period: 3 },
@@ -155,8 +137,6 @@ describe('MatchCard', () => {
       awayScore: 2,
       status: 'live',
       kickoff: null,
-      stage: 'final',
-      group: 'Final',
       progress: { status: 'in', clock: 120, displayClock: '120', period: 5 },
     });
     expect(screen.getByText('LIVE')).toBeInTheDocument();
@@ -172,8 +152,6 @@ describe('MatchCard', () => {
       awayScore: 0,
       status: 'live',
       kickoff: null,
-      stage: 'group',
-      group: 'G',
       progress: { status: 'in', clock: 67, displayClock: "67'", period: 2 },
     });
     expect(screen.getByText("67'")).toBeInTheDocument();
@@ -189,8 +167,6 @@ describe('MatchCard', () => {
       awayScore: 1,
       status: 'finished',
       kickoff: null,
-      stage: 'r16',
-      group: 'R16',
       finishType: 'pens',
       homeShootoutScore: 3,
       awayShootoutScore: 4,
@@ -211,8 +187,6 @@ describe('MatchCard', () => {
       awayScore: 1,
       status: 'finished',
       kickoff: null,
-      stage: 'qf',
-      group: 'QF',
       finishType: 'aet',
     });
     expect(screen.getByText('AET')).toBeInTheDocument();
@@ -227,9 +201,7 @@ describe('MatchCard', () => {
       awayScore: null,
       status: 'upcoming',
       kickoff: new Date(2026, 5, 24, 18, 0),
-      stage: 'group',
-      group: 'C',
-      href: '/fifa.world/match/brazil-vs-argentina',
+      href: '/eng.1/match/brazil-vs-argentina',
     });
     const reminder = screen.getByLabelText('Set a reminder');
     expect(reminder).toBeInTheDocument();
@@ -237,7 +209,7 @@ describe('MatchCard', () => {
     // never activates navigation.
     expect(reminder.closest('a')).toBeNull();
     const cardLink = screen.getByRole('link', { name: /Brazil/ });
-    expect(cardLink).toHaveAttribute('href', '/fifa.world/match/brazil-vs-argentina');
+    expect(cardLink).toHaveAttribute('href', '/eng.1/match/brazil-vs-argentina');
   });
 
   it('shows no reminder (no action footer) for a finished match', () => {
@@ -248,8 +220,6 @@ describe('MatchCard', () => {
       awayScore: 0,
       status: 'finished',
       kickoff: null,
-      stage: 'group',
-      group: 'A',
     });
     expect(screen.queryByLabelText('Set a reminder')).not.toBeInTheDocument();
   });
@@ -262,8 +232,6 @@ describe('MatchCard', () => {
       awayScore: 0,
       status: 'finished',
       kickoff: null,
-      stage: 'group',
-      group: 'A',
       homeScorers: [scorer('Alvarado', "45'"), scorer('Vega', "67'")],
       awayScorers: [],
     });
@@ -281,8 +249,6 @@ describe('MatchCard', () => {
       awayScore: 1,
       status: 'finished',
       kickoff: null,
-      stage: 'group',
-      group: 'G',
       homeScorers: [
         scorer('P1', "10'"),
         scorer('P2', "20'"),
@@ -311,8 +277,6 @@ describe('MatchCard', () => {
       awayScore: null,
       status: 'upcoming',
       kickoff: new Date(2026, 5, 24, 18, 0),
-      stage: 'group',
-      group: 'C',
       homeScorers: [],
       awayScorers: [],
     });
@@ -320,7 +284,7 @@ describe('MatchCard', () => {
     expect(screen.queryByText(/\+[0-9]+ more/)).not.toBeInTheDocument();
   });
 
-  it('shows the venue in the header next to the stage label when provided', () => {
+  it('shows the venue in the header when provided', () => {
     renderCard({
       homeName: 'Mexico',
       awayName: 'South Africa',
@@ -328,11 +292,8 @@ describe('MatchCard', () => {
       awayScore: 0,
       status: 'finished',
       kickoff: null,
-      stage: 'group',
-      group: 'A',
       venue: 'Estadio Azteca · Mexico City',
     });
-    expect(screen.getByText('Group A')).toBeInTheDocument();
     // Venue renders with a · separator prefix in the header
     expect(screen.getByText(/· Estadio Azteca · Mexico City/)).toBeInTheDocument();
   });
@@ -345,8 +306,6 @@ describe('MatchCard', () => {
       awayScore: 0,
       status: 'finished',
       kickoff: null,
-      stage: 'group',
-      group: 'A',
     });
     expect(screen.queryByText(/· /)).not.toBeInTheDocument();
     expect(screen.queryByText('Estadio')).not.toBeInTheDocument();

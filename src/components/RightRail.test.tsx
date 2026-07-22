@@ -7,9 +7,7 @@ const emptyStandings: StandingsData = { kind: 'soccer', groups: [] };
 
 describe('RightRail standings states', () => {
   it('shows a loading state while empty standings are being fetched', () => {
-    render(
-      <RightRail comp="fifa.world" standings={emptyStandings} scorers={[]} standingsLoading />,
-    );
+    render(<RightRail comp="eng.1" standings={emptyStandings} standingsLoading />);
 
     expect(screen.getByText('Loading standings…')).toBeInTheDocument();
     expect(screen.queryByText('No standings yet.')).not.toBeInTheDocument();
@@ -19,9 +17,8 @@ describe('RightRail standings states', () => {
     const retry = vi.fn();
     render(
       <RightRail
-        comp="fifa.world"
+        comp="eng.1"
         standings={emptyStandings}
-        scorers={[]}
         standingsError="Failed to load standings"
         onStandingsRetry={retry}
       />,

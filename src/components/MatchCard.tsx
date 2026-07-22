@@ -1,6 +1,6 @@
 import { memo, type ReactNode } from 'react';
 import type { MatchProgress, MatchStatus, ScorerEntry } from '../types';
-import { scorerDisplay, stageLabel } from '../utils/wc';
+import { scorerDisplay } from '../utils/wc';
 import { ReminderMenu } from './MatchActions';
 
 interface MatchCardProps {
@@ -12,8 +12,6 @@ interface MatchCardProps {
   awayScore: number | null;
   status: MatchStatus;
   kickoff: Date | null;
-  stage?: string;
-  group?: string;
   homeScorers?: ScorerEntry[];
   awayScorers?: ScorerEntry[];
   venue?: string;
@@ -126,8 +124,6 @@ export default memo(function MatchCard({
   awayScore,
   status,
   kickoff,
-  stage,
-  group,
   homeScorers = [],
   awayScorers = [],
   venue,
@@ -140,7 +136,6 @@ export default memo(function MatchCard({
   href,
 }: MatchCardProps) {
   const tbd = 'TBD';
-  const stageText = stage ? stageLabel(stage, group) : '';
 
   // finished: brighten the winner, dim the loser. Prefer ESPN's explicit
   // winner (set on knockout games) so a pens win resolves where the
@@ -179,11 +174,6 @@ export default memo(function MatchCard({
       >
         <div className="flex items-center justify-between gap-2 px-3 pt-2 pb-1.5 border-b border-line bg-panel2/10">
           <div className="flex items-center gap-2 min-w-0">
-            {stageText && (
-              <span className="ds-caption uppercase tracking-[0.18em] text-chalkdim truncate">
-                {stageText}
-              </span>
-            )}
             {venue && (
               <span className="ds-caption text-chalkdim truncate hidden sm:inline" title={venue}>
                 · {venue}

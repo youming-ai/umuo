@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import type { WCGroup } from '../types';
+import type { Group } from '../types';
 
 // Last-5 form pill. Renders each W/D/L as a colour-coded square.
 //   W = win  (pitch green)
@@ -50,7 +50,7 @@ export default function StandingsView({
   groups,
   mode = 'group',
 }: {
-  groups: WCGroup[];
+  groups: Group[];
   mode?: 'group' | 'league';
 }) {
   // WC2026 出线：每组前 2 名 + 跨组 8 个成绩最好的第三名 → 32 强。

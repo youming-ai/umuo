@@ -2,23 +2,15 @@ import { describe, expect, it } from 'vitest';
 import { buildUrl, COMPETITIONS, DEFAULT_COMPETITION, seasonForDate } from './competitions';
 
 describe('buildUrl', () => {
-  const wc = COMPETITIONS[DEFAULT_COMPETITION];
-
-  it('builds the World Cup scoreboard URL with the date window and limit', () => {
-    expect(buildUrl(wc, 'scoreboard')).toBe(
-      'https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard?dates=20260611-20260719&limit=300',
-    );
-  });
-
   it('builds the standings URL WITHOUT the site/ path segment', () => {
-    expect(buildUrl(wc, 'standings')).toBe(
-      'https://site.api.espn.com/apis/v2/sports/soccer/fifa.world/standings?season=2026&level=3',
+    expect(buildUrl(COMPETITIONS['eng.1'], 'standings')).toBe(
+      `https://site.api.espn.com/apis/v2/sports/soccer/eng.1/standings?season=${seasonForDate('soccer', new Date())}`,
     );
   });
 
   it('builds the summary URL with the event id', () => {
-    expect(buildUrl(wc, 'summary', '760420')).toBe(
-      'https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/summary?event=760420',
+    expect(buildUrl(COMPETITIONS['eng.1'], 'summary', '760420')).toBe(
+      'https://site.api.espn.com/apis/site/v2/sports/soccer/eng.1/summary?event=760420',
     );
   });
 });
@@ -28,24 +20,17 @@ describe('registry', () => {
     expect(COMPETITIONS[DEFAULT_COMPETITION]).toBeDefined();
     expect(COMPETITIONS[DEFAULT_COMPETITION].sport).toBe('soccer');
   });
-
-  it('marks the World Cup as scoreboard-sourced top scorers', () => {
-    expect(COMPETITIONS['fifa.world'].leadersSource).toBe('scoreboard');
-    expect(COMPETITIONS['fifa.world'].capabilities.scorers).toBe(true);
-  });
 });
 
 describe('eng.1 (season-shape league)', () => {
   const pl = COMPETITIONS['eng.1'];
 
-  it('is registered as a season-shape soccer league', () => {
+  it('is registered as a soccer league', () => {
     expect(pl).toBeDefined();
     expect(pl.sport).toBe('soccer');
-    expect(pl.shape).toBe('season');
   });
 
-  it('hides bracket but exposes scorers (leaders pipeline)', () => {
-    expect(pl.capabilities.bracket).toBe(false);
+  it('exposes scorers (leaders pipeline)', () => {
     expect(pl.capabilities.scorers).toBe(true);
     expect(pl.leadersSource).toBe('pipeline');
   });
@@ -79,17 +64,15 @@ describe('seasonForDate', () => {
 describe('nba (season-shape basketball)', () => {
   const nba = COMPETITIONS.nba;
 
-  it('is registered as a season-shape basketball league', () => {
+  it('is registered as a basketball league', () => {
     expect(nba).toBeDefined();
     expect(nba.sport).toBe('basketball');
-    expect(nba.shape).toBe('season');
     expect(nba.league).toBe('nba');
     expect(nba.label).toBe('NBA');
   });
 
   it('exposes boxscore and scorers capabilities', () => {
     expect(nba.capabilities).toEqual({
-      bracket: false,
       scorers: true,
       lineups: false,
       boxscore: true,

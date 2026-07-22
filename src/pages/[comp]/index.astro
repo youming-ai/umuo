@@ -1,10 +1,10 @@
 ---
 import { env } from 'cloudflare:workers';
 import { COMPETITIONS } from '../../competitions';
-import CompetitionIsland from '../../components/CompetitionIsland';
 import LeftNav from '../../components/LeftNav.astro';
-import RightRailIsland from '../../components/RightRailIsland';
-import { getCompetitionView } from '../../data/api';
+import NewsIsland from '../../components/NewsIsland';
+import NewsRightRailIsland from '../../components/NewsRightRailIsland';
+import { getCompNews } from '../../data/api';
 import Layout from '../../layouts/Layout.astro';
 
 const { comp } = Astro.params;
@@ -13,17 +13,12 @@ if (!comp || !Object.hasOwn(COMPETITIONS, comp)) {
 }
 const competition = COMPETITIONS[comp]!;
 const ctx = Astro.locals.cfContext;
-const initialData = await getCompetitionView(competition, env, ctx);
+const items = await getCompNews(competition, env, ctx);
 ---
 <Layout title={`umuo — ${competition.label}`} comp={comp}>
-  <LeftNav slot="left" comp={comp} active="matches" />
+  <LeftNav slot="left" comp={comp} active="news" />
   <main>
-    <CompetitionIsland
-      comp={comp}
-      section="matches"
-      initialData={initialData}
-      client:only="react"
-    />
+    <NewsIsland comp={comp} initialData={items} client:only="react" />
   </main>
-  <RightRailIsland slot="right" comp={comp} initialData={initialData} client:only="react" />
+  <NewsRightRailIsland slot="right" comp={comp} initialNews={items} client:only="react" />
 </Layout>

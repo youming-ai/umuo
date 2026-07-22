@@ -7,10 +7,10 @@ import { SITE_ORIGIN } from '../site';
 
 interface Props {
   title?: string;
-  comp?: string; // active competition, for the header highlight (absent on /news)
+  comp?: string; // accepted from pages; nav now lives in the left rail, not the header
 }
 
-const { title = 'umuo — Sports news, scores & standings', comp } = Astro.props;
+const { title = 'umuo — Sports news, scores & standings' } = Astro.props;
 
 // Rails are opt-in per page via named slots. When a page has rails, the shell
 // owns the width + page padding and lays out the 3-col grid. When it has none,
@@ -25,7 +25,9 @@ const cols =
     : hasRight
       ? 'lg:grid lg:gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]'
       : 'lg:grid lg:gap-6 lg:grid-cols-[13rem_minmax(0,1fr)]';
-const frame = hasRails ? `px-page-x md:px-page-x-md py-page-y ${cols}` : '';
+const frame = hasRails
+  ? `mx-auto max-w-6xl px-page-x md:px-page-x-md py-page-y ${cols}`
+  : '';
 
 // Canonical + og:url must match the actual page path (not a hardcoded /news).
 // Use the production origin so previews/dev still emit stable share URLs.
@@ -47,13 +49,13 @@ const canonicalUrl = `${SITE_ORIGIN}${canonicalPath}`;
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="umuo" />
     <title>{title}</title>
-    <meta name="description" content="Sports news, live scores, fixtures, and standings for the World Cup, Premier League, NBA, and more — one fast, no-clutter hub." />
+    <meta name="description" content="Sports news, live scores, fixtures, and standings for the Premier League, NBA, and more — one fast, no-clutter hub." />
     <meta name="robots" content="index, follow" />
     <link rel="canonical" href={canonicalUrl} />
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="umuo" />
     <meta property="og:title" content={title} />
-    <meta property="og:description" content="Breaking sports news, live scores, fixtures, and standings — World Cup, Premier League, NBA, and more." />
+    <meta property="og:description" content="Breaking sports news, live scores, fixtures, and standings — Premier League, NBA, and more." />
     <meta property="og:url" content={canonicalUrl} />
     <meta property="og:image" content={`${SITE_ORIGIN}/og.jpg`} />
     <meta property="og:image:width" content="1200" />
@@ -64,7 +66,7 @@ const canonicalUrl = `${SITE_ORIGIN}${canonicalPath}`;
     <meta property="og:locale:alternate" content="ko_KR" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content={title} />
-    <meta name="twitter:description" content="Breaking sports news, live scores, fixtures, and standings — World Cup, Premier League, NBA, and more." />
+    <meta name="twitter:description" content="Breaking sports news, live scores, fixtures, and standings — Premier League, NBA, and more." />
     <meta name="twitter:image" content={`${SITE_ORIGIN}/og.jpg`} />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -119,7 +121,7 @@ const canonicalUrl = `${SITE_ORIGIN}${canonicalPath}`;
         <div class="min-h-[var(--h-ticker)]">
           <Ticker client:only="react" />
         </div>
-        <Header comp={comp} />
+        <Header />
       </div>
       <div class={`flex-1 w-full ${frame}`}>
         {hasLeft && (

@@ -5,7 +5,7 @@ import type {
   ScorerEntry,
   TeamLineup,
   TopScorer,
-  WCGroup,
+  Group,
   WCStanding,
 } from '../types';
 import {
@@ -13,7 +13,6 @@ import {
   parseScore,
   progressFromStatus,
   sortStandings,
-  stageFromSlug,
   statusFromState,
 } from '../utils/wc';
 import { parseScoreboardOdds, parseSummaryBase } from './summaryExtras';
@@ -59,10 +58,9 @@ function transform(
   const sbJson = scoreboardJson;
   const stJson = standingsJson;
 
-  // --- standings → groups (+ a teamId → group-letter map for the matches) ---
-  const teamGroup = new Map<string, string>();
-  const gr: WCGroup[] = arr(obj(stJson).children)
-    .map((raw): WCGroup => {
+  // --- standings → groups ---
+  const gr: Group[] = arr(obj(stJson).children)
+    .map((raw): Group => {
       const g = obj(raw);
       const letter = str(g.name).replace(/^Group\s+/i, '') || str(g.abbreviation);
       const entries = arr(obj(g.standings).entries);
@@ -70,7 +68,6 @@ function transform(
         const e = obj(rawEntry);
         const team = obj(e.team);
         const id = str(team.id);
-        if (id) teamGroup.set(id, letter);
         return {
           teamId: id,
           name: str(team.displayName),
@@ -206,10 +203,8 @@ function transform(
       awayId: str(awayTeam.id),
       homeScore: status === 'upcoming' ? null : score(home.score),
       awayScore: status === 'upcoming' ? null : score(away.score),
-      group: teamGroup.get(homeId) || teamGroup.get(str(awayTeam.id)) || '',
       kickoff: kickoff && !Number.isNaN(kickoff.getTime()) ? kickoff : null,
       status,
-      stage: stageFromSlug(str(obj(ev.season).slug)),
       homeScorers: status === 'upcoming' ? [] : homeScorers,
       awayScorers: status === 'upcoming' ? [] : awayScorers,
       venue: venueName && city ? `${venueName} · ${city}` : venueName,
@@ -234,7 +229,11 @@ function transform(
     }
   }
 
-  // --- top scorers (tournament-level) ---
+  // --- top scorers ---
+  // NOTE: the ONLY remaining consumer of this `scorers` output is the player
+  // page (SSR, via getCompetitionView) for a name/goals lookup. It is a
+  // SEPARATE path from the right-rail leaders pipeline (useLeaders /
+  // getLeaderboards) — don't assume the two scorers feeds are the same.
   // Count EVERY scoring play, so any player who scores ranks — not just each
   // team's single ESPN "leader" (the old source listed one leader per team per
   // match, silently dropping everyone else). We reuse the goals already parsed

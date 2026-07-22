@@ -26,9 +26,9 @@ describe('NewsRightRail', () => {
   });
 
   it('renders a same-origin / link without target', () => {
-    render(<NewsRightRail trending={[item('/fifa.world/news', 'Internal')]} scores={[]} />);
+    render(<NewsRightRail trending={[item('/eng.1/news', 'Internal')]} scores={[]} />);
     const link = screen.getByRole('link', { name: 'Internal' });
-    expect(link).toHaveAttribute('href', '/fifa.world/news');
+    expect(link).toHaveAttribute('href', '/eng.1/news');
     expect(link).not.toHaveAttribute('target');
   });
 

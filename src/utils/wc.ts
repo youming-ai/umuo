@@ -1,11 +1,4 @@
-import type {
-  MatchProgress,
-  MatchStatus,
-  ProgressStatus,
-  ScorerEntry,
-  Stage,
-  WCStanding,
-} from '../types';
+import type { MatchProgress, MatchStatus, ProgressStatus, ScorerEntry, WCStanding } from '../types';
 import { slugify } from './helpers';
 
 export function parseScore(s: string | number | null | undefined): number | null {
@@ -91,38 +84,6 @@ function defaultClockFor(state: ProgressStatus, clock: number): string {
   if (state === 'halftime') return 'HT';
   if (state === 'in' && clock > 0) return `${Math.floor(clock)}'`;
   return '';
-}
-
-// ESPN season.slug → our Stage. Anything unknown stays 'group'.
-const SLUG_TO_STAGE: Record<string, Stage> = {
-  'group-stage': 'group',
-  'round-of-32': 'r32',
-  'round-of-16': 'r16',
-  quarterfinals: 'qf',
-  semifinals: 'sf',
-  '3rd-place-match': 'third',
-  'third-place': 'third',
-  final: 'final',
-};
-export function stageFromSlug(slug: string | undefined): Stage {
-  return (slug && SLUG_TO_STAGE[slug]) || 'group';
-}
-
-const STAGE_LABELS: Record<Stage, string> = {
-  group: 'Group stage',
-  r32: 'Round of 32',
-  r16: 'Round of 16',
-  qf: 'Quarter-finals',
-  sf: 'Semi-finals',
-  third: 'Third place play-off',
-  final: 'Final',
-};
-
-export function stageLabel(stage: string, group?: string): string {
-  if (stage === 'group') {
-    return group != null && group !== '' ? `Group ${group}` : 'Group stage';
-  }
-  return STAGE_LABELS[stage as Stage] ?? stage;
 }
 
 // Build a URL-friendly slug from a match's home/away team names. Used by

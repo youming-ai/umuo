@@ -1,7 +1,7 @@
 {
-  "name": "umuo — World Cup 2026 live streams & fixtures",
+  "name": "umuo — Premier League & NBA news, scores & standings",
   "short_name": "umuo",
-  "description": "Watch World Cup 2026 football live streams and follow every fixture, group standings, and result — one fast, no-clutter hub.",
+  "description": "Breaking football and basketball news, live scores, fixtures, and standings for the Premier League and NBA — one fast, no-clutter hub.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

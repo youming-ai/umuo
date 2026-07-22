@@ -43,6 +43,17 @@ interface RawRow {
   teamRef: string;
 }
 
+// ESPN's core.api sometimes embeds `$ref` URLs against its INTERNAL host
+// `sports.core.api.espn.pvt`, which is not publicly resolvable (DNS fails) —
+// documented by pseudo-r/Public-ESPN-API "Important Notes". Rewrite to the
+// public `.com` host so the ref actually fetches. Pure; resolveRefs still keys
+// its result Map by the ORIGINAL ref (callers look up by the raw doc $ref),
+// and only the specific ESPN internal host is touched — unrelated `.pvt`
+// substrings are left alone.
+export function normalizeRef(ref: string): string {
+  return ref.replace('sports.core.api.espn.pvt', 'sports.core.api.espn.com');
+}
+
 // Resolve $refs with a small concurrency cap so we never blow past the
 // Cloudflare Workers 50-subrequest limit (topN 15 + deduped teams ≈ ≤25).
 async function resolveRefs(
@@ -56,7 +67,10 @@ async function resolveRefs(
     while (i < refs.length) {
       const ref = refs[i++];
       try {
-        const res = await fetchImpl(ref);
+        // Rewrite ESPN's internal .pvt host before fetching (no-op for
+        // already-public refs) — see normalizeRef. Key the Map by the ORIGINAL
+        // ref so callers can look up by the raw $ref from the doc.
+        const res = await fetchImpl(normalizeRef(ref));
         if (!res.ok) continue; // degrade: leave the ref unresolved
         out.set(ref, obj(await res.json()));
       } catch {

@@ -1,4 +1,4 @@
-import type { CompMatch, TopScorer, WCGroup } from '../types';
+import type { CompMatch, TopScorer, Group } from '../types';
 import { useRouter, pathFor } from '../utils/router';
 import PlayerPage from './PlayerPage';
 import AppProviders from './AppProviders';
@@ -12,12 +12,12 @@ export default function PlayerPageIsland({
   scorers,
 }: {
   athleteId: string;
-  groups: WCGroup[];
+  groups: Group[];
   matches: CompMatch[];
   scorers: TopScorer[];
 }) {
   const { route } = useRouter();
-  const backHref = pathFor({ kind: 'section', comp: route.comp, section: 'matches' });
+  const backHref = pathFor({ kind: 'section', comp: route.comp, section: 'schedule' });
 
   return (
     <AppProviders>
