@@ -59,4 +59,28 @@ describe('useTicker shared poller', () => {
     // Remaining subscriber keeps the poller alive; no extra fan-out.
     expect(fetch).toHaveBeenCalledTimes(COMP_COUNT);
   });
+  it('seeds state immediately from initialScores and preserves per-comp tags', () => {
+    const match = (id: string, comp: string) => ({
+      id,
+      comp,
+      homeName: 'H',
+      awayName: 'A',
+      homeFlag: '',
+      awayFlag: '',
+      homeId: '1',
+      awayId: '2',
+      homeScore: 1,
+      awayScore: 0,
+      kickoff: new Date(),
+      status: 'live' as const,
+      homeScorers: [],
+      awayScorers: [],
+      venue: '',
+      slug: `h-vs-a-${id}`,
+    });
+    const seed = [match('1', 'nba'), match('2', 'esp.1')];
+    const { result } = renderHook(() => useTicker(seed));
+    expect(result.current.loading).toBe(false);
+    expect(result.current.items.map((m) => m.comp)).toEqual(['nba', 'esp.1']);
+  });
 });

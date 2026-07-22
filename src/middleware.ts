@@ -58,9 +58,13 @@ export function onRequest(
     }
   }
 
-  // Legacy global news (removed) → the default competition's hub, so old
-  // /news, /news/soccer, /news/league/* links land on a real 200 in one hop.
-  if (path === '/news' || path.startsWith('/news/')) {
+  // Legacy global news and bracket (removed) → default competition's hub in 1 hop.
+  if (
+    path === '/news' ||
+    path.startsWith('/news/') ||
+    path === '/bracket' ||
+    path.startsWith('/bracket/')
+  ) {
     return context.redirect(`/${DEFAULT_COMPETITION}${search}`, 307);
   }
 

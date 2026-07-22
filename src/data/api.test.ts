@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { NewsItem } from '../types';
-import { type Env, getAggregatedNews, mergeNewsLists } from './api';
+import { type Env, getAggregatedNews, getHomeView, mergeNewsLists } from './api';
 
 const item = (id: string, published: string, headline = id): NewsItem => ({
   id,
@@ -124,6 +124,24 @@ describe('getAggregatedNews', () => {
     );
     const out = await getAggregatedNews(mockEnv() as unknown as Env, mockCtx());
     expect(out.map((n) => n.id)).toEqual(['e1']);
+    vi.unstubAllGlobals();
+  });
+});
+describe('getHomeView', () => {
+  it('fans out news and scoreboards, tagging each match with its comp key', async () => {
+    vi.stubGlobal(
+      'fetch',
+      fetchByLeague([
+        { match: '/eng.1/news', body: newsJson([item('e1', '2026-07-03T00:00:00Z', 'EPL')]) },
+        { match: '/eng.1/scoreboard', body: JSON.stringify({ events: [{ id: 'm1' }] }) },
+        { match: '/nba/scoreboard', body: JSON.stringify({ events: [{ id: 'm2' }] }) },
+      ]),
+    );
+    const out = await getHomeView(mockEnv() as unknown as Env, mockCtx());
+    expect(out.news.length).toBeGreaterThan(0);
+    const taggedComps = out.scoreboardData.map((m) => m.comp);
+    expect(taggedComps).toContain('eng.1');
+    expect(taggedComps).toContain('nba');
     vi.unstubAllGlobals();
   });
 });

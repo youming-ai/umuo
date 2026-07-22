@@ -87,12 +87,14 @@ function stopPolling() {
   }
 }
 
-// Cross-competition scoreboard strip for the global ticker. Fetches every
-// registered competition's scoreboard in parallel (worker KV-cached), merges,
-// and selects via marqueeMatches. ESPN only.
-export function useTicker(): TickerState {
+// ponytail: useTicker is intentionally a document-level ref-counted shared poller
+// rather than wrapping usePolledResource because multiple islands share one
+// cross-competition scoreboard loop.
+export function useTicker(initialScores?: TickerMatch[]): TickerState {
+  if (initialScores && initialScores.length > 0 && shared.items.length === 0) {
+    shared = { items: marqueeMatches(initialScores, Date.now()) as TickerMatch[], loading: false };
+  }
   const [state, setState] = useState<TickerState>(shared);
-
   useEffect(() => {
     const listener: Listener = (next) => setState(next);
     listeners.add(listener);

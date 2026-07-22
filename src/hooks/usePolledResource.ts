@@ -1,18 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 // The shared stale-while-revalidate + AbortController + visibility-gated poll
-// engine behind useCompetition / useNews / useLeaders (which were the same hook
-// written three times). A wrapper supplies:
+// engine behind useCompetition / useNews / useLeaders / useMatchDetail. A wrapper supplies:
 //   - fetcher(signal): does the actual fetch(es) + parse/transform, throws on failure
 //   - key: reset trigger — when it changes (e.g. comp switch) the cache and
 //     displayed state drop so one key's data never flashes on another's
 //   - fallback: the empty value shown on reset (e.g. [] or {kind:'soccer',groups:[]})
 //   - initialData: SSR seed (omit / undefined = not seeded → shows loading)
 //   - intervalMs: poll cadence; skip: pause entirely (e.g. no comp selected)
-//
-// ponytail: useMatchDetail is NOT built on this — it has a different lifecycle
-// (no interval, reload shows loading, single nullable object) and useTicker is a
-// module-level shared poller. Folding either in would need per-consumer knobs.
 export function usePolledResource<T>(opts: {
   fetcher: (signal: AbortSignal) => Promise<T>;
   key: string;

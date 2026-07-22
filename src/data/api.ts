@@ -365,6 +365,25 @@ export async function getAggregatedNews(env: Env, ctx: ExecutionContext): Promis
   const lists = await Promise.all(Object.values(COMPETITIONS).map((c) => getCompNews(c, env, ctx)));
   return mergeNewsLists(lists);
 }
+export interface HomeViewData {
+  news: NewsItem[];
+  scoreboardData: (CompMatch & { comp: string })[];
+}
+
+// Aggregated SSR view data for the global home: fans out getAggregatedNews +
+// getCompetitionView over every competition so news and today's scoreboards are
+// fully SSR-seeded on initial document render.
+export async function getHomeView(env: Env, ctx: ExecutionContext): Promise<HomeViewData> {
+  const comps = Object.values(COMPETITIONS);
+  const [news, compViews] = await Promise.all([
+    getAggregatedNews(env, ctx),
+    Promise.all(comps.map((c) => getCompetitionView(c, env, ctx))),
+  ]);
+  const scoreboardData = compViews.flatMap((v, i) =>
+    v.matches.map((m) => ({ ...m, comp: comps[i].key })),
+  );
+  return { news, scoreboardData };
+}
 
 // Per-competition team directory from ESPN's site.api teams list, parsed to
 // TeamSummary[] (name-sorted). Empty array on any failure path.

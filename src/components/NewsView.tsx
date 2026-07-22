@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { COMPETITIONS } from '../competitions';
 import { useNews } from '../hooks/useNews';
+import { SECTIONS } from '../sections';
 import type { NewsItem } from '../types';
+import { pathFor } from '../utils/router';
 import NewsCard from './NewsCard';
-
 const PAGE_SIZE = 12;
 
 export default function NewsView({
@@ -42,8 +44,29 @@ export default function NewsView({
   const storyItems = items.slice(1, visibleCount);
   const hasMore = visibleCount < items.length;
 
+  const competition = COMPETITIONS[comp];
+  const quickSections = SECTIONS.filter(
+    (s) => s.section !== 'news' && (!s.capability || competition?.capabilities[s.capability]),
+  );
+
   return (
     <div className="w-full">
+      {quickSections.length > 0 && (
+        <nav
+          aria-label="Quick links"
+          className="mb-4 flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar"
+        >
+          {quickSections.map((s) => (
+            <a
+              key={s.section}
+              href={pathFor({ kind: 'section', comp, section: s.section })}
+              className="px-3 py-1.5 ds-caption text-chalkdim hover:text-chalk bg-panel/60 hover:bg-panel rounded-pill border border-line/40 transition-colors shrink-0"
+            >
+              {s.label}
+            </a>
+          ))}
+        </nav>
+      )}
       {loading && items.length === 0 ? (
         <p className="ds-caption text-chalkdim py-12 text-center">Loading…</p>
       ) : error && items.length === 0 ? (

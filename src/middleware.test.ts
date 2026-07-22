@@ -47,9 +47,14 @@ describe('middleware routing', () => {
     expect(run(`${O}/news/soccer`).redirect).toHaveBeenCalledWith(`/${DEFAULT_COMPETITION}`, 307);
   });
 
-  it('redirects legacy unprefixed paths to the default competition', () => {
+  it('redirects legacy unprefixed /bracket path directly to default competition hub in 1 hop', () => {
     const { redirect } = run(`${O}/bracket`);
-    expect(redirect).toHaveBeenCalledWith(`/${DEFAULT_COMPETITION}/bracket`, 307);
+    expect(redirect).toHaveBeenCalledWith(`/${DEFAULT_COMPETITION}`, 307);
+  });
+
+  it('redirects legacy unprefixed paths to the default competition', () => {
+    const { redirect } = run(`${O}/schedule`);
+    expect(redirect).toHaveBeenCalledWith(`/${DEFAULT_COMPETITION}/schedule`, 307);
   });
 
   it('redirects the legacy /scorers slug to /stats (unprefixed and comp-scoped)', () => {
