@@ -20,12 +20,6 @@ export interface Competition {
   league: string; // ESPN league slug
   label: string; // display name
   season?: number; // fixed season year; omit for cross-year leagues → derived per request (seasonForDate)
-  dates?: string; // scoreboard date window — tournaments need it, season comps omit it
-  standingsLevel?: number; // soccer standings depth
-  // ponytail: 'tournament' shape + dates/standingsLevel are now unused (World Cup
-  // removed 2026-07). Prune with the adapter tournament branches if another
-  // tournament is never added.
-  shape: 'tournament' | 'season';
   capabilities: {
     scorers: boolean;
     lineups: boolean;
@@ -33,12 +27,10 @@ export interface Competition {
     transactions?: boolean; // roster moves feed (US sports; soccer sparse)
     odds?: boolean; // betting lines from the scoreboard feed → Odds tab
   };
-  // Where the right-rail Top Scorers get their data. 'scoreboard' = aggregated
-  // from the scoreboard's per-team leaders (tournaments). 'pipeline' = server-
-  // side assembleLeaders over ESPN core.api (eng.1 goals / nba points). Omit
-  // for comps with no top-scorers display. (The /stats page uses
-  // getLeaderboards independently of this field.)
-  leadersSource?: 'scoreboard' | 'pipeline';
+  // Where the right-rail Top Scorers get their data: server-side assembleLeaders
+  // over ESPN core.api (eng.1 goals / nba points). Omit for comps with no
+  // top-scorers display. (The /stats page uses getLeaderboards independently.)
+  leadersSource?: 'pipeline';
 }
 
 export const COMPETITIONS: Record<string, Competition> = {
@@ -49,7 +41,6 @@ export const COMPETITIONS: Record<string, Competition> = {
     label: 'Premier League',
     // season 省略 → buildUrl 用 seasonForDate 按请求时刻推导（跨年赛季 8 月翻转），
     // 避免写死年份的时间引信。scoreboard 无 dates → ESPN 返回当前窗口。见 spec §7。
-    shape: 'season',
     capabilities: {
       scorers: true,
       lineups: true,
@@ -66,7 +57,6 @@ export const COMPETITIONS: Record<string, Competition> = {
     // season 省略 → buildUrl 用 seasonForDate('basketball', …) 按请求时刻推导
     // （赛季制 10 月翻转，键为结束年）。scoreboard 无 dates → ESPN 返回当日窗口，
     // off-season（7–9 月）当日为空由现有空态处理。见 spec §3。
-    shape: 'season',
     capabilities: {
       scorers: true,
       lineups: false,
@@ -105,7 +95,6 @@ export function buildUrl(c: Competition, resource: Resource, event?: string): st
     const q = new URLSearchParams({
       season: String(c.season ?? seasonForDate(c.sport, new Date())),
     });
-    if (c.standingsLevel) q.set('level', String(c.standingsLevel));
     return `${ESPN}/v2/${path}/standings?${q}`;
   }
   if (resource === 'summary') {
@@ -125,7 +114,6 @@ export function buildUrl(c: Competition, resource: Resource, event?: string): st
   }
   // scoreboard
   const q = new URLSearchParams();
-  if (c.dates) q.set('dates', c.dates);
   q.set('limit', '300'); // ponytail: hardcoded cap; make it a Competition field when a comp needs a different one
   return `${ESPN}/site/v2/${path}/scoreboard?${q}`;
 }

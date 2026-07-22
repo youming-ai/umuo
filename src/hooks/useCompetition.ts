@@ -1,14 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { getAdapter } from '../adapters';
 import type { StandingsData } from '../adapters/types';
-import type { CompMatch, TopScorer } from '../types';
+import type { CompMatch } from '../types';
 
 export function useCompetition(
   comp: string,
   initialData?: {
     matches: CompMatch[];
     standings: StandingsData;
-    scorers: TopScorer[];
   },
 ) {
   const BASE = `/api/${comp}`;
@@ -17,14 +16,12 @@ export function useCompetition(
   const [standings, setStandings] = useState<StandingsData>(
     initialData?.standings ?? { kind: 'soccer', groups: [] },
   );
-  const [scorers, setScorers] = useState<TopScorer[]>(initialData?.scorers ?? []);
   const [loading, setLoading] = useState(!seeded);
   const [error, setError] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   const cacheRef = useRef<{
     matches: CompMatch[];
     standings: StandingsData;
-    scorers: TopScorer[];
     ts: number;
   } | null>(seeded ? { ...initialData, ts: Date.now() } : null);
   const initialRef = useRef(true);
@@ -41,7 +38,6 @@ export function useCompetition(
       initialRef.current = true;
       setMatches([]);
       setStandings({ kind: 'soccer', groups: [] });
-      setScorers([]);
     }
     // If we have seed data and this is the first call for this comp (no
     // comp change just happened), the seed IS the first-paint data — mark
@@ -57,7 +53,6 @@ export function useCompetition(
     if (cacheRef.current && !initialRef.current) {
       setMatches(cacheRef.current.matches);
       setStandings(cacheRef.current.standings);
-      setScorers(cacheRef.current.scorers);
       setLoading(false);
     }
 
@@ -80,13 +75,12 @@ export function useCompetition(
       const [sbJson, stJson] = await Promise.all([sbRes.json(), stRes.json()]);
 
       const adapter = getAdapter(comp);
-      const { matches: ms, standings: sd, scorers: sc } = adapter.transform(sbJson, stJson);
+      const { matches: ms, standings: sd } = adapter.transform(sbJson, stJson);
 
       if (signal.aborted) return;
-      cacheRef.current = { matches: ms, standings: sd, scorers: sc, ts: Date.now() };
+      cacheRef.current = { matches: ms, standings: sd, ts: Date.now() };
       setMatches(ms);
       setStandings(sd);
-      setScorers(sc);
       setError(null);
     } catch (err: unknown) {
       if (signal.aborted || (err instanceof Error && err.name === 'AbortError')) return;
@@ -117,5 +111,5 @@ export function useCompetition(
     };
   }, [fetchAll]);
 
-  return { matches, standings, scorers, loading, error, refetch: fetchAll };
+  return { matches, standings, loading, error, refetch: fetchAll };
 }

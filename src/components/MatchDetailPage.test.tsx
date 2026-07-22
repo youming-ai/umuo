@@ -28,10 +28,8 @@ const match: CompMatch = {
   awayId: '492',
   homeScore: 2,
   awayScore: 0,
-  group: 'A',
   kickoff: new Date('2026-06-13T19:00Z'),
   status: 'finished',
-  stage: 'group',
   homeScorers: [],
   awayScorers: [],
   venue: '',
@@ -79,7 +77,6 @@ it('shows the penalty-shootout score and a Pens badge for a pens match', async (
     ...match,
     homeScore: 1,
     awayScore: 1,
-    stage: 'r16',
     finishType: 'pens',
     homeShootoutScore: 3,
     awayShootoutScore: 4,
@@ -94,7 +91,7 @@ it('shows the penalty-shootout score and a Pens badge for a pens match', async (
 
 it('shows an AET badge for an extra-time decider', async () => {
   fetchMock.mockResolvedValueOnce({ ok: true, json: async () => summaryJson() });
-  const aetMatch: CompMatch = { ...match, stage: 'qf', finishType: 'aet' };
+  const aetMatch: CompMatch = { ...match, finishType: 'aet' };
   render(<MatchDetailPage match={aetMatch} backHref="/eng.1" />);
   await waitFor(() => expect(screen.getByText('Shots')).toBeInTheDocument());
   expect(screen.getByText('AET')).toBeInTheDocument();

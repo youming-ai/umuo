@@ -115,8 +115,6 @@ describe('basketballAdapter.transform', () => {
     expect(finished.homeFlag).toBe('lal.png');
     expect(finished.statusText).toBe('Final');
     expect(finished.winner).toBe('home');
-    expect(finished.stage).toBeUndefined();
-    expect(finished.group).toBeUndefined();
     expect(finished.venue).toBe('Crypto.com Arena · Los Angeles');
     expect(finished.slug).toBe('los-angeles-lakers-vs-boston-celtics-401585');
 

@@ -4,7 +4,6 @@ import { COMPETITIONS } from '../competitions';
 import { useMatchDetail } from '../hooks/useMatchDetail';
 import type { CompMatch } from '../types';
 import { pathFor, useRouter } from '../utils/router';
-import { stageLabel } from '../utils/wc';
 import BoxscoreTab from './matchdetail/BoxscoreTab';
 import LineupTab from './matchdetail/LineupTab';
 import PlayByPlayTab from './matchdetail/PlayByPlayTab';
@@ -158,14 +157,6 @@ export default function MatchDetailPage({
         {/* Subtle radial glow background circles */}
         <div className="absolute top-0 right-0 w-32 h-32 bg-pitch/5 rounded-pill blur-3xl pointer-events-none select-none" />
         <div className="absolute bottom-0 left-0 w-32 h-32 bg-live/5 rounded-pill blur-3xl pointer-events-none select-none" />
-        {/* Stage/Group Label */}
-        {match.stage && (
-          <div className="text-center mb-4 shrink-0">
-            <span className="ds-caption uppercase tracking-[0.2em] text-chalkdim">
-              {stageLabel(match.stage, match.group)}
-            </span>
-          </div>
-        )}
 
         <div className="flex items-center justify-between w-full max-w-2xl gap-card">
           {/* Home Team */}

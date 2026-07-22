@@ -1,10 +1,10 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import type { ConferenceTable } from '../adapters/types';
-import type { CompMatch, WCGroup } from '../types';
+import type { CompMatch, Group } from '../types';
 import FixturesView from './FixturesView';
 
-function renderView(matches: CompMatch[], groups: WCGroup[] = []) {
+function renderView(matches: CompMatch[], groups: Group[] = []) {
   return render(<FixturesView matches={matches} standings={{ kind: 'soccer', groups }} />);
 }
 
@@ -20,8 +20,6 @@ function match(overrides: Partial<CompMatch> & { id: string }): CompMatch {
     awayScore: 0,
     status: 'upcoming',
     kickoff: new Date('2026-06-15T20:00:00Z'),
-    stage: 'group',
-    group: 'A',
     homeScorers: [],
     awayScorers: [],
     venue: '',
@@ -115,7 +113,7 @@ const row = (teamId: string, name: string, pts: number) => ({
   gd: 0,
   pts,
 });
-const league: WCGroup[] = [{ name: 'Premier League', standings: [row('1', 'Arsenal', 9)] }];
+const league: Group[] = [{ name: 'Premier League', standings: [row('1', 'Arsenal', 9)] }];
 
 it('shows the league table above fixtures for a season competition', () => {
   setPath('/eng.1');

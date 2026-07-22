@@ -118,8 +118,6 @@ describe('soccerAdapter.transform', () => {
     expect(finished.status).toBe('finished');
     expect(finished.homeScore).toBe(2);
     expect(finished.homeFlag).toBe('mex.png');
-    expect(finished.stage).toBe('group');
-    expect(finished.group).toBe('A');
     expect(finished.homeScorers).toEqual([
       { playerId: '4577', name: 'H. Lozano', minute: "22'", tag: '' },
       { playerId: '4579', name: 'R. Jiménez', minute: "80'", tag: ' (p)' },
@@ -131,7 +129,6 @@ describe('soccerAdapter.transform', () => {
     const upcoming = matches[1];
     expect(upcoming.status).toBe('upcoming');
     expect(upcoming.homeScore).toBeNull();
-    expect(upcoming.stage).toBe('r16');
     expect(upcoming.homeFlag).toBe('bra.png');
 
     expect(sd.kind).toBe('soccer');

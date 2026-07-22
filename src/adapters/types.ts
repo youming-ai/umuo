@@ -6,7 +6,7 @@ import type {
   MatchOdds,
   TeamStatRow,
   TopScorer,
-  WCGroup,
+  Group,
 } from '../types';
 import type { TeamForm } from './summaryExtras';
 
@@ -24,7 +24,7 @@ export interface ConferenceTable {
 }
 
 export type StandingsData =
-  | { kind: 'soccer'; groups: WCGroup[] }
+  | { kind: 'soccer'; groups: Group[] }
   | { kind: 'basketball'; conferences: ConferenceTable[] };
 
 export interface BoxscoreTable {

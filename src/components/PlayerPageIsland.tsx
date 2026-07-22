@@ -1,4 +1,4 @@
-import type { CompMatch, TopScorer, WCGroup } from '../types';
+import type { CompMatch, TopScorer, Group } from '../types';
 import { useRouter, pathFor } from '../utils/router';
 import PlayerPage from './PlayerPage';
 import AppProviders from './AppProviders';
@@ -12,7 +12,7 @@ export default function PlayerPageIsland({
   scorers,
 }: {
   athleteId: string;
-  groups: WCGroup[];
+  groups: Group[];
   matches: CompMatch[];
   scorers: TopScorer[];
 }) {

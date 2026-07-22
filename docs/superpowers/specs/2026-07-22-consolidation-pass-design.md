@@ -1,6 +1,10 @@
 # Consolidation pass — de-dup, delete WC residue, centralize sections
 
-Date: 2026-07-22
+Date: 2026-07-22 (revised: fixed the WS1 `stage`/`MatchDetailPage` gap that
+made the original unsound; relaxed the "no behaviour change" bar to match
+reality; dropped the dead `useCompetition.scorers` output; clarified SECTIONS
+ordering + the `'home'`→`'news'` rename ripple; downgraded the WS4 shell
+extraction to optional)
 
 ## Goal
 
@@ -37,13 +41,26 @@ one-sided branches.
   drop the field's union to just `'pipeline'`). In `buildUrl`, delete the
   `if (c.dates)` and `if (c.standingsLevel)` branches.
 - `src/components/FixturesView.tsx`: remove `KNOWN_STAGES`, the `stages` memo,
-  `stage`/`setStage` state, the stage-chip render block, and the
-  `stage === 'group'`-gated standings branch. The component renders fixtures +
-  standings unconditionally.
+  `stage`/`setStage` state, the stage-chip render block, the
+  `stage === 'group'`-gated standings branch, **and the local `shape` variable
+  plus both its reads** — the `shape !== 'season'` wrapper (~line 162) and the
+  `shape === 'season'` ternary (~line 193) that gates the league standings.
+  With `shape` gone the component renders fixtures + the soccer-league
+  standings unconditionally (still guarded by `standings.kind === 'soccer'`
+  and `groups.length > 0`).
+- `src/components/MatchDetailPage.tsx`: **delete the stage/group label block in
+  the match hero** (`{match.stage && <span>{stageLabel(match.stage, match.group)}</span>}`,
+  ~line 162) and drop the now-unused `stageLabel` import. This is the consumer
+  the original draft missed. See the behaviour-change note below — for the
+  remaining season comps this label was already wrong (`stageFromSlug` falls
+  back to `'group'` for any non-tournament season slug, so every EPL match
+  currently renders a meaningless "Group" caption); removing it is the cleanup.
 - `src/utils/wc.ts`: remove `SLUG_TO_STAGE`, `STAGE_LABELS`, `stageLabel`,
-  `stageFromSlug`. Keep the pure status/score/slug helpers still in use.
-- `src/adapters/soccer.ts`: stop assigning `match.stage` (the only consumers
-  were the deleted stage filter/chips).
+  `stageFromSlug` — **only after** the two call-sites above (FixturesView chips
+  + MatchDetailPage hero block) are gone. Keep the pure status/score/slug
+  helpers still in use.
+- `src/adapters/soccer.ts`: stop assigning `match.stage` (drop the
+  `stageFromSlug` call, ~line 212). This is what stops the bogus "Group" label.
 - `src/types/index.ts`: remove the `Stage` type and the `stage?` field on
   `CompMatch` once nothing writes/reads it.
 - `src/components/PlayerPage.tsx` + `PlayerPageIsland.tsx`: rename the
@@ -51,12 +68,35 @@ one-sided branches.
 - `src/components/RightRail.tsx`: with `leadersSource` always `'pipeline'`,
   `usesPipeline` is always true — remove the dead scoreboard-scorers fallback
   branch so the rail unconditionally uses the leaders pipeline.
+- `src/hooks/useCompetition.ts`: its `scorers` return value is **dead output** —
+  neither `CompetitionIsland` nor `OddsIsland` destructures it (both take only
+  `{ matches, standings, loading, error, refetch }`). The sole real consumer of
+  `CompetitionView.scorers` is the player page (SSR, via `getCompetitionView`),
+  which doesn't go through this hook. Drop `scorers` from the hook's state and
+  return shape here. (The WS3 "preserve public return shape" carve-out does
+  **not** apply to this field — it's deleted in WS1, not preserved into WS3.)
 - **Keep** the tournament-level top-scorers block in `soccer.ts` — the player
   page still consumes `CompetitionView.scorers` for name/goals lookup. Add a
-  one-line comment naming that as its only remaining consumer.
+  one-line comment naming the player page as its only remaining consumer, and
+  note this is a **separate path** from the leaders pipeline (`useLeaders` /
+  `getLeaderboards`) so a future reader doesn't assume the two scorers feeds
+  are the same.
+
+**Behaviour-change note (WS1 only):** two user-visible deltas are intended and
+unavoidable here, both removals of WC-era residue rather than regressions:
+(a) the match-detail hero no longer shows a stage/group label, and (b) the
+FixturesView stage chips disappear. Both were no-ops or actively wrong for
+season comps. WS1 is the one workstream where "no behaviour change" does not
+hold — see the relaxed acceptance bar at the end of this doc.
+
+Tests that need their **expectations** updated (deletions, not logic changes):
+`soccer.test.ts` and `useCompetition.test.ts` both assert
+`expect(...stage).toBe('group'|'r16')` → become `toBeUndefined()`;
+`basketball.test.ts` already asserts `toBeUndefined()` and stays as-is. Add
+these to the WS1 checklist explicitly rather than treating them as surprises.
 
 Verification: `grep -rn "stage\|tournament\|standingsLevel\|WCGroup" src`
-returns only intentional matches; existing tests + typecheck green.
+returns only intentional matches; updated tests + typecheck green.
 
 ## Workstream 2: One SECTIONS table
 
@@ -78,6 +118,15 @@ capability gate) is currently duplicated across `router.ts`, `LeftNav.astro`,
   ```
   Rename the misleading `'home'` → `'news'` (it renders the per-comp news hub;
   `home` collided with the global `/`).
+- **`SECTIONS` array order must match the live nav**: News, Schedule, Teams,
+  Stats, Moves, Odds — i.e. **Teams before Stats** (see `LeftNav.astro:12-22`;
+  the union-literal order in the snippet above is not significant, the array
+  order is). The capability gate for Stats is `scorers` (not a new `stats`
+  capability) — matches both `LeftNav.astro` and `sitemap.xml.ts` today.
+- **Rename ripple (`'home'` → `'news'`)** touches `router.ts` (the `Section`
+  type + the two `parseView` fallbacks) and `router.test.tsx:7,84` (both assert
+  `section: 'home'` literally → update to `'news'`). Benign text sync, not a
+  behaviour change.
 - `src/utils/router.ts`: import `Section` + build `SECTION_SUFFIX` from
   `SECTIONS` (no second copy). `pathFor`/`parseView` unchanged in behaviour;
   root parses to `section:'news'`.
@@ -115,7 +164,10 @@ round-trips every section.
   `setInterval` + `visibilitychange` gating + cleanup (only when `intervalMs`).
 - Rewrite `useCompetition` (30s), `useNews` (120s), `useLeaders` (60s) as thin
   wrappers: build the URL, pass the parse step, pass the key. Preserve each
-  hook's current **public return shape** so islands don't change.
+  hook's current **public return shape** so islands don't change — **except
+  `useCompetition.scorers`**, which WS1 deletes as dead output (no island reads
+  it). The rewritten `useCompetition` returns
+  `{ matches, standings, loading, error, refetch }`.
 - Rewrite `useMatchDetail` over it with `intervalMs: 0` and key
   `` `${comp}:${eventId}` ``, preserving its keep-stale-on-failure return shape.
 - Leave `useTicker` as-is; add: `// ponytail: module-level shared poller, not
@@ -142,19 +194,42 @@ skip-on-null, and no-poll-when-interval-0.
   (`HomeNewsCard`) and `NewsView` (`NewsCard`) into one
   `src/components/NewsCard.tsx`; both consume it. Keep each view's own layout
   (lead card, masonry, infinite scroll) — only the card unifies.
-- **Right-rail shell**: extract the shared glass card-stack shell used by
-  `RightRail` and `NewsRightRail` into a small presentational component; the
-  two islands keep their own hooks/data (merging the islands would violate
-  rules-of-hooks since data sources differ). Only the visual shell unifies.
+- **Right-rail shell (optional / likely skip)**: `RightRail` and
+  `NewsRightRail` share only a visual motif (`<div class="flex flex-col gap-4">`
+  wrapping repeated `ds-glass p-4` cards); their content is entirely different
+  (standings+leaders vs headlines+ticker) and merging the islands would
+  violate rules-of-hooks. Extracting the shell yields a near-trivial wrapper and
+  adds an indirection layer for little readability gain — **drop this sub-item
+  unless, during implementation, the duplication turns out larger than the
+  `ds-glass` motif.** Default: leave both rails as-is.
 
-Verification: existing view/island tests pass; `HomeView`/`NewsView` render
-the shared card; snapshot or DOM assertion that both right rails use the shared
-shell.
+Verification: existing view/island tests pass; `HomeView`/`NewsView` both
+render the shared `<NewsCard>`. (The right-rail shell sub-item is optional —
+if skipped, there is nothing extra to assert here; if taken, a DOM assertion
+that both rails render through the shared shell component.)
 
 ## Sequencing & risk
 
-1 → 2 → 3 → 4. WS1 is pure deletion (do first, immediate clarity). WS2 and WS3
-are mechanical with new unit tests. WS4 is component extraction. Each ends
-green on `bun run typecheck && bunx vitest run`. No behaviour change is the
-acceptance bar throughout — if a test needs its *expectations* changed, that's
-a signal the refactor altered behaviour and must be reconsidered.
+1 → 2 → 3 → 4. WS1 is deletion (do first, immediate clarity). WS2 and WS3 are
+mechanical with new unit tests. WS4 is component extraction. Each ends green on
+`bun run typecheck && bunx vitest run`.
+
+**Acceptance bar (relaxed from the first draft):** the goal is **no
+*user-visible* behaviour change** except the two WC-residue removals explicitly
+called out in WS1 (match-detail stage label + FixturesView stage chips). That
+distinction matters because several edits are *expected* to require updating
+test **expectations** with no underlying logic change:
+
+- WS1: `soccer.test.ts` / `useCompetition.test.ts` `.stage` assertions →
+  `toBeUndefined()` (deletion); WS2: `router.test.tsx` `'home'` → `'news'`
+  (rename).
+- These are mechanical text syncs to tests that encode the old shape/name, not
+  signals of a logic regression. A genuine red flag — the kind that should stop
+  the refactor — is a test whose *arrange/act* or a non-rename *expect* needs to
+  change, or any view/island test whose rendered DOM shifts in a way not
+  described by a workstream above.
+
+**WS1 ↔ WS3 interaction:** both touch `useCompetition`. Do WS1's `scorers`
+deletion *before* WS3's rewrite so the dead field isn't carried into
+`usePolledResource` and re-removed. The 1→3 ordering already guarantees this;
+just don't re-add `scorers` to the wrapper during WS3.

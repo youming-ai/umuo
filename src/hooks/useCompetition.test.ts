@@ -136,8 +136,6 @@ describe('useCompetition', () => {
     expect(finished.status).toBe('finished');
     expect(finished.homeScore).toBe(2);
     expect(finished.homeFlag).toBe('mex.png');
-    expect(finished.stage).toBe('group');
-    expect(finished.group).toBe('A'); // resolved from standings membership
     expect(finished.homeScorers).toEqual([
       { playerId: '4577', name: 'H. Lozano', minute: "22'", tag: '' },
       { playerId: '4579', name: 'R. Jiménez', minute: "80'", tag: ' (p)' },
@@ -149,7 +147,6 @@ describe('useCompetition', () => {
     const upcoming = result.current.matches[1];
     expect(upcoming.status).toBe('upcoming');
     expect(upcoming.homeScore).toBeNull();
-    expect(upcoming.stage).toBe('r16');
     expect(upcoming.homeFlag).toBe('bra.png'); // logos[].href fallback
 
     const sd = result.current.standings;
@@ -278,7 +275,6 @@ describe('useCompetition', () => {
 
     await waitFor(() => expect(result.current.error).toBeTruthy());
     expect(result.current.matches).toEqual([]);
-    expect(result.current.scorers).toEqual([]);
     expect(result.current.standings).toEqual({ kind: 'soccer', groups: [] });
   });
 
@@ -375,7 +371,6 @@ describe('useCompetition', () => {
     expect(result.current.loading).toBe(false);
     expect(result.current.matches).toEqual(seed.matches);
     expect(result.current.standings).toEqual(seed.standings);
-    expect(result.current.scorers).toEqual(seed.scorers);
     expect(result.current.error).toBeNull();
     // wait one tick for any effect to settle; the fetch must NOT have happened
     await new Promise((r) => setTimeout(r, 10));

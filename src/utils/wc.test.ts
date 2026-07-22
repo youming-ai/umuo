@@ -5,7 +5,6 @@ import {
   parseScore,
   progressFromStatus,
   sortStandings,
-  stageFromSlug,
   statusFromState,
 } from './wc';
 
@@ -147,19 +146,6 @@ describe('matchSlug', () => {
 
   it('omits the trailing dash when the event id is missing', () => {
     expect(matchSlug('Mexico', 'Canada', '')).toBe('mexico-vs-canada');
-  });
-});
-
-describe('stageFromSlug', () => {
-  it('maps known season slugs, defaults to group', () => {
-    expect(stageFromSlug('group-stage')).toBe('group');
-    expect(stageFromSlug('round-of-32')).toBe('r32');
-    expect(stageFromSlug('round-of-16')).toBe('r16');
-    expect(stageFromSlug('quarterfinals')).toBe('qf');
-    expect(stageFromSlug('semifinals')).toBe('sf');
-    expect(stageFromSlug('final')).toBe('final');
-    expect(stageFromSlug('mystery')).toBe('group');
-    expect(stageFromSlug(undefined)).toBe('group');
   });
 });
 

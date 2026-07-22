@@ -3,13 +3,11 @@ import { useMemo, useState } from 'react';
 import { Award, ListOrdered } from 'lucide-react';
 import { COMPETITIONS } from '../competitions';
 import { useLeaders } from '../hooks/useLeaders';
-import type { TopScorer } from '../types';
 
 interface RightRailProps {
   /** Authoritative competition for this rail (island prop, not router parse). */
   comp: string;
   standings: StandingsData;
-  scorers: TopScorer[];
   standingsLoading?: boolean;
   standingsError?: string | null;
   onStandingsRetry?: () => void;
@@ -18,7 +16,6 @@ interface RightRailProps {
 export default function RightRail({
   comp: activeComp,
   standings,
-  scorers,
   standingsLoading = false,
   standingsError = null,
   onStandingsRetry,
@@ -32,22 +29,7 @@ export default function RightRail({
     refetch,
   } = useLeaders(usesPipeline ? activeComp : null);
 
-  const topLeaders = useMemo(() => {
-    if (usesPipeline) {
-      return leaders.slice(0, 3);
-    }
-    if (scorers && scorers.length > 0) {
-      return scorers.slice(0, 3).map((s, i) => ({
-        rank: i + 1,
-        name: s.name,
-        teamName: s.teamName,
-        teamLogo: s.teamFlag,
-        displayValue: String(s.goals),
-        value: s.goals,
-      }));
-    }
-    return [];
-  }, [scorers, leaders, usesPipeline]);
+  const topLeaders = useMemo(() => leaders.slice(0, 3), [leaders]);
 
   const hasStandings =
     (standings.kind === 'soccer' && standings.groups.length > 0) ||

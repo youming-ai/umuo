@@ -2,16 +2,6 @@ import { describe, expect, it } from 'vitest';
 import { buildUrl, COMPETITIONS, DEFAULT_COMPETITION, seasonForDate } from './competitions';
 
 describe('buildUrl', () => {
-  it('includes the date window when a competition sets dates', () => {
-    const c = { ...COMPETITIONS['eng.1'], dates: '20260611-20260719' };
-    expect(buildUrl(c, 'scoreboard')).toContain('dates=20260611-20260719');
-  });
-
-  it('includes the standings level when a competition sets one', () => {
-    const c = { ...COMPETITIONS['eng.1'], standingsLevel: 3 };
-    expect(buildUrl(c, 'standings')).toContain('level=3');
-  });
-
   it('builds the standings URL WITHOUT the site/ path segment', () => {
     expect(buildUrl(COMPETITIONS['eng.1'], 'standings')).toBe(
       `https://site.api.espn.com/apis/v2/sports/soccer/eng.1/standings?season=${seasonForDate('soccer', new Date())}`,
@@ -35,10 +25,9 @@ describe('registry', () => {
 describe('eng.1 (season-shape league)', () => {
   const pl = COMPETITIONS['eng.1'];
 
-  it('is registered as a season-shape soccer league', () => {
+  it('is registered as a soccer league', () => {
     expect(pl).toBeDefined();
     expect(pl.sport).toBe('soccer');
-    expect(pl.shape).toBe('season');
   });
 
   it('exposes scorers (leaders pipeline)', () => {
@@ -75,10 +64,9 @@ describe('seasonForDate', () => {
 describe('nba (season-shape basketball)', () => {
   const nba = COMPETITIONS.nba;
 
-  it('is registered as a season-shape basketball league', () => {
+  it('is registered as a basketball league', () => {
     expect(nba).toBeDefined();
     expect(nba.sport).toBe('basketball');
-    expect(nba.shape).toBe('season');
     expect(nba.league).toBe('nba');
     expect(nba.label).toBe('NBA');
   });

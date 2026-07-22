@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import type { CompMatch, ScorerEntry, WCGroup } from '../types';
+import type { CompMatch, ScorerEntry, Group } from '../types';
 import PlayerPage from './PlayerPage';
 
 function scorer(
@@ -24,8 +24,6 @@ function match(overrides: Partial<CompMatch> & { id: string }): CompMatch {
     awayScore: 0,
     status: 'finished',
     kickoff: new Date('2026-06-15T20:00:00Z'),
-    stage: 'group',
-    group: 'A',
     homeScorers: [],
     awayScorers: [],
     venue: '',
@@ -34,7 +32,7 @@ function match(overrides: Partial<CompMatch> & { id: string }): CompMatch {
   };
 }
 
-function group(standings: Array<{ teamId: string; name: string }>): WCGroup {
+function group(standings: Array<{ teamId: string; name: string }>): Group {
   return {
     name: 'A',
     standings: standings.map((s) => ({

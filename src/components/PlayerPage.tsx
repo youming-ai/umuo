@@ -1,9 +1,9 @@
-import type { CompMatch, ScorerEntry, TopScorer, WCGroup } from '../types';
+import type { CompMatch, ScorerEntry, TopScorer, Group } from '../types';
 import { pathFor, useRouter } from '../utils/router';
 
 interface PlayerPageProps {
   athleteId: string;
-  groups: WCGroup[];
+  groups: Group[];
   matches: CompMatch[];
   scorers: TopScorer[];
   /** Schedule URL for the up-navigation control (real `<a href>`). */
@@ -41,7 +41,7 @@ function playerGoals(matches: CompMatch[], athleteId: string): PlayerGoal[] {
 }
 
 // Team display name (resolved from the standings feed's group entries).
-function teamNameFor(groups: WCGroup[], teamId: string | undefined): string {
+function teamNameFor(groups: Group[], teamId: string | undefined): string {
   if (!teamId) return '';
   for (const g of groups) {
     for (const s of g.standings) {

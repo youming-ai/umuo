@@ -14,8 +14,6 @@ export interface MatchProgress {
   period: number;
 }
 
-export type Stage = 'group' | 'r32' | 'r16' | 'qf' | 'sf' | 'third' | 'final';
-
 // One scoring play: a player scoring in a specific match minute. Carries
 // the ESPN athlete id so the /player/[id] page can find goals without
 // name-matching. `tag` is a display-only suffix (e.g. " (p)" for
@@ -53,10 +51,8 @@ export interface CompMatch {
   awayId: string; // ESPN team id for the away side
   homeScore: number | null;
   awayScore: number | null;
-  group?: string; // was required; NBA doesn't provide a group
   kickoff: Date | null;
   status: MatchStatus;
-  stage?: Stage; // was required; NBA doesn't provide a stage
   homeScorers: ScorerEntry[];
   awayScorers: ScorerEntry[];
   venue: string; // "Estadio Azteca · Mexico City" or '' when unknown
@@ -111,7 +107,7 @@ export interface WCStanding {
   form?: string;
 }
 
-export interface WCGroup {
+export interface Group {
   name: string;
   standings: WCStanding[];
 }
