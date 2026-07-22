@@ -1,7 +1,7 @@
 # Repository Guidelines
 
 ## Project Overview
-**umuo** (package `streamcup-web`, older docs say StreamCup) is a lightweight, high-performance sports web app for the English Premier League and NBA — per-competition news hubs, schedule, standings, scorers, and match detail, plus a global aggregated-news home. It is an **Astro 7 server-rendered (SSR) app with React islands**, deployed as a **single Cloudflare Worker** that both renders pages and edge-caches the upstream ESPN APIs in KV. All data comes from ESPN's unofficial public APIs.
+**umuo** (package `streamcup-web`, legacy docs reference StreamCup) is a lightweight, high-performance sports web application for the English Premier League, NBA, LaLiga, Bundesliga, Serie A, Ligue 1, and UEFA Champions League — providing news hubs, match schedules, standings, leaders, transactions, odds, and match detail views, plus a global aggregated news home. It is an **Astro 7 server-rendered (SSR) app with React islands**, deployed as a **single Cloudflare Worker** (`workerd` runtime) that renders pages and edge-caches upstream ESPN APIs in Cloudflare KV. All data is fetched from ESPN's public APIs.
 
 ## Architecture & Data Flow
 ```mermaid
@@ -16,76 +16,79 @@ graph TD
   Page -->|client:only=react + initialData| Island[React island]
   Island -->|AbortController + visibility-gated SWR poll| Bridge
 ```
-- **SSR pages** (`src/pages/**.astro`): `output: 'server'` on `@astrojs/cloudflare`. Each page validates params against `COMPETITIONS`, pulls `env` from `cloudflare:workers` and `ctx` from `Astro.locals.cfContext`, calls a `src/data/api.ts` composer (`getCompetitionView`, `getCompNews`, `getMatchSummary`, `getLeaderboards`, `getCompMatchBySlug`, `getTeams`, `getTeamDetail`, `getTransactions`, `getLeagueInjuries`) to compute `initialData` server-side, then renders a React island `client:only="react"` seeded with that data.
-- **Shared data layer** (`src/data/api.ts`): ONE cache core (`runCached`) shared by SSR composers AND `/api/*`. Implements KV **stale-while-revalidate** (`Entry {body, at}`; fresh window → HIT), module-level **request coalescing** (`inflight` Map collapses concurrent identical fetches; each caller builds its own `Response` via `json()` since a body is one-shot), and **serve-stale-on-outage** (produce failure → stored stale body as `STALE`, else 502). `cached()` caches a URL fetch; `cachedProducer()` caches an arbitrary producer's JSON (e.g. leaders). `x-cache` header: `HIT|MISS|REVALIDATED|STALE`. Per-resource TTLs: scoreboard `{fresh:60, keep:86400}`, standings `{fresh:300}`, summary `{fresh:30}`.
-- **Worker bridge** (`src/pages/api/[...route].ts`): Astro catch-all (`prerender=false`) that delegates to `worker.fetch(request, env, ctx)` from `worker/index.ts` — the SAME Worker code serving `/api/*` in prod runs in-process during SSR. No separate dev proxy.
-- **SportAdapter system** (`src/adapters/`): `SportAdapter` interface (`transform`, `transformSummary`) implemented by `soccer.ts` / `basketball.ts`, registered per `Sport` in `index.ts`, resolved by `getAdapter(compKey)`. Normalizes untyped ESPN JSON into `CompMatch[]`, `StandingsData`, `MatchDetail` (discriminated unions on `kind: 'soccer' | 'basketball'`).
-- **Client hooks** (`src/hooks/`): one per view, all sharing the idiom — seed from `initialData` (skip first fetch when seeded), `cacheRef` SWR, `abortRef` AbortController, visibility-gated `setInterval` polling. `useTicker` is a module-level ref-counted shared poller so multiple islands share one cross-competition scoreboard loop.
-- **Not a SPA**: the client router was removed. `src/utils/router.ts` only builds/reads URLs (`parseRoute`/`pathFor`); `navigate()` does a real `window.location` navigation — every view is its own SSR document.
+- **SSR Pages** (`src/pages/**.astro`): Configured with `output: 'server'` via `@astrojs/cloudflare`. Pages validate path parameters against `COMPETITIONS`, extract Worker bindings (`env` from `cloudflare:workers`, `ctx` from `Astro.locals.cfContext`), invoke `src/data/api.ts` composers (`getCompetitionView`, `getCompNews`, `getMatchSummary`, `getLeaderboards`, `getCompMatchBySlug`, `getTeams`, `getTeamDetail`, `getTransactions`, `getLeagueInjuries`), and hydrate React islands (`client:only="react"`) with server-computed `initialData`.
+- **Shared Data Layer** (`src/data/api.ts`): Unified data core (`runCached`) shared across SSR composers and `/api/*` endpoints. Implements KV **Stale-While-Revalidate** (`Entry {body, at}`; fresh window → HIT), module-level **in-flight request coalescing** (`inflight = new Map<string, Promise<CachedResult>>()` collapses duplicate concurrent requests), and **serve-stale-on-outage** (upstream failures serve stored KV stale data as `STALE`, or return 502). Emits `x-cache` response header (`HIT|MISS|REVALIDATED|STALE`). Resource TTLs: scoreboard `{fresh:60, keep:86400}`, standings `{fresh:300}`, summary `{fresh:30}`.
+- **Worker Bridge** (`src/pages/api/[...route].ts`): Catch-all Astro API route (`prerender=false`) delegating requests to `worker.fetch(request, env, ctx)` in `worker/index.ts`. Allows Astro SSR and edge API endpoints to execute identical Worker code in dev and prod.
+- **SportAdapter System** (`src/adapters/`): `SportAdapter` interface (`transform`, `transformSummary`) implemented by `soccer.ts` and `basketball.ts`, registered per `Sport` in `index.ts`, resolved via `getAdapter(compKey)`. Normalizes raw ESPN JSON into discriminated union domain types (`kind: 'soccer' | 'basketball'`).
+- **Client Hooks** (`src/hooks/`): `useCompetition`, `useNews`, and `useLeaders` are thin wrappers over **`usePolledResource`** — the one shared SWR engine (seed from `initialData`, `cacheRef` stale-while-revalidate, key-change reset, `AbortController`, visibility-gated poll). Fix polling/caching behaviour there, not in the wrappers. `useMatchDetail` (no interval, reload shows loading) and `useTicker` (module-level ref-counted poller fanning out over every competition's scoreboard) are intentionally NOT built on it — different lifecycles.
+- **SSR Navigation (No Client SPA Router)**: `src/utils/router.ts` builds and parses routes (`parseRoute`/`pathFor`); `navigate()` triggers native document reloads (`window.location.assign/replace`) — every view is an independent SSR document.
+- **Layout shell & nav hierarchy**: `src/layouts/Layout.astro` is the one 3-col shell (opt-in `left`/`right` named slots; capped `max-w-6xl`, centered; sticky Ticker + Header aligned to the same column). Two nav levels: the **Header** (`Header.astro`) is the primary league switcher (ESPN-style top bar; leagues past the 6th collapse into a native `<details>` "More" dropdown), and the **left rail** (`LeftNav.astro`) is the per-competition section nav. Both — plus `sitemap.xml.ts` and `router.ts` — derive from **`src/sections.ts`** (`SECTIONS`: the single source for which sections exist, their path suffix, label, and capability gate).
 
 ## Key Directories
-- `src/pages/` — file-based SSR routes: a top-level `index` (global home), `[comp]/` (`index` = news hub, `schedule`, `stats`, `transactions`, `odds`, `match/[slug]`, `team/[id]`, `player/[id]`, `teams`), `api/[...route].ts`, `sitemap.xml.ts`. `/<comp>/news` 307-redirects to the hub. `transactions` is capability-gated (NBA only; soccer 307-redirects); `odds` is capability-gated (all current comps carry scoreboard betting lines); `/scorers` is a legacy slug that 307-redirects to `/stats`.
-- `src/data/api.ts` — KV cache core + SSR composition helpers.
-- `src/adapters/` — `types.ts`, `soccer.ts`, `basketball.ts`, `index.ts` (per-sport ESPN normalization).
-- `src/hooks/` — `useCompetition`, `useMatchDetail`, `useNews`, `useLeaders`, `useTicker`.
-- `src/components/` — `*Island.tsx` hydration wrappers (wrap `AppProviders`), presentational views (`HomeView`, `FixturesView`, `StandingsView`, `LeadersView`, `StatsView`, `NewsView`, `TeamsView`, `TeamPage`, `MovesView`, `MatchCard`, `Ticker`, `Player`), `.astro` shells (`Header`, `Footer`, `LeftNav`); `matchdetail/` holds tab panes.
-- `src/utils/` — pure helpers: `router.ts`, `wc.ts` (score/slug/status/stage primitives), `marquee.ts`, `calendar.ts`, `helpers.ts` (`slugify`), `coerce.ts` (defensive ESPN coercion).
-- `src/competitions.ts`, `src/leaders.ts`, `src/teams.ts`, `src/teamDetail.ts`, `src/transactions.ts`, `src/newsFeed.ts`, `src/types/index.ts` — registry, leaders pipeline, team parsers, transactions/injuries parsers, news parser, central domain types.
-- `worker/` — `index.ts` HTTP wrapper + `index.test.ts`.
-- `docs/` — `espn-api.md` (upstream endpoints + quirks; read before touching URL building/parsing), `news-classification-spec.md`, `superpowers/` (historical specs + plans).
+- `src/pages/` — File-based SSR routes: root index (`/`), `[comp]/` (`index` = news hub, `schedule`, `stats`, `transactions`, `odds`, `match/[slug]`, `team/[id]`, `player/[id]`, `teams`), `api/[...route].ts`, `sitemap.xml.ts`.
+- `src/data/api.ts` — KV cache core, ESPN upstream pipelines (`assembleLeaders`), and SSR composition methods.
+- `src/adapters/` — ESPN payload normalization (`types.ts`, `soccer.ts`, `basketball.ts`, `index.ts`).
+- `src/hooks/` — `usePolledResource` (shared SWR engine) + its wrappers (`useCompetition`, `useNews`, `useLeaders`) and the standalone `useMatchDetail`, `useTicker`.
+- `src/components/` — Hydration wrappers (`*Island.tsx` wrapping `AppProviders`; `CompetitionDataIsland` is the shared render-prop island behind `CompetitionIsland`/`OddsIsland`), presentational views (`HomeView`, `FixturesView`, `StandingsView`, `LeadersView`, `StatsView`, `NewsView`, shared `NewsCard`, `TeamsView`, `TeamPage`, `MovesView`, `MatchCard`, `Ticker`), `.astro` shells (`Header`, `Footer`, `LeftNav`), and `matchdetail/` tabs.
+- `src/utils/` — Pure helpers: `router.ts`, `wc.ts` (match status/scores/slug), `marquee.ts`, `calendar.ts`, `helpers.ts` (`slugify`), `coerce.ts` (defensive type coercion).
+- `src/competitions.ts`, `src/sections.ts`, `src/leaders.ts`, `src/teams.ts`, `src/teamDetail.ts`, `src/transactions.ts`, `src/newsFeed.ts`, `src/types/index.ts` — Domain registries (competitions + sections), leader aggregators, parsers, and type definitions.
+- `worker/` — Cloudflare Worker entry point (`index.ts`) and worker unit tests (`index.test.ts`).
+- `docs/` — Developer documentation: `espn-api.md` (upstream catalog & quirks), `news-classification-spec.md`.
 
 ## Development Commands
-Local toolchain is **Bun** (lockfile `bun.lock`); prod runs on Cloudflare `workerd`.
-- `bun run dev` — `astro dev`. The `@astrojs/cloudflare` v14 adapter provisions a real local KV (via wrangler/miniflare) so `/api/*` and SSR exercise the true cache path.
-- `bun run build` — `astro check && tsc -p tsconfig.worker.json && astro build` → `dist/` assets + `dist/_worker.js/` SSR worker.
-- `bun run typecheck` — `astro check` (app, DOM-aware) then `tsc -p tsconfig.worker.json` (worker, no-DOM).
-- `bun run test` — `vitest` (watch). CI single pass: `bunx vitest run`.
-- `bun run lint` / `lint:fix` — `biome lint .` / `--write`.
-- `bun run format` / `format:check` — `biome format --write .` / check-only.
+Local toolchain requires **Bun** (`bun.lock`); production executes on Cloudflare **workerd**.
+- `bun run dev` — Run Astro dev server (`astro dev`) with local Miniflare KV bindings.
+- `bun run build` — Full production build: `astro check && tsc -p tsconfig.worker.json && astro build`.
+- `bun run typecheck` — Typecheck app (`astro check`) and edge worker (`tsc -p tsconfig.worker.json`).
+- `bun run test` — Run unit tests in watch mode (`vitest`). Single pass for CI: `bunx vitest run`.
+- `bun run lint` / `lint:fix` — Lint codebase using Biome (`biome lint .` / `--write`).
+- `bun run format` / `format:check` — Format files using Biome (`biome format --write .` / check-only).
 
-There is **no `deploy` script** and **`wrangler` is not a dependency** — deployment (and `wrangler types` regen of `worker-configuration.d.ts`) happens out-of-band via CI / Cloudflare Git integration against `wrangler.jsonc`.
+Deployment occurs out-of-band via Cloudflare Git integration against `wrangler.jsonc`. `wrangler` is not a direct dependency.
 
 ## Code Conventions & Common Patterns
-- **Formatting**: Biome 2.5.1 only (no ESLint/Prettier) — 2-space indent, single quotes, semicolons, trailing commas (all), width 100, arrow parens always. `recommended` rules minus the `style` group. All `*.css` and `worker-configuration.d.ts` are excluded; Tailwind classes are Biome-sorted.
-- **Naming**: PascalCase React components & `.astro` files (`MatchCard.tsx`); island wrappers suffixed `Island` (`CompetitionIsland.tsx`) and wrap `AppProviders`→`ThemeProvider`; `useXxx.ts` hooks; lowerCamelCase pure utils. Tests colocated as `<name>.test.ts(x)`. Slugify via `src/utils/helpers.ts`.
-- **Single source of truth**: `src/competitions.ts` (registry + `buildUrl()` + `seasonForDate()`) and `src/leaders.ts` are pure (no DOM/React) so they compile under BOTH tsconfigs and never drift between worker and app. Add a competition here; pages, worker routes, and the switcher read from it. Domain types live centralized in `src/types/index.ts`.
-- **Defensive ESPN coercion**: ESPN JSON is untyped/unstable. Every adapter plus `newsFeed.ts`/`leaders.ts` guards field access with the shared helpers in `src/utils/coerce.ts` (`obj(v)`, `arr(v)`, `str(v)` — string OR finite-number → string) plus `score(v)`, so a shape change degrades gracefully instead of throwing.
-- **Async**: every fetching effect registers an `AbortController`; hooks poll on a visibility-gated `setInterval` (30s scores/competition, 60s leaders, 120s news) and only fetch when `document.visibilityState === 'visible'`; reset cache + state when the `comp`/`eventId`/query key changes. Wrap decoded path params in `safeDecode`.
-- **Error handling**: SSR composers swallow failures into empty shapes / `null` (the page never crashes); hooks ignore `AbortError`, keep stale data on failure, and surface an error only when no cached data exists.
-- **Colors only through tokens**: CSS variables in `src/index.css` `:root`/`[data-theme]` (`--c-*` as `"R G B"` channels), mapped in `tailwind.config.js` via `rgb(var(--c-x) / <alpha-value>)` (enables `bg-panel/85`). Never hardcode hex/`rgba()` or Tailwind's named palette for semantic colors. Reusable `.ds-*` component classes live in `src/index.css`.
-- **Copy / theme**: UI strings are English-hardcoded; theme is dark/light via `data-theme` (`src/theme/`, anti-FOUC inline script in `Layout.astro`). Some inline comments are Chinese (season/date logic, leaders pipeline, ESPN quirks) — preserve them when editing nearby code.
+- **Formatting (Biome v2.5.1)**: 2-space indentation, single quotes (`'`), explicit semicolons, trailing commas (`all`), 100 column line width, arrow parens (`always`). Excludes `*.css`, `dist`, `.astro`, and `worker-configuration.d.ts`.
+- **Naming Conventions**: PascalCase for React components and `.astro` layouts (`MatchCard.tsx`); island wrappers end in `Island` (`CompetitionIsland.tsx`); camelCase for hooks (`useCompetition.ts`) and pure utility modules (`coerce.ts`). Tests are colocated as `<name>.test.ts(x)`.
+- **Single Source of Truth**: Domain registries (`src/competitions.ts`, `src/leaders.ts`) are pure TypeScript modules without DOM or React dependencies. They compile under both app and worker tsconfigs. Centralized domain interfaces reside in `src/types/index.ts`.
+- **Defensive ESPN Coercion**: Untyped ESPN JSON payloads must be safely unpacked using `src/utils/coerce.ts` primitives (`obj(v)`, `arr(v)`, `str(v)`, `score(v)`). Prevents runtime `TypeError` crashes on missing or null fields.
+- **Async & Cancellation**: Network calls bind an `AbortController`. `fetchWithRetry` applies `AbortSignal.timeout(10_000)` per attempt. Custom hooks abort pending fetches on unmount or key change, and restrict polling to active browser tabs (`document.visibilityState === 'visible'`).
+- **Error Handling**: SSR composers degrade gracefully by returning empty arrays or fallback values on failure (preventing SSR page crashes). Hooks suppress `AbortError` and retain cached SWR state during upstream outages.
+- **Design Tokens & Dark Mode**: Semantic color tokens are defined as RGB channels (`--c-*`) in `src/index.css` (`:root` / `[data-theme]`) and mapped in `tailwind.config.js` via `rgb(var(--c-*) / <alpha-value>)` (e.g. `bg-panel/85`). Component design system styles use `.ds-*` classes in `src/index.css`.
+- **Language & Comments**: Hardcoded UI copy is in English. Multi-lingual or Chinese comments in code explaining complex logic (season rollovers, leader pipelines, ESPN API quirks) should be retained when editing surrounding code.
 
 ## Important Files
-- `astro.config.mjs` — `output: 'server'`, `@astrojs/cloudflare` v14 adapter (bindings via wrangler/miniflare; no `platformProxy` field), React integration.
-- `wrangler.jsonc` — Worker `main` (`@astrojs/cloudflare/entrypoints/server`), `ASSETS` (`dist/`), `CACHE` KV binding, `nodejs_compat`.
-- `src/middleware.ts` — passes `/` (global home), comp-prefixed routes, `/api`, and assets through; 307-redirects `/fifa.world/**` → `/`, `/<comp>/news|bracket` → `/<comp>`, legacy `/news*` → the default-comp hub (query preserved).
-- `src/data/api.ts` — shared cache + SSR composition helpers (`getCompetitionView`, `getTeams`, `getTeamDetail`, `getTransactions`, `getLeagueInjuries`, `getLeaderboards`, `getCompNews`, `getAggregatedNews`, `getMatchSummary`).
-- `src/competitions.ts` — competition registry, `buildUrl()`, `seasonForDate()`, `DEFAULT_COMPETITION='eng.1'`. Capabilities (`scorers`, `lineups`, `boxscore`, `transactions?`, `odds?`) gate nav items and routes.
-- `src/teams.ts` / `src/teamDetail.ts` / `src/transactions.ts` — pure parsers for team directory, team detail (roster/schedule/injuries), and league transactions/injuries feeds.
-- `worker/index.ts` — `/api/*` HTTP wrapper.
-- `src/pages/api/[...route].ts` — Astro↔Worker bridge.
-- `public/` — PWA manifest, icons, `og.jpg`, and `sw.js` (registered in **production only** via `Layout.astro`; precaches `/<default comp>/news`, HTML network-first, never caches `/api/*`).
-- `docs/espn-api.md` — ESPN endpoint catalog + quirks (e.g. standings uses `/apis/v2/` WITHOUT the `site/` segment; soccer needs explicit `limit=300`; parse defensively).
+- `astro.config.mjs` — Astro SSR configuration, Cloudflare adapter (v14), React integration, and unstorage null driver.
+- `wrangler.jsonc` — Worker configuration: entrypoint `@astrojs/cloudflare/entrypoints/server`, static assets directory `./dist`, KV cache binding `CACHE`, and `nodejs_compat` flag.
+- `src/middleware.ts` — Middleware handling path normalizations, asset passthrough, and 307 redirects (`/fifa.world/**`, legacy `/scorers`, `/<comp>/news`, `/<comp>/bracket`).
+- `src/data/api.ts` — Core data layer: SWR cache (`runCached`), in-flight deduplication, ESPN pipeline aggregators, and SSR composers.
+- `src/competitions.ts` — Master registry (`COMPETITIONS`), URL builder (`buildUrl`), capability flags (`scorers`, `lineups`, `boxscore`, `transactions`, `odds`), and season math. Adding a **soccer/basketball** league is registry-only (soccer uses the `soccerLeague(slug, label)` helper; both reuse the existing adapter). A **new sport** (NFL/MLB/NHL/F1) also needs a new `SportAdapter` in `src/adapters/`. Registry order is the Header nav order.
+- `src/teams.ts` / `src/teamDetail.ts` / `src/transactions.ts` — Pure parsers for team directories, team rosters/schedules/injuries, and league transactions.
+- `worker/index.ts` — Production Worker HTTP dispatcher serving `/api/*` and binding static assets.
+- `src/pages/api/[...route].ts` — Astro↔Worker in-process dev & SSR bridge.
+- `public/sw.js` — Service worker (`umuo-v5`) providing Network-first HTML navigations and Cache-first static asset handling (bypasses `/api/*`).
 
 ## Runtime / Tooling Preferences
-- **Runtime**: Bun locally; Cloudflare `workerd` (V8 isolate) in prod — no Node/Bun APIs at runtime, no persistent shared memory (so the coalescing `Map` only spans one isolate), CPU/subrequest limits apply.
-- **Package manager**: Bun (`bun.lock`, declared via `packageManager` in `package.json`). Non-Bun lockfiles are gitignored; no npm/pnpm/yarn lock is committed.
-- **TypeScript targets**: `tsconfig.json` extends `astro/tsconfigs/strict`, includes `src` + `worker` (DOM-aware, JSX) — checked by `astro check`. `tsconfig.worker.json` is `target` ES2023 / `lib` ES2024 (**no DOM**), `worker/**` only — the workerd-context check that catches DOM leakage. Both must pass in `build`/`typecheck`.
-- **Styling**: Tailwind 3.4 via PostCSS + autoprefixer; the design system is entirely CSS-variable-driven (see color-token rule above).
-- **Commit attribution**: AI commits MUST include the trailer `Co-Authored-By: Claude <noreply@anthropic.com>`.
+- **Runtime**: Bun (`bun.lock`) locally; Cloudflare Workers (`workerd` V8 isolates) in production. Code must not rely on Node/Bun native APIs at runtime or assume shared persistent in-memory state across isolates.
+- **Package Manager**: Bun (`packageManager: "bun@1.3.14"`). Lockfile is `bun.lock`. Do not generate or commit `package-lock.json`, `yarn.lock`, or `pnpm-lock.yaml`.
+- **TypeScript Configurations**: Dual config strategy.
+  - `tsconfig.json`: DOM-aware, extends `astro/tsconfigs/strict`, covers `src/` and `worker/`. Checked via `astro check`.
+  - `tsconfig.worker.json`: Pure Worker environment (`target: ES2023`, `lib: ES2024`, **no DOM lib**). Enforces zero DOM API leakage in `worker/`. Checked via `tsc -p tsconfig.worker.json`.
+- **Styling**: Tailwind CSS 3.4 + PostCSS + Autoprefixer using CSS variable color channels.
+- **Commit Attribution**: AI commits MUST include the trailer:
+```
+Co-Authored-By: Claude <noreply@anthropic.com>
+```
 
 ## Testing & QA
-- **Framework**: Vitest 4.1.10, config `vitest.config.ts` — `jsdom` environment, `globals: true`, `fileParallelism: false` (**tests run serially** because they mutate `globalThis.fetch` / `window.location`), setup `src/test-setup.ts` (`@testing-library/jest-dom` + a global `afterEach(() => vi.restoreAllMocks())`). No coverage config.
-- **Layout**: tests colocated as `<name>.test.ts(x)`. The ONLY per-file env override is `worker/index.test.ts`, which starts with `// @vitest-environment node` (Worker has no DOM).
-- **Commands**:
-  - All (CI): `bunx vitest run`
-  - Single file: `bunx vitest run worker/index.test.ts`
-  - By name: `bunx vitest run -t "returns HIT when stored body is fresh"`
-  - Watch one file: `bunx vitest worker/index.test.ts`
-- **Patterns** (deliberately lightweight — no `vi.mock()` hoisting, no fake timers):
-  - Pure components: `@testing-library/react` `render`/`screen` + jest-dom matchers (props-in / DOM-out).
-  - Hooks: `renderHook`/`waitFor`/`act` with fetch mocked via `globalThis.fetch = vi.fn()` (or `vi.stubGlobal('fetch', …)` + `vi.unstubAllGlobals()`); reset per file with `mockReset()`/`clearAllMocks()`.
-  - Astro SSR handlers/middleware: import the exported `GET`/`onRequest` and call it directly with a hand-built context — no server needed.
-  - Worker: hand-rolled Map-backed KV (`mockEnv`), fake `ExecutionContext` (`mockCtx`), `fetchMock`; assert edge-cache semantics via the `x-cache` header and prototype-pollution-safe routing.
-  - Router/navigation: stub `window.location` via `Object.defineProperty(window, 'location', { value: {…}, writable: true, configurable: true })`; spy `navigate` via module-namespace `vi.spyOn(router, 'navigate')`.
-- Every change SHOULD ship a focused behavioral test; run the touched file(s), not just the full suite, while iterating.
+- **Framework**: Vitest 4.1.10 configured in `vitest.config.ts` (`environment: 'jsdom'`, `globals: true`, `fileParallelism: false`). Serial test execution is enforced because tests mutate global fetch and window location. Global teardown in `src/test-setup.ts` resets mocks after each test (`afterEach(() => vi.restoreAllMocks())`).
+- **Test Colocation & Environments**: Tests are colocated as `<name>.test.ts(x)`. `worker/index.test.ts` explicitly overrides environment with `// @vitest-environment node` (since workers lack DOM bindings).
+- **Execution Commands**:
+  - Run full suite: `bunx vitest run`
+  - Run specific test file: `bunx vitest run worker/index.test.ts`
+  - Run specific test by name: `bunx vitest run -t "returns HIT when stored body is fresh"`
+- **Testing Patterns**:
+  - React Components: `@testing-library/react` (`render`, `screen`) with `@testing-library/jest-dom` matchers.
+  - React Hooks: `renderHook` with mocked `globalThis.fetch = vi.fn()`.
+  - Astro SSR & Middleware: Import exported `GET` / `onRequest` handlers directly and invoke with mock context.
+  - Edge Worker & KV: Use in-memory Map-backed KV (`mockEnv`), `mockCtx`, and `fetchMock` to test `x-cache` edge semantics.
+  - Client Navigation: Stub `window.location` via `Object.defineProperty` and spy on `router.navigate`.
