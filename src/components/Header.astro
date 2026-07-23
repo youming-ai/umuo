@@ -29,7 +29,7 @@ const off = 'text-chalkdim hover:text-chalk';
 
     <nav
       aria-label="Primary"
-      class="flex h-full min-w-0 flex-1 items-stretch gap-1 overflow-x-auto no-scrollbar"
+      class="flex h-full min-w-0 flex-1 items-stretch gap-1 overflow-visible"
     >
       <a href="/" aria-current={isHome ? 'page' : undefined} class={`${tab} ${isHome ? on : off}`}>
         Home
@@ -39,15 +39,15 @@ const off = 'text-chalkdim hover:text-chalk';
       </a>
 
       <!-- Football (Soccer) Hierarchical Dropdown -->
-      <details class="relative flex shrink-0 items-stretch">
-        <summary class={`${tab} cursor-pointer list-none ${isSoccerActive ? on : off}`}>
+      <details class="group relative flex shrink-0 items-stretch">
+        <summary class={`${tab} cursor-pointer list-none [&::-webkit-details-marker]:hidden ${isSoccerActive ? on : off}`}>
           <span>{isSoccerActive ? activeSoccerLabel : 'Football'}</span>
-          <span class="ml-1 text-[0.6rem]" aria-hidden="true">▾</span>
+          <span class="ml-1 text-[0.6rem] transition-transform group-open:rotate-180 group-hover:rotate-180" aria-hidden="true">▾</span>
           {isSoccerActive && (
             <span class="absolute inset-x-2 -bottom-px h-0.5 rounded-full bg-pitch" aria-hidden="true"></span>
           )}
         </summary>
-        <div class="absolute left-0 top-full z-50 mt-1 flex min-w-48 flex-col gap-1 rounded-card border border-line bg-panel p-1.5 shadow-panel">
+        <div class="absolute left-0 top-full z-50 mt-1 hidden group-open:flex group-hover:flex min-w-48 flex-col gap-1 rounded-card border border-line bg-panel p-1.5 shadow-panel">
           <div class="px-3 py-1 text-micro font-mono uppercase tracking-widest text-chalkdim border-b border-line/30 mb-1">
             Soccer Leagues
           </div>
