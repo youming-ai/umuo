@@ -32,11 +32,11 @@ export default function NewsCard({
         />
       )}
       <div className="flex min-w-0 flex-1 flex-col justify-center py-2.5 pr-1">
-        <h3 className="font-display text-sm font-semibold leading-snug text-chalk line-clamp-2">
+        <h3 className="font-display text-label font-semibold leading-label text-chalk line-clamp-2">
           {item.headline}
         </h3>
         {item.description && (
-          <p className="mt-1 font-body text-xs text-chalkdim line-clamp-2">{item.description}</p>
+          <p className="mt-1 ds-body text-chalkdim line-clamp-2">{item.description}</p>
         )}
         {item.byline && <p className="mt-1.5 ds-caption text-chalkdim">{item.byline}</p>}
       </div>
@@ -58,8 +58,8 @@ export default function NewsCard({
       )}
       <div className={isLead ? 'p-4 md:flex md:w-1/2 md:flex-col md:justify-center md:p-5' : 'p-3'}>
         <h3
-          className={`font-display font-semibold text-chalk leading-snug ${
-            isLead ? 'text-xl line-clamp-3 md:text-2xl' : 'text-sm line-clamp-2'
+          className={`font-display font-semibold text-chalk leading-label ${
+            isLead ? 'text-lead md:text-hero line-clamp-3' : 'text-label line-clamp-2'
           }`}
         >
           {item.headline}
@@ -67,7 +67,7 @@ export default function NewsCard({
         {item.description && (
           <p
             className={`mt-1 font-body text-chalkdim ${
-              isLead ? 'text-sm line-clamp-3 md:text-base' : 'text-xs line-clamp-2'
+              isLead ? 'ds-lead line-clamp-3' : 'ds-body line-clamp-2'
             }`}
           >
             {item.description}

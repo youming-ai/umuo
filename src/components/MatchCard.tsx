@@ -1,4 +1,4 @@
-import { memo, type ReactNode } from 'react';
+import { memo, useEffect, useRef, type ReactNode } from 'react';
 import type { MatchProgress, MatchStatus, ScorerEntry } from '../types';
 import { scorerDisplay } from '../utils/wc';
 import { ReminderMenu } from './MatchActions';
@@ -31,6 +31,8 @@ interface MatchCardProps {
   /** Real match-detail URL. When set, the card body is an `<a href>` (middle-
    *  click / open-in-new-tab / copy link all work). */
   href?: string;
+  /** Opaque event stamp; when it changes the live score briefly flashes. */
+  eventKey?: string;
 }
 
 // What to render under the score on a live/HT card. Returns null for FT /
@@ -134,6 +136,7 @@ export default memo(function MatchCard({
   winner,
   statusText,
   href,
+  eventKey,
 }: MatchCardProps) {
   const tbd = 'TBD';
 
@@ -156,6 +159,19 @@ export default memo(function MatchCard({
     }`;
 
   const clickable = Boolean(href);
+  const scoreRef = useRef<HTMLSpanElement>(null);
+  const previousKey = useRef(eventKey);
+  useEffect(() => {
+    if (!scoreRef.current || status !== 'live') return;
+    if (previousKey.current && previousKey.current !== eventKey) {
+      scoreRef.current.classList.remove('score-pulse', 'score-flash');
+      // force reflow to restart animation
+      void scoreRef.current.offsetWidth;
+      scoreRef.current.classList.add('score-pulse', 'score-flash');
+    }
+    previousKey.current = eventKey;
+  }, [eventKey, status]);
+
   return (
     // Outer frame holds the border/radius but NOT overflow-hidden, so the
     // reminder dropdown can spill past the card edge without being clipped.
@@ -215,7 +231,10 @@ export default memo(function MatchCard({
                   : tbd}
               </span>
             ) : (
-              <span className="font-mono text-2xl sm:text-4xl font-bold text-chalk tabular-nums leading-none whitespace-nowrap">
+              <span
+                ref={scoreRef}
+                className="font-mono text-2xl sm:text-4xl font-bold text-chalk tabular-nums leading-none whitespace-nowrap"
+              >
                 {/* Screen-reader-friendly full-score announcement; visually hidden. */}
                 <span className="sr-only">
                   {`${homeName || tbd} ${homeScore ?? 0}${homeSO} - ${awayName || tbd} ${awayScore ?? 0}${awaySOafter}`}

@@ -39,16 +39,19 @@
   --c-on-scrim: 255 255 255;
   --c-on-accent: 11 20 24;
 
-  /* Radius. Every panel-like container shares one corner radius — the
-     Header's (`panel`, 24px) — so cards, the hero scoreboard and glass
-     surfaces all read as one family. `card`/`hero` alias `panel`; change
-     `panel` to retune them all at once. `micro` (image corners) and `pill`
-     (capsule badges/buttons/tabs) are deliberately their own thing. */
+  /* Radius. Liquid Glass geometry: floating forms become rounder as their
+     visual weight grows. Cards (the most common content container) sit one
+     step below panels/heroes so dense feeds don't look like a field of
+     oversized bubbles. `card-inset` nests cleanly inside `card`; change
+     `card` to retune both at once. `micro` is for tiny inline thumbnails.
+     `control` is for buttons/chips/tabs. `pill` stays fully rounded for
+     capsules. */
   --r-micro: 3px;
-  --r-sm: var(--r-panel);
-  --r-card: var(--r-panel);
+  --r-card-inset: 8px;
+  --r-card: 16px;
+  --r-control: 14px;
   --r-panel: 24px;
-  --r-hero: var(--r-panel);
+  --r-hero: 28px;
   --r-pill: 9999px;
 
   /* Spacing — compact page rhythm */
@@ -70,12 +73,19 @@
   --h-header: 3.5rem; /* matches Tailwind h-14 (56px) */
   --h-topbar: calc(var(--h-ticker) + var(--h-header));
 
-  /* Typography */
+  /* Typography — one scale, role-driven. caption/data stays tight;
+     body/lead breathe for readability. */
   --text-micro: 0.5625rem;
   --text-caption: 0.625rem;
   --text-label: 0.75rem;
+  --text-body: 0.875rem;
+  --text-lead: 1.125rem;
+  --text-hero: 2rem;
   --leading-caption: 1.25;
   --leading-label: 1.33;
+  --leading-body: 1.5;
+  --leading-lead: 1.4;
+  --leading-hero: 1.2;
 
   /* Elevation shadows */
   --shadow-panel: 0 4px 6px -1px rgb(0 0 0 / 0.25), 0 2px 4px -2px rgb(0 0 0 / 0.2);
@@ -129,6 +139,13 @@
   }
   .ds-page-inner {
     @apply max-w-6xl mx-auto space-y-section;
+  }
+
+  /* Sticky rail surface: vertically scrollable on desktop while the main
+     column scrolls the page. self-start keeps grid items at content height
+     so sticky actually engages. */
+  .ds-rail {
+    @apply lg:self-start lg:sticky lg:top-[var(--h-topbar)] lg:max-h-[calc(100vh-var(--h-topbar))] lg:overflow-y-auto no-scrollbar;
   }
 
   /* Glass surfaces */
@@ -215,6 +232,14 @@
     @apply rounded-pill bg-scrim/65 backdrop-blur-sm;
   }
 
+  /* Buttons: two voices across the whole UI. */
+  .ds-btn-primary {
+    @apply inline-flex items-center justify-center min-h-11 px-4 py-2 rounded-control bg-pitch text-onaccent font-display font-semibold tracking-wide hover:brightness-110 ds-press;
+  }
+  .ds-btn-ghost {
+    @apply inline-flex items-center justify-center min-h-11 px-3 rounded-pill text-pitch font-semibold text-xs hover:bg-pitch/10 ds-press transition-colors;
+  }
+
   /* Mono caption — use instead of repeating font-mono text-caption */
   .ds-caption {
     @apply font-mono text-caption leading-caption;
@@ -222,11 +247,68 @@
   .ds-micro {
     @apply font-mono text-micro leading-caption;
   }
+  /* Body copy */
+  .ds-body {
+    @apply font-body text-body leading-body;
+  }
+  .ds-lead {
+    @apply font-body text-lead leading-lead;
+  }
+  /* Display hierarchy — Saira Condensed, used sparingly */
+  .ds-hero {
+    @apply font-display text-hero leading-hero font-bold tracking-wide;
+  }
+  .ds-title {
+    @apply font-display text-lead leading-lead font-semibold tracking-wide;
+  }
+
+  /* Shared table surface: one visual treatment for every data table. */
+  .ds-table {
+    @apply w-full text-sm border border-line bg-panel rounded-card overflow-hidden shadow-panel;
+  }
+  .ds-table thead {
+    @apply text-chalkdim ds-caption uppercase;
+  }
+  .ds-table th,
+  .ds-table td {
+    @apply px-3 py-2 text-left;
+  }
+  .ds-table thead tr {
+    @apply border-b border-overlay/5 bg-overlay/[0.02];
+  }
+  .ds-table tbody tr {
+    @apply border-b border-overlay/5 last:border-b-0;
+  }
+  .ds-table tbody tr:hover {
+    @apply bg-overlay/5;
+  }
+
+  /* Shared list surface: compact rows without the heavy glass shadow. */
+  .ds-list {
+    @apply border border-line bg-panel rounded-card overflow-hidden shadow-panel;
+  }
+  .ds-list > li,
+  .ds-list > * > li {
+    @apply flex items-center justify-between gap-3 px-3 py-2 border-b border-overlay/5 last:border-b-0;
+  }
+  .ds-list > li:hover,
+  .ds-list > * > li:hover {
+    @apply bg-overlay/5;
+  }
 
   /* Broadcast tally light */
   .live-dot {
     @apply inline-block w-1.5 h-1.5 bg-live;
     animation: live-pulse 1.4s ease-in-out infinite;
+  }
+
+  /* Live score event pulse — a brief ring + number flash when a match score
+     changes. The visual signature of umuo: the scoreboard lights up. */
+  .score-pulse {
+    animation: score-pulse 1.2s ease-out 2;
+  }
+  .score-flash {
+    animation: score-flash 1.2s ease-out 2;
   }
 
   /* Signature — stadium floodlights above the page. A static sodium glow that
@@ -301,6 +383,39 @@
   }
   .marquee-copy {
     display: none;
+  }
+}
+
+@keyframes score-pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgb(var(--c-live) / 0.4);
+  }
+  70% {
+    box-shadow: 0 0 0 10px rgb(var(--c-live) / 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgb(var(--c-live) / 0);
+  }
+}
+
+@keyframes score-flash {
+  0%, 100% {
+    color: rgb(var(--c-chalk));
+  }
+  50% {
+    color: rgb(var(--c-live));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .live-dot {
+    animation: none;
+  }
+  .score-pulse {
+    animation: none;
+  }
+  .score-flash {
+    animation: none;
   }
 }
 

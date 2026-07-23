@@ -72,11 +72,7 @@ export default function NewsView({
       ) : error && items.length === 0 ? (
         <div className="py-12 text-center">
           <p className="ds-caption text-live mb-3">{error}</p>
-          <button
-            type="button"
-            onClick={refetch}
-            className="px-4 py-2 bg-pitch text-onaccent font-display font-semibold tracking-wide rounded-card hover:brightness-110 ds-press"
-          >
+          <button type="button" onClick={refetch} className="ds-btn-primary">
             Retry
           </button>
         </div>
