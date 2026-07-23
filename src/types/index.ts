@@ -173,6 +173,7 @@ export interface NewsTag {
   kind: 'team' | 'athlete' | 'league';
   label: string;
   team?: string;
+  leagueSlug?: string;
 }
 
 export interface NewsItem {

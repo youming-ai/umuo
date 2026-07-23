@@ -2,24 +2,19 @@
 import { COMPETITIONS } from '../competitions';
 import ThemeToggle from './ThemeToggle';
 
-// Top bar = primary navigation (the leagues), ESPN-style. The active item
-// carries a brand-green underline — deliberately different from the left rail's
-// filled-pill section tabs, so the two nav levels read as a hierarchy. Beyond
-// INLINE_MAX leagues the tail collapses into a native "More" dropdown (no JS).
+// ESPN-style hierarchical top navigation:
+// Home · Football ▾ (Soccer Leagues) · NBA · Odds
 const path = Astro.url.pathname;
 const currentComp = Object.keys(COMPETITIONS).find(
   (key) => path === `/${key}` || path.startsWith(`/${key}/`),
 );
 
-const INLINE_MAX = 6;
-const all = [
-  { key: '', label: 'Home', href: '/' },
-  ...Object.values(COMPETITIONS).map((c) => ({ key: c.key, label: c.label, href: `/${c.key}` })),
-];
-const inline = all.slice(0, INLINE_MAX + 1); // +1 for the always-present Home
-const overflow = all.slice(INLINE_MAX + 1);
-const isActive = (key: string) => (key === '' ? path === '/' : currentComp === key);
-const overflowActive = overflow.some((it) => isActive(it.key));
+const isHome = path === '/';
+const soccerComps = Object.values(COMPETITIONS).filter((c) => c.sport === 'soccer');
+const basketballComps = Object.values(COMPETITIONS).filter((c) => c.sport === 'basketball');
+
+const isSoccerActive = !!currentComp && COMPETITIONS[currentComp]?.sport === 'soccer';
+const activeSoccerLabel = isSoccerActive ? COMPETITIONS[currentComp]?.label : 'Football';
 
 const tab =
   'relative flex shrink-0 items-center whitespace-nowrap px-3 font-display text-sm tracking-wide ds-press';
@@ -36,39 +31,68 @@ const off = 'text-chalkdim hover:text-chalk';
       aria-label="Primary"
       class="flex h-full min-w-0 flex-1 items-stretch gap-1 overflow-x-auto no-scrollbar"
     >
-      {inline.map((it) => (
-        <a href={it.href} aria-current={isActive(it.key) ? 'page' : undefined} class={`${tab} ${isActive(it.key) ? on : off}`}>
-          {it.label}
-          {isActive(it.key) && (
+      <a href="/" aria-current={isHome ? 'page' : undefined} class={`${tab} ${isHome ? on : off}`}>
+        Home
+        {isHome && (
+          <span class="absolute inset-x-2 -bottom-px h-0.5 rounded-full bg-pitch" aria-hidden="true"></span>
+        )}
+      </a>
+
+      <!-- Football (Soccer) Hierarchical Dropdown -->
+      <details class="relative flex shrink-0 items-stretch">
+        <summary class={`${tab} cursor-pointer list-none ${isSoccerActive ? on : off}`}>
+          <span>{isSoccerActive ? activeSoccerLabel : 'Football'}</span>
+          <span class="ml-1 text-[0.6rem]" aria-hidden="true">▾</span>
+          {isSoccerActive && (
+            <span class="absolute inset-x-2 -bottom-px h-0.5 rounded-full bg-pitch" aria-hidden="true"></span>
+          )}
+        </summary>
+        <div class="absolute left-0 top-full z-50 mt-1 flex min-w-48 flex-col gap-1 rounded-card border border-line bg-panel p-1.5 shadow-panel">
+          <div class="px-3 py-1 text-micro font-mono uppercase tracking-widest text-chalkdim border-b border-line/30 mb-1">
+            Soccer Leagues
+          </div>
+          {soccerComps.map((c) => (
+            <a
+              href={`/${c.key}`}
+              aria-current={currentComp === c.key ? 'page' : undefined}
+              class={`rounded-card px-3 py-2 font-display text-sm tracking-wide ds-press flex items-center justify-between ${
+                currentComp === c.key
+                  ? 'bg-overlay/10 font-semibold text-chalk'
+                  : 'text-chalkdim hover:bg-overlay/5 hover:text-chalk'
+              }`}
+            >
+              <span>{c.label}</span>
+              {currentComp === c.key && <span class="h-1.5 w-1.5 rounded-full bg-pitch"></span>}
+            </a>
+          ))}
+        </div>
+      </details>
+
+      <!-- Basketball (NBA) -->
+      {basketballComps.map((c) => (
+        <a
+          href={`/${c.key}`}
+          aria-current={currentComp === c.key ? 'page' : undefined}
+          class={`${tab} ${currentComp === c.key ? on : off}`}
+        >
+          {c.label}
+          {currentComp === c.key && (
             <span class="absolute inset-x-2 -bottom-px h-0.5 rounded-full bg-pitch" aria-hidden="true"></span>
           )}
         </a>
       ))}
 
-      {overflow.length > 0 && (
-        <details class="relative flex shrink-0 items-stretch">
-          <summary class={`${tab} cursor-pointer list-none ${overflowActive ? on : off}`}>
-            More
-            <span class="ml-1 text-[0.6rem]" aria-hidden="true">▾</span>
-            {overflowActive && (
-              <span class="absolute inset-x-2 -bottom-px h-0.5 rounded-full bg-pitch" aria-hidden="true"></span>
-            )}
-          </summary>
-          <div class="absolute right-0 top-full z-50 mt-1 flex min-w-44 flex-col gap-1 rounded-card border border-line bg-panel p-1 shadow-panel">
-            {overflow.map((it) => (
-              <a
-                href={it.href}
-                aria-current={isActive(it.key) ? 'page' : undefined}
-                class={`rounded-card px-3 py-2 font-display text-sm tracking-wide ds-press ${
-                  isActive(it.key) ? 'bg-overlay/10 font-semibold text-chalk' : 'text-chalkdim hover:bg-overlay/5 hover:text-chalk'
-                }`}
-              >
-                {it.label}
-              </a>
-            ))}
-          </div>
-        </details>
-      )}
+      <!-- Odds -->
+      <a
+        href="/eng.1/odds"
+        aria-current={path.includes('/odds') ? 'page' : undefined}
+        class={`${tab} ${path.includes('/odds') ? on : off}`}
+      >
+        Odds
+        {path.includes('/odds') && (
+          <span class="absolute inset-x-2 -bottom-px h-0.5 rounded-full bg-pitch" aria-hidden="true"></span>
+        )}
+      </a>
     </nav>
 
     <div class="shrink-0">

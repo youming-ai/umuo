@@ -30,10 +30,15 @@ function tagsFrom(categories: unknown): NewsTag[] {
       }
     } else if (type === 'league') {
       const label = str(c.description) || str(obj(c.league).description);
-      const key = `league:${label}`;
+      const href =
+        str(obj(obj(obj(obj(c.league).links).web).leagues).href) ||
+        str(obj(obj(obj(obj(c).links).web).leagues).href);
+      const match = href.match(/\/league\/_\/name\/([a-z0-9\.]+)/i);
+      const leagueSlug = match ? match[1].toLowerCase() : undefined;
+      const key = `league:${label}:${leagueSlug ?? ''}`;
       if (label && !seen.has(key)) {
         seen.add(key);
-        tags.push({ kind: 'league', label });
+        tags.push(leagueSlug ? { kind: 'league', label, leagueSlug } : { kind: 'league', label });
       }
     }
     // ignore guid/topic/event/contributor/sportseason

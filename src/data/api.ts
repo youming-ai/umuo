@@ -335,7 +335,23 @@ export async function getCompNews(
   try {
     const json: unknown = JSON.parse(await res.text());
     if (json && typeof json === 'object' && 'error' in json) return [];
-    return parseNewsFeed(json);
+    const items = parseNewsFeed(json);
+    const compLabel = comp.label.toLowerCase();
+    return items.sort((a, b) => {
+      const aMatches = a.tags.some(
+        (t) =>
+          t.kind === 'league' &&
+          (t.leagueSlug === comp.league || t.label.toLowerCase().includes(compLabel)),
+      );
+      const bMatches = b.tags.some(
+        (t) =>
+          t.kind === 'league' &&
+          (t.leagueSlug === comp.league || t.label.toLowerCase().includes(compLabel)),
+      );
+      if (aMatches && !bMatches) return -1;
+      if (!aMatches && bMatches) return 1;
+      return 0;
+    });
   } catch {
     return [];
   }
