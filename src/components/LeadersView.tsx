@@ -61,7 +61,7 @@ export default function LeadersView({
                       <img
                         src={l.teamLogo}
                         alt=""
-                        className="w-3.5 h-2.5 object-cover rounded-micro shrink-0"
+                        className="w-3.5 h-2.5 object-cover rounded-card-inset shrink-0"
                       />
                     )}
                     <span className="truncate">{l.teamName}</span>
@@ -73,7 +73,7 @@ export default function LeadersView({
                       <img
                         src={l.teamLogo}
                         alt=""
-                        className="w-4 h-3 object-cover rounded-micro shrink-0"
+                        className="w-4 h-3 object-cover rounded-card-inset shrink-0"
                       />
                     )}
                     <span className="truncate">{l.teamName}</span>

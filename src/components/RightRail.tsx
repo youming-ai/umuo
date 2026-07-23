@@ -55,7 +55,7 @@ export default function RightRail({
                     key={g.name}
                     type="button"
                     onClick={() => setSoccerGroupIndex(idx)}
-                    className={`min-h-11 px-2 py-0.5 rounded-micro text-caption font-mono uppercase ds-press ${
+                    className={`min-h-11 px-2 py-0.5 rounded-control text-caption font-mono uppercase ds-press ${
                       soccerGroupIndex === idx
                         ? 'bg-overlay/10 text-chalk font-bold'
                         : 'text-chalkdim hover:text-chalk'
@@ -81,7 +81,7 @@ export default function RightRail({
                         <img
                           src={row.flag}
                           alt=""
-                          className="w-4 h-3.5 object-cover rounded-micro"
+                          className="w-4 h-3.5 object-cover rounded-card-inset"
                           loading="lazy"
                         />
                       )}
@@ -104,7 +104,7 @@ export default function RightRail({
                     key={conf.name}
                     type="button"
                     onClick={() => setNbaConf(confKey)}
-                    className={`min-h-11 flex-1 text-center py-0.5 rounded-micro text-caption font-mono uppercase ds-press ${
+                    className={`min-h-11 flex-1 text-center py-0.5 rounded-control text-caption font-mono uppercase ds-press ${
                       nbaConf === confKey
                         ? 'bg-overlay/10 text-chalk font-bold'
                         : 'text-chalkdim hover:text-chalk'
@@ -136,7 +136,7 @@ export default function RightRail({
                         <img
                           src={row.logo}
                           alt=""
-                          className="w-4 h-4 object-contain"
+                          className="w-4 h-4 object-contain rounded-card-inset"
                           loading="lazy"
                         />
                       )}

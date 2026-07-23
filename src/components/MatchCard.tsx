@@ -93,8 +93,8 @@ function StatusPill({
 function Flag({ src, alt, dim }: { src?: string; alt: string; dim?: boolean }) {
   const cls = dim ? 'opacity-50' : '';
   const size = 'w-8 h-6 sm:w-10 sm:h-7';
-  if (!src) return <div className={`${size} bg-overlay/5 rounded-micro ${cls}`} aria-hidden />;
-  return <img src={src} alt={alt} className={`${size} object-cover rounded-micro ${cls}`} />;
+  if (!src) return <div className={`${size} bg-overlay/5 rounded-card-inset ${cls}`} aria-hidden />;
+  return <img src={src} alt={alt} className={`${size} object-cover rounded-card-inset ${cls}`} />;
 }
 
 function CardBodyShell({

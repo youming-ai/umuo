@@ -160,7 +160,7 @@ export default function StandingsView({
                             <img
                               src={s.flag}
                               alt={s.name}
-                              className="w-5 h-3.5 object-cover rounded-micro"
+                              className="w-5 h-3.5 object-cover rounded-card-inset"
                             />
                           ) : (
                             <span className="w-5" />

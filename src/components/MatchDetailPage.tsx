@@ -69,7 +69,7 @@ function StatusBadge({
 function TeamBadge({ flag, name, href }: { flag: string; name: string; href?: string }) {
   const inner = (
     <>
-      <div className="w-14 h-10 md:w-20 md:h-14 overflow-hidden rounded-card bg-panel2 shadow-hero mb-3 shrink-0">
+      <div className="w-14 h-10 md:w-20 md:h-14 overflow-hidden rounded-card-inset bg-panel2 shadow-hero mb-3 shrink-0">
         {flag ? (
           <img src={flag} alt={name} className="w-full h-full object-cover" />
         ) : (

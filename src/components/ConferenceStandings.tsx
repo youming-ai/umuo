@@ -42,7 +42,7 @@ export default function ConferenceStandings({ conferences }: { conferences: Conf
                           <img
                             src={r.logo}
                             alt={r.name}
-                            className="w-5 h-5 object-contain rounded-micro"
+                            className="w-5 h-5 object-contain rounded-card-inset"
                           />
                         ) : (
                           <span className="w-5" />

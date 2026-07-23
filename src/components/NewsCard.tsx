@@ -27,7 +27,7 @@ export default function NewsCard({
           onError={(e) => {
             e.currentTarget.style.display = 'none';
           }}
-          className="aspect-video w-32 shrink-0 rounded-card object-cover sm:w-44"
+          className="aspect-video w-32 shrink-0 rounded-card-inset object-cover sm:w-44"
           loading="lazy"
         />
       )}
@@ -50,7 +50,7 @@ export default function NewsCard({
           onError={(e) => {
             e.currentTarget.style.display = 'none';
           }}
-          className={`w-full object-cover ${
+          className={`w-full object-cover rounded-card-inset ${
             isLead ? 'aspect-[16/9] md:aspect-auto md:h-full md:w-1/2' : 'aspect-video'
           }`}
           loading={isLead ? 'eager' : 'lazy'}
@@ -79,18 +79,20 @@ export default function NewsCard({
   );
 
   return (
-    <article className={`ds-glass rounded-card shadow-panel ${isRow ? 'p-1.5' : 'overflow-hidden'}`}>
+    <article
+      className={`ds-glass rounded-card shadow-panel ${isRow ? 'p-card-inner' : 'overflow-hidden'}`}
+    >
       {linked ? (
         <a
           href={item.link}
           target={external ? '_blank' : undefined}
           rel={external ? 'noopener noreferrer' : undefined}
-          className="block rounded-card hover:opacity-95 transition-opacity duration-150 ease-out"
+          className="block rounded-card-inset hover:opacity-95 transition-opacity duration-150 ease-out"
         >
           {body}
         </a>
       ) : (
-        <div>{body}</div>
+        <div className="rounded-card-inset">{body}</div>
       )}
       {/* Tags only on the fuller cards; the compact row stays a clean list. */}
       {!isRow && item.tags.length > 0 && (
