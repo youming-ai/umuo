@@ -58,6 +58,31 @@ describe('parseNewsFeed', () => {
     ]);
   });
 
+  it('parses leagueSlug from category league href', () => {
+    const sampleFeed = {
+      headlines: [
+        {
+          id: 1001,
+          headline: 'Test Headline',
+          categories: [
+            {
+              type: 'league',
+              description: 'Spanish LALIGA',
+              league: {
+                id: 740,
+                links: {
+                  web: { leagues: { href: 'https://www.espn.com/soccer/league/_/name/esp.1' } },
+                },
+              },
+            },
+          ],
+        },
+      ],
+    };
+    const tags = parseNewsFeed(sampleFeed)[0].tags;
+    expect(tags).toEqual([{ kind: 'league', label: 'Spanish LALIGA', leagueSlug: 'esp.1' }]);
+  });
+
   it('is defensive: junk in yields an empty array, missing fields default', () => {
     expect(parseNewsFeed(null)).toEqual([]);
     expect(parseNewsFeed({})).toEqual([]);
