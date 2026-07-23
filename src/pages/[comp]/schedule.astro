@@ -20,5 +20,5 @@ const initialData = await getCompetitionView(competition, env, ctx);
   <main>
     <CompetitionIsland comp={comp} initialData={initialData} client:only="react" />
   </main>
-  <RightRailIsland slot="right" comp={comp} initialData={initialData} hideStandings={true} client:only="react" />
+  <RightRailIsland slot="right" comp={comp} initialData={initialData} client:only="react" />
 </Layout>

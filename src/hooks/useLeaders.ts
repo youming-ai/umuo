@@ -6,7 +6,7 @@ import { usePolledResource } from './usePolledResource';
 // the caller passes null for comps with no leaders pipeline so this never
 // fetches. Thin wrapper over usePolledResource: 60s poll, reset on comp change.
 export function useLeaders(comp: string | null, initialData?: Leader[]) {
-  const seeded = initialData !== undefined;
+  const seeded = !!initialData && initialData.length > 0;
   const { data, loading, error, refetch } = usePolledResource<Leader[]>({
     key: comp ?? '',
     skip: !comp,

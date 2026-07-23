@@ -62,9 +62,7 @@ async function fetchAll() {
 function startPolling() {
   if (started) return;
   started = true;
-  if (shared.items.length === 0) {
-    void fetchAll();
-  }
+  void fetchAll();
   onVisibility = () => {
     if (document.visibilityState === 'visible') void fetchAll();
   };

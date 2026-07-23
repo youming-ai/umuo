@@ -14,13 +14,9 @@ interface InitialData {
 export default function RightRailIsland({
   comp,
   initialData,
-  hideStandings = false,
-  hideLeaders = false,
 }: {
   comp: string;
   initialData?: InitialData;
-  hideStandings?: boolean;
-  hideLeaders?: boolean;
 }) {
   const { standings, loading, error, refetch } = useCompetition(comp, initialData);
 
@@ -32,8 +28,6 @@ export default function RightRailIsland({
         standingsLoading={loading}
         standingsError={error}
         onStandingsRetry={refetch}
-        hideStandings={hideStandings}
-        hideLeaders={hideLeaders}
       />
     </AppProviders>
   );

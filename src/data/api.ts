@@ -17,7 +17,7 @@ import {
   LEADERS_BY_SPORT,
   type Leaderboard,
 } from '../leaders';
-import { parseNewsFeed } from '../newsFeed';
+import { parseNewsFeed, prioritizeNewsForComp } from '../newsFeed';
 import { parseTeams } from '../teams';
 import { parseTeamDetail, parseTeamInjuries } from '../teamDetail';
 import { parseLeagueInjuries, parseTransactions } from '../transactions';
@@ -335,23 +335,7 @@ export async function getCompNews(
   try {
     const json: unknown = JSON.parse(await res.text());
     if (json && typeof json === 'object' && 'error' in json) return [];
-    const items = parseNewsFeed(json);
-    const compLabel = comp.label.toLowerCase();
-    return items.sort((a, b) => {
-      const aMatches = a.tags.some(
-        (t) =>
-          t.kind === 'league' &&
-          (t.leagueSlug === comp.league || t.label.toLowerCase().includes(compLabel)),
-      );
-      const bMatches = b.tags.some(
-        (t) =>
-          t.kind === 'league' &&
-          (t.leagueSlug === comp.league || t.label.toLowerCase().includes(compLabel)),
-      );
-      if (aMatches && !bMatches) return -1;
-      if (!aMatches && bMatches) return 1;
-      return 0;
-    });
+    return prioritizeNewsForComp(parseNewsFeed(json), comp);
   } catch {
     return [];
   }

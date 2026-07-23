@@ -28,5 +28,5 @@ const [boards, initialData] = await Promise.all([
   <main>
     <StatsIsland boards={boards} client:only="react" />
   </main>
-  <RightRailIsland slot="right" comp={comp} initialData={initialData} hideLeaders={true} client:only="react" />
+  <RightRailIsland slot="right" comp={comp} initialData={initialData} client:only="react" />
 </Layout>

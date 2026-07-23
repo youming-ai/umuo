@@ -1,5 +1,7 @@
 ---
-import { COMPETITIONS } from '../competitions';
+import { COMPETITIONS, DEFAULT_COMPETITION } from '../competitions';
+import { pathFor } from '../utils/router';
+import ActiveIndicator from './ActiveIndicator.astro';
 import ThemeToggle from './ThemeToggle';
 
 // ESPN-style hierarchical top navigation:
@@ -15,6 +17,11 @@ const basketballComps = Object.values(COMPETITIONS).filter((c) => c.sport === 'b
 
 const isSoccerActive = !!currentComp && COMPETITIONS[currentComp]?.sport === 'soccer';
 const activeSoccerLabel = isSoccerActive ? COMPETITIONS[currentComp]?.label : 'Football';
+
+// Odds is a per-competition section; surface the default competition's odds page
+// in the global nav so the link stays in sync with src/sections.ts.
+const oddsPath = pathFor({ kind: 'section', comp: DEFAULT_COMPETITION, section: 'odds' });
+const isOddsActive = path === oddsPath;
 
 const tab =
   'relative flex shrink-0 items-center whitespace-nowrap px-3 font-display text-sm tracking-wide ds-press';
@@ -33,65 +40,68 @@ const off = 'text-chalkdim hover:text-chalk';
     >
       <a href="/" aria-current={isHome ? 'page' : undefined} class={`${tab} ${isHome ? on : off}`}>
         Home
-        {isHome && (
-          <span class="absolute inset-x-2 -bottom-px h-0.5 rounded-full bg-pitch" aria-hidden="true"></span>
-        )}
+        {isHome && <ActiveIndicator />}
       </a>
 
       <!-- Football (Soccer) Hierarchical Dropdown -->
       <details class="group relative flex shrink-0 items-stretch">
-        <summary class={`${tab} cursor-pointer list-none [&::-webkit-details-marker]:hidden ${isSoccerActive ? on : off}`}>
+        <summary
+          class={`${tab} cursor-pointer list-none [&::-webkit-details-marker]:hidden ${isSoccerActive ? on : off}`}
+        >
           <span>{isSoccerActive ? activeSoccerLabel : 'Football'}</span>
-          <span class="ml-1 text-[0.6rem] transition-transform group-open:rotate-180 group-hover:rotate-180" aria-hidden="true">▾</span>
-          {isSoccerActive && (
-            <span class="absolute inset-x-2 -bottom-px h-0.5 rounded-full bg-pitch" aria-hidden="true"></span>
-          )}
+          <span
+            class="ml-1 text-[0.6rem] transition-transform group-open:rotate-180 group-hover:rotate-180"
+            aria-hidden="true"
+          >
+            ▾
+          </span>
+          {isSoccerActive && <ActiveIndicator />}
         </summary>
         <div class="absolute left-0 top-full z-50 mt-1 hidden group-open:flex group-hover:flex min-w-48 flex-col gap-1 rounded-card border border-line bg-panel p-1.5 shadow-panel">
           <div class="px-3 py-1 text-micro font-mono uppercase tracking-widest text-chalkdim border-b border-line/30 mb-1">
             Soccer Leagues
           </div>
-          {soccerComps.map((c) => (
-            <a
-              href={`/${c.key}`}
-              aria-current={currentComp === c.key ? 'page' : undefined}
-              class={`rounded-card px-3 py-2 font-display text-sm tracking-wide ds-press flex items-center justify-between ${
-                currentComp === c.key
-                  ? 'bg-overlay/10 font-semibold text-chalk'
-                  : 'text-chalkdim hover:bg-overlay/5 hover:text-chalk'
-              }`}
-            >
-              <span>{c.label}</span>
-              {currentComp === c.key && <span class="h-1.5 w-1.5 rounded-full bg-pitch"></span>}
-            </a>
-          ))}
+          {
+            soccerComps.map((c) => (
+              <a
+                href={`/${c.key}`}
+                aria-current={currentComp === c.key ? 'page' : undefined}
+                class={`rounded-card px-3 py-2 font-display text-sm tracking-wide ds-press flex items-center justify-between ${
+                  currentComp === c.key
+                    ? 'bg-overlay/10 font-semibold text-chalk'
+                    : 'text-chalkdim hover:bg-overlay/5 hover:text-chalk'
+                }`}
+              >
+                <span>{c.label}</span>
+                {currentComp === c.key && <span class="h-1.5 w-1.5 rounded-full bg-pitch" />}
+              </a>
+            ))
+          }
         </div>
       </details>
 
       <!-- Basketball (NBA) -->
-      {basketballComps.map((c) => (
-        <a
-          href={`/${c.key}`}
-          aria-current={currentComp === c.key ? 'page' : undefined}
-          class={`${tab} ${currentComp === c.key ? on : off}`}
-        >
-          {c.label}
-          {currentComp === c.key && (
-            <span class="absolute inset-x-2 -bottom-px h-0.5 rounded-full bg-pitch" aria-hidden="true"></span>
-          )}
-        </a>
-      ))}
+      {
+        basketballComps.map((c) => (
+          <a
+            href={`/${c.key}`}
+            aria-current={currentComp === c.key ? 'page' : undefined}
+            class={`${tab} ${currentComp === c.key ? on : off}`}
+          >
+            {c.label}
+            {currentComp === c.key && <ActiveIndicator />}
+          </a>
+        ))
+      }
 
       <!-- Odds -->
       <a
-        href="/eng.1/odds"
-        aria-current={path.includes('/odds') ? 'page' : undefined}
-        class={`${tab} ${path.includes('/odds') ? on : off}`}
+        href={oddsPath}
+        aria-current={isOddsActive ? 'page' : undefined}
+        class={`${tab} ${isOddsActive ? on : off}`}
       >
         Odds
-        {path.includes('/odds') && (
-          <span class="absolute inset-x-2 -bottom-px h-0.5 rounded-full bg-pitch" aria-hidden="true"></span>
-        )}
+        {isOddsActive && <ActiveIndicator />}
       </a>
     </nav>
 
