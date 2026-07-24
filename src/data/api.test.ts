@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { COMPETITIONS } from '../competitions';
 import type { NewsItem } from '../types';
-import { type Env, getAggregatedNews, getHomeView, mergeNewsLists } from './api';
+import { type Env, getAggregatedNews, getCompNews, getHomeView, mergeNewsLists } from './api';
 
 const item = (id: string, published: string, headline = id): NewsItem => ({
   id,
@@ -94,6 +95,44 @@ function mockCtx(): ExecutionContext {
     tracing: {},
   } as unknown as ExecutionContext;
 }
+
+describe('getCompNews', () => {
+  it('prioritizes articles matching the target competition league slug', async () => {
+    const rawNews = JSON.stringify({
+      articles: [
+        {
+          id: 'generic-1',
+          headline: 'Generic Soccer News',
+          published: '2026-07-05T00:00:00Z',
+          categories: [{ type: 'league', description: 'Soccer' }],
+        },
+        {
+          id: 'esp-1',
+          headline: 'Spanish LALIGA Story',
+          published: '2026-07-01T00:00:00Z',
+          categories: [
+            {
+              type: 'league',
+              description: 'Spanish LALIGA',
+              league: {
+                links: {
+                  web: { leagues: { href: 'https://www.espn.com/soccer/league/_/name/esp.1' } },
+                },
+              },
+            },
+          ],
+        },
+      ],
+    });
+
+    vi.stubGlobal('fetch', fetchByLeague([{ match: '/esp.1/news', body: rawNews }]));
+
+    const comp = COMPETITIONS['esp.1'];
+    const items = await getCompNews(comp, mockEnv() as unknown as Env, mockCtx());
+    expect(items[0].id).toBe('esp-1');
+    vi.unstubAllGlobals();
+  });
+});
 
 describe('getAggregatedNews', () => {
   beforeEach(() => {

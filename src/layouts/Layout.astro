@@ -25,9 +25,7 @@ const cols =
     : hasRight
       ? 'lg:grid lg:gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]'
       : 'lg:grid lg:gap-6 lg:grid-cols-[13rem_minmax(0,1fr)]';
-const frame = hasRails
-  ? `mx-auto max-w-6xl px-page-x md:px-page-x-md py-page-y ${cols}`
-  : '';
+const frame = hasRails ? `mx-auto max-w-6xl px-page-x md:px-page-x-md py-page-y ${cols}` : '';
 
 // Canonical + og:url must match the actual page path (not a hardcoded /news).
 // Use the production origin so previews/dev still emit stable share URLs.
@@ -125,7 +123,7 @@ const canonicalUrl = `${SITE_ORIGIN}${canonicalPath}`;
       </div>
       <div class={`flex-1 w-full ${frame}`}>
         {hasLeft && (
-          <aside class="mb-4 lg:mb-0">
+          <aside class="mb-4 lg:mb-0 lg:self-start lg:sticky lg:top-[var(--h-topbar)] lg:max-h-[calc(100vh-var(--h-topbar))] lg:overflow-y-auto no-scrollbar">
             <slot name="left" />
           </aside>
         )}
@@ -133,7 +131,7 @@ const canonicalUrl = `${SITE_ORIGIN}${canonicalPath}`;
           <slot />
         </div>
         {hasRight && (
-          <aside class="mt-4 lg:mt-0">
+          <aside class="mt-4 lg:mt-0 lg:self-start lg:sticky lg:top-[var(--h-topbar)] lg:max-h-[calc(100vh-var(--h-topbar))] lg:overflow-y-auto no-scrollbar">
             <slot name="right" />
           </aside>
         )}

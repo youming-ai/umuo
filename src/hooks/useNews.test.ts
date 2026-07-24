@@ -76,6 +76,36 @@ describe('useNews', () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
+  it('applies competition prioritization to the fetched feed', async () => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        articles: [
+          { ...feed.articles[0], id: 'generic', headline: 'Generic Soccer', categories: [] },
+          {
+            ...feed.articles[0],
+            id: 'epl',
+            headline: 'EPL Story',
+            categories: [
+              {
+                type: 'league',
+                description: 'English Premier League',
+                league: {
+                  links: {
+                    web: { leagues: { href: 'https://www.espn.com/soccer/league/_/name/eng.1' } },
+                  },
+                },
+              },
+            ],
+          },
+        ],
+      }),
+    });
+    const { result } = renderHook(() => useNews('eng.1'));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.items.map((i) => i.id)).toEqual(['epl', 'generic']);
+  });
+
   it('fetches the new comp immediately when a seeded hook changes comp', async () => {
     fetchMock.mockResolvedValue({ ok: true, json: async () => feed });
     const { rerender, result } = renderHook(({ comp }: { comp: string }) => useNews(comp, seed), {

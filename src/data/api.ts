@@ -17,7 +17,7 @@ import {
   LEADERS_BY_SPORT,
   type Leaderboard,
 } from '../leaders';
-import { parseNewsFeed } from '../newsFeed';
+import { parseNewsFeed, prioritizeNewsForComp } from '../newsFeed';
 import { parseTeams } from '../teams';
 import { parseTeamDetail, parseTeamInjuries } from '../teamDetail';
 import { parseLeagueInjuries, parseTransactions } from '../transactions';
@@ -335,7 +335,7 @@ export async function getCompNews(
   try {
     const json: unknown = JSON.parse(await res.text());
     if (json && typeof json === 'object' && 'error' in json) return [];
-    return parseNewsFeed(json);
+    return prioritizeNewsForComp(parseNewsFeed(json), comp);
   } catch {
     return [];
   }

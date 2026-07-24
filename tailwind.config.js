@@ -26,8 +26,9 @@ export default {
       },
       borderRadius: {
         micro: 'var(--r-micro)',
-        sm: 'var(--r-sm)',
+        'card-inset': 'var(--r-card-inset)',
         card: 'var(--r-card)',
+        control: 'var(--r-control)',
         panel: 'var(--r-panel)',
         hero: 'var(--r-hero)',
         pill: 'var(--r-pill)',
@@ -46,10 +47,16 @@ export default {
         micro: ['var(--text-micro)', { lineHeight: 'var(--leading-caption)' }],
         caption: ['var(--text-caption)', { lineHeight: 'var(--leading-caption)' }],
         label: ['var(--text-label)', { lineHeight: 'var(--leading-label)' }],
+        body: ['var(--text-body)', { lineHeight: 'var(--leading-body)' }],
+        lead: ['var(--text-lead)', { lineHeight: 'var(--leading-lead)' }],
+        hero: ['var(--text-hero)', { lineHeight: 'var(--leading-hero)' }],
       },
       lineHeight: {
         caption: 'var(--leading-caption)',
         label: 'var(--leading-label)',
+        body: 'var(--leading-body)',
+        lead: 'var(--leading-lead)',
+        hero: 'var(--leading-hero)',
       },
       boxShadow: {
         panel: 'var(--shadow-panel)',

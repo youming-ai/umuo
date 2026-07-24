@@ -76,6 +76,7 @@ export default function FixturesView({
         {list.map((m) => (
           <MatchCard
             key={m.id}
+            eventKey={`${m.status}-${m.homeScore ?? 0}-${m.awayScore ?? 0}`}
             homeName={m.homeName}
             awayName={m.awayName}
             homeFlag={m.homeFlag}
