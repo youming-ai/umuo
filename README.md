@@ -1,6 +1,6 @@
-# StreamCup — 体育赛事数据与直播导航系统
+# umuo — 体育赛事数据与直播导航系统
 
-StreamCup 是一个高性能、轻量级的体育赛事数据追踪与在线直播导航 Web 系统，支持世界杯（FIFA World Cup）、英超（Premier League）以及 NBA 等多项赛事，并内置赛事资讯（News）流。系统基于 **Astro 7 服务端渲染（SSR）+ React 群岛（Islands）** 架构，整站以单个 Cloudflare Worker 部署，边缘节点同时负责页面渲染与上游数据源的 KV 缓存代理，提供极致平滑的交互体验与可靠的数据兜底。
+umuo 是一个高性能、轻量级的体育赛事数据追踪与在线直播导航 Web 系统，支持世界杯（FIFA World Cup）、英超（Premier League）以及 NBA 等多项赛事，并内置赛事资讯（News）流。系统基于 **Astro 7 服务端渲染（SSR）+ React 群岛（Islands）** 架构，整站以单个 Cloudflare Worker 部署，边缘节点同时负责页面渲染与上游数据源的 KV 缓存代理，提供极致平滑的交互体验与可靠的数据兜底。
 
 ---
 

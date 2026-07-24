@@ -192,7 +192,7 @@ const teamName = standing?.name ?? 'Team not found';
 const teamFlag = standing?.flag ?? '';
 ---
 
-<Layout title={`StreamCup — ${teamName}`}>
+<Layout title={`umuo — ${teamName}`}>
   <main class="ds-page">
     <div class="ds-page-inner">
 
@@ -289,7 +289,7 @@ const scorer = view.scorers.find((s) => s.athleteId === id);
 const playerName = scorer?.name ?? 'Player not found';
 ---
 
-<Layout title={`StreamCup — ${playerName}`}>
+<Layout title={`umuo — ${playerName}`}>
   <main class="ds-page">
     <div class="ds-page-inner">
 

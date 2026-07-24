@@ -1,6 +1,6 @@
 # 体育新闻分类系统 — API接口文档与产品规划说明书 (PRD)
 
-本规划书旨在指导 StreamCup 在世界杯结束后，成功转型为高可用、多视角的**体育新闻分类站（Sports News Classification Portal）**。系统将充分利用已验证的 Cloudflare Workers 边缘代理架构，以 ESPN 公开 API 为核心数据源，支持多项目比分、数据与新闻的深度分类和智能联动。
+本规划书旨在指导 umuo 在世界杯结束后，成功转型为高可用、多视角的**体育新闻分类站（Sports News Classification Portal）**。系统将充分利用已验证的 Cloudflare Workers 边缘代理架构，以 ESPN 公开 API 为核心数据源，支持多项目比分、数据与新闻的深度分类和智能联动。
 
 ---
 

@@ -459,7 +459,7 @@ const env = Astro.locals.runtime.env;
 const ctx = Astro.locals.runtime.ctx as Parameters<typeof getCompetitionView>[2];
 const initialData = await getCompetitionView(competition, env, ctx);
 ---
-<Layout title={`StreamCup — ${comp}`}>
+<Layout title={`umuo — ${comp}`}>
   <main>
     <CompetitionIsland
       comp={comp}
@@ -490,7 +490,7 @@ const initialData = await getCompetitionView(competition, env, ctx);
 const initialPipelineLeaders =
   competition.leadersSource === 'pipeline' ? await getPipelineLeaders(competition, env, ctx) : undefined;
 ---
-<Layout title={`StreamCup — ${comp} — Scorers`}>
+<Layout title={`umuo — ${comp} — Scorers`}>
   <main>
     <CompetitionIsland
       comp={comp}
@@ -520,7 +520,7 @@ const env = Astro.locals.runtime.env;
 const ctx = Astro.locals.runtime.ctx as Parameters<typeof getCompetitionView>[2];
 const initialData = await getCompetitionView(competition, env, ctx);
 ---
-<Layout title={`StreamCup — ${comp} — Bracket`}>
+<Layout title={`umuo — ${comp} — Bracket`}>
   <main>
     <CompetitionIsland
       comp={comp}

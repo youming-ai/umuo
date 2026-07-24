@@ -185,14 +185,14 @@ import '../index.css';
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <meta name="apple-mobile-web-app-title" content="StreamCup" />
-    <title>StreamCup — World Cup 2026 live streams &amp; fixtures</title>
+    <meta name="apple-mobile-web-app-title" content="umuo" />
+    <title>umuo — World Cup 2026 live streams &amp; fixtures</title>
     <meta name="description" content="Watch World Cup 2026 football live streams and follow every fixture, group standings, and result — one fast, no-clutter hub." />
     <meta name="robots" content="index, follow" />
     <link rel="canonical" href="https://cup.umuo.app/" />
     <meta property="og:type" content="website" />
-    <meta property="og:site_name" content="StreamCup" />
-    <meta property="og:title" content="StreamCup — World Cup 2026 live streams &amp; fixtures" />
+    <meta property="og:site_name" content="umuo" />
+    <meta property="og:title" content="umuo — World Cup 2026 live streams &amp; fixtures" />
     <meta property="og:description" content="Live streams and full fixtures for World Cup 2026 — matches, group standings, and results in one place." />
     <meta property="og:url" content="https://cup.umuo.app/" />
     <meta property="og:image" content="https://cup.umuo.app/og.jpg" />
@@ -203,7 +203,7 @@ import '../index.css';
     <meta property="og:locale:alternate" content="ja_JP" />
     <meta property="og:locale:alternate" content="ko_KR" />
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="StreamCup — World Cup 2026 live streams &amp; fixtures" />
+    <meta name="twitter:title" content="umuo — World Cup 2026 live streams &amp; fixtures" />
     <meta name="twitter:description" content="Live streams and full fixtures for World Cup 2026 — matches, group standings, and results in one place." />
     <meta name="twitter:image" content="https://cup.umuo.app/og.jpg" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />

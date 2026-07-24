@@ -327,7 +327,7 @@ const kickoffTime = (): string => {
 };
 ---
 
-<Layout title={`StreamCup — ${match.homeName} vs ${match.awayName}`}>
+<Layout title={`umuo — ${match.homeName} vs ${match.awayName}`}>
   <main class="ds-page">
     <div class="ds-page-inner">
 

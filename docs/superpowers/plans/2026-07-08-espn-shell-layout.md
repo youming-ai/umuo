@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development or superpowers:executing-plans to implement the open tasks. Steps use checkbox (`- [ ]`) syntax. Tasks already shipped this session are pre-checked (`- [x]`) with the file that proves them.
 
-**Goal:** Give every route a shared four-region app shell — a live-score ticker, a sticky header, an asymmetric three-column main, and a light footer — modeled on the practical bones of `https://global.espn.com/` but expressed entirely in StreamCup's existing rounded "Apple Sports" glass design system. After the SSR peel, the app had no global chrome at all (the old SPA `Header`/nav were deleted). This shell restores navigation and adds the right-rail + ticker the peel left as loose components.
+**Goal:** Give every route a shared four-region app shell — a live-score ticker, a sticky header, an asymmetric three-column main, and a light footer — modeled on the practical bones of `https://global.espn.com/` but expressed entirely in umuo's existing rounded "Apple Sports" glass design system. After the SSR peel, the app had no global chrome at all (the old SPA `Header`/nav were deleted). This shell restores navigation and adds the right-rail + ticker the peel left as loose components.
 
 **Status:** The shell is built and verified this session (`astro build` clean, SSR HTML checked on every route type). Remaining items are enhancements, tracked as open tasks at the bottom.
 
@@ -12,10 +12,10 @@
 
 ### Grounding
 
-- **Subject:** StreamCup — a live-stream + fixtures hub for the 2026 World Cup, the Premier League, and the NBA.
+- **Subject:** umuo — a live-stream + fixtures hub for the 2026 World Cup, the Premier League, and the NBA.
 - **Audience:** fans who want to *watch a match live now* or check *what's next / who's top* with minimum friction.
 - **The page's one job:** route the fan to a live stream or the next fixture in as few moves as possible.
-- **Reference vs identity:** ESPN supplies the *structure* (four regions, 3-column main). StreamCup's *look* is fixed and unchanged — rounded glass surfaces, pitch-green/live-red on near-black. We take ESPN's skeleton and drop its density (ad banner, equal columns, hairline rules, link-farm footer), because those betray the "one fast, no-clutter hub" positioning.
+- **Reference vs identity:** ESPN supplies the *structure* (four regions, 3-column main). umuo's *look* is fixed and unchanged — rounded glass surfaces, pitch-green/live-red on near-black. We take ESPN's skeleton and drop its density (ad banner, equal columns, hairline rules, link-farm footer), because those betray the "one fast, no-clutter hub" positioning.
 
 ### Color — "Floodlit Midnight" (evolved from the original broadcast-dark tokens)
 
@@ -44,9 +44,9 @@ Light theme keeps its paper ground (a *day* match — no floodlights); it gains 
 
 ### Layout — the actual design decision
 
-ESPN's four regions, re-expressed as StreamCup chrome:
+ESPN's four regions, re-expressed as umuo chrome:
 
-| ESPN region | StreamCup expression | Data source |
+| ESPN region | umuo expression | Data source |
 |-------------|---------------------|-------------|
 | ① Top ad/scores banner | **Live-score Ticker** (signature) | `useStreams` (ppv.st, cross-comp, browser-only) |
 | ② Nav header | sticky Header: logo + competition switcher (`ds-segmented`) + News + theme | `COMPETITIONS`, current URL |
@@ -68,14 +68,14 @@ Desktop (≥lg)                                     Mobile (<lg)
 ┌──────────────────────────────────────────────┐  ┌──────────────────┐
 │ ● LIVE  ARG 1-0 EGY 67' · BRA–GER 20:00 · →   │  │ ● LIVE ARG1-0 →  │ ticker
 ├──────────────────────────────────────────────┤  ├──────────────────┤
-│ StreamCup [World Cup][EPL][NBA][News]      ☀  │  │ StreamCup     ☀  │ header
+│ umuo [World Cup][EPL][NBA][News]      ☀  │  │ umuo     ☀  │ header
 ├────────┬───────────────────────┬──────────────┤  │ [Matches][Scor..]│ left→chips
 │ Matches│ ┌─── HERO / fixtures ─┐│ ● Live Streams│  ├──────────────────┤
 │ Scorers│ └─────────────────────┘│ ──────────────│  │  content         │ center
 │ Bracket│ ┌fixture┐ ┌fixture┐    │ Standings     │  │                  │ (rails
 │(sticky)│ ┌fixture┐ ┌fixture┐    │ Leaders(stick)│  │                  │  hidden)
 ├────────┴───────────────────────┴──────────────┤  ├──────────────────┤
-│ StreamCup · Data ESPN · Streams ppv.st · ©2026 │  │ footer           │
+│ umuo · Data ESPN · Streams ppv.st · ©2026 │  │ footer           │
 └──────────────────────────────────────────────┘  └──────────────────┘
 ```
 
@@ -102,7 +102,7 @@ Boldness is spent in these two coordinated places (both at the top, both about "
 
 ### Critique against generic defaults
 
-A generic "3-column sports portal" collapses to ESPN itself: equal-width columns, hairline rules, dense boxes — exactly the AI broadsheet default (look #3). StreamCup diverges on four axes, none of which cost extra: **(1)** asymmetric columns with `gap-6` breathing room; **(2)** rounded glass cards floating on the pitch-dark ground instead of ruled boxes; **(3)** the top region is a live ticker, not an ad or a hero-number cliché; **(4)** a light provenance footer, not a link farm. Color and type were already subject-grounded and non-default, so the freedom left by the brief is spent entirely on layout structure — the one axis the brief actually left open.
+A generic "3-column sports portal" collapses to ESPN itself: equal-width columns, hairline rules, dense boxes — exactly the AI broadsheet default (look #3). umuo diverges on four axes, none of which cost extra: **(1)** asymmetric columns with `gap-6` breathing room; **(2)** rounded glass cards floating on the pitch-dark ground instead of ruled boxes; **(3)** the top region is a live ticker, not an ad or a hero-number cliché; **(4)** a light provenance footer, not a link farm. Color and type were already subject-grounded and non-default, so the freedom left by the brief is spent entirely on layout structure — the one axis the brief actually left open.
 
 ---
 

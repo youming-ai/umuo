@@ -2,7 +2,7 @@
 
 > 状态：设计待评审
 > 日期：2026-06-30
-> 背景：StreamCup 当前是 2026 世界杯单赛事 SPA（`fifa.world` 写死）。目标是在**同一个 App + 同一套部署**里加赛事切换器，逐步支持其他足球联赛和其他运动（NBA/NFL/MLB/NHL）。数据全部来自 ESPN 隐藏 API（见 `docs/espn-api.md`）。
+> 背景：umuo 当前是 2026 世界杯单赛事 SPA（`fifa.world` 写死）。目标是在**同一个 App + 同一套部署**里加赛事切换器，逐步支持其他足球联赛和其他运动（NBA/NFL/MLB/NHL）。数据全部来自 ESPN 隐藏 API（见 `docs/espn-api.md`）。
 
 ---
 

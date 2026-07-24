@@ -1,7 +1,7 @@
 # Repository Guidelines
 
 ## Project Overview
-**umuo** (package `streamcup-web`, legacy docs reference StreamCup) is a lightweight, high-performance sports web application for the English Premier League, NBA, LaLiga, Bundesliga, Serie A, Ligue 1, and UEFA Champions League — providing news hubs, match schedules, standings, leaders, transactions, odds, and match detail views, plus a global aggregated news home. It is an **Astro 7 server-rendered (SSR) app with React islands**, deployed as a **single Cloudflare Worker** (`workerd` runtime) that renders pages and edge-caches upstream ESPN APIs in Cloudflare KV. All data is fetched from ESPN's public APIs.
+**umuo** is a lightweight, high-performance sports web application for the English Premier League, NBA, LaLiga, Bundesliga, Serie A, Ligue 1, and UEFA Champions League — providing news hubs, match schedules, standings, leaders, transactions, odds, and match detail views, plus a global aggregated news home. It is an **Astro 7 server-rendered (SSR) app with React islands**, deployed as a **single Cloudflare Worker** (`workerd` runtime) that renders pages and edge-caches upstream ESPN APIs in Cloudflare KV. All data is fetched from ESPN's public APIs.
 
 ## Architecture & Data Flow
 ```mermaid

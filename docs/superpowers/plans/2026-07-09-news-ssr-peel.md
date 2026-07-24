@@ -403,7 +403,7 @@ const env = Astro.locals.runtime.env;
 const ctx = Astro.locals.runtime.ctx;
 const items = await fetchNewsItems({ limit: 20 }, env, ctx);
 ---
-<Layout title="StreamCup — News">
+<Layout title="umuo — News">
   <NewsPageShell scope={scope} items={items} title="News" />
   <NewsView scope={scope} initialData={items} client:only="react" />
 </Layout>
@@ -424,7 +424,7 @@ const env = Astro.locals.runtime.env;
 const ctx = Astro.locals.runtime.ctx;
 const items = await fetchNewsItems({ limit: 20, sport }, env, ctx);
 ---
-<Layout title={`StreamCup — News — ${sport}`}>
+<Layout title={`umuo — News — ${sport}`}>
   <NewsPageShell scope={scope} items={items} title={`News — ${sport}`} />
   <NewsView scope={scope} initialData={items} client:only="react" />
 </Layout>
@@ -445,7 +445,7 @@ const env = Astro.locals.runtime.env;
 const ctx = Astro.locals.runtime.ctx;
 const items = await fetchNewsItems({ limit: 20, leagues: league }, env, ctx);
 ---
-<Layout title={`StreamCup — News — ${league}`}>
+<Layout title={`umuo — News — ${league}`}>
   <NewsPageShell scope={scope} items={items} title={`News — ${league}`} />
   <NewsView scope={scope} initialData={items} client:only="react" />
 </Layout>
@@ -466,7 +466,7 @@ const env = Astro.locals.runtime.env;
 const ctx = Astro.locals.runtime.ctx;
 const items = await fetchNewsItems({ limit: 20, team }, env, ctx);
 ---
-<Layout title={`StreamCup — News — team ${team}`}>
+<Layout title={`umuo — News — team ${team}`}>
   <NewsPageShell scope={scope} items={items} title={`News — team ${team}`} />
   <NewsView scope={scope} initialData={items} client:only="react" />
 </Layout>
@@ -479,7 +479,7 @@ Notes:
 
 - [ ] **Step 3: Make `src/layouts/Layout.astro` accept a `title` prop**
 
-Currently the Layout has a hardcoded `<title>StreamCup — World Cup 2026…</title>`. The news pages need per-page titles. Replace the frontmatter + title tag with:
+Currently the Layout has a hardcoded `<title>umuo — World Cup 2026…</title>`. The news pages need per-page titles. Replace the frontmatter + title tag with:
 
 Frontmatter (replaces the existing `import '../index.css';` line):
 ```astro
@@ -490,7 +490,7 @@ interface Props {
   title?: string;
 }
 
-const { title = 'StreamCup — World Cup 2026 live streams & fixtures' } = Astro.props;
+const { title = 'umuo — World Cup 2026 live streams & fixtures' } = Astro.props;
 ---
 ```
 
