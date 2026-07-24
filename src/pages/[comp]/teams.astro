@@ -3,7 +3,7 @@ import { env } from 'cloudflare:workers';
 import { COMPETITIONS } from '../../competitions';
 import LeftNav from '../../components/LeftNav.astro';
 import RightRailIsland from '../../components/RightRailIsland';
-import TeamsIsland from '../../components/TeamsIsland';
+import TeamsView from '../../components/TeamsView';
 import { getCompetitionView, getTeams } from '../../data/api';
 import Layout from '../../layouts/Layout.astro';
 
@@ -24,7 +24,7 @@ const [teams, initialData] = await Promise.all([
     <h1 class="mb-card font-display text-2xl font-bold tracking-wide text-chalk">
       {competition.label} Teams
     </h1>
-    <TeamsIsland comp={comp} teams={teams} client:only="react" />
+    <TeamsView comp={comp} teams={teams} client:only="react" />
   </main>
   <RightRailIsland slot="right" comp={comp} initialData={initialData} client:only="react" />
 </Layout>

@@ -1,7 +1,6 @@
 import { useNews } from '../hooks/useNews';
 import { useTicker } from '../hooks/useTicker';
 import type { NewsItem } from '../types';
-import AppProviders from './AppProviders';
 import NewsRightRail from './NewsRightRail';
 
 interface Props {
@@ -18,13 +17,11 @@ export default function NewsRightRailIsland({ comp, initialNews }: Props) {
   const { items: scores, loading: scoresLoading } = useTicker();
 
   return (
-    <AppProviders>
-      <NewsRightRail
-        trending={trending.slice(0, 5)}
-        scores={scores}
-        newsLoading={newsLoading}
-        scoresLoading={scoresLoading}
-      />
-    </AppProviders>
+    <NewsRightRail
+      trending={trending.slice(0, 5)}
+      scores={scores}
+      newsLoading={newsLoading}
+      scoresLoading={scoresLoading}
+    />
   );
 }

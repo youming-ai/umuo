@@ -1,7 +1,6 @@
-import type { CompMatch } from '../types';
 import type { StandingsData } from '../adapters/types';
 import { useCompetition } from '../hooks/useCompetition';
-import AppProviders from './AppProviders';
+import type { CompMatch } from '../types';
 import RightRail from './RightRail';
 
 interface InitialData {
@@ -21,14 +20,12 @@ export default function RightRailIsland({
   const { standings, loading, error, refetch } = useCompetition(comp, initialData);
 
   return (
-    <AppProviders>
-      <RightRail
-        comp={comp}
-        standings={standings}
-        standingsLoading={loading}
-        standingsError={error}
-        onStandingsRetry={refetch}
-      />
-    </AppProviders>
+    <RightRail
+      comp={comp}
+      standings={standings}
+      standingsLoading={loading}
+      standingsError={error}
+      onStandingsRetry={refetch}
+    />
   );
 }

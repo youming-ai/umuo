@@ -1,12 +1,13 @@
-import AppProviders from './AppProviders';
+import { ThemeProvider } from '../theme';
 import ThemeSwitcher from './ThemeSwitcher';
 
-// ThemeSwitcher needs the theme context; wrap it so the header can mount
-// it as a standalone island without the rest of the app tree.
+// The one place that needs theme context: ThemeSwitcher reads/sets the theme.
+// Every other island themes purely off the global [data-theme] attribute the
+// inline script in Layout.astro sets before hydration, so they need no provider.
 export default function ThemeToggle() {
   return (
-    <AppProviders>
+    <ThemeProvider>
       <ThemeSwitcher />
-    </AppProviders>
+    </ThemeProvider>
   );
 }

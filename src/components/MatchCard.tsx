@@ -213,7 +213,7 @@ export default memo(function MatchCard({
               <ul className="space-y-0.5 ds-caption text-chalkdim leading-tight text-center min-w-0 max-w-full">
                 {homeScorers.slice(0, 3).map((s) => (
                   <li key={s.playerId + s.minute} className="truncate px-1">
-                    ⚽ {scorerDisplay(s)}
+                    <span aria-hidden>⚽</span> {scorerDisplay(s)}
                   </li>
                 ))}
                 {homeScorers.length > 3 && (
@@ -267,7 +267,7 @@ export default memo(function MatchCard({
               <ul className="space-y-0.5 ds-caption text-chalkdim leading-tight text-center min-w-0 max-w-full">
                 {awayScorers.slice(0, 3).map((s) => (
                   <li key={s.playerId + s.minute} className="truncate px-1">
-                    {scorerDisplay(s)} ⚽
+                    {scorerDisplay(s)} <span aria-hidden>⚽</span>
                   </li>
                 ))}
                 {awayScorers.length > 3 && (

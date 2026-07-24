@@ -1,6 +1,5 @@
 import { type TickerMatch, useTicker } from '../hooks/useTicker';
 import type { NewsItem } from '../types';
-import AppProviders from './AppProviders';
 import NewsRightRail from './NewsRightRail';
 
 // Right rail for the global home. Reuses the presentational NewsRightRail:
@@ -15,8 +14,6 @@ export default function HomeRightRailIsland({
 }) {
   const { items: scores, loading: scoresLoading } = useTicker(initialScores);
   return (
-    <AppProviders>
-      <NewsRightRail trending={news.slice(0, 5)} scores={scores} scoresLoading={scoresLoading} />
-    </AppProviders>
+    <NewsRightRail trending={news.slice(0, 5)} scores={scores} scoresLoading={scoresLoading} />
   );
 }

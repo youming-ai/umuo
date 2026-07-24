@@ -1,8 +1,7 @@
-import type { CompMatch } from '../types';
 import type { MatchDetail } from '../adapters/types';
-import { useRouter, pathFor } from '../utils/router';
+import type { CompMatch } from '../types';
+import { pathFor, useRouter } from '../utils/router';
 import MatchDetailPage from './MatchDetailPage';
-import AppProviders from './AppProviders';
 
 export default function MatchDetailIsland({
   match,
@@ -14,9 +13,5 @@ export default function MatchDetailIsland({
   const { route } = useRouter();
   const backHref = pathFor({ kind: 'section', comp: route.comp, section: 'schedule' });
 
-  return (
-    <AppProviders>
-      <MatchDetailPage match={match} backHref={backHref} initialDetail={initialDetail} />
-    </AppProviders>
-  );
+  return <MatchDetailPage match={match} backHref={backHref} initialDetail={initialDetail} />;
 }

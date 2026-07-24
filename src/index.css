@@ -152,9 +152,6 @@
   .ds-glass {
     @apply rounded-card border border-line/30 bg-panel/85 shadow-panel backdrop-blur-md;
   }
-  .ds-glass-solid {
-    @apply rounded-card border border-line bg-panel shadow-panel;
-  }
   .ds-glass-hero {
     @apply rounded-panel md:rounded-hero border border-line/30 bg-gradient-to-b from-panel/95 to-panel/85 shadow-hero backdrop-blur-md;
   }
@@ -254,48 +251,6 @@
   .ds-lead {
     @apply font-body text-lead leading-lead;
   }
-  /* Display hierarchy — Saira Condensed, used sparingly */
-  .ds-hero {
-    @apply font-display text-hero leading-hero font-bold tracking-wide;
-  }
-  .ds-title {
-    @apply font-display text-lead leading-lead font-semibold tracking-wide;
-  }
-
-  /* Shared table surface: one visual treatment for every data table. */
-  .ds-table {
-    @apply w-full text-sm border border-line bg-panel rounded-card overflow-hidden shadow-panel;
-  }
-  .ds-table thead {
-    @apply text-chalkdim ds-caption uppercase;
-  }
-  .ds-table th,
-  .ds-table td {
-    @apply px-3 py-2 text-left;
-  }
-  .ds-table thead tr {
-    @apply border-b border-overlay/5 bg-overlay/[0.02];
-  }
-  .ds-table tbody tr {
-    @apply border-b border-overlay/5 last:border-b-0;
-  }
-  .ds-table tbody tr:hover {
-    @apply bg-overlay/5;
-  }
-
-  /* Shared list surface: compact rows without the heavy glass shadow. */
-  .ds-list {
-    @apply border border-line bg-panel rounded-card overflow-hidden shadow-panel;
-  }
-  .ds-list > li,
-  .ds-list > * > li {
-    @apply flex items-center justify-between gap-3 px-3 py-2 border-b border-overlay/5 last:border-b-0;
-  }
-  .ds-list > li:hover,
-  .ds-list > * > li:hover {
-    @apply bg-overlay/5;
-  }
-
   /* Broadcast tally light */
   .live-dot {
     @apply inline-block w-1.5 h-1.5 bg-live;

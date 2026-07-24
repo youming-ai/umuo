@@ -1,5 +1,4 @@
 import type { NewsItem } from '../types';
-import AppProviders from './AppProviders';
 import NewsCard from './NewsCard';
 
 // Center column of the global home: the aggregated cross-comp news feed.
@@ -19,9 +18,5 @@ function HomeInner({ news }: { news: NewsItem[] }) {
 }
 
 export default function HomeView({ news }: { news: NewsItem[] }) {
-  return (
-    <AppProviders>
-      <HomeInner news={news} />
-    </AppProviders>
-  );
+  return <HomeInner news={news} />;
 }

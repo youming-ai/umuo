@@ -1,4 +1,5 @@
 import type { NewsItem, NewsTag } from '../types';
+import { timeAgo } from '../utils/helpers';
 
 // Shared article card for the news surfaces.
 //  - 'lead'     : large hero (image + text side-by-side on md), one at the top of a feed
@@ -17,6 +18,7 @@ export default function NewsCard({
   const linked = external || item.link.startsWith('/');
   const isLead = variant === 'lead';
   const isRow = variant === 'row';
+  const meta = [item.byline, timeAgo(item.published)].filter(Boolean).join(' · ');
 
   const body = isRow ? (
     <div className="flex items-stretch gap-3">
@@ -38,7 +40,7 @@ export default function NewsCard({
         {item.description && (
           <p className="mt-1 ds-body text-chalkdim line-clamp-2">{item.description}</p>
         )}
-        {item.byline && <p className="mt-1.5 ds-caption text-chalkdim">{item.byline}</p>}
+        {meta && <p className="mt-1.5 ds-caption text-chalkdim">{meta}</p>}
       </div>
     </div>
   ) : (
@@ -73,7 +75,7 @@ export default function NewsCard({
             {item.description}
           </p>
         )}
-        {item.byline && <p className="mt-2 ds-caption text-chalkdim">{item.byline}</p>}
+        {meta && <p className="mt-2 ds-caption text-chalkdim">{meta}</p>}
       </div>
     </div>
   );
@@ -113,6 +115,6 @@ export default function NewsCard({
 // All tags render as plain labels. News is per-competition (site.api league
 // feed); there is no team-scoped news route to link into.
 function Tag({ tag }: { tag: NewsTag }) {
-  const cls = 'ds-caption rounded-micro px-1.5 py-0.5 bg-white/5';
+  const cls = 'ds-caption rounded-micro px-1.5 py-0.5 bg-overlay/5';
   return <span className={`${cls} text-chalkdim`}>{tag.label}</span>;
 }

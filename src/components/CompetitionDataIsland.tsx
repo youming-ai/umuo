@@ -2,7 +2,6 @@ import type { ReactNode } from 'react';
 import type { StandingsData } from '../adapters/types';
 import { useCompetition } from '../hooks/useCompetition';
 import type { CompMatch } from '../types';
-import AppProviders from './AppProviders';
 
 export interface CompetitionInitialData {
   matches: CompMatch[];
@@ -20,7 +19,7 @@ interface CompetitionView {
 // leaf, so both delegate here instead of copying the wrapper. Not mounted by
 // Astro directly — Astro can't pass a function child — the thin islands are the
 // client:only entry points.
-function Inner({
+export default function CompetitionDataIsland({
   comp,
   initialData,
   children,
@@ -55,22 +54,4 @@ function Inner({
   }
 
   return <>{children({ matches, standings })}</>;
-}
-
-export default function CompetitionDataIsland({
-  comp,
-  initialData,
-  children,
-}: {
-  comp: string;
-  initialData: CompetitionInitialData;
-  children: (view: CompetitionView) => ReactNode;
-}) {
-  return (
-    <AppProviders>
-      <Inner comp={comp} initialData={initialData}>
-        {children}
-      </Inner>
-    </AppProviders>
-  );
 }

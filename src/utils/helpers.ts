@@ -12,3 +12,26 @@ export function slugify(text: string): string {
     .replace(/[\s_]+/g, '-') // 空白或下划线替换为单个横杠
     .replace(/-+/g, '-'); // 连续横杠替换为单个
 }
+
+const RTF = new Intl.RelativeTimeFormat('en', { numeric: 'auto' });
+const UNITS: [Intl.RelativeTimeFormatUnit, number][] = [
+  ['year', 31536000],
+  ['month', 2592000],
+  ['week', 604800],
+  ['day', 86400],
+  ['hour', 3600],
+  ['minute', 60],
+];
+
+/** ISO timestamp → relative label ("2 hours ago"). '' if unparseable. */
+export function timeAgo(iso: string | undefined, now = Date.now()): string {
+  if (!iso) return '';
+  const then = Date.parse(iso);
+  if (Number.isNaN(then)) return '';
+  const diff = Math.round((then - now) / 1000); // seconds; negative = past
+  const abs = Math.abs(diff);
+  for (const [unit, secs] of UNITS) {
+    if (abs >= secs) return RTF.format(Math.round(diff / secs), unit);
+  }
+  return RTF.format(diff, 'second');
+}

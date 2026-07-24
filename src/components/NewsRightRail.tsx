@@ -2,6 +2,7 @@ import { Flame, Trophy } from 'lucide-react';
 import { COMPETITIONS } from '../competitions';
 import type { TickerMatch } from '../hooks/useTicker';
 import type { NewsItem } from '../types';
+import { timeAgo } from '../utils/helpers';
 import { pathFor } from '../utils/router';
 import { formatTickerLine } from './Ticker';
 
@@ -38,21 +39,30 @@ export default function NewsRightRail({
               const external = item.link.startsWith('https://');
               const linked = external || item.link.startsWith('/');
               const key = item.id || `trend-${i}`;
+              const when = timeAgo(item.published);
               const cls = 'text-xs leading-snug line-clamp-2 px-1';
+              const time = when && (
+                <span className="block px-1 mt-0.5 text-caption text-chalkdim">{when}</span>
+              );
               return linked ? (
-                <a
-                  key={key}
-                  href={item.link}
-                  target={external ? '_blank' : undefined}
-                  rel={external ? 'noopener noreferrer' : undefined}
-                  className={`${cls} text-chalk hover:text-pitch transition-colors`}
-                >
-                  {item.headline}
-                </a>
+                <div key={key}>
+                  <a
+                    href={item.link}
+                    target={external ? '_blank' : undefined}
+                    rel={external ? 'noopener noreferrer' : undefined}
+                    className={`${cls} text-chalk hover:text-pitch transition-colors`}
+                  >
+                    {item.headline}
+                  </a>
+                  {time}
+                </div>
               ) : (
-                <span key={key} aria-disabled className={`${cls} text-chalkdim`}>
-                  {item.headline}
-                </span>
+                <div key={key}>
+                  <span aria-disabled className={`${cls} text-chalkdim`}>
+                    {item.headline}
+                  </span>
+                  {time}
+                </div>
               );
             })}
           </div>

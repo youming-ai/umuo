@@ -14,7 +14,7 @@ export const prerender = false;
 // data, are enumerable only by hitting upstream, and go stale/404 fast — the
 // core pages below give crawlers the entry points to reach them via in-page links.
 export const GET: APIRoute = () => {
-  const paths: string[] = [];
+  const paths: string[] = ['/']; // global home — returns 200, no redirect
 
   // Per-competition pages, derived from the one SECTIONS table and gated on
   // capabilities so we never emit a section that redirects (scorers 307 when off).

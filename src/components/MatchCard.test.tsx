@@ -237,8 +237,8 @@ describe('MatchCard', () => {
     });
     // The full scorer line including the minute marker is rendered under
     // the home team's name; the unicode ball emoji is appended by the UI.
-    expect(screen.getByText(/⚽ Alvarado 45'/)).toBeInTheDocument();
-    expect(screen.getByText(/⚽ Vega 67'/)).toBeInTheDocument();
+    expect(screen.getByText(/Alvarado 45'/)).toBeInTheDocument();
+    expect(screen.getByText(/Vega 67'/)).toBeInTheDocument();
   });
 
   it('truncates long scorer lists to 3 entries + "+N more"', () => {
@@ -259,9 +259,9 @@ describe('MatchCard', () => {
       awayScorers: [],
     });
     // First three are shown
-    expect(screen.getByText(/⚽ P1 10'/)).toBeInTheDocument();
-    expect(screen.getByText(/⚽ P2 20'/)).toBeInTheDocument();
-    expect(screen.getByText(/⚽ P3 30'/)).toBeInTheDocument();
+    expect(screen.getByText(/P1 10'/)).toBeInTheDocument();
+    expect(screen.getByText(/P2 20'/)).toBeInTheDocument();
+    expect(screen.getByText(/P3 30'/)).toBeInTheDocument();
     // The other two are summarised as "+2 more"
     expect(screen.getByText('+2 more')).toBeInTheDocument();
     // Earlier this showed them all in a separate block under the score;

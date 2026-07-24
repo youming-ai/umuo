@@ -3,7 +3,7 @@ import { env } from 'cloudflare:workers';
 import { COMPETITIONS } from '../../competitions';
 import LeftNav from '../../components/LeftNav.astro';
 import RightRailIsland from '../../components/RightRailIsland';
-import StatsIsland from '../../components/StatsIsland';
+import StatsView from '../../components/StatsView';
 import { getCompetitionView, getLeaderboards } from '../../data/api';
 import Layout from '../../layouts/Layout.astro';
 
@@ -26,7 +26,7 @@ const [boards, initialData] = await Promise.all([
 <Layout title={`umuo — ${competition.label} Stats`} comp={comp}>
   <LeftNav slot="left" comp={comp} active="stats" />
   <main>
-    <StatsIsland boards={boards} client:only="react" />
+    <StatsView boards={boards} client:only="react" />
   </main>
   <RightRailIsland slot="right" comp={comp} initialData={initialData} client:only="react" />
 </Layout>
