@@ -1,5 +1,7 @@
 import type { CompMatch, TopScorer } from '../types';
+import { arr, obj, str, teamLogo } from '../utils/coerce';
 import { matchSlug, parseScore, statusFromState } from '../utils/wc';
+import { parseScoreboardOdds, parseSummaryBase } from './summaryExtras';
 import type {
   BoxscoreTable,
   ConferenceTable,
@@ -7,8 +9,6 @@ import type {
   SportAdapter,
   StandingsData,
 } from './types';
-import { parseScoreboardOdds, parseSummaryBase } from './summaryExtras';
-import { arr, obj, str, teamLogo } from '../utils/coerce';
 
 // ESPN standings stats are [{name, value, displayValue}]; pull the display
 // string by name (PCT/GB want the pre-formatted ".714" / "-" / "3").

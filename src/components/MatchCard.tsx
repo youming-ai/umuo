@@ -1,4 +1,4 @@
-import { memo, useEffect, useRef, type ReactNode } from 'react';
+import { memo, type ReactNode, useEffect, useRef } from 'react';
 import type { MatchProgress, MatchStatus, ScorerEntry } from '../types';
 import { scorerDisplay } from '../utils/wc';
 import { ReminderMenu } from './MatchActions';

@@ -1,5 +1,5 @@
-import { act } from 'react';
 import { renderHook, waitFor } from '@testing-library/react';
+import { act } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useCompetition } from './useCompetition';
 

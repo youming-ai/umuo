@@ -1,4 +1,4 @@
-import type { CompMatch, ScorerEntry, TopScorer, Group } from '../types';
+import type { CompMatch, Group, ScorerEntry, TopScorer } from '../types';
 import { pathFor, useRouter } from '../utils/router';
 
 interface PlayerPageProps {

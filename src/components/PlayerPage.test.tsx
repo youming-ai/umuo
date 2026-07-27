@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import type { CompMatch, ScorerEntry, Group } from '../types';
+import type { CompMatch, Group, ScorerEntry } from '../types';
 import PlayerPage from './PlayerPage';
 
 function scorer(

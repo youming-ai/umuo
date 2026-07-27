@@ -7,9 +7,12 @@ import { SITE_ORIGIN } from '../site';
 
 interface Props {
   title?: string;
+  /** Hide the sticky global Ticker strip. Used on the home page where the
+      page itself owns the richer scoreboard band. */
+  showTicker?: boolean;
 }
 
-const { title = 'umuo — Sports news, scores & standings' } = Astro.props;
+const { title = 'umuo — Sports news, scores & standings', showTicker = true } = Astro.props;
 
 // Rails are opt-in per page via named slots. When a page has rails, the shell
 // owns the width + page padding and lays out the 3-col grid. When it has none,
@@ -115,9 +118,11 @@ const canonicalUrl = `${SITE_ORIGIN}${canonicalPath}`;
             hydration instead of popping in and shoving the header down (CLS).
             Height is the shared `--h-ticker` token (see index.css) so the
             reserve and every sticky offset below the bar stay in sync. */}
-        <div class="min-h-[var(--h-ticker)]">
-          <Ticker client:only="react" />
-        </div>
+        {showTicker ? (
+          <div class="min-h-[var(--h-ticker)]">
+            <Ticker client:only="react" />
+          </div>
+        ) : null}
         <Header />
       </div>
       <div class={`flex-1 w-full ${frame}`}>
