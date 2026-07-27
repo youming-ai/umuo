@@ -1,8 +1,8 @@
 import type { MatchProgress, MatchStatus, ProgressStatus, ScorerEntry, WCStanding } from '../types';
 import { slugify } from './helpers';
 
-export function parseScore(s: string | number | null | undefined): number | null {
-  if (s == null) return null;
+export function parseScore(s: unknown): number | null {
+  if (typeof s !== 'string' && typeof s !== 'number') return null;
   if (typeof s === 'string' && s.trim() === '') return null;
   const n = typeof s === 'number' ? s : Number(s.trim());
   return Number.isFinite(n) ? n : null;

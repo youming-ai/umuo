@@ -27,17 +27,17 @@ export default function LeadersView({
         <span className="ds-caption uppercase tracking-[0.2em] text-chalkdim">{subtitle}</span>
       </div>
 
-      <table className="w-full text-sm border border-line/30 bg-panel/85 rounded-card overflow-hidden shadow-panel backdrop-blur-sm">
+      <table className="w-full table-fixed text-sm border border-line/30 bg-panel/85 rounded-card overflow-hidden shadow-panel backdrop-blur-sm">
         <caption className="sr-only">{title}</caption>
         <thead className="text-chalkdim ds-caption uppercase tracking-[0.18em]">
           <tr className="border-b border-overlay/5 bg-overlay/[0.02]">
-            <th scope="col" className="text-left font-medium px-3 py-2 w-10">
+            <th scope="col" className="text-left font-medium px-3 py-2 w-8">
               #
             </th>
             <th scope="col" className="text-left font-medium px-3 py-2">
               Player
             </th>
-            <th scope="col" className="text-left font-medium px-3 py-2 hidden sm:table-cell">
+            <th scope="col" className="text-center font-medium px-2 py-2 w-12 hidden sm:table-cell">
               Team
             </th>
             <th scope="col" className="text-right font-medium px-3 py-2 w-16">
@@ -54,30 +54,30 @@ export default function LeadersView({
                 className={`border-b border-overlay/5 last:border-b-0 ${isLeader ? 'bg-pitch/5' : ''}`}
               >
                 <td className="px-3 py-2 font-mono tabular-nums text-chalkdim">{l.rank}</td>
-                <td className="px-3 py-2 font-display text-chalk truncate max-w-0">
-                  {l.name}
+                <td className="px-3 py-2 font-display text-chalk">
+                  <span className="block truncate">{l.name}</span>
                   <span className="flex items-center gap-1 sm:hidden ds-caption text-chalkdim">
                     {l.teamLogo && (
                       <img
                         src={l.teamLogo}
                         alt=""
-                        className="w-3.5 h-2.5 object-cover rounded-card-inset shrink-0"
+                        className="w-3.5 h-2.5 object-contain rounded-card-inset shrink-0"
                       />
                     )}
                     <span className="truncate">{l.teamName}</span>
                   </span>
                 </td>
-                <td className="px-3 py-2 font-mono text-label text-chalkdim truncate max-w-0 hidden sm:table-cell">
-                  <span className="flex items-center gap-1.5">
-                    {l.teamLogo && (
-                      <img
-                        src={l.teamLogo}
-                        alt=""
-                        className="w-4 h-3 object-cover rounded-card-inset shrink-0"
-                      />
-                    )}
-                    <span className="truncate">{l.teamName}</span>
-                  </span>
+                <td className="px-2 py-2 hidden sm:table-cell">
+                  {l.teamLogo ? (
+                    <img
+                      src={l.teamLogo}
+                      alt={l.teamName}
+                      title={l.teamName}
+                      className="mx-auto w-5 h-5 object-contain"
+                    />
+                  ) : (
+                    <span className="sr-only">{l.teamName}</span>
+                  )}
                 </td>
                 <td className="px-3 py-2 font-mono text-base sm:text-lg font-bold text-chalk tabular-nums text-right">
                   {l.displayValue}

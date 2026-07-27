@@ -1,12 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { WCStanding } from '../types';
-import {
-  matchSlug,
-  parseScore,
-  progressFromStatus,
-  sortStandings,
-  statusFromState,
-} from './wc';
+import { matchSlug, parseScore, progressFromStatus, sortStandings, statusFromState } from './wc';
 
 describe('parseScore', () => {
   it('parses numeric strings and numbers', () => {
@@ -20,6 +14,9 @@ describe('parseScore', () => {
     expect(parseScore('abc')).toBeNull();
     expect(parseScore(undefined)).toBeNull();
     expect(parseScore(null)).toBeNull();
+    expect(parseScore(true)).toBeNull();
+    expect(parseScore({})).toBeNull();
+    expect(parseScore([])).toBeNull();
   });
 });
 

@@ -293,12 +293,14 @@ gameInfo.venue {fullName, address.city} / .attendance
 
 ### 能力开关矩阵（`src/competitions.ts` 的 `capabilities`）
 
-| comp | scorers | lineups | boxscore | transactions | odds |
-|---|---|---|---|---|---|
-| 足球（eng.1/esp.1/ger.1/ita.1/fra.1/uefa.champions） | ✅ | ✅ | ❌ | —（缺省 falsy） | ✅ |
-| nba | ✅ | ❌ | ✅ | ✅ | ✅ |
+| comp | scorers | transactions | odds |
+|---|---|---|---|
+| 足球（eng.1/esp.1/ger.1/ita.1/fra.1/uefa.champions） | ✅ | —（缺省 falsy） | ✅ |
+| nba | ✅ | ✅ | ✅ |
 
-消费点：`transactions`/`odds`/`scorers` 门控对应页面（不支持则 307 回 `/{comp}`）；`lineups`/`boxscore` 决定 match-detail 用哪种 summary tab。（注：足球的 `transactions` 是 `undefined` 而非显式 `false`，靠 falsy 生效——可考虑显式化。）
+消费点：`transactions`/`odds`/`scorers` 门控对应页面（不支持则 307 回 `/{comp}`），并决定 `LeftNav`/Header 下拉里出现哪些 section。（注：足球的 `transactions` 是 `undefined` 而非显式 `false`，靠 falsy 生效——可考虑显式化。）
+
+> 曾有 `lineups`/`boxscore` 两个开关，本意是决定 match-detail 用哪种 summary tab，但从未被任何代码读取——tab 变体实际由 `MatchDetail` 的 `kind: 'soccer' | 'basketball'` 判别联合决定。已删除。
 
 ### 上游有、本项目**未消费**的能力（扩展清单）
 

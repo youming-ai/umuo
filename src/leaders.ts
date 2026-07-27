@@ -82,6 +82,38 @@ async function resolveRefs(
   return out;
 }
 
+// Parse a category's raw leaders[] into sorted, capped RawRows (shared by both
+// assemble* functions so the build/sort/slice can't drift between them).
+function parseRawRows(leadersRaw: unknown, topN: number): RawRow[] {
+  return arr(leadersRaw)
+    .map(obj)
+    .map((l) => ({
+      displayValue: str(l.displayValue),
+      value: Number(l.value) || 0,
+      athleteRef: str(obj(l.athlete).$ref),
+      teamRef: str(obj(l.team).$ref),
+    }))
+    .sort((a, b) => b.value - a.value)
+    .slice(0, topN);
+}
+
+// Resolve each row into a display Leader via the shared $ref map.
+function rowsToLeaders(rows: RawRow[], resolved: Map<string, Record<string, unknown>>): Leader[] {
+  return rows.map((r, i): Leader => {
+    const athlete = resolved.get(r.athleteRef);
+    const team = resolved.get(r.teamRef);
+    const logos = team ? arr(team.logos) : [];
+    return {
+      rank: i + 1,
+      name: athlete ? str(athlete.displayName) || str(athlete.shortName) : '',
+      teamName: team ? str(team.displayName) : '',
+      teamLogo: logos.length ? str(obj(logos[0]).href) : '',
+      displayValue: r.displayValue,
+      value: r.value,
+    };
+  });
+}
+
 export async function assembleLeaders(
   fetchImpl: FetchByURL,
   cfg: LeadersConfig,
@@ -103,16 +135,7 @@ export async function assembleLeaders(
     .find((c) => str(c.name) === cfg.category);
   if (!category) throw new Error(`leaders category ${cfg.category} not found`);
 
-  const rows: RawRow[] = arr(category.leaders)
-    .map(obj)
-    .map((l) => ({
-      displayValue: str(l.displayValue),
-      value: Number(l.value) || 0,
-      athleteRef: str(obj(l.athlete).$ref),
-      teamRef: str(obj(l.team).$ref),
-    }))
-    .sort((a, b) => b.value - a.value)
-    .slice(0, cfg.topN);
+  const rows = parseRawRows(category.leaders, cfg.topN);
 
   // Dedupe refs so a team shared by several leaders is fetched once.
   const refs = [
@@ -123,19 +146,7 @@ export async function assembleLeaders(
   ];
   const resolved = await resolveRefs(fetchImpl, refs);
 
-  return rows.map((r, i): Leader => {
-    const athlete = resolved.get(r.athleteRef);
-    const team = resolved.get(r.teamRef);
-    const logos = team ? arr(team.logos) : [];
-    return {
-      rank: i + 1,
-      name: athlete ? str(athlete.displayName) || str(athlete.shortName) : '',
-      teamName: team ? str(team.displayName) : '',
-      teamLogo: logos.length ? str(obj(logos[0]).href) : '',
-      displayValue: r.displayValue,
-      value: r.value,
-    };
-  });
+  return rowsToLeaders(rows, resolved);
 }
 
 export interface LeaderboardSpec {
@@ -186,16 +197,7 @@ export async function assembleLeaderboards(
 
   const perSpec = specs.map((spec) => {
     const category = categories.find((c) => str(c.name) === spec.category);
-    const rows: RawRow[] = arr(category?.leaders)
-      .map(obj)
-      .map((l) => ({
-        displayValue: str(l.displayValue),
-        value: Number(l.value) || 0,
-        athleteRef: str(obj(l.athlete).$ref),
-        teamRef: str(obj(l.team).$ref),
-      }))
-      .sort((a, b) => b.value - a.value)
-      .slice(0, cfg.topN);
+    const rows = parseRawRows(category?.leaders, cfg.topN);
     return { spec, rows };
   });
 
@@ -215,19 +217,7 @@ export async function assembleLeaderboards(
         key: spec.category,
         label: spec.label,
         group: spec.group,
-        leaders: rows.map((r, i): Leader => {
-          const athlete = resolved.get(r.athleteRef);
-          const team = resolved.get(r.teamRef);
-          const logos = team ? arr(team.logos) : [];
-          return {
-            rank: i + 1,
-            name: athlete ? str(athlete.displayName) || str(athlete.shortName) : '',
-            teamName: team ? str(team.displayName) : '',
-            teamLogo: logos.length ? str(obj(logos[0]).href) : '',
-            displayValue: r.displayValue,
-            value: r.value,
-          };
-        }),
+        leaders: rowsToLeaders(rows, resolved),
       }),
     );
 }

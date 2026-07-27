@@ -143,9 +143,7 @@ describe('StandingsView', () => {
   });
 
   it('renders legend with top-2 and best-third explanations', () => {
-    const groups: Group[] = [
-      { name: 'A', standings: [team({ teamId: '1', name: 'T1', pts: 3 })] },
-    ];
+    const groups: Group[] = [{ name: 'A', standings: [team({ teamId: '1', name: 'T1', pts: 3 })] }];
     renderView(groups);
     expect(screen.getByText('Top 2 advance')).toBeInTheDocument();
     expect(screen.getByText('8 best third-placed teams advance')).toBeInTheDocument();

@@ -20,7 +20,7 @@ if (!competition.capabilities.odds) {
 const ctx = Astro.locals.cfContext;
 const initialData = await getCompetitionView(competition, env, ctx);
 ---
-<Layout title={`umuo — ${competition.label} Odds`} comp={comp}>
+<Layout title={`umuo — ${competition.label} Odds`}>
   <LeftNav slot="left" comp={comp} active="odds" />
   <main>
     <h1 class="mb-card font-display text-2xl font-bold tracking-wide text-chalk">

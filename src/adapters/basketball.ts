@@ -8,11 +8,7 @@ import type {
   StandingsData,
 } from './types';
 import { parseScoreboardOdds, parseSummaryBase } from './summaryExtras';
-import { arr, obj, str } from '../utils/coerce';
-
-function score(v: unknown): number | null {
-  return typeof v === 'string' || typeof v === 'number' ? parseScore(v) : null;
-}
+import { arr, obj, str, teamLogo } from '../utils/coerce';
 
 // ESPN standings stats are [{name, value, displayValue}]; pull the display
 // string by name (PCT/GB want the pre-formatted ".714" / "-" / "3").
@@ -23,12 +19,6 @@ function statDisplay(entry: Record<string, unknown>, name: string): string {
 function statNum(entry: Record<string, unknown>, name: string): number {
   const s = arr(entry.stats).find((x) => obj(x).name === name);
   return s ? Number(obj(s).value) || 0 : 0;
-}
-
-function teamLogo(team: Record<string, unknown>): string {
-  if (str(team.logo)) return str(team.logo);
-  const logos = arr(team.logos);
-  return logos.length ? str(obj(logos[0]).href) : '';
 }
 
 function transform(
@@ -95,8 +85,8 @@ function transform(
       awayFlag: teamLogo(awayTeam),
       homeId: str(homeTeam.id),
       awayId: str(awayTeam.id),
-      homeScore: status === 'upcoming' ? null : score(home.score),
-      awayScore: status === 'upcoming' ? null : score(away.score),
+      homeScore: status === 'upcoming' ? null : parseScore(home.score),
+      awayScore: status === 'upcoming' ? null : parseScore(away.score),
       kickoff: kickoff && !Number.isNaN(kickoff.getTime()) ? kickoff : null,
       status,
       homeScorers: [],

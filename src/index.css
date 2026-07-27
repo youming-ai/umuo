@@ -114,7 +114,7 @@
   --c-overlay: 0 0 0;
   --c-scrim: 0 0 0;
 
-  --shadow-panel: 0 2px 4px -1px rgb(0 0 0 / 0.08), 0 1px 2px -1px rgb(0 0 0 / 0.06);
+  --shadow-panel: 0 2px 6px -1px rgb(0 0 0 / 0.1), 0 1px 3px -1px rgb(0 0 0 / 0.07);
   --shadow-hero: 0 8px 12px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.08);
   --shadow-float: 0 16px 20px -5px rgb(0 0 0 / 0.12), 0 8px 10px -6px rgb(0 0 0 / 0.08);
 
@@ -154,6 +154,13 @@
   }
   .ds-glass-hero {
     @apply rounded-panel md:rounded-hero border border-line/30 bg-gradient-to-b from-panel/95 to-panel/85 shadow-hero backdrop-blur-md;
+  }
+
+  /* Light theme: white-on-white flattens the glass panels; a firmer hairline
+     restores the card/panel hierarchy the dark floodlit ground gives for free. */
+  [data-theme='light'] .ds-glass,
+  [data-theme='light'] .ds-glass-hero {
+    @apply border-line/70;
   }
 
   /* Capsule segmented controls */

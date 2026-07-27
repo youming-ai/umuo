@@ -71,11 +71,9 @@ describe('nba (season-shape basketball)', () => {
     expect(nba.label).toBe('NBA');
   });
 
-  it('exposes boxscore and scorers capabilities', () => {
+  it('exposes scorers/transactions/odds capabilities', () => {
     expect(nba.capabilities).toEqual({
       scorers: true,
-      lineups: false,
-      boxscore: true,
       transactions: true,
       odds: true,
     });

@@ -23,10 +23,10 @@ const [boards, initialData] = await Promise.all([
   getCompetitionView(competition, env, ctx),
 ]);
 ---
-<Layout title={`umuo — ${competition.label} Stats`} comp={comp}>
+<Layout title={`umuo — ${competition.label} Stats`}>
   <LeftNav slot="left" comp={comp} active="stats" />
   <main>
     <StatsView boards={boards} client:only="react" />
   </main>
-  <RightRailIsland slot="right" comp={comp} initialData={initialData} client:only="react" />
+  <RightRailIsland slot="right" comp={comp} initialData={initialData} hide="scorers" client:only="react" />
 </Layout>

@@ -98,7 +98,7 @@ export default function NewsCard({
       )}
       {/* Tags only on the fuller cards; the compact row stays a clean list. */}
       {!isRow && item.tags.length > 0 && (
-        <div className="px-3 pb-3 flex flex-wrap gap-1.5">
+        <div className={`px-3 pb-3 flex flex-wrap gap-1.5 ${isLead ? 'pt-2' : ''}`}>
           {item.tags.map((tag, i) => (
             <Tag
               // biome-ignore lint/suspicious/noArrayIndexKey: tags are deduped so index is stable

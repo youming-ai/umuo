@@ -2,7 +2,8 @@
 // @vitest-environment node
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import worker, { type Env, json, serve, serveLeaders, serveSummary } from './index';
+import worker from './index';
+import { type Env, json, serve, serveLeaders, serveSummary } from '../src/data/api';
 import { COMPETITIONS } from '../src/competitions';
 
 const EPL = COMPETITIONS['eng.1'];

@@ -13,15 +13,18 @@ interface InitialData {
 export default function RightRailIsland({
   comp,
   initialData,
+  hide,
 }: {
   comp: string;
   initialData?: InitialData;
+  hide?: 'standings' | 'scorers';
 }) {
   const { standings, loading, error, refetch } = useCompetition(comp, initialData);
 
   return (
     <RightRail
       comp={comp}
+      hide={hide}
       standings={standings}
       standingsLoading={loading}
       standingsError={error}

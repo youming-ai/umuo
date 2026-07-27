@@ -87,7 +87,7 @@ graph TD
 * 分类规则详见 `docs/news-classification-spec.md`。
 
 ### 2.8 主题切换 (Theme)
-* **系统级主题切换**：Light/Dark 主题，`src/theme/` 提供 `ThemeProvider`/`useTheme`（持久化于 `localStorage`，默认 dark）。`Layout.astro` 内联脚本在水合前设置 `data-theme` 避免闪烁；界面采用玻璃拟态卡片设计（Rounded Glassmorphism，比例圆角，Apple Sports 风格）。（UI 文案为英文硬编码——国际化已在重构中移除。）
+* **系统级主题切换**：Light/Dark 主题，由 `src/components/ThemeSwitcher.tsx` 自包含管理（读写 `localStorage`，默认 dark，并把 `data-theme` 写到文档根，无 Context）。`Layout.astro` 内联脚本在水合前设置 `data-theme` 避免闪烁；界面采用玻璃拟态卡片设计（Rounded Glassmorphism，比例圆角，Apple Sports 风格）。（UI 文案为英文硬编码——国际化已在重构中移除。）
 
 ---
 
@@ -143,13 +143,12 @@ graph TD
 │   │   ├── [comp]/       # index / news / stats / bracket / transactions / odds / teams / match/[slug] / team/[id] / player/[id]
 │   │   └── api/[...route].ts   # 将 /api/* 转发给 worker/index.ts
 │   ├── layouts/          # Layout.astro（外壳：Ticker / Header / 左右栏 / Footer）
-│   ├── components/       # *.astro 外壳 + React 视图 + *Island.tsx 水合包装 + AppProviders
+│   ├── components/       # *.astro 外壳 + React 视图 + *Island.tsx 水合包装（无 Provider 层）
 │   │   └── matchdetail/  # 比赛详情页内部 Tabs
 │   ├── data/api.ts       # 共享 KV 缓存 + SSR 组合函数
 │   ├── middleware.ts     # 规范化路径重定向
 │   ├── adapters/         # 体育数据适配归一化层 (types / soccer / basketball / index)
 │   ├── hooks/            # 自定义 React Hooks（SWR + 可见性轮询）
-│   ├── theme/            # 主题 Provider（ThemeProvider/useTheme，dark/light）
 │   ├── utils/            # router / calendar / marquee / streamMatch / espn / wc / streamSources ...
 │   ├── competitions.ts   # 赛事注册表（单一事实源）
 │   ├── leaders.ts        # assembleLeaders 服务端聚合管线

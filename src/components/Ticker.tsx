@@ -49,7 +49,7 @@ export default function Ticker() {
 
   return (
     <div className="border-b border-line/30 bg-panel/60 backdrop-blur-md">
-      <div className="marquee-viewport no-scrollbar mx-auto w-full max-w-6xl">
+      <div className="marquee-viewport no-scrollbar w-full">
         <div className="marquee-track flex w-max">
           {tickerItems()}
           {tickerItems(true)}

@@ -21,7 +21,7 @@ const initialDetail = match ? await getMatchSummary(competition, match.id, env, 
 // match detail (back, live scoreboard, tabs) and seeds from SSR data.
 ---
 
-<Layout title={`umuo — ${match ? `${match.homeName} vs ${match.awayName}` : 'Match'}`} comp={comp}>
+<Layout title={`umuo — ${match ? `${match.homeName} vs ${match.awayName}` : 'Match'}`}>
   <LeftNav slot="left" comp={comp} />
   <main>
     {match ? (
