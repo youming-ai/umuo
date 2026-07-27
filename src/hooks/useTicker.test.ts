@@ -59,28 +59,111 @@ describe('useTicker shared poller', () => {
     // Remaining subscriber keeps the poller alive; no extra fan-out.
     expect(fetch).toHaveBeenCalledTimes(COMP_COUNT);
   });
+  const match = (id: string, comp: string) => ({
+    id,
+    comp,
+    homeName: 'H',
+    awayName: 'A',
+    homeFlag: '',
+    awayFlag: '',
+    homeId: '1',
+    awayId: '2',
+    homeScore: 1,
+    awayScore: 0,
+    kickoff: new Date(),
+    status: 'live' as const,
+    homeScorers: [],
+    awayScorers: [],
+    venue: '',
+    slug: `h-vs-a-${id}`,
+  });
+
   it('seeds state immediately from initialScores and preserves per-comp tags', () => {
-    const match = (id: string, comp: string) => ({
-      id,
-      comp,
-      homeName: 'H',
-      awayName: 'A',
-      homeFlag: '',
-      awayFlag: '',
-      homeId: '1',
-      awayId: '2',
-      homeScore: 1,
-      awayScore: 0,
-      kickoff: new Date(),
-      status: 'live' as const,
-      homeScorers: [],
-      awayScorers: [],
-      venue: '',
-      slug: `h-vs-a-${id}`,
-    });
     const seed = [match('1', 'nba'), match('2', 'esp.1')];
     const { result } = renderHook(() => useTicker(seed));
     expect(result.current.loading).toBe(false);
     expect(result.current.items.map((m) => m.comp)).toEqual(['nba', 'esp.1']);
+  });
+
+  // Ticker and HomeView are separate hydration roots; mount order is arbitrary.
+  // The unseeded one must not stall on empty just because it got there first.
+  it('hands the seed to an unseeded island that mounted before the seeder', () => {
+    const seed = [match('1', 'nba')];
+    const { result: unseeded } = renderHook(() => useTicker());
+    expect(unseeded.current.items).toEqual([]);
+
+    renderHook(() => useTicker(seed));
+
+    expect(unseeded.current.items.map((m) => m.comp)).toEqual(['nba']);
+    expect(unseeded.current.loading).toBe(false);
+  });
+
+  // The mirror hazard: a late seeder must not clobber scores the shared poll
+  // already fetched. The render-time guard only seeds while `shared` is empty.
+  // A single 200 with zero matches while others fail must not be treated as
+  // an authoritative empty board. Otherwise it would erase a late seed and lock
+  // hasSuccessfulPoll on a false negative.
+  it('does not treat a partial fan-out as a successful empty board', async () => {
+    let call = 0;
+    vi.mocked(fetch).mockImplementation(async () => {
+      call += 1;
+      // First league returns an empty OK; all others fail.
+      return {
+        ok: call === 1,
+        status: call === 1 ? 200 : 502,
+        json: async () => ({ events: [] }),
+      } as Response;
+    });
+
+    const { result: live } = renderHook(() => useTicker());
+    await waitFor(() => expect(live.current.loading).toBe(false));
+
+    expect(live.current.items).toEqual([]);
+
+    const seed = [match('1', 'nba'), match('2', 'esp.1')];
+    renderHook(() => useTicker(seed));
+
+    expect(live.current.items.map((m) => m.comp)).toEqual(['nba', 'esp.1']);
+    expect(live.current.loading).toBe(false);
+  });
+
+  // The mirror hazard, part 2: if the first poll outright failed (network
+  // outage, all upstream 502s), we still want an SSR-seeded HomeView that
+  // mounts later to bring useful scores into the shared ticker. The successful
+  // poll test above must not make all-empty boards treated as authoritative.
+  it('still accepts a late SSR seed after the initial poll fails', async () => {
+    vi.mocked(fetch).mockResolvedValue({
+      ok: false,
+      status: 502,
+      statusText: 'Bad Gateway',
+    } as Response);
+
+    const { result: live, unmount } = renderHook(() => useTicker());
+    await waitFor(() => expect(live.current.loading).toBe(false));
+
+    expect(live.current.items).toEqual([]);
+
+    const seed = [match('1', 'nba'), match('2', 'esp.1')];
+    renderHook(() => useTicker(seed));
+
+    expect(live.current.items.map((m) => m.comp)).toEqual(['nba', 'esp.1']);
+    expect(live.current.loading).toBe(false);
+
+    unmount();
+  });
+
+  it('does not overwrite already-fetched scores with a stale seed', async () => {
+    vi.mocked(fetch).mockResolvedValue({
+      ok: true,
+      json: async () => ({ events: [] }),
+    } as Response);
+
+    const { result: live } = renderHook(() => useTicker());
+    await waitFor(() => expect(live.current.loading).toBe(false));
+
+    renderHook(() => useTicker([match('99', 'nba')]));
+
+    // Poll returned an empty board; the seed must not resurrect stale matches.
+    expect(live.current.items).toEqual([]);
   });
 });
