@@ -1,11 +1,11 @@
 import type {
   CompMatch,
+  Group,
+  MatchOdds,
   PlayEvent,
   TeamLineup,
-  MatchOdds,
   TeamStatRow,
   TopScorer,
-  Group,
 } from '../types';
 import type { TeamForm } from './summaryExtras';
 

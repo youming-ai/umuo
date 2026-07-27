@@ -6,9 +6,9 @@ import type { CompMatch } from '../types';
 import { pathFor, useRouter } from '../utils/router';
 import BoxscoreTab from './matchdetail/BoxscoreTab';
 import LineupTab from './matchdetail/LineupTab';
+import OddsFormPanel from './matchdetail/OddsFormPanel';
 import PlayByPlayTab from './matchdetail/PlayByPlayTab';
 import TeamStatsTab from './matchdetail/TeamStatsTab';
-import OddsFormPanel from './matchdetail/OddsFormPanel';
 
 type Tab = 'stats' | 'play' | 'lineup' | 'boxscore';
 

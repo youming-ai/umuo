@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNews } from '../hooks/useNews';
 import type { NewsItem } from '../types';
 import NewsCard from './NewsCard';
+
 const PAGE_SIZE = 12;
 
 export default function NewsView({

@@ -3,10 +3,10 @@
 import { getAdapter } from '../adapters';
 import type { MatchDetail, StandingsData } from '../adapters/types';
 import {
+  buildUrl,
   COMPETITIONS,
   type Competition,
   type Resource,
-  buildUrl,
   seasonForDate,
   teamUrl,
 } from '../competitions';
@@ -18,8 +18,8 @@ import {
   type Leaderboard,
 } from '../leaders';
 import { parseNewsFeed, prioritizeNewsForComp } from '../newsFeed';
-import { parseTeams } from '../teams';
 import { parseTeamDetail, parseTeamInjuries } from '../teamDetail';
+import { parseTeams } from '../teams';
 import { parseLeagueInjuries, parseTransactions } from '../transactions';
 import type {
   CompMatch,

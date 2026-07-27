@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
+import type { TickerMatch } from '../hooks/useTicker';
 import type { CompMatch } from '../types';
 import { formatTickerLine } from './Ticker';
-import type { TickerMatch } from '../hooks/useTicker';
 
 function m(over: Partial<CompMatch> & { comp?: string }): TickerMatch {
   return {

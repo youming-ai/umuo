@@ -1,5 +1,5 @@
-import type { MatchOdds } from '../../types';
 import type { TeamForm } from '../../adapters/summaryExtras';
+import type { MatchOdds } from '../../types';
 
 function OddsPill({ label, value }: { label: string; value: string }) {
   return (

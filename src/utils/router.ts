@@ -1,5 +1,5 @@
 import { COMPETITIONS, DEFAULT_COMPETITION } from '../competitions';
-import { type Section, SECTIONS } from '../sections';
+import { SECTIONS, type Section } from '../sections';
 
 export type { Section };
 

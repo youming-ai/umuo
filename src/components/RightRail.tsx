@@ -1,6 +1,6 @@
-import type { StandingsData } from '../adapters/types';
-import { useMemo, useState } from 'react';
 import { Award, ListOrdered } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import type { StandingsData } from '../adapters/types';
 import { COMPETITIONS } from '../competitions';
 import { useLeaders } from '../hooks/useLeaders';
 

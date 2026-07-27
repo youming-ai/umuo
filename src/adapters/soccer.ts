@@ -1,13 +1,14 @@
 import type {
   CompMatch,
+  Group,
   LineupPlayer,
   PlayEvent,
   ScorerEntry,
   TeamLineup,
   TopScorer,
-  Group,
   WCStanding,
 } from '../types';
+import { arr, obj, str, teamLogo } from '../utils/coerce';
 import {
   matchSlug,
   parseScore,
@@ -17,7 +18,6 @@ import {
 } from '../utils/wc';
 import { parseScoreboardOdds, parseSummaryBase } from './summaryExtras';
 import type { MatchDetail, SportAdapter, StandingsData } from './types';
-import { arr, obj, str, teamLogo } from '../utils/coerce';
 
 // ESPN standings stats are [{name, value}]; pull one by name.
 function stat(entry: Record<string, unknown>, name: string): number {
