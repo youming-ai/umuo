@@ -3,7 +3,7 @@ import { env } from 'cloudflare:workers';
 import { COMPETITIONS } from '../../competitions';
 import LeftNav from '../../components/LeftNav.astro';
 import NewsView from '../../components/NewsView';
-import NewsRightRailIsland from '../../components/NewsRightRailIsland';
+import ScoresRailIsland from '../../components/ScoresRailIsland';
 import { getCompNews } from '../../data/api';
 import Layout from '../../layouts/Layout.astro';
 
@@ -15,10 +15,10 @@ const competition = COMPETITIONS[comp]!;
 const ctx = Astro.locals.cfContext;
 const items = await getCompNews(competition, env, ctx);
 ---
-<Layout title={`umuo — ${competition.label}`} comp={comp}>
+<Layout title={`umuo — ${competition.label}`}>
   <LeftNav slot="left" comp={comp} active="news" />
   <main>
     <NewsView comp={comp} initialData={items} client:only="react" />
   </main>
-  <NewsRightRailIsland slot="right" comp={comp} initialNews={items} client:only="react" />
+  <ScoresRailIsland slot="right" client:only="react" />
 </Layout>

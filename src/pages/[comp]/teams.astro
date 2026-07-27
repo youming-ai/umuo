@@ -18,7 +18,7 @@ const [teams, initialData] = await Promise.all([
   getCompetitionView(competition, env, ctx),
 ]);
 ---
-<Layout title={`umuo — ${competition.label} Teams`} comp={comp}>
+<Layout title={`umuo — ${competition.label} Teams`}>
   <LeftNav slot="left" comp={comp} active="teams" />
   <main>
     <h1 class="mb-card font-display text-2xl font-bold tracking-wide text-chalk">

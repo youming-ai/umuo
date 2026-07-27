@@ -1,6 +1,5 @@
 import type {
   CompMatch,
-  LineupPlayer,
   PlayEvent,
   TeamLineup,
   MatchOdds,
@@ -67,6 +66,3 @@ export interface SportAdapter {
   ): { matches: CompMatch[]; standings: StandingsData; scorers: TopScorer[] };
   transformSummary(json: unknown): MatchDetail;
 }
-
-// re-export LineupPlayer so soccer.ts can import from one place if desired
-export type { LineupPlayer };

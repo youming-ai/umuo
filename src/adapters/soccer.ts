@@ -17,24 +17,12 @@ import {
 } from '../utils/wc';
 import { parseScoreboardOdds, parseSummaryBase } from './summaryExtras';
 import type { MatchDetail, SportAdapter, StandingsData } from './types';
-import { arr, obj, str } from '../utils/coerce';
-
-function score(v: unknown): number | null {
-  return typeof v === 'string' || typeof v === 'number' ? parseScore(v) : null;
-}
+import { arr, obj, str, teamLogo } from '../utils/coerce';
 
 // ESPN standings stats are [{name, value}]; pull one by name.
 function stat(entry: Record<string, unknown>, name: string): number {
   const s = arr(entry.stats).find((x) => obj(x).name === name);
   return s ? Number(obj(s).value) || 0 : 0;
-}
-
-// A competitor/team's crest URL: scoreboard uses `team.logo` (string),
-// standings uses `team.logos: [{href}]`.
-function teamLogo(team: Record<string, unknown>): string {
-  if (str(team.logo)) return str(team.logo);
-  const logos = arr(team.logos);
-  return logos.length ? str(obj(logos[0]).href) : '';
 }
 
 function cardOf(plays: unknown[]): 'yellow' | 'red' | undefined {
@@ -201,8 +189,8 @@ function transform(
       awayFlag: teamLogo(awayTeam),
       homeId: homeId,
       awayId: str(awayTeam.id),
-      homeScore: status === 'upcoming' ? null : score(home.score),
-      awayScore: status === 'upcoming' ? null : score(away.score),
+      homeScore: status === 'upcoming' ? null : parseScore(home.score),
+      awayScore: status === 'upcoming' ? null : parseScore(away.score),
       kickoff: kickoff && !Number.isNaN(kickoff.getTime()) ? kickoff : null,
       status,
       homeScorers: status === 'upcoming' ? [] : homeScorers,

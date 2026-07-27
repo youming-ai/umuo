@@ -19,7 +19,7 @@ const [team, initialData] = await Promise.all([
 ]);
 if (!team) Astro.response.status = 404;
 ---
-<Layout title={`umuo — ${team?.name ?? 'Team'}`} comp={comp}>
+<Layout title={`umuo — ${team?.name ?? 'Team'}`}>
   <LeftNav slot="left" comp={comp} active="teams" />
   <main>
     {team ? (

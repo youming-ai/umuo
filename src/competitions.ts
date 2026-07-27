@@ -4,7 +4,7 @@
 // Pure data + a pure function — no DOM/React deps — so both build targets
 // (app tsconfig + tsconfig.worker.json) compile it.
 
-export type Sport = 'soccer' | 'basketball' | 'football' | 'baseball' | 'hockey';
+export type Sport = 'soccer' | 'basketball';
 export type Resource =
   | 'scoreboard'
   | 'standings'
@@ -22,8 +22,6 @@ export interface Competition {
   season?: number; // fixed season year; omit for cross-year leagues → derived per request (seasonForDate)
   capabilities: {
     scorers: boolean;
-    lineups: boolean;
-    boxscore: boolean;
     transactions?: boolean; // roster moves feed (US sports; soccer sparse)
     odds?: boolean; // betting lines from the scoreboard feed → Odds tab
   };
@@ -41,7 +39,7 @@ function soccerLeague(key: string, label: string): Competition {
     sport: 'soccer',
     league: key,
     label,
-    capabilities: { scorers: true, lineups: true, boxscore: false, odds: true },
+    capabilities: { scorers: true, odds: true },
     leadersSource: 'pipeline',
   };
 }
@@ -56,8 +54,6 @@ export const COMPETITIONS: Record<string, Competition> = {
     // 避免写死年份的时间引信。scoreboard 无 dates → ESPN 返回当前窗口。见 spec §7。
     capabilities: {
       scorers: true,
-      lineups: true,
-      boxscore: false,
       odds: true,
     },
     leadersSource: 'pipeline',
@@ -72,8 +68,6 @@ export const COMPETITIONS: Record<string, Competition> = {
     // off-season（7–9 月）当日为空由现有空态处理。见 spec §3。
     capabilities: {
       scorers: true,
-      lineups: false,
-      boxscore: true,
       transactions: true,
       odds: true,
     },

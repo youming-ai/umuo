@@ -5,8 +5,7 @@ export type { Section };
 
 // Every route is a real Astro SSR page (no client router / catch-all SPA
 // anymore — see commit 81b71fc). `parseRoute`/`pathFor` are shared purely to
-// build/read URLs consistently between server pages and client islands;
-// `navigate()` performs a real browser navigation to move between them.
+// build/read URLs consistently between server pages and client islands.
 //
 // Route scheme (every view is addressable — shareable, back/forward, refresh):
 //   /<comp>              news-first hub (cross-comp Ticker scores + comp news)
@@ -92,22 +91,8 @@ export function pathFor(route: Route): string {
   }
 }
 
-// Real cross-page navigation (every route is its own SSR document — there's
-// no client router to intercept a pushState). Default: assign (back/forward
-// works, adds a history entry). Pass `{ replace: true }` to swap the current
-// entry instead (e.g. a "this deep link doesn't apply here" correction).
-export function navigate(path: string, opts: { replace?: boolean } = {}): void {
-  if (window.location.pathname + window.location.search === path) return;
-  if (opts.replace) {
-    window.location.replace(path);
-  } else {
-    window.location.assign(path);
-  }
-}
-
-// Reads the route for the current URL. A real navigate() reloads the
-// document, so there's nothing to subscribe to — every mount already sees
-// the URL it was served for.
+// Every route is its own SSR document, so there's nothing to subscribe to —
+// every mount already sees the URL it was served for.
 export function useRouter(): { route: Route } {
   return { route: parseRoute(window.location.pathname) };
 }

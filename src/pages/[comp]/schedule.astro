@@ -15,10 +15,10 @@ const competition = COMPETITIONS[comp]!;
 const ctx = Astro.locals.cfContext;
 const initialData = await getCompetitionView(competition, env, ctx);
 ---
-<Layout title={`umuo — ${competition.label} Schedule`} comp={comp}>
+<Layout title={`umuo — ${competition.label} Schedule`}>
   <LeftNav slot="left" comp={comp} active="schedule" />
   <main>
     <CompetitionIsland comp={comp} initialData={initialData} client:only="react" />
   </main>
-  <RightRailIsland slot="right" comp={comp} initialData={initialData} client:only="react" />
+  <RightRailIsland slot="right" comp={comp} initialData={initialData} hide="standings" client:only="react" />
 </Layout>

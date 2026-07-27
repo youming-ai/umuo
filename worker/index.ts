@@ -1,15 +1,12 @@
 /// <reference types="@cloudflare/workers-types" />
 
 import { COMPETITIONS, type Resource } from '../src/competitions';
-import { type Env, json, serve, serveLeaders, serveSummary } from '../src/data/api';
+import { type Env, serve, serveLeaders, serveSummary } from '../src/data/api';
 
 // Thin HTTP wrapper around the shared data layer (src/data/api.ts). The SWR
 // primitives + composed serve* functions live there so Astro SSR pages can
 // call them directly (env from 'cloudflare:workers' + Astro.locals.cfContext).
 // This file only does URL parsing → serve* dispatch, and the ASSETS passthrough.
-
-export { json, serve, serveSummary, serveLeaders };
-export type { Env };
 
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {

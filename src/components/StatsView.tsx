@@ -17,13 +17,13 @@ export default function StatsView({ boards }: { boards: Leaderboard[] }) {
 
   return (
     <div className="space-y-section">
-      {groups.map((group) => (
-        <section key={group} className="space-y-card">
-          <h2 className="font-display font-bold text-xl text-chalk tracking-wide">{group}</h2>
-          <div className="grid gap-card sm:grid-cols-2">
-            {boards
-              .filter((b) => b.group === group)
-              .map((b) => (
+      {groups.map((group) => {
+        const groupBoards = boards.filter((b) => b.group === group);
+        return (
+          <section key={group} className="space-y-card">
+            <h2 className="font-display font-bold text-xl text-chalk tracking-wide">{group}</h2>
+            <div className={`grid gap-card ${groupBoards.length > 1 ? 'sm:grid-cols-2' : ''}`}>
+              {groupBoards.map((b) => (
                 <LeadersView
                   key={b.key}
                   leaders={b.leaders}
@@ -33,9 +33,10 @@ export default function StatsView({ boards }: { boards: Leaderboard[] }) {
                   empty="No data yet"
                 />
               ))}
-          </div>
-        </section>
-      ))}
+            </div>
+          </section>
+        );
+      })}
     </div>
   );
 }
