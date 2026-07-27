@@ -23,6 +23,14 @@ let abortRef: AbortController | null = null;
 let intervalId: ReturnType<typeof setInterval> | null = null;
 let onVisibility: (() => void) | null = null;
 
+// Set once a fan-out actually received successful upstream responses. It is
+// distinct from `shared.loading === false`, which also happens when the catch
+// path gives up after a failure. We need to know whether an empty board is
+// authoritative (successful empty poll) or just "no data yet" (failure).
+type BatchResult = { ok: true; matches: TickerMatch[] } | { ok: false };
+
+let hasSuccessfulPoll = false;
+
 function publish(next: TickerState) {
   shared = next;
   for (const listener of listeners) listener(shared);
@@ -36,17 +44,34 @@ async function fetchAll() {
 
   try {
     const comps = Object.keys(COMPETITIONS);
-    const batches = await Promise.all(
+    const batchResults = await Promise.allSettled(
       comps.map(async (comp) => {
         const res = await fetch(`/api/${comp}/scoreboard`, { signal });
-        if (!res.ok) return [] as TickerMatch[];
+        if (!res.ok) return { ok: false as const };
         const json = await res.json();
         const { matches } = getAdapter(comp).transform(json, {});
-        return matches.map((m) => ({ ...m, comp }));
+        return { ok: true as const, matches: matches.map((m) => ({ ...m, comp })) };
       }),
     );
     if (signal.aborted) return;
-    const merged = batches.flat();
+    // Require the whole fan-out to succeed. Partial success is not enough: an
+    // empty 200 from one league while the others 502 would otherwise publish []
+    // and lock `hasSuccessfulPoll`, hiding a legitimate seed behind a false
+    // "authoritative" empty board.
+    const allSucceeded = batchResults.every(
+      (r): r is PromiseFulfilledResult<BatchResult & { ok: true }> =>
+        r.status === 'fulfilled' && r.value.ok,
+    );
+    if (!allSucceeded) {
+      // Treat partial/outage as failure: keep whatever we have (including a
+      // seed) and just drop the spinner.
+      publish({ ...shared, loading: false });
+      return;
+    }
+    const merged = batchResults.flatMap(
+      (r) => (r as PromiseFulfilledResult<BatchResult & { ok: true }>).value.matches,
+    );
+    hasSuccessfulPoll = true;
     publish({
       items: marqueeMatches(merged, Date.now()) as TickerMatch[],
       loading: false,
@@ -91,7 +116,20 @@ function stopPolling() {
 // rather than wrapping usePolledResource because multiple islands share one
 // cross-competition scoreboard loop.
 export function useTicker(initialScores?: TickerMatch[]): TickerState {
-  if (initialScores && initialScores.length > 0 && shared.items.length === 0) {
+  // Seed during render so THIS island paints SSR scores on its first frame.
+  // Only touches module state — publishing here would setState other islands
+  // mid-render.
+  //
+  // `shared.loading` was not enough to gate seeding: the catch path sets
+  // loading=false after a failed fan-out, and an empty board from a successful
+  // fan-out is authoritative on an off day. We track `hasSuccessfulPoll`
+  // separately; it is only true once a successful response has been seen.
+  if (
+    initialScores &&
+    initialScores.length > 0 &&
+    !hasSuccessfulPoll &&
+    shared.items.length === 0
+  ) {
     shared = { items: marqueeMatches(initialScores, Date.now()) as TickerMatch[], loading: false };
   }
   const [state, setState] = useState<TickerState>(shared);
@@ -99,8 +137,11 @@ export function useTicker(initialScores?: TickerMatch[]): TickerState {
     const listener: Listener = (next) => setState(next);
     listeners.add(listener);
     startPolling();
-    // Sync in case another island already populated shared state.
-    setState(shared);
+    // Islands are separate hydration roots mounting in arbitrary order, so a
+    // seeder can arrive after an unseeded island already mounted and read an
+    // empty `shared`. Broadcasting (not just self-syncing) hands the seed to
+    // those islands too — otherwise they stall on empty until the first poll.
+    publish(shared);
     return () => {
       listeners.delete(listener);
       stopPolling();
@@ -115,4 +156,5 @@ export function __resetTickerForTests() {
   listeners.clear();
   stopPolling();
   shared = { items: [], loading: true };
+  hasSuccessfulPoll = false;
 }

@@ -96,9 +96,19 @@ export default function NewsCard({
       ) : (
         <div className="rounded-card-inset">{body}</div>
       )}
-      {/* Tags only on the fuller cards; the compact row stays a clean list. */}
+      {/* Tags only on the fuller cards; the compact row stays a clean list.
+          They sit outside the anchor so they stay non-interactive, so on the
+          lead card they must track the text column by hand: with an image the
+          column is the right half (ml-auto), without one it starts at the left
+          edge. Get this wrong and the tags read as belonging to nothing. */}
       {!isRow && item.tags.length > 0 && (
-        <div className={`px-3 pb-3 flex flex-wrap gap-1.5 ${isLead ? 'pt-2' : ''}`}>
+        <div
+          className={`flex flex-wrap gap-1.5 ${
+            isLead
+              ? `px-4 pb-4 md:w-1/2 md:px-5 md:pb-5 ${item.imageUrl ? 'md:ml-auto' : ''}`
+              : 'px-3 pb-3'
+          }`}
+        >
           {item.tags.map((tag, i) => (
             <Tag
               // biome-ignore lint/suspicious/noArrayIndexKey: tags are deduped so index is stable
