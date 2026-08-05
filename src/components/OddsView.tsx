@@ -1,4 +1,5 @@
 import type { CompMatch } from '../types';
+import LocalTime from './LocalTime';
 
 // American-style moneyline: positive prices carry a leading '+', everything
 // else prints as-is; null (feed omitted the price) shows an em dash.
@@ -36,14 +37,11 @@ function OddsRow({ match }: { match: CompMatch }) {
           <TeamLine name={match.awayName} flag={match.awayFlag} />
         </div>
         {match.kickoff && (
-          <span className="ds-caption shrink-0 tabular-nums text-chalkdim">
-            {match.kickoff.toLocaleString(undefined, {
-              month: 'short',
-              day: 'numeric',
-              hour: '2-digit',
-              minute: '2-digit',
-            })}
-          </span>
+          <LocalTime
+            date={match.kickoff}
+            options={{ month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }}
+            className="ds-caption shrink-0 tabular-nums text-chalkdim"
+          />
         )}
       </div>
       <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 border-t border-overlay/5 pt-2.5 font-mono text-xs tabular-nums">

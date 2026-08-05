@@ -20,6 +20,7 @@ describe('parseOdds', () => {
       details: 'MEX -230',
       spread: -1.5,
       overUnder: 2.5,
+      drawMoneyLine: null,
       homeMoneyLine: -230,
       awayMoneyLine: 750,
     });

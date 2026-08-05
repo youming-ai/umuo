@@ -18,7 +18,7 @@ const initialData = await getCompetitionView(competition, env, ctx);
 <Layout title={`umuo — ${competition.label} Schedule`}>
   <LeftNav slot="left" comp={comp} active="schedule" />
   <main>
-    <CompetitionIsland comp={comp} initialData={initialData} client:only="react" />
+    <CompetitionIsland comp={comp} initialData={initialData} client:load />
   </main>
-  <RightRailIsland slot="right" comp={comp} initialData={initialData} hide="standings" client:only="react" />
+  <RightRailIsland slot="right" comp={comp} initialData={initialData} hide="standings" client:load />
 </Layout>

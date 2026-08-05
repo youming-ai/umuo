@@ -1,8 +1,9 @@
 import { useMemo, useState } from 'react';
 import type { StandingsData } from '../adapters/types';
 import type { CompMatch } from '../types';
-import { pathFor, useRouter } from '../utils/router';
+import { pathFor } from '../utils/router';
 import ConferenceStandings from './ConferenceStandings';
+import LocalTime from './LocalTime';
 import MatchCard from './MatchCard';
 import StandingsView from './StandingsView';
 
@@ -11,14 +12,14 @@ import StandingsView from './StandingsView';
 type StatusFilter = 'upcoming' | 'finished';
 
 export default function FixturesView({
+  comp,
   matches,
   standings,
 }: {
+  comp: string;
   matches: CompMatch[];
   standings: StandingsData;
 }) {
-  const { route } = useRouter();
-  const comp = route.comp;
   const groups = standings.kind === 'soccer' ? standings.groups : [];
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('upcoming');
 
@@ -63,14 +64,14 @@ export default function FixturesView({
   const renderDay = ([key, list]: [string, CompMatch[]]) => (
     <section key={key} className="space-y-stack">
       <h3 className="font-mono text-xs tracking-[0.2em] text-chalkdim uppercase">
-        {list[0].kickoff
-          ? list[0].kickoff.toLocaleDateString(undefined, {
-              weekday: 'short',
-              year: 'numeric',
-              month: 'short',
-              day: 'numeric',
-            })
-          : 'TBD'}
+        {list[0].kickoff ? (
+          <LocalTime
+            date={list[0].kickoff}
+            options={{ weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' }}
+          />
+        ) : (
+          'TBD'
+        )}
       </h3>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-stack sm:gap-card">
         {list.map((m) => (

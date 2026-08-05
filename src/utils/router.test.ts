@@ -1,7 +1,6 @@
-import { render } from '@testing-library/react';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { SECTIONS } from '../sections';
-import { parseRoute, pathFor, useRouter } from './router';
+import { parseRoute, pathFor } from './router';
 
 describe('pathFor', () => {
   it('prefixes the competition and URI-encodes special characters in slugs', () => {
@@ -10,27 +9,6 @@ describe('pathFor', () => {
       '/eng.1/match/foo%20bar',
     );
     expect(pathFor({ kind: 'team', comp: 'eng.1', teamId: 'a/b' })).toBe('/eng.1/team/a%2Fb');
-  });
-});
-
-describe('useRouter', () => {
-  function Harness({ onReady }: { onReady: (r: ReturnType<typeof useRouter>) => void }) {
-    onReady(useRouter());
-    return null;
-  }
-
-  beforeEach(() => {
-    Object.defineProperty(window, 'location', {
-      value: { ...window.location, pathname: '/match/foo' },
-      writable: true,
-      configurable: true,
-    });
-  });
-
-  it('returns the parsed route for the current URL', () => {
-    let captured!: ReturnType<typeof useRouter>;
-    render(<Harness onReady={(route) => (captured = route)} />);
-    expect(captured.route).toEqual({ kind: 'match', comp: 'eng.1', slug: 'foo' });
   });
 });
 

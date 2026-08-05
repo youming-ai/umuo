@@ -1,4 +1,5 @@
 import type { LeagueInjuryGroup, TransactionItem } from '../types';
+import LocalTime from './LocalTime';
 
 // NBA "Roster Moves": recent transactions + current league injuries (grouped
 // by team). Both feeds are NBA-rich year-round; the page is capability-gated so
@@ -21,13 +22,17 @@ export default function MovesView({
           <ul className="ds-glass divide-y divide-overlay/5 rounded-card">
             {transactions.map((t) => {
               const d = new Date(t.date);
-              const date = Number.isNaN(d.getTime())
-                ? ''
-                : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+              const valid = !Number.isNaN(d.getTime());
               return (
                 <li key={`${t.date}-${t.description}`} className="flex items-start gap-3 p-3">
                   <span className="ds-caption w-12 shrink-0 tabular-nums text-chalkdim">
-                    {date}
+                    {valid && (
+                      <LocalTime
+                        date={d}
+                        locale="en-US"
+                        options={{ month: 'short', day: 'numeric' }}
+                      />
+                    )}
                   </span>
                   <span className="text-sm text-chalk">
                     {t.team && <span className="font-display">{t.team}: </span>}

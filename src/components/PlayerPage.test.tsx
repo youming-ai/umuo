@@ -53,6 +53,7 @@ function group(standings: Array<{ teamId: string; name: string }>): Group {
 
 function renderPage(props: Partial<React.ComponentProps<typeof PlayerPage>> = {}) {
   const defaults: React.ComponentProps<typeof PlayerPage> = {
+    comp: 'eng.1',
     athleteId: 'p1',
     groups: [group([{ teamId: '203', name: 'Mexico' }])],
     matches: [],

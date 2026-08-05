@@ -12,6 +12,6 @@ const { news, scoreboardData } = await getHomeView(env, ctx);
 ---
 <Layout title="umuo — Sports news, scores & standings" showTicker={false}>
   <main>
-    <HomeView news={news} initialScores={scoreboardData} client:only="react" />
+    <HomeView news={news} initialScores={scoreboardData} client:load />
   </main>
 </Layout>

@@ -30,7 +30,11 @@ export function useMatchDetail(
     fallback: null,
     initialData: initialData ?? undefined,
     skip: !eventId,
-    intervalMs: 30_000,
+    // No interval: the hero (score/status/clock/shootout) renders the immutable
+    // `match` prop, so polling the summary refreshed the tabs while the hero
+    // stayed frozen — live-looking but wrong. Fetch-once + explicit reload.
+    // Upgrade path: poll the scoreboard and merge that into the hero, then a
+    // summary interval earns its place again.
   });
 
   return { detail, loading, error, reload };

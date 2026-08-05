@@ -5,7 +5,9 @@ import type { CompMatch, Group } from '../types';
 import FixturesView from './FixturesView';
 
 function renderView(matches: CompMatch[], groups: Group[] = []) {
-  return render(<FixturesView matches={matches} standings={{ kind: 'soccer', groups }} />);
+  return render(
+    <FixturesView comp="eng.1" matches={matches} standings={{ kind: 'soccer', groups }} />,
+  );
 }
 
 function match(overrides: Partial<CompMatch> & { id: string }): CompMatch {
@@ -117,7 +119,7 @@ const league: Group[] = [{ name: 'Premier League', standings: [row('1', 'Arsenal
 
 it('shows the league table above fixtures for a season competition', () => {
   setPath('/eng.1');
-  render(<FixturesView matches={[]} standings={{ kind: 'soccer', groups: league }} />);
+  render(<FixturesView comp="eng.1" matches={[]} standings={{ kind: 'soccer', groups: league }} />);
   // league standings surface without needing a group-stage filter
   expect(screen.getByText('Arsenal')).toBeInTheDocument();
 });
@@ -131,7 +133,9 @@ const conferences: ConferenceTable[] = [
 
 it('renders conference standings and hides stage chips for a basketball season comp', () => {
   setPath('/nba');
-  render(<FixturesView matches={[]} standings={{ kind: 'basketball', conferences }} />);
+  render(
+    <FixturesView comp="eng.1" matches={[]} standings={{ kind: 'basketball', conferences }} />,
+  );
   expect(screen.getByText('Boston Celtics')).toBeInTheDocument();
   // season shape → no stage filter chips (no lone "Group stage")
   expect(screen.queryByRole('button', { name: 'Group stage' })).not.toBeInTheDocument();

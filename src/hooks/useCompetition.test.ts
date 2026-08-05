@@ -275,7 +275,32 @@ describe('useCompetition', () => {
 
     await waitFor(() => expect(result.current.error).toBeTruthy());
     expect(result.current.matches).toEqual([]);
+    // empty shape follows the new comp's sport, not a hardcoded soccer default
+    expect(result.current.standings).toEqual({ kind: 'basketball', conferences: [] });
+  });
+
+  it('keeps scoreboard data when only the standings request fails', async () => {
+    fetchMock.mockResolvedValueOnce(ok(scoreboard)).mockResolvedValueOnce({ ok: false });
+    const { result } = renderHook(() => useCompetition('eng.1'));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    expect(result.current.error).toBeNull();
+    expect(result.current.matches).toHaveLength(2);
     expect(result.current.standings).toEqual({ kind: 'soccer', groups: [] });
+  });
+
+  it('seeds from initialData even when it carries no matches (off-day / off-season)', async () => {
+    const seed = { matches: [], standings: { kind: 'basketball' as const, conferences: [] } };
+    const { result } = renderHook(() => useCompetition('nba', seed));
+    expect(result.current.loading).toBe(false);
+    await new Promise((r) => setTimeout(r, 10));
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('does not fetch at all when skipped', async () => {
+    renderHook(() => useCompetition('eng.1', undefined, true));
+    await new Promise((r) => setTimeout(r, 10));
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it('sets error when fetch throws (network failure)', async () => {

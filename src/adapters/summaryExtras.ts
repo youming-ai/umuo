@@ -38,6 +38,7 @@ export function parseOdds(summary: Record<string, unknown>): MatchOdds | null {
     overUnder: num(pc.overUnder),
     homeMoneyLine: num(obj(pc.homeTeamOdds).moneyLine),
     awayMoneyLine: num(obj(pc.awayTeamOdds).moneyLine),
+    drawMoneyLine: num(obj(pc.drawOdds).moneyLine), // soccer 3-way; null for 2-way sports
   };
 }
 

@@ -1,7 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { COMPETITIONS } from '../competitions';
+import { COMPETITIONS, seasonForDate } from '../competitions';
 import type { NewsItem } from '../types';
-import { type Env, getAggregatedNews, getCompNews, getHomeView, mergeNewsLists } from './api';
+import {
+  type Env,
+  getAggregatedNews,
+  getCompetitionView,
+  getCompMatchBySlug,
+  getCompNews,
+  getHomeView,
+  mergeNewsLists,
+  serve,
+} from './api';
 
 const item = (id: string, published: string, headline = id): NewsItem => ({
   id,
@@ -166,14 +175,37 @@ describe('getAggregatedNews', () => {
     vi.unstubAllGlobals();
   });
 });
+// getHomeView runs the marquee selection server-side, which only keeps live /
+// today / nearest-upcoming matches — so a fixture needs a kickoff on today's date.
+function todayEvent(id: string): string {
+  return JSON.stringify({
+    events: [
+      {
+        id,
+        date: new Date().toISOString(),
+        competitions: [
+          {
+            status: { type: { state: 'pre' } },
+            competitors: [
+              { homeAway: 'home', score: '0', team: { id: '1', displayName: 'A' } },
+              { homeAway: 'away', score: '0', team: { id: '2', displayName: 'B' } },
+            ],
+            details: [],
+          },
+        ],
+      },
+    ],
+  });
+}
+
 describe('getHomeView', () => {
   it('fans out news and scoreboards, tagging each match with its comp key', async () => {
     vi.stubGlobal(
       'fetch',
       fetchByLeague([
         { match: '/eng.1/news', body: newsJson([item('e1', '2026-07-03T00:00:00Z', 'EPL')]) },
-        { match: '/eng.1/scoreboard', body: JSON.stringify({ events: [{ id: 'm1' }] }) },
-        { match: '/nba/scoreboard', body: JSON.stringify({ events: [{ id: 'm2' }] }) },
+        { match: '/eng.1/scoreboard', body: todayEvent('m1') },
+        { match: '/nba/scoreboard', body: todayEvent('m2') },
       ]),
     );
     const out = await getHomeView(mockEnv() as unknown as Env, mockCtx());
@@ -181,6 +213,96 @@ describe('getHomeView', () => {
     const taggedComps = out.scoreboardData.map((m) => m.comp);
     expect(taggedComps).toContain('eng.1');
     expect(taggedComps).toContain('nba');
+    vi.unstubAllGlobals();
+  });
+});
+
+// A scoreboard event the soccer adapter can normalize into one CompMatch.
+const oneEvent = JSON.stringify({
+  events: [
+    {
+      id: '1',
+      date: '2026-08-01T12:00Z',
+      competitions: [
+        {
+          status: { type: { state: 'pre' } },
+          competitors: [
+            { homeAway: 'home', score: '0', team: { id: '1', displayName: 'Arsenal' } },
+            { homeAway: 'away', score: '0', team: { id: '2', displayName: 'Chelsea' } },
+          ],
+          details: [],
+        },
+      ],
+    },
+  ],
+});
+
+describe('upstream unavailable vs missing entity', () => {
+  const EPL = COMPETITIONS['eng.1'];
+
+  it('getCompMatchBySlug returns null for an unknown slug on a healthy scoreboard', async () => {
+    vi.stubGlobal('fetch', fetchByLeague([{ match: '/eng.1/scoreboard', body: oneEvent }]));
+    const out = await getCompMatchBySlug(
+      EPL,
+      'no-such-match',
+      mockEnv() as unknown as Env,
+      mockCtx(),
+    );
+    expect(out).toBeNull();
+    vi.unstubAllGlobals();
+  });
+
+  it('getCompMatchBySlug throws when the scoreboard is unavailable (so the page can 503)', async () => {
+    vi.stubGlobal(
+      'fetch',
+      fetchByLeague([{ match: '/eng.1/scoreboard', status: 404, body: 'nope' }]),
+    );
+    await expect(
+      getCompMatchBySlug(EPL, 'arsenal-vs-chelsea', mockEnv() as unknown as Env, mockCtx()),
+    ).rejects.toThrow();
+    vi.unstubAllGlobals();
+  });
+
+  it('getCompetitionView keeps scoreboard matches when standings is unavailable', async () => {
+    vi.stubGlobal(
+      'fetch',
+      fetchByLeague([
+        { match: '/eng.1/scoreboard', body: oneEvent },
+        { match: '/eng.1/standings', status: 404, body: 'nope' },
+      ]),
+    );
+    const view = await getCompetitionView(EPL, mockEnv() as unknown as Env, mockCtx());
+    expect(view.matches).toHaveLength(1);
+    expect(view.standings).toEqual({ kind: 'soccer', groups: [] });
+    vi.unstubAllGlobals();
+  });
+
+  it('serves STALE and keeps the cache when a 200 body is not usable JSON', async () => {
+    const store = new Map<string, string>();
+    const env = {
+      CACHE: {
+        get: vi.fn(async (k: string) => {
+          const v = store.get(k);
+          return v ? JSON.parse(v) : null;
+        }),
+        put: vi.fn(async (k: string, v: string) => {
+          store.set(k, v);
+        }),
+      },
+    } as unknown as Env;
+    // A good, but stale, stored copy (scoreboard fresh window is 60s).
+    const good = '{"events":[]}';
+    const key = `eng.1:scoreboard:${EPL.season ?? seasonForDate(EPL.sport, new Date())}`;
+    store.set(key, JSON.stringify({ body: good, at: Date.now() - 600_000 }));
+
+    vi.stubGlobal(
+      'fetch',
+      fetchByLeague([{ match: '/eng.1/scoreboard', body: '<html>rate limited</html>' }]),
+    );
+    const res = await serve(EPL, 'scoreboard', env, mockCtx());
+    expect(res.headers.get('x-cache')).toBe('STALE');
+    expect(await res.text()).toBe(good);
+    expect(JSON.parse(store.get(key)!).body).toBe(good); // garbage never replaced it
     vi.unstubAllGlobals();
   });
 });

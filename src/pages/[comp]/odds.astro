@@ -26,7 +26,7 @@ const initialData = await getCompetitionView(competition, env, ctx);
     <h1 class="mb-card font-display text-2xl font-bold tracking-wide text-chalk">
       {competition.label} Odds
     </h1>
-    <OddsIsland comp={comp} initialData={initialData} client:only="react" />
+    <OddsIsland comp={comp} initialData={initialData} client:load />
   </main>
-  <RightRailIsland slot="right" comp={comp} initialData={initialData} client:only="react" />
+  <RightRailIsland slot="right" comp={comp} initialData={initialData} client:load />
 </Layout>

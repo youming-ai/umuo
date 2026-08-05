@@ -362,7 +362,7 @@
 
 @keyframes score-flash {
   0%, 100% {
-    color: rgb(var(--c-chalk));
+    color: rgb(var(--c-text));
   }
   50% {
     color: rgb(var(--c-live));
