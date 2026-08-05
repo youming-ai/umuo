@@ -2,11 +2,16 @@
 // @vitest-environment node
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { COMPETITIONS } from '../src/competitions';
+import { COMPETITIONS, type Competition, seasonForDate } from '../src/competitions';
 import { type Env, json, serve, serveLeaders, serveSummary } from '../src/data/api';
 import worker from './index';
 
 const EPL = COMPETITIONS['eng.1'];
+
+// KV keys carry the computed season so a rollover can't serve last season's
+// body as fresh/stale under the same key. Mirrors `serve()` in src/data/api.ts.
+const cacheKey = (comp: Competition, resource: string) =>
+  `${comp.key}:${resource}:${comp.season ?? seasonForDate(comp.sport, new Date())}`;
 
 // ---- json helper ----
 
@@ -36,7 +41,7 @@ describe('json helper', () => {
 const fetchMock = vi.fn();
 globalThis.fetch = fetchMock as unknown as typeof globalThis.fetch;
 
-function mockEnv(kvData?: { body: string; at: number } | null, key = 'eng.1:standings') {
+function mockEnv(kvData?: { body: string; at: number } | null, key = cacheKey(EPL, 'standings')) {
   const store = new Map<string, string>();
   if (kvData) {
     store.set(key, JSON.stringify(kvData));
@@ -259,7 +264,7 @@ describe('serveLeaders', () => {
         value: 30.2,
       },
     ]);
-    const env = mockEnv({ body: cached, at: now - 60_000 }, 'nba:leaders'); // fresh is 3600s
+    const env = mockEnv({ body: cached, at: now - 60_000 }, cacheKey(COMPETITIONS.nba, 'leaders')); // fresh is 3600s
     const res = await serveLeaders(NBA, env as unknown as Env, mockCtx());
     expect(res.status).toBe(200);
     expect(res.headers.get('x-cache')).toBe('HIT');
@@ -274,7 +279,7 @@ describe('serveLeaders', () => {
       ok: true,
       json: async () => ({ categories: [{ name: 'points', leaders: [] }] }),
     });
-    const env = mockEnv(null, 'nba:leaders');
+    const env = mockEnv(null, cacheKey(COMPETITIONS.nba, 'leaders'));
     const ctx = mockCtx();
     const res = await serveLeaders(NBA, env as unknown as Env, ctx);
     expect(res.status).toBe(200);
@@ -282,7 +287,7 @@ describe('serveLeaders', () => {
     expect(await res.text()).toBe('[]');
     expect(ctx.waitUntil).toHaveBeenCalled();
     expect((env.CACHE as ReturnType<typeof mockEnv>['CACHE']).put).toHaveBeenCalledWith(
-      'nba:leaders',
+      cacheKey(COMPETITIONS.nba, 'leaders'),
       expect.any(String),
       expect.objectContaining({ expirationTtl: expect.any(Number) }),
     );
@@ -293,7 +298,10 @@ describe('serveLeaders', () => {
     const stale = JSON.stringify([
       { rank: 1, name: 'x', teamName: '', teamLogo: '', displayValue: '1', value: 1 },
     ]);
-    const env = mockEnv({ body: stale, at: Date.now() - 7_200_000 }, 'nba:leaders'); // stale (fresh 3600s)
+    const env = mockEnv(
+      { body: stale, at: Date.now() - 7_200_000 },
+      cacheKey(COMPETITIONS.nba, 'leaders'),
+    ); // stale (fresh 3600s)
     const res = await serveLeaders(NBA, env as unknown as Env, mockCtx());
     expect(res.status).toBe(200);
     expect(res.headers.get('x-cache')).toBe('STALE');
@@ -316,7 +324,10 @@ describe('serveLeaders', () => {
         value: 30.2,
       },
     ]);
-    const env = mockEnv({ body: stale, at: Date.now() - 7_200_000 }, 'nba:leaders'); // stale (fresh 3600s)
+    const env = mockEnv(
+      { body: stale, at: Date.now() - 7_200_000 },
+      cacheKey(COMPETITIONS.nba, 'leaders'),
+    ); // stale (fresh 3600s)
     const res = await serveLeaders(NBA, env as unknown as Env, mockCtx());
     expect(res.status).toBe(200);
     expect(res.headers.get('x-cache')).toBe('STALE');
@@ -371,7 +382,7 @@ describe('fetch routing', () => {
       ok: true,
       json: async () => ({ categories: [{ name: 'points', leaders: [] }] }),
     });
-    const env = mockEnv(null, 'nba:leaders');
+    const env = mockEnv(null, cacheKey(COMPETITIONS.nba, 'leaders'));
     const res = await worker.fetch(
       new Request('https://x/api/nba/leaders'),
       env as unknown as Env,
@@ -418,7 +429,7 @@ describe('per-competition news', () => {
       'https://site.api.espn.com/apis/site/v2/sports/soccer/eng.1/news?limit=50',
     );
     expect(env.CACHE.put).toHaveBeenCalledWith(
-      'eng.1:news',
+      cacheKey(EPL, 'news'),
       expect.any(String),
       expect.objectContaining({ expirationTtl: 86400 }),
     );

@@ -1,0 +1,3 @@
+# Copy this file to .dev.vars (which is gitignored) and fill in real values.
+# Do not commit .dev.vars or real API keys.
+GEMINI_API_KEY=

@@ -26,7 +26,7 @@ const [boards, initialData] = await Promise.all([
 <Layout title={`umuo — ${competition.label} Stats`}>
   <LeftNav slot="left" comp={comp} active="stats" />
   <main>
-    <StatsView boards={boards} client:only="react" />
+    <StatsView boards={boards} client:load />
   </main>
-  <RightRailIsland slot="right" comp={comp} initialData={initialData} hide="scorers" client:only="react" />
+  <RightRailIsland slot="right" comp={comp} initialData={initialData} hide="scorers" client:load />
 </Layout>

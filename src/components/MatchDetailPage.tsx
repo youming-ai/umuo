@@ -3,7 +3,8 @@ import type { MatchDetail } from '../adapters/types';
 import { COMPETITIONS } from '../competitions';
 import { useMatchDetail } from '../hooks/useMatchDetail';
 import type { CompMatch } from '../types';
-import { pathFor, useRouter } from '../utils/router';
+import { pathFor } from '../utils/router';
+import LocalTime from './LocalTime';
 import BoxscoreTab from './matchdetail/BoxscoreTab';
 import LineupTab from './matchdetail/LineupTab';
 import OddsFormPanel from './matchdetail/OddsFormPanel';
@@ -92,17 +93,18 @@ function TeamBadge({ flag, name, href }: { flag: string; name: string; href?: st
 }
 
 export default function MatchDetailPage({
+  comp,
   match,
   backHref,
   initialDetail,
 }: {
+  comp: string;
   match: CompMatch;
   /** Schedule URL for the up-navigation control (real `<a href>`). */
   backHref: string;
   initialDetail?: MatchDetail | null;
 }) {
-  const { route } = useRouter();
-  const { detail, loading, error, reload } = useMatchDetail(match.id, route.comp, initialDetail);
+  const { detail, loading, error, reload } = useMatchDetail(match.id, comp, initialDetail);
   const [tab, setTab] = useState<Tab>('stats');
 
   const homeId = detail?.homeId ?? '';
@@ -110,9 +112,7 @@ export default function MatchDetailPage({
   // Team pages only exist for soccer competitions (they read soccer standings);
   // gate the crest links so NBA match headers don't link to a "Team not found".
   const teamHref = (teamId: string) =>
-    COMPETITIONS[route.comp]?.sport === 'soccer'
-      ? pathFor({ kind: 'team', comp: route.comp, teamId })
-      : undefined;
+    COMPETITIONS[comp]?.sport === 'soccer' ? pathFor({ kind: 'team', comp, teamId }) : undefined;
 
   const tabs: Tab[] =
     detail?.kind === 'basketball' ? ['boxscore', 'stats'] : ['stats', 'play', 'lineup'];
@@ -167,20 +167,18 @@ export default function MatchDetailPage({
             {match.status === 'upcoming' ? (
               <div className="text-center">
                 <span className="font-mono text-xl md:text-3xl font-black tracking-wider text-chalk">
-                  {match.kickoff
-                    ? match.kickoff.toLocaleTimeString(undefined, {
-                        hour: '2-digit',
-                        minute: '2-digit',
-                        hour12: false,
-                      })
-                    : 'TBD'}
+                  {match.kickoff ? (
+                    <LocalTime
+                      date={match.kickoff}
+                      options={{ hour: '2-digit', minute: '2-digit', hour12: false }}
+                    />
+                  ) : (
+                    'TBD'
+                  )}
                 </span>
                 {match.kickoff && (
                   <div className="ds-caption text-chalkdim mt-1.5">
-                    {match.kickoff.toLocaleDateString(undefined, {
-                      month: 'short',
-                      day: 'numeric',
-                    })}
+                    <LocalTime date={match.kickoff} options={{ month: 'short', day: 'numeric' }} />
                   </div>
                 )}
               </div>
@@ -282,7 +280,9 @@ export default function MatchDetailPage({
             {(detail.venue || detail.attendance) && (
               <div className="pt-card mt-card border-t border-overlay/5 ds-caption text-chalkdim space-y-1.5">
                 {detail.venue && <div>{detail.venue}</div>}
-                {detail.attendance && <div>Attendance: {detail.attendance.toLocaleString()}</div>}
+                {detail.attendance && (
+                  <div>Attendance: {detail.attendance.toLocaleString('en-US')}</div>
+                )}
               </div>
             )}
           </>
@@ -293,7 +293,9 @@ export default function MatchDetailPage({
             {(detail.venue || detail.attendance) && (
               <div className="pt-card mt-card border-t border-overlay/5 ds-caption text-chalkdim space-y-1.5">
                 {detail.venue && <div>{detail.venue}</div>}
-                {detail.attendance && <div>Attendance: {detail.attendance.toLocaleString()}</div>}
+                {detail.attendance && (
+                  <div>Attendance: {detail.attendance.toLocaleString('en-US')}</div>
+                )}
               </div>
             )}
           </>

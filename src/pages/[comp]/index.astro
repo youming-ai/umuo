@@ -18,7 +18,7 @@ const items = await getCompNews(competition, env, ctx);
 <Layout title={`umuo — ${competition.label}`}>
   <LeftNav slot="left" comp={comp} active="news" />
   <main>
-    <NewsView comp={comp} initialData={items} client:only="react" />
+    <NewsView comp={comp} initialData={items} client:load />
   </main>
   <ScoresRailIsland slot="right" client:only="react" />
 </Layout>

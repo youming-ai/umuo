@@ -37,6 +37,12 @@ export default function OddsFormPanel({
               value={`${odds.homeMoneyLine > 0 ? '+' : ''}${odds.homeMoneyLine}`}
             />
           )}
+          {odds.drawMoneyLine != null && (
+            <OddsPill
+              label="Draw"
+              value={`${odds.drawMoneyLine > 0 ? '+' : ''}${odds.drawMoneyLine}`}
+            />
+          )}
           {odds.awayMoneyLine !== null && (
             <OddsPill
               label="Away ML"

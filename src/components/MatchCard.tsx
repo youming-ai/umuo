@@ -1,6 +1,7 @@
 import { memo, type ReactNode, useEffect, useRef } from 'react';
 import type { MatchProgress, MatchStatus, ScorerEntry } from '../types';
 import { scorerDisplay } from '../utils/wc';
+import LocalTime from './LocalTime';
 import { ReminderMenu } from './MatchActions';
 
 interface MatchCardProps {
@@ -198,9 +199,11 @@ export default memo(function MatchCard({
           </div>
           <div className="flex items-center gap-2 shrink-0">
             {kickoff && (
-              <span className="ds-caption tabular-nums text-chalkdim">
-                {kickoff.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
-              </span>
+              <LocalTime
+                date={kickoff}
+                options={{ month: 'short', day: 'numeric' }}
+                className="ds-caption tabular-nums text-chalkdim"
+              />
             )}
           </div>
         </div>
@@ -226,9 +229,11 @@ export default memo(function MatchCard({
           <div className="flex flex-col items-center gap-1 px-1 sm:px-2">
             {status === 'upcoming' ? (
               <span className="font-mono text-sm sm:text-lg font-bold text-chalk tabular-nums whitespace-nowrap leading-none">
-                {kickoff
-                  ? kickoff.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })
-                  : tbd}
+                {kickoff ? (
+                  <LocalTime date={kickoff} options={{ hour: '2-digit', minute: '2-digit' }} />
+                ) : (
+                  tbd
+                )}
               </span>
             ) : (
               <span

@@ -18,6 +18,9 @@ export default function NewsCard({
   const linked = external || item.link.startsWith('/');
   const isLead = variant === 'lead';
   const isRow = variant === 'row';
+  // timeAgo is relative to render time, so SSR and hydration can land on either
+  // side of a minute/hour boundary. suppressHydrationWarning below keeps that
+  // from being an error; the browser's value wins on the next render.
   const meta = [item.byline, timeAgo(item.published)].filter(Boolean).join(' · ');
 
   const body = isRow ? (
@@ -40,7 +43,11 @@ export default function NewsCard({
         {item.description && (
           <p className="mt-1 ds-body text-chalkdim line-clamp-2">{item.description}</p>
         )}
-        {meta && <p className="mt-1.5 ds-caption text-chalkdim">{meta}</p>}
+        {meta && (
+          <p className="mt-1.5 ds-caption text-chalkdim" suppressHydrationWarning>
+            {meta}
+          </p>
+        )}
       </div>
     </div>
   ) : (
@@ -75,7 +82,11 @@ export default function NewsCard({
             {item.description}
           </p>
         )}
-        {meta && <p className="mt-2 ds-caption text-chalkdim">{meta}</p>}
+        {meta && (
+          <p className="mt-2 ds-caption text-chalkdim" suppressHydrationWarning>
+            {meta}
+          </p>
+        )}
       </div>
     </div>
   );

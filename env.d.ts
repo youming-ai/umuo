@@ -8,6 +8,7 @@ declare namespace Cloudflare {
   interface Env {
     CACHE: KVNamespace;
     ASSETS: Fetcher;
+    GEMINI_API_KEY: string;
   }
 }
 

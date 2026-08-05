@@ -1,7 +1,8 @@
 import type { CompMatch, Group, ScorerEntry, TopScorer } from '../types';
-import { pathFor, useRouter } from '../utils/router';
+import { pathFor } from '../utils/router';
 
 interface PlayerPageProps {
+  comp: string;
   athleteId: string;
   groups: Group[];
   matches: CompMatch[];
@@ -52,14 +53,13 @@ function teamNameFor(groups: Group[], teamId: string | undefined): string {
 }
 
 export default function PlayerPage({
+  comp,
   athleteId,
   groups,
   matches,
   scorers,
   backHref,
 }: PlayerPageProps) {
-  const { route } = useRouter();
-  const comp = route.comp;
   const topScorerEntry = scorers.find((s) => s.athleteId === athleteId);
   const goals = playerGoals(matches, athleteId);
   // Fallback team (player not in the top-scorers feed): use the side they

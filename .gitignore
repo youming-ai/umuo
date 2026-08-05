@@ -75,6 +75,7 @@ tsconfig.tsbuildinfo
 .env.test.local
 .env.production.local
 .env.local
+.dev.vars
 
 # lerna script-generated files
 .esmrc

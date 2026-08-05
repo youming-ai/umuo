@@ -12,7 +12,9 @@ export default function CompetitionIsland({
 }) {
   return (
     <CompetitionDataIsland comp={comp} initialData={initialData}>
-      {({ matches, standings }) => <FixturesView matches={matches} standings={standings} />}
+      {({ matches, standings }) => (
+        <FixturesView comp={comp} matches={matches} standings={standings} />
+      )}
     </CompetitionDataIsland>
   );
 }

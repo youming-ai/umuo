@@ -1,17 +1,20 @@
 import type { MatchDetail } from '../adapters/types';
 import type { CompMatch } from '../types';
-import { pathFor, useRouter } from '../utils/router';
+import { pathFor } from '../utils/router';
 import MatchDetailPage from './MatchDetailPage';
 
 export default function MatchDetailIsland({
+  comp,
   match,
   initialDetail,
 }: {
+  comp: string;
   match: CompMatch;
   initialDetail: MatchDetail | null;
 }) {
-  const { route } = useRouter();
-  const backHref = pathFor({ kind: 'section', comp: route.comp, section: 'schedule' });
+  const backHref = pathFor({ kind: 'section', comp, section: 'schedule' });
 
-  return <MatchDetailPage match={match} backHref={backHref} initialDetail={initialDetail} />;
+  return (
+    <MatchDetailPage comp={comp} match={match} backHref={backHref} initialDetail={initialDetail} />
+  );
 }

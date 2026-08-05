@@ -19,7 +19,14 @@ export default function RightRailIsland({
   initialData?: InitialData;
   hide?: 'standings' | 'scorers';
 }) {
-  const { standings, loading, error, refetch } = useCompetition(comp, initialData);
+  // hide="standings" means the rail renders nothing from this hook, so don't run
+  // it — the schedule/odds pages already mount a center island polling the same
+  // scoreboard+standings every 30s.
+  const { standings, loading, error, refetch } = useCompetition(
+    comp,
+    initialData,
+    hide === 'standings',
+  );
 
   return (
     <RightRail

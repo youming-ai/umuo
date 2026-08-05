@@ -24,7 +24,7 @@ const [teams, initialData] = await Promise.all([
     <h1 class="mb-card font-display text-2xl font-bold tracking-wide text-chalk">
       {competition.label} Teams
     </h1>
-    <TeamsView comp={comp} teams={teams} client:only="react" />
+    <TeamsView comp={comp} teams={teams} client:load />
   </main>
-  <RightRailIsland slot="right" comp={comp} initialData={initialData} client:only="react" />
+  <RightRailIsland slot="right" comp={comp} initialData={initialData} client:load />
 </Layout>

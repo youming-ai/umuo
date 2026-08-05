@@ -3,6 +3,7 @@ import { COMPETITIONS } from '../competitions';
 import { type TickerMatch, useTicker } from '../hooks/useTicker';
 import type { NewsItem } from '../types';
 import { pathFor } from '../utils/router';
+import LocalTime from './LocalTime';
 import NewsCard from './NewsCard';
 
 // Global home. The thesis is live sport: a scoreboard band of today's matches
@@ -25,9 +26,7 @@ function ScoreCard({ m }: { m: TickerMatch }) {
   const finished = m.status === 'finished';
   const showScore = live || finished;
   const league = COMPETITIONS[m.comp]?.label ?? m.comp;
-  const time = m.kickoff
-    ? m.kickoff.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', hour12: false })
-    : '';
+
   return (
     <a
       href={pathFor({ kind: 'match', comp: m.comp, slug: m.slug })}
@@ -41,7 +40,18 @@ function ScoreCard({ m }: { m: TickerMatch }) {
             {m.progress?.displayClock || m.statusText || 'LIVE'}
           </span>
         ) : (
-          <span className="shrink-0">{finished ? m.statusText || 'FT' : time}</span>
+          <span className="shrink-0">
+            {finished ? (
+              m.statusText || 'FT'
+            ) : m.kickoff ? (
+              <LocalTime
+                date={m.kickoff}
+                options={{ hour: '2-digit', minute: '2-digit', hour12: false }}
+              />
+            ) : (
+              ''
+            )}
+          </span>
         )}
       </div>
       <TeamRow name={m.homeName} flag={m.homeFlag} score={showScore ? m.homeScore : null} />

@@ -31,6 +31,7 @@ import type {
   TopScorer,
   TransactionItem,
 } from '../types';
+import { marqueeMatches } from '../utils/marquee';
 
 // Edge cache for the upstream data APIs. The SPA calls same-origin /api/*; the
 // Worker fetches the third-party source and caches the body in KV. Now lifted
@@ -206,7 +207,21 @@ async function cached(
         },
       });
       if (!res.ok) throw new Error(`upstream ${res.status}`);
-      return res.text();
+      const text = await res.text();
+      // A 2xx is not proof the body is usable: an edge/WAF page or a truncated
+      // response still arrives as 200. Caching it would overwrite the last good
+      // entry and defeat serve-stale, so parse before it can be stored —
+      // throwing here routes to STALE/502 instead.
+      // ponytail: parseability only. A 200 carrying a JSON error envelope is
+      // still cached; getCompNews already screens for that downstream, and
+      // rejecting any payload with an `error` key would risk discarding a good
+      // body over an incidental field.
+      try {
+        JSON.parse(text);
+      } catch {
+        throw new Error('upstream returned unparseable JSON');
+      }
+      return text;
     },
     fresh,
     keep,
@@ -236,7 +251,19 @@ export async function serve(
   ctx: ExecutionContext,
 ): Promise<Response> {
   const { fresh, keep } = TTL[resource];
-  return cached(`${comp.key}:${resource}`, buildUrl(comp, resource), fresh, keep, env, ctx);
+  // Season in the key: standings' URL carries a computed season, so a rollover
+  // must not serve last season's body as fresh/stale from the same key. Applied
+  // to every resource — one key namespace, no per-resource branch; the cost is
+  // one miss wave per rollover.
+  const season = comp.season ?? seasonForDate(comp.sport, new Date());
+  return cached(
+    `${comp.key}:${resource}:${season}`,
+    buildUrl(comp, resource),
+    fresh,
+    keep,
+    env,
+    ctx,
+  );
 }
 
 export async function serveSummary(
@@ -283,7 +310,7 @@ export async function serveLeaders(
     topN: 15,
   };
   return cachedProducer(
-    `${comp.key}:leaders`,
+    `${comp.key}:leaders:${cfg.season}`,
     () => assembleLeaders(leadersFetch, cfg),
     3600,
     86400,
@@ -312,7 +339,7 @@ export async function serveLeaderboards(
     topN: 5,
   };
   return cachedProducer(
-    `${comp.key}:leaderboards`,
+    `${comp.key}:leaderboards:${cfg.season}`,
     () => assembleLeaderboards(leadersFetch, cfg, specs),
     3600,
     86400,
@@ -379,8 +406,13 @@ export async function getHomeView(env: Env, ctx: ExecutionContext): Promise<Home
     getAggregatedNews(env, ctx),
     Promise.all(comps.map((c) => getCompetitionView(c, env, ctx))),
   ]);
-  const scoreboardData = compViews.flatMap((v, i) =>
-    v.matches.map((m) => ({ ...m, comp: comps[i].key })),
+  // marqueeMatches runs HERE, not in useTicker's render path: it depends on "now"
+  // and on the renderer's timezone, so the server and the browser would disagree
+  // and the hydration render would not match the SSR markup. One selection,
+  // computed once, used by both. The browser recomputes it after its first poll.
+  const scoreboardData = marqueeMatches(
+    compViews.flatMap((v, i) => v.matches.map((m) => ({ ...m, comp: comps[i].key }))),
+    Date.now(),
   );
   return { news, scoreboardData };
 }
@@ -404,58 +436,52 @@ export async function getTeams(
 // Full team detail (header + roster + schedule + filtered injuries) from
 // site.api. team/roster/schedule are cached per URL; injuries are cached per
 // team via cachedProducer (the raw league feed is large — filter once per TTL,
-// not per render). Returns null when the team endpoint fails or has no name.
+// not per render).
+//
+// null = the team endpoint answered but the team has no name (a real 404).
+// THROWS when the team endpoint is unavailable, so the page can answer 503
+// rather than 404 on a transient outage. Roster/schedule/injuries stay
+// best-effort: each degrades to empty without sinking the page.
 export async function getTeamDetail(
   comp: Competition,
   teamId: string,
   env: Env,
   ctx: ExecutionContext,
 ): Promise<TeamDetail | null> {
-  try {
-    const [teamRes, rosterRes, schedRes, injRes] = await Promise.all([
-      cached(`team:${comp.key}:${teamId}`, teamUrl(comp, teamId, ''), 86400, 86400, env, ctx),
-      cached(
-        `roster:${comp.key}:${teamId}`,
-        teamUrl(comp, teamId, 'roster'),
-        86400,
-        86400,
-        env,
-        ctx,
-      ),
-      cached(
-        `schedule:${comp.key}:${teamId}`,
-        teamUrl(comp, teamId, 'schedule'),
-        3600,
-        86400,
-        env,
-        ctx,
-      ),
-      cachedProducer(
-        `injuries:${comp.key}:${teamId}`,
-        async () => {
-          const r = await serve(comp, 'injuries', env, ctx);
-          return r.ok ? parseTeamInjuries(await r.json(), teamId) : [];
-        },
-        300,
-        86400,
-        env,
-        ctx,
-      ),
-    ]);
-    if (!teamRes.ok) return null;
-    const [team, roster, sched] = await Promise.all([
-      teamRes.json(),
-      rosterRes.ok ? rosterRes.json() : {},
-      schedRes.ok ? schedRes.json() : {},
-    ]);
-    const detail = parseTeamDetail(team, roster, sched, teamId);
-    if (!detail.name) return null;
-    const injRaw: unknown = injRes.ok ? await injRes.json() : [];
-    detail.injuries = Array.isArray(injRaw) ? (injRaw as TeamInjury[]) : [];
-    return detail;
-  } catch {
-    return null;
-  }
+  const [teamRes, rosterRes, schedRes, injRes] = await Promise.all([
+    cached(`team:${comp.key}:${teamId}`, teamUrl(comp, teamId, ''), 86400, 86400, env, ctx),
+    cached(`roster:${comp.key}:${teamId}`, teamUrl(comp, teamId, 'roster'), 86400, 86400, env, ctx),
+    cached(
+      `schedule:${comp.key}:${teamId}`,
+      teamUrl(comp, teamId, 'schedule'),
+      3600,
+      86400,
+      env,
+      ctx,
+    ),
+    cachedProducer(
+      `injuries:${comp.key}:${teamId}`,
+      async () => {
+        const r = await serve(comp, 'injuries', env, ctx);
+        return r.ok ? parseTeamInjuries(await r.json(), teamId) : [];
+      },
+      300,
+      86400,
+      env,
+      ctx,
+    ),
+  ]);
+  if (!teamRes.ok) throw new Error('team endpoint unavailable');
+  const [team, roster, sched] = await Promise.all([
+    teamRes.json(),
+    rosterRes.ok ? rosterRes.json() : {},
+    schedRes.ok ? schedRes.json() : {},
+  ]);
+  const detail = parseTeamDetail(team, roster, sched, teamId);
+  if (!detail.name) return null;
+  const injRaw: unknown = injRes.ok ? await injRes.json() : [];
+  detail.injuries = Array.isArray(injRaw) ? (injRaw as TeamInjury[]) : [];
+  return detail;
 }
 
 // NBA roster moves: recent transactions from the league transactions feed.
@@ -521,8 +547,11 @@ export async function getCompetitionView(
       serve(comp, 'scoreboard', env, ctx),
       serve(comp, 'standings', env, ctx),
     ]);
-    if (!sbRes.ok || !stRes.ok) return emptyCompetitionView(comp);
-    const [sbJson, stJson] = await Promise.all([sbRes.json(), stRes.json()]);
+    // Independent upstreams, independent failure: a standings outage must not
+    // discard valid live scores. The adapter already tolerates `{}` standings
+    // (getCompMatchBySlug relies on that too). Only a scoreboard failure is fatal.
+    if (!sbRes.ok) return emptyCompetitionView(comp);
+    const [sbJson, stJson] = await Promise.all([sbRes.json(), stRes.ok ? stRes.json() : {}]);
     return getAdapter(comp.key).transform(sbJson, stJson);
   } catch {
     return emptyCompetitionView(comp);
@@ -549,23 +578,22 @@ export async function getLeaderboards(
 // Find a CompMatch by its URL slug, fetching only the scoreboard (not
 // standings — the adapter handles empty standings gracefully). Used by
 // the Astro match-detail page to validate the URL AND get the match's
-// event ID for the summary call. Returns null if the slug isn't found
-// or the upstream fails.
+// event ID for the summary call.
+//
+// null = the scoreboard loaded and has no such slug (a real 404). THROWS when
+// the upstream is unavailable, so the page can answer 503 instead of telling
+// users and crawlers that a valid match URL permanently does not exist.
 export async function getCompMatchBySlug(
   comp: Competition,
   slug: string,
   env: Env,
   ctx: ExecutionContext,
 ): Promise<CompMatch | null> {
-  try {
-    const res = await serve(comp, 'scoreboard', env, ctx);
-    if (!res.ok) return null;
-    const sbJson: unknown = await res.json();
-    const view = getAdapter(comp.key).transform(sbJson, {});
-    return view.matches.find((m) => m.slug === slug) ?? null;
-  } catch {
-    return null;
-  }
+  const res = await serve(comp, 'scoreboard', env, ctx);
+  if (!res.ok) throw new Error('scoreboard unavailable');
+  const sbJson: unknown = await res.json();
+  const view = getAdapter(comp.key).transform(sbJson, {});
+  return view.matches.find((m) => m.slug === slug) ?? null;
 }
 
 // Fetch + transform the ESPN summary into a MatchDetail. Wraps

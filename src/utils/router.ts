@@ -90,9 +90,3 @@ export function pathFor(route: Route): string {
       return `${prefix}/player/${encodeURIComponent(route.athleteId)}`;
   }
 }
-
-// Every route is its own SSR document, so there's nothing to subscribe to —
-// every mount already sees the URL it was served for.
-export function useRouter(): { route: Route } {
-  return { route: parseRoute(window.location.pathname) };
-}

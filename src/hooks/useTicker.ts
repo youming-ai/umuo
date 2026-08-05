@@ -124,15 +124,26 @@ export function useTicker(initialScores?: TickerMatch[]): TickerState {
   // loading=false after a failed fan-out, and an empty board from a successful
   // fan-out is authoritative on an off day. We track `hasSuccessfulPoll`
   // separately; it is only true once a successful response has been seen.
+  //
+  // On the server none of that applies: module state outlives the request in a
+  // Worker isolate, so seeding it there would leak one document's scores into the
+  // next. The seed is rendered straight through instead. It arrives already
+  // marquee-filtered (see getHomeView) — that filter depends on "now" and on the
+  // local timezone, so recomputing it in the browser at hydration time would not
+  // match what the server sent.
+  const ssr = typeof document === 'undefined';
   if (
+    !ssr &&
     initialScores &&
     initialScores.length > 0 &&
     !hasSuccessfulPoll &&
     shared.items.length === 0
   ) {
-    shared = { items: marqueeMatches(initialScores, Date.now()) as TickerMatch[], loading: false };
+    shared = { items: initialScores, loading: false };
   }
-  const [state, setState] = useState<TickerState>(shared);
+  const [state, setState] = useState<TickerState>(
+    ssr ? { items: initialScores ?? [], loading: !initialScores } : shared,
+  );
   useEffect(() => {
     const listener: Listener = (next) => setState(next);
     listeners.add(listener);

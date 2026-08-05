@@ -18,9 +18,13 @@ const competition = COMPETITIONS[comp]!;
 const ctx = Astro.locals.cfContext;
 const view = await getCompetitionView(competition, env, ctx);
 
+// ponytail: no 404 when the athlete isn't in `scorers` — that list is only the
+// top-15 leaderboard, so absence proves nothing about the player, and a
+// standings/leaders outage proves even less. The island still renders their
+// goals from the scoreboard. Upgrade path: a real per-athlete lookup, which is
+// the only thing that could justify a 404 here.
 const scorer = view.scorers.find((s) => s.athleteId === id);
-const playerName = scorer?.name ?? 'Player not found';
-if (!scorer) Astro.response.status = 404;
+const playerName = scorer?.name ?? 'Player';
 ---
 
 <Layout title={`umuo — ${playerName}`}>
@@ -28,11 +32,11 @@ if (!scorer) Astro.response.status = 404;
   <main>
     <div class="space-y-section">
 
-      {scorer ? (
-        <div>
-          <h1 class="font-display font-bold text-3xl text-chalk tracking-wide">
-            {scorer.name}
-          </h1>
+      <div>
+        <h1 class="font-display font-bold text-3xl text-chalk tracking-wide">
+          {playerName}
+        </h1>
+        {scorer && (
           <div class="flex items-center gap-3 mt-1">
             {scorer.teamName && (
               <span class="font-mono text-label uppercase tracking-[0.18em] text-chalkdim">
@@ -43,21 +47,20 @@ if (!scorer) Astro.response.status = 404;
               {scorer.goals} goals
             </span>
           </div>
-        </div>
-      ) : (
-        <p class="font-mono text-xs text-chalkdim p-card text-center">Player not found</p>
-      )}
+        )}
+      </div>
 
       <!-- Island: takes over for goals timeline, team nav link, back button, stats -->
       <PlayerPageIsland
+        comp={comp}
         athleteId={id}
         groups={view.standings.kind === 'soccer' ? view.standings.groups : []}
         matches={view.matches}
         scorers={view.scorers}
-        client:only="react"
+        client:load
       />
 
     </div>
   </main>
-  <RightRailIsland slot="right" comp={comp} initialData={view} client:only="react" />
+  <RightRailIsland slot="right" comp={comp} initialData={view} client:load />
 </Layout>

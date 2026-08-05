@@ -1,0 +1,137 @@
+// @vitest-environment node
+// The content islands render on the server (client:load), so they must produce
+// real HTML without touching window/document — and must produce it identically
+// on both sides, since a hydration mismatch throws the SSR markup away. Node
+// environment on purpose: `document` is undefined here, exactly like workerd.
+import { renderToString } from 'react-dom/server';
+import { expect, it } from 'vitest';
+import type { TickerMatch } from '../hooks/useTicker';
+import type { CompMatch } from '../types';
+import FixturesView from './FixturesView';
+import HomeView from './HomeView';
+import MatchDetailIsland from './MatchDetailIsland';
+import OddsView from './OddsView';
+import TeamPageIsland from './TeamPageIsland';
+
+const match: CompMatch = {
+  id: '1',
+  homeName: 'Arsenal',
+  awayName: 'Chelsea',
+  homeFlag: '',
+  awayFlag: '',
+  homeId: '1',
+  awayId: '2',
+  homeScore: null,
+  awayScore: null,
+  kickoff: new Date('2026-08-01T18:30:00Z'),
+  status: 'upcoming',
+  homeScorers: [],
+  awayScorers: [],
+  venue: 'Emirates',
+  slug: 'arsenal-vs-chelsea',
+};
+
+it('renders fixtures server-side with team names in the markup', () => {
+  const html = renderToString(
+    <FixturesView comp="eng.1" matches={[match]} standings={{ kind: 'soccer', groups: [] }} />,
+  );
+  expect(html).toContain('Arsenal');
+  expect(html).toContain('Chelsea');
+  expect(html).toContain('Emirates');
+});
+
+it('stamps the machine-readable instant on every rendered time', () => {
+  const html = renderToString(
+    <FixturesView comp="eng.1" matches={[match]} standings={{ kind: 'soccer', groups: [] }} />,
+  );
+  expect(html).toContain('2026-08-01T18:30:00.000Z');
+});
+
+it('renders the home scoreboard + news server-side without touching document', () => {
+  const scores: TickerMatch[] = [{ ...match, comp: 'eng.1' }];
+  const html = renderToString(
+    <HomeView
+      news={[
+        {
+          id: 'n1',
+          headline: 'Transfer window closes',
+          description: '',
+          published: '2026-08-01T10:00:00Z',
+          byline: 'Staff',
+          imageUrl: '',
+          link: 'https://example.com/a',
+          tags: [],
+        },
+      ]}
+      initialScores={scores}
+    />,
+  );
+  expect(html).toContain('Transfer window closes');
+  expect(html).toContain('Arsenal');
+  // `comp` is a prop now, not window.location — the link has to come out right
+  // on the server, where there is no location to read.
+  expect(html).toContain('/eng.1/match/arsenal-vs-chelsea');
+  expect(html).toContain('Today&#x27;s matches');
+  // Rendered in UTC (18:30Z), never in the machine's local timezone.
+  expect(html).toContain('18:30');
+});
+
+// The match and team pages 503 without upstream data, so a live smoke test never
+// reaches their islands — cover them here instead.
+it('renders the match-detail island server-side', () => {
+  const html = renderToString(
+    <MatchDetailIsland
+      comp="eng.1"
+      match={{ ...match, status: 'finished', homeScore: 2, awayScore: 1 }}
+      initialDetail={null}
+    />,
+  );
+  expect(html).toContain('Arsenal');
+  expect(html).toContain('/eng.1/schedule');
+});
+
+it('renders the team-page island server-side', () => {
+  const html = renderToString(
+    <TeamPageIsland
+      comp="eng.1"
+      team={{
+        id: '359',
+        name: 'Arsenal',
+        logo: '',
+        record: '20-5-3',
+        standingSummary: '1st in Premier League',
+        roster: [],
+        schedule: [],
+        injuries: [],
+      }}
+    />,
+  );
+  expect(html).toContain('Arsenal');
+  expect(html).toContain('/eng.1/teams');
+});
+
+// The odds page renders LocalTime on a path the live smoke test never reaches
+// (it needs a match with a kickoff AND an odds block).
+it('renders the odds board server-side with a UTC kickoff', () => {
+  const html = renderToString(
+    <OddsView
+      matches={[
+        {
+          ...match,
+          odds: {
+            provider: 'DraftKings',
+            details: 'ARS -120',
+            spread: -0.5,
+            overUnder: 2.5,
+            homeMoneyLine: -120,
+            awayMoneyLine: 300,
+            drawMoneyLine: 240,
+          },
+        },
+      ]}
+    />,
+  );
+  expect(html).toContain('DraftKings');
+  expect(html).toContain('+240');
+  expect(html).toContain('2026-08-01T18:30:00.000Z');
+});
