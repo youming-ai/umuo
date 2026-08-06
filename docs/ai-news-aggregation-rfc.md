@@ -1,4 +1,6 @@
-# RFC: AI-Driven Multi-Source Sports News Aggregation
+# RFC: AI-Driven Football News Aggregation
+
+> Implementation status: the football-only MVP described in this record is now implemented. See [`docs/football-news.md`](./football-news.md) for the operational flow and deployment steps. The remaining items below are future enhancements, not prerequisites for the current site.
 
 ## 1. Context & Goals
 

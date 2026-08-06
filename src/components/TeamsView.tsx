@@ -13,7 +13,7 @@ export default function TeamsView({ comp, teams }: { comp: string; teams: TeamSu
         <a
           key={t.id}
           href={pathFor({ kind: 'team', comp, teamId: t.id })}
-          className="ds-glass flex flex-col items-center gap-2 rounded-card p-card ds-press hover:border-pitch/40"
+          className="ds-glass flex flex-col items-center gap-2 p-card ds-press hover:border-pitch/40"
         >
           {t.logo && <img src={t.logo} alt="" className="h-10 w-10 object-contain" />}
           <span className="w-full truncate text-center font-display text-sm text-chalk">

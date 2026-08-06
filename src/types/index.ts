@@ -187,6 +187,54 @@ export interface NewsItem {
   tags: NewsTag[];
 }
 
+// --- AI-curated football news (D1 content layer) ---
+
+export type ExploreArticleType =
+  | 'news'
+  | 'analysis'
+  | 'rumor'
+  | 'interview'
+  | 'match-report'
+  | 'transfer'
+  | 'injury'
+  | 'video';
+
+export interface ExploreArticle {
+  id: string;
+  title: string;
+  description: string;
+  summary: string;
+  blurb: string;
+  url: string;
+  imageUrl: string;
+  sourceId: string;
+  sourceName: string;
+  sourceDomain: string;
+  publishedAt: number;
+  competition: string | null;
+  articleType: ExploreArticleType;
+  tags: string[];
+  qualityScore: number;
+  freshnessScore: number;
+}
+
+export interface ExploreFeed {
+  items: ExploreArticle[];
+  nextCursor: number | null;
+}
+
+export interface ExploreFilterOption {
+  value: string;
+  label: string;
+  count: number;
+}
+
+export interface ExploreFilterSet {
+  competitions: ExploreFilterOption[];
+  sources: ExploreFilterOption[];
+  tags: ExploreFilterOption[];
+}
+
 // A team directory entry from ESPN's site.api teams list.
 export interface TeamSummary {
   id: string;

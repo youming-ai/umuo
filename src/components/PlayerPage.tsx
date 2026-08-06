@@ -96,14 +96,14 @@ export default function PlayerPage({
 
       {/* Header */}
       <div>
-        <h1 className="font-display font-bold text-3xl text-chalk tracking-wide">
+        <h1 className="font-display font-bold text-hero text-chalk tracking-wide">
           {topScorerEntry?.name ?? goals[0]?.entry.name ?? ''}
         </h1>
         <div className="flex items-center gap-3 mt-1">
           {teamId && (
             <a
               href={pathFor({ kind: 'team', comp, teamId })}
-              className="font-mono text-label uppercase tracking-[0.18em] text-chalkdim hover:text-pitch transition-colors"
+              className="font-mono text-label uppercase tracking-caption text-chalkdim hover:text-pitch transition-colors"
             >
               {teamName}
             </a>

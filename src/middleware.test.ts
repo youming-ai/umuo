@@ -21,6 +21,11 @@ describe('middleware routing', () => {
     expect(redirect).not.toHaveBeenCalled();
   });
 
+  it('redirects the legacy Explore route to the global home', () => {
+    expect(run(`${O}/explore`).redirect).toHaveBeenCalledWith('/', 308);
+    expect(run(`${O}/explore/?q=transfer`).redirect).toHaveBeenCalledWith('/?q=transfer', 308);
+  });
+
   it('redirects removed World Cup paths to the global home', () => {
     expect(run(`${O}/fifa.world/schedule`).redirect).toHaveBeenCalledWith('/', 307);
     expect(run(`${O}/fifa.world`).redirect).toHaveBeenCalledWith('/', 307);

@@ -19,7 +19,7 @@ export default function MovesView({
       {transactions.length > 0 && (
         <section className="space-y-card">
           <h2 className="font-display text-lg font-bold text-chalk">Transactions</h2>
-          <ul className="ds-glass divide-y divide-overlay/5 rounded-card">
+          <ul className="ds-glass divide-y divide-overlay/5">
             {transactions.map((t) => {
               const d = new Date(t.date);
               const valid = !Number.isNaN(d.getTime());
@@ -49,8 +49,8 @@ export default function MovesView({
           <h2 className="font-display text-lg font-bold text-chalk">Injuries</h2>
           <div className="grid gap-card sm:grid-cols-2">
             {injuries.map((g) => (
-              <div key={g.team} className="ds-glass rounded-card p-card">
-                <h3 className="ds-caption mb-2 uppercase tracking-[0.15em] text-chalkdim">
+              <div key={g.team} className="ds-glass p-card">
+                <h3 className="ds-caption mb-2 uppercase tracking-caption text-chalkdim">
                   {g.team}
                 </h3>
                 <ul className="space-y-1">

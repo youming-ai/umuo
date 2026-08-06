@@ -92,9 +92,7 @@ export default function NewsCard({
   );
 
   return (
-    <article
-      className={`ds-glass rounded-card shadow-panel ${isRow ? 'p-card-inner' : 'overflow-hidden'}`}
-    >
+    <article className={`ds-glass ${isRow ? 'p-card-inner' : 'overflow-hidden'}`}>
       {linked ? (
         <a
           href={item.link}

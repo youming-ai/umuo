@@ -5,6 +5,7 @@ import type { MatchDetail, StandingsData } from '../adapters/types';
 import {
   buildUrl,
   COMPETITIONS,
+  FOOTBALL_COMPETITIONS,
   type Competition,
   type Resource,
   seasonForDate,
@@ -23,6 +24,11 @@ import { parseTeams } from '../teams';
 import { parseLeagueInjuries, parseTransactions } from '../transactions';
 import type {
   CompMatch,
+  ExploreArticle,
+  ExploreArticleType,
+  ExploreFeed,
+  ExploreFilterOption,
+  ExploreFilterSet,
   LeagueInjuryGroup,
   NewsItem,
   TeamDetail,
@@ -81,10 +87,7 @@ async function fetchWithRetry(
 const leadersFetch = (url: string, init?: RequestInit): Promise<Response> =>
   fetchWithRetry(url, init ?? {}, 0, 10_000);
 
-export interface Env {
-  ASSETS: Fetcher;
-  CACHE: KVNamespace;
-}
+export type Env = Cloudflare.Env;
 
 interface Entry {
   body: string;
@@ -415,6 +418,321 @@ export async function getHomeView(env: Env, ctx: ExecutionContext): Promise<Home
     Date.now(),
   );
   return { news, scoreboardData };
+}
+
+// --- AI-curated football Explore feed (D1) ---
+
+export interface ExploreQuery {
+  comp?: string;
+  source?: string;
+  tag?: string;
+  q?: string;
+  cursor?: number;
+  limit?: number;
+}
+
+const EMPTY_EXPLORE_FILTERS: ExploreFilterSet = {
+  competitions: [],
+  sources: [],
+  tags: [],
+};
+
+interface ExploreRow {
+  id: unknown;
+  title: unknown;
+  description: unknown;
+  ai_summary: unknown;
+  ai_blurb: unknown;
+  canonical_url: unknown;
+  image_url: unknown;
+  source_id: unknown;
+  source_name: unknown;
+  source_url: unknown;
+  published_at: unknown;
+  comp: unknown;
+  article_type: unknown;
+  quality_score: unknown;
+  freshness_score: unknown;
+  tags?: unknown;
+}
+
+interface CountRow {
+  value: unknown;
+  label?: unknown;
+  count: unknown;
+}
+
+function rowString(value: unknown): string {
+  return typeof value === 'string' ? value : '';
+}
+
+function rowNumber(value: unknown): number {
+  return typeof value === 'number' && Number.isFinite(value) ? value : Number(value) || 0;
+}
+
+function exploreArticleType(value: unknown): ExploreArticleType {
+  const allowed: ExploreArticleType[] = [
+    'news',
+    'analysis',
+    'rumor',
+    'interview',
+    'match-report',
+    'transfer',
+    'injury',
+    'video',
+  ];
+  const candidate = rowString(value) as ExploreArticleType;
+  return allowed.includes(candidate) ? candidate : 'news';
+}
+
+function sourceDomain(value: unknown): string {
+  try {
+    return new URL(rowString(value)).hostname.replace(/^www\./, '');
+  } catch {
+    return '';
+  }
+}
+
+function rowTags(value: unknown): string[] {
+  if (Array.isArray(value)) return value.filter((tag): tag is string => typeof tag === 'string');
+  if (typeof value !== 'string') return [];
+  try {
+    const parsed: unknown = JSON.parse(value);
+    return Array.isArray(parsed)
+      ? parsed.filter((tag): tag is string => typeof tag === 'string')
+      : [];
+  } catch {
+    return [];
+  }
+}
+
+function exploreArticle(row: ExploreRow): ExploreArticle {
+  return {
+    id: rowString(row.id),
+    title: rowString(row.title),
+    description: rowString(row.description),
+    summary: rowString(row.ai_summary),
+    blurb: rowString(row.ai_blurb),
+    url: rowString(row.canonical_url),
+    imageUrl: rowString(row.image_url),
+    sourceId: rowString(row.source_id),
+    sourceName: rowString(row.source_name),
+    // Where the story lives, not where we polled it: the feed URL would print
+    // feeds.bbci.co.uk / site.api.espn.com instead of bbc.com / espn.com.
+    sourceDomain: sourceDomain(row.canonical_url),
+    publishedAt: rowNumber(row.published_at),
+    competition: rowString(row.comp) || null,
+    articleType: exploreArticleType(row.article_type),
+    tags: rowTags(row.tags),
+    qualityScore: rowNumber(row.quality_score),
+    freshnessScore: rowNumber(row.freshness_score),
+  };
+}
+
+function normalizedExploreQuery(
+  query: ExploreQuery,
+): Required<Pick<ExploreQuery, 'cursor' | 'limit'>> & Omit<ExploreQuery, 'cursor' | 'limit'> {
+  const comp =
+    query.comp && Object.hasOwn(FOOTBALL_COMPETITIONS, query.comp) ? query.comp : undefined;
+  const cursor = Number.isInteger(query.cursor) ? Math.max(0, query.cursor ?? 0) : 0;
+  const limit = Number.isInteger(query.limit) ? Math.min(24, Math.max(1, query.limit ?? 12)) : 12;
+  return {
+    comp,
+    source: query.source?.trim().slice(0, 80) || undefined,
+    tag: query.tag?.trim().toLowerCase().slice(0, 80) || undefined,
+    q: query.q?.trim().slice(0, 100) || undefined,
+    cursor,
+    limit,
+  };
+}
+
+async function queryExplore(query: ExploreQuery, env: Env): Promise<ExploreFeed> {
+  if (!env.DB) throw new Error('D1 binding is required');
+  const normalized = normalizedExploreQuery(query);
+  const where = ["a.status = 'published'", 'a.is_football = 1', "a.sport = 'soccer'"];
+  const bindings: unknown[] = [];
+
+  if (normalized.comp) {
+    where.push('a.comp = ?');
+    bindings.push(normalized.comp);
+  }
+  if (normalized.source) {
+    where.push('a.source_id = ?');
+    bindings.push(normalized.source);
+  }
+  if (normalized.tag) {
+    where.push(
+      'EXISTS (SELECT 1 FROM article_tags filter_tags WHERE filter_tags.article_id = a.id AND filter_tags.tag = ?)',
+    );
+    bindings.push(normalized.tag);
+  }
+  if (normalized.q) {
+    const search = `%${normalized.q}%`;
+    where.push('(a.title LIKE ? OR a.ai_summary LIKE ? OR a.ai_blurb LIKE ?)');
+    bindings.push(search, search, search);
+  }
+
+  const statement = env.DB.prepare(
+    `SELECT
+         a.id, a.title, a.description, a.ai_summary, a.ai_blurb, a.canonical_url,
+         a.image_url, a.source_id, s.name AS source_name, s.url AS source_url,
+         a.published_at, a.comp, a.article_type, a.quality_score, a.freshness_score,
+         COALESCE((SELECT json_group_array(at.tag) FROM article_tags at WHERE at.article_id = a.id), '[]') AS tags
+       FROM articles a
+       JOIN sources s ON s.id = a.source_id
+       WHERE ${where.join(' AND ')}
+       ORDER BY a.published_at DESC, a.quality_score DESC, a.id DESC
+       LIMIT ? OFFSET ?`,
+  ).bind(...bindings, normalized.limit + 1, normalized.cursor);
+  const result = await statement.all<ExploreRow>();
+  const rows = result.results ?? [];
+  const hasMore = rows.length > normalized.limit;
+  return {
+    items: rows.slice(0, normalized.limit).map(exploreArticle),
+    nextCursor: hasMore ? normalized.cursor + normalized.limit : null,
+  };
+}
+
+export function exploreQueryFromUrl(url: URL): ExploreQuery {
+  const cursorValue = url.searchParams.get('cursor');
+  const limitValue = url.searchParams.get('limit');
+  const cursor = cursorValue === null ? Number.NaN : Number(cursorValue);
+  const limit = limitValue === null ? Number.NaN : Number(limitValue);
+  return {
+    comp: url.searchParams.get('comp') ?? undefined,
+    source: url.searchParams.get('source') ?? undefined,
+    tag: url.searchParams.get('tag') ?? undefined,
+    q: url.searchParams.get('q') ?? undefined,
+    cursor: Number.isFinite(cursor) ? cursor : undefined,
+    limit: Number.isFinite(limit) ? limit : undefined,
+  };
+}
+
+export async function serveExplore(
+  query: ExploreQuery,
+  env: Env,
+  ctx: ExecutionContext,
+): Promise<Response> {
+  const normalized = normalizedExploreQuery(query);
+  const key = `explore:${encodeURIComponent(JSON.stringify(normalized))}`;
+  return runCached(
+    key,
+    async () => JSON.stringify(await queryExplore(normalized, env)),
+    60,
+    3600,
+    env,
+    ctx,
+  );
+}
+
+export async function getExploreFeed(
+  query: ExploreQuery,
+  env: Env,
+  ctx: ExecutionContext,
+): Promise<ExploreFeed> {
+  try {
+    const response = await serveExplore(query, env, ctx);
+    if (!response.ok) return { items: [], nextCursor: null };
+    const parsed: unknown = await response.json();
+    if (!parsed || typeof parsed !== 'object') return { items: [], nextCursor: null };
+    const feed = parsed as Partial<ExploreFeed>;
+    return {
+      items: Array.isArray(feed.items) ? (feed.items as ExploreArticle[]) : [],
+      nextCursor: typeof feed.nextCursor === 'number' ? feed.nextCursor : null,
+    };
+  } catch {
+    return { items: [], nextCursor: null };
+  }
+}
+
+async function queryExploreFilters(comp: string, env: Env): Promise<ExploreFilterSet> {
+  if (!env.DB) throw new Error('D1 binding is required');
+  // Source and topic counts are scoped to the page's competition — on /eng.1 a
+  // row reading "BBC Sport Football 29" has to mean 29 Premier League stories,
+  // not 29 across all football. The competition list itself stays global: it is
+  // the nav, so every league must remain reachable from every page.
+  const published = `a.status = 'published' AND a.is_football = 1 AND a.sport = 'soccer'`;
+  const scope = comp ? ' AND a.comp = ?' : '';
+  const scopeBinding = comp ? [comp] : [];
+  const [competitions, sources, tags] = await Promise.all([
+    env.DB.prepare(
+      `SELECT a.comp AS value, COUNT(*) AS count
+         FROM articles a
+         WHERE ${published} AND a.comp IS NOT NULL
+         GROUP BY a.comp ORDER BY count DESC`,
+    ).all<CountRow>(),
+    env.DB.prepare(
+      `SELECT a.source_id AS value, s.name AS label, COUNT(*) AS count
+         FROM articles a JOIN sources s ON s.id = a.source_id
+         WHERE ${published}${scope}
+         GROUP BY a.source_id ORDER BY count DESC`,
+    )
+      .bind(...scopeBinding)
+      .all<CountRow>(),
+    env.DB.prepare(
+      `SELECT t.tag AS value, COUNT(*) AS count
+         FROM article_tags t JOIN articles a ON a.id = t.article_id
+         WHERE ${published}${scope}
+         GROUP BY t.tag ORDER BY count DESC LIMIT 40`,
+    )
+      .bind(...scopeBinding)
+      .all<CountRow>(),
+  ]);
+
+  const competitionOptions: ExploreFilterOption[] = (competitions.results ?? [])
+    .map((row: CountRow) => {
+      const value = rowString(row.value);
+      const competition = FOOTBALL_COMPETITIONS[value];
+      return competition ? { value, label: competition.label, count: rowNumber(row.count) } : null;
+    })
+    .filter((option: ExploreFilterOption | null): option is ExploreFilterOption => option !== null);
+  const sourceOptions = (sources.results ?? []).map((row: CountRow) => ({
+    value: rowString(row.value),
+    label: rowString(row.label) || rowString(row.value),
+    count: rowNumber(row.count),
+  }));
+  const tagOptions = (tags.results ?? []).map((row: CountRow) => {
+    const value = rowString(row.value);
+    return { value, label: value, count: rowNumber(row.count) };
+  });
+  return { competitions: competitionOptions, sources: sourceOptions, tags: tagOptions };
+}
+
+export async function serveExploreFilters(
+  comp: string,
+  env: Env,
+  ctx: ExecutionContext,
+): Promise<Response> {
+  const scoped = Object.hasOwn(FOOTBALL_COMPETITIONS, comp) ? comp : '';
+  return runCached(
+    `explore:filters:${scoped}`,
+    async () => JSON.stringify(await queryExploreFilters(scoped, env)),
+    300,
+    3600,
+    env,
+    ctx,
+  );
+}
+
+export async function getExploreFilters(
+  comp: string,
+  env: Env,
+  ctx: ExecutionContext,
+): Promise<ExploreFilterSet> {
+  try {
+    const response = await serveExploreFilters(comp, env, ctx);
+    if (!response.ok) return EMPTY_EXPLORE_FILTERS;
+    const parsed: unknown = await response.json();
+    if (!parsed || typeof parsed !== 'object') return EMPTY_EXPLORE_FILTERS;
+    const filters = parsed as Partial<ExploreFilterSet>;
+    return {
+      competitions: Array.isArray(filters.competitions) ? filters.competitions : [],
+      sources: Array.isArray(filters.sources) ? filters.sources : [],
+      tags: Array.isArray(filters.tags) ? filters.tags : [],
+    };
+  } catch {
+    return EMPTY_EXPLORE_FILTERS;
+  }
 }
 
 // Per-competition team directory from ESPN's site.api teams list, parsed to

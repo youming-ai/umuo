@@ -1,24 +1,30 @@
 ---
 import { env } from 'cloudflare:workers';
-import { COMPETITIONS } from '../../competitions';
-import LeftNav from '../../components/LeftNav.astro';
-import NewsView from '../../components/NewsView';
-import ScoresRailIsland from '../../components/ScoresRailIsland';
-import { getCompNews } from '../../data/api';
+import { FOOTBALL_COMPETITIONS } from '../../competitions';
+import ExploreView from '../../components/explore/ExploreView';
+import { getExploreFeed, getExploreFilters } from '../../data/api';
 import Layout from '../../layouts/Layout.astro';
 
 const { comp } = Astro.params;
-if (!comp || !Object.hasOwn(COMPETITIONS, comp)) {
+if (!comp || !Object.hasOwn(FOOTBALL_COMPETITIONS, comp)) {
   return new Response('Not found', { status: 404 });
 }
-const competition = COMPETITIONS[comp]!;
+const competition = FOOTBALL_COMPETITIONS[comp]!;
 const ctx = Astro.locals.cfContext;
-const items = await getCompNews(competition, env, ctx);
+const [initialData, initialFilters] = await Promise.all([
+  getExploreFeed({ comp }, env, ctx),
+  getExploreFilters(comp, env, ctx),
+]);
 ---
-<Layout title={`umuo — ${competition.label}`}>
-  <LeftNav slot="left" comp={comp} active="news" />
+<Layout title={`umuo — ${competition.label} football news`} showTicker={false}>
+  {/* No LeftNav here: it renders a single self-referential "News" link, and the
+      rail inside ExploreView already carries the competition index. */}
   <main>
-    <NewsView comp={comp} initialData={items} client:load />
+    <ExploreView
+      initialData={initialData}
+      initialFilters={initialFilters}
+      initialComp={comp}
+      client:load
+    />
   </main>
-  <ScoresRailIsland slot="right" client:only="react" />
 </Layout>

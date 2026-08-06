@@ -184,7 +184,7 @@ export default function MatchDetailPage({
               </div>
             ) : (
               <div className="flex flex-col items-center">
-                <div className="flex items-center justify-center gap-card sm:gap-8 font-display text-4xl md:text-6xl font-black text-chalk tabular-nums select-none leading-none">
+                <div className="flex items-center justify-center gap-card sm:gap-8 font-display text-4xl md:text-6xl font-bold text-chalk tabular-nums select-none leading-none">
                   {/* Penalty-shootout score (when decided on pens) sits beside
                         each team's aggregate as a smaller pitch-colored number. */}
                   <span>
@@ -252,7 +252,7 @@ export default function MatchDetailPage({
       {/* Detail Panel */}
       <div className="ds-glass-hero p-card min-h-32">
         {loading ? (
-          <p className="font-mono text-xs tracking-[0.3em] text-pitch animate-pulse motion-reduce:animate-none p-card text-center">
+          <p className="font-mono text-xs tracking-caption text-pitch animate-pulse motion-reduce:animate-none p-card text-center">
             Loading…
           </p>
         ) : error ? (

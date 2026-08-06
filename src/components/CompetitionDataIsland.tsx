@@ -47,7 +47,7 @@ export default function CompetitionDataIsland({
 
   if (loading && matches.length === 0) {
     return (
-      <p className="font-mono text-xs tracking-[0.3em] text-pitch animate-pulse motion-reduce:animate-none">
+      <p className="font-mono text-xs tracking-caption text-pitch animate-pulse motion-reduce:animate-none">
         Loading…
       </p>
     );

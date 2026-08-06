@@ -1,9 +1,9 @@
 {
   // Static SPA + a Worker that edge-caches the upstream data APIs in KV.
   "name": "umuo",
-  "compatibility_date": "2026-06-24",
+  "compatibility_date": "2026-07-17",
   "compatibility_flags": ["nodejs_compat"],
-  "main": "@astrojs/cloudflare/entrypoints/server",
+  "main": "./worker/entrypoint.ts",
   "observability": {
     "enabled": true,
     "head_sampling_rate": 1,
@@ -23,5 +23,38 @@
     "directory": "./dist",
     "binding": "ASSETS"
   },
-  "kv_namespaces": [{ "binding": "CACHE", "id": "1ec03cc00a6d43068e3d7c4473973fd3" }]
+  "kv_namespaces": [{ "binding": "CACHE", "id": "1ec03cc00a6d43068e3d7c4473973fd3" }],
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "umuo-content",
+      // Required for remote deploys — database_name alone does not resolve.
+      // Primary region is APAC; D1 cannot be moved without recreating it.
+      "database_id": "3d229c09-2965-4dbd-a17d-b4e43b15c86d",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "queues": {
+    "producers": [{ "binding": "INGEST_QUEUE", "queue": "umuo-news-ingest" }],
+    "consumers": [
+      {
+        "queue": "umuo-news-ingest",
+        "max_batch_size": 10,
+        "max_batch_timeout": 5,
+        "max_retries": 5,
+        "dead_letter_queue": "umuo-news-ingest-dlq"
+      }
+    ]
+  },
+  // No durable_objects/migrations here on purpose: the queue consumer calls
+  // processArticle directly. A pending DO migration cannot be applied by
+  // `wrangler versions upload`, which is what Workers Builds runs for preview
+  // branches — so a Durable Object here breaks every PR build.
+  // Ingest schedule, deliberately off for the first production deploy. Every
+  // tick fans out over all FEED_SOURCES and spends one Gemini call per new
+  // article, so the first run gets watched before it runs unattended. Restore
+  // this line once the spend per tick is known. Note both entries call the
+  // same ingest — scheduled() ignores the controller — so one is enough.
+  // "triggers": { "crons": ["*/15 * * * *", "0 7 * * *"] },
+  "vars": { "GEMINI_MODEL": "gemini-3.6-flash" }
 }

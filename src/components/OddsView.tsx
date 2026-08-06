@@ -11,7 +11,7 @@ function moneyLine(v: number | null | undefined): string {
 function OddsStat({ label, value }: { label: string; value: string }) {
   return (
     <span className="flex items-baseline gap-1">
-      <span className="ds-caption uppercase tracking-[0.12em] text-chalkdim">{label}</span>
+      <span className="ds-caption uppercase tracking-data text-chalkdim">{label}</span>
       <span className="font-bold text-chalk">{value}</span>
     </span>
   );
@@ -30,7 +30,7 @@ function OddsRow({ match }: { match: CompMatch }) {
   const o = match.odds;
   if (!o) return null;
   return (
-    <li className="ds-glass rounded-card p-card">
+    <li className="ds-glass p-card">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 space-y-1">
           <TeamLine name={match.homeName} flag={match.homeFlag} />
@@ -45,7 +45,7 @@ function OddsRow({ match }: { match: CompMatch }) {
         )}
       </div>
       <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 border-t border-overlay/5 pt-2.5 font-mono text-xs tabular-nums">
-        <span className="ds-caption uppercase tracking-[0.15em] text-chalkdim">
+        <span className="ds-caption uppercase tracking-caption text-chalkdim">
           {o.provider || 'Odds'}
         </span>
         <OddsStat label="Home" value={moneyLine(o.homeMoneyLine)} />

@@ -49,7 +49,7 @@ function Bench({ players }: { players: LineupPlayer[] }) {
   if (subs.length === 0) return null;
   return (
     <div className="mt-6 bg-overlay/5 rounded-card p-card border border-overlay/5">
-      <h4 className="ds-caption uppercase tracking-[0.2em] text-chalkdim mb-3">Bench</h4>
+      <h4 className="ds-caption uppercase tracking-caption text-chalkdim mb-3">Bench</h4>
       <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2">
         {subs.map((p) => (
           <li
@@ -119,7 +119,7 @@ export default function LineupTab({ lineups, homeId }: { lineups: TeamLineup[]; 
   return (
     <div className="space-y-card">
       {toggle}
-      <div className="ds-caption uppercase tracking-[0.2em] text-chalkdim text-center">
+      <div className="ds-caption uppercase tracking-caption text-chalkdim text-center">
         Starting Lineup · <span>{team.formation}</span>
       </div>
       <Pitch starters={team.players.filter((p) => p.starter)} />

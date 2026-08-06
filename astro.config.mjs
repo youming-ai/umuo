@@ -8,6 +8,10 @@ export default defineConfig({
   output: 'server',
   adapter: cloudflare({
     imageService: 'compile',
+    // The local dev runtime does not need an inspector listener. Disabling it
+    // keeps `bun run dev` usable in restricted environments where 9229 cannot
+    // be bound, while production Worker output remains unchanged.
+    inspectorPort: false,
   }),
   // Sessions are unused; point at unstorage's no-op `null` driver (object form,
   // not the deprecated string signature) so the Cloudflare adapter does not

@@ -12,7 +12,7 @@ export default function TeamPage({ team, backHref }: { team: TeamDetail; backHre
       <header className="ds-glass-hero flex items-center gap-4 p-card">
         {team.logo && <img src={team.logo} alt="" className="h-14 w-14 object-contain" />}
         <div>
-          <h1 className="font-display text-2xl font-bold tracking-wide text-chalk">{team.name}</h1>
+          <h1 className="font-display text-hero font-bold tracking-wide text-chalk">{team.name}</h1>
           {(team.record || team.standingSummary) && (
             <p className="ds-caption text-chalkdim">
               {[team.record, team.standingSummary].filter(Boolean).join(' · ')}
@@ -24,7 +24,7 @@ export default function TeamPage({ team, backHref }: { team: TeamDetail; backHre
       {team.injuries.length > 0 && (
         <section className="space-y-card">
           <h2 className="font-display text-lg font-bold text-chalk">Injuries</h2>
-          <ul className="ds-glass divide-y divide-overlay/5 rounded-card">
+          <ul className="ds-glass divide-y divide-overlay/5">
             {team.injuries.map((inj) => (
               <li key={inj.name} className="flex items-start justify-between gap-3 p-3">
                 <span className="font-display text-sm text-chalk">{inj.name}</span>
@@ -40,7 +40,7 @@ export default function TeamPage({ team, backHref }: { team: TeamDetail; backHre
         {team.schedule.length === 0 ? (
           <p className="font-mono text-xs text-chalkdim">No scheduled games.</p>
         ) : (
-          <ul className="ds-glass divide-y divide-overlay/5 rounded-card">
+          <ul className="ds-glass divide-y divide-overlay/5">
             {team.schedule.map((g) => (
               <li key={g.id} className="flex items-center justify-between gap-3 p-3">
                 <span className="truncate font-display text-sm text-chalk">{g.name}</span>
@@ -56,7 +56,7 @@ export default function TeamPage({ team, backHref }: { team: TeamDetail; backHre
         {team.roster.length === 0 ? (
           <p className="font-mono text-xs text-chalkdim">No roster available.</p>
         ) : (
-          <table className="ds-glass w-full overflow-hidden rounded-card text-sm">
+          <table className="ds-glass w-full overflow-hidden text-sm">
             <thead className="ds-caption uppercase text-chalkdim">
               <tr className="border-b border-overlay/5">
                 <th scope="col" className="w-10 px-3 py-2 text-left">
