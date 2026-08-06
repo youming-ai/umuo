@@ -63,7 +63,7 @@ export default function FixturesView({
 
   const renderDay = ([key, list]: [string, CompMatch[]]) => (
     <section key={key} className="space-y-stack">
-      <h3 className="font-mono text-xs tracking-[0.2em] text-chalkdim uppercase">
+      <h3 className="font-mono text-xs tracking-caption text-chalkdim uppercase">
         {list[0].kickoff ? (
           <LocalTime
             date={list[0].kickoff}
@@ -134,7 +134,7 @@ export default function FixturesView({
       {standings.kind === 'basketball'
         ? standings.conferences.length > 0 && (
             <section className="space-y-stack">
-              <h3 className="font-mono text-xs tracking-[0.2em] text-chalkdim uppercase">
+              <h3 className="font-mono text-xs tracking-caption text-chalkdim uppercase">
                 Standings
               </h3>
               <ConferenceStandings conferences={standings.conferences} />
@@ -142,7 +142,7 @@ export default function FixturesView({
           )
         : groups.length > 0 && (
             <section className="space-y-stack">
-              <h3 className="font-mono text-xs tracking-[0.2em] text-chalkdim uppercase">
+              <h3 className="font-mono text-xs tracking-caption text-chalkdim uppercase">
                 Standings
               </h3>
               <StandingsView groups={groups} mode="league" />

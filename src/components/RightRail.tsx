@@ -89,7 +89,7 @@ export default function RightRail({
                             loading="lazy"
                           />
                         )}
-                        <span className="font-medium text-chalk truncate">{row.name}</span>
+                        <span className="text-chalk truncate">{row.name}</span>
                       </div>
                       <span className="font-mono font-bold text-chalk">{row.pts} PTS</span>
                     </div>
@@ -144,7 +144,7 @@ export default function RightRail({
                             loading="lazy"
                           />
                         )}
-                        <span className="font-medium text-chalk truncate">{row.name}</span>
+                        <span className="text-chalk truncate">{row.name}</span>
                       </div>
                       <span className="font-mono text-chalkdim">
                         {row.w}-{row.l}

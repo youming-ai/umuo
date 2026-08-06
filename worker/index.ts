@@ -1,7 +1,15 @@
 /// <reference types="@cloudflare/workers-types" />
 
 import { COMPETITIONS, type Resource } from '../src/competitions';
-import { type Env, serve, serveLeaders, serveSummary } from '../src/data/api';
+import {
+  exploreQueryFromUrl,
+  type Env,
+  serve,
+  serveExplore,
+  serveExploreFilters,
+  serveLeaders,
+  serveSummary,
+} from '../src/data/api';
 
 // Thin HTTP wrapper around the shared data layer (src/data/api.ts). The SWR
 // primitives + composed serve* functions live there so Astro SSR pages can
@@ -12,6 +20,14 @@ export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     try {
       const url = new URL(request.url);
+      if (url.pathname === '/api/explore') {
+        if (request.method !== 'GET') return new Response('Method not allowed', { status: 405 });
+        return serveExplore(exploreQueryFromUrl(url), env, ctx);
+      }
+      if (url.pathname === '/api/explore/filters') {
+        if (request.method !== 'GET') return new Response('Method not allowed', { status: 405 });
+        return serveExploreFilters(url.searchParams.get('comp') ?? '', env, ctx);
+      }
       const m = url.pathname.match(/^\/api\/([^/]+)\/(scoreboard|standings|summary|leaders|news)$/);
       if (m) {
         if (!Object.hasOwn(COMPETITIONS, m[1])) return new Response('Not found', { status: 404 });

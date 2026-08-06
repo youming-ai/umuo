@@ -4,7 +4,7 @@ import type { MatchOdds } from '../../types';
 function OddsPill({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex flex-col items-center gap-0.5 px-3">
-      <span className="ds-caption uppercase tracking-[0.15em] text-chalkdim">{label}</span>
+      <span className="ds-caption uppercase tracking-caption text-chalkdim">{label}</span>
       <span className="font-mono text-sm font-bold text-chalk tabular-nums">{value}</span>
     </div>
   );
@@ -25,7 +25,7 @@ export default function OddsFormPanel({
     <div className="ds-glass p-card flex flex-col gap-3">
       {odds && (
         <div className="flex flex-wrap items-center justify-center gap-1">
-          <span className="ds-caption uppercase tracking-[0.15em] text-chalkdim pr-2">
+          <span className="ds-caption uppercase tracking-caption text-chalkdim pr-2">
             {odds.provider || 'Odds'}
           </span>
           {odds.details && <OddsPill label="Line" value={odds.details} />}

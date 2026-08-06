@@ -13,20 +13,19 @@
 
 :root,
 [data-theme='dark'] {
-  /* Surfaces — "Floodlit Midnight": a midnight blue-green ground, not pure
-     black, so the sodium floodlight glow has something to warm. */
-  --c-bg: 11 20 24;
-  --c-surface: 22 33 28;
-  --c-surface2: 34 50 45;
-  --c-line: 42 58 52;
-  --c-text: 234 244 238;
-  --c-muted: 130 146 142;
+  /* Surfaces — near-black green ground, so the pitch accent is the only thing
+     with chroma. One accent, one ground: the original palette. */
+  --c-bg: 10 14 12;
+  --c-surface: 26 34 30;
+  --c-surface2: 40 52 46;
+  --c-line: 48 64 56;
+  --c-text: 242 247 244;
+  --c-muted: 138 150 144;
 
   /* Semantic */
   --c-pitch: 46 213 115;
   --c-live: 255 69 58;
   --c-amber: 251 191 36;
-  --c-sodium: 244 183 64; /* stadium floodlight glow — the signature accent */
 
   /* Elevation overlays (replaces ad-hoc white/black alpha) */
   --c-overlay: 255 255 255;
@@ -37,7 +36,7 @@
      must not flip with the theme. Light theme intentionally does NOT override
      these. */
   --c-on-scrim: 255 255 255;
-  --c-on-accent: 11 20 24;
+  --c-on-accent: 10 14 12;
 
   /* Radius. Liquid Glass geometry: floating forms become rounder as their
      visual weight grows. Cards (the most common content container) sit one
@@ -106,10 +105,9 @@
   --c-text: 16 24 20;
   --c-muted: 90 105 98;
 
-  --c-pitch: 34 170 90;
+  --c-pitch: 18 130 74; /* light: darkened for AA on white (5.05:1); on-accent fill drops to ~3.8:1 (semibold labels — accepted tradeoff) */
   --c-live: 220 50 45;
-  --c-amber: 217 150 20;
-  --c-sodium: 214 150 40; /* daytime: a warmer amber; floodlight glow is muted in light */
+  --c-amber: 156 100 0; /* light: darkened for AA on white (5.05:1); /25 badge ~3.7:1 */
 
   --c-overlay: 0 0 0;
   --c-scrim: 0 0 0;
@@ -231,17 +229,15 @@
     @apply bg-transparent border-overlay/5 text-chalkdim hover:text-chalk hover:bg-overlay/5;
   }
 
-  /* Video / stream overlays */
-  .ds-scrim-badge {
-    @apply rounded-pill bg-scrim/65 backdrop-blur-sm;
-  }
-
   /* Buttons: two voices across the whole UI. */
   .ds-btn-primary {
     @apply inline-flex items-center justify-center min-h-11 px-4 py-2 rounded-control bg-pitch text-onaccent font-display font-semibold tracking-wide hover:brightness-110 ds-press;
   }
-  .ds-btn-ghost {
-    @apply inline-flex items-center justify-center min-h-11 px-3 rounded-pill text-pitch font-semibold text-xs hover:bg-pitch/10 ds-press transition-colors;
+  .ds-btn-secondary {
+    @apply inline-flex items-center justify-center min-h-11 px-4 py-2 rounded-control border border-line/50 bg-panel/70 text-chalk font-display font-semibold tracking-wide hover:bg-overlay/10 ds-press;
+  }
+  .ds-input {
+    @apply min-h-11 rounded-control border border-line/50 bg-panel/70 px-3 py-2 font-body text-sm text-chalk outline-none placeholder:text-chalkdim focus:border-pitch/70 focus:ring-1 focus:ring-pitch/40;
   }
 
   /* Mono caption — use instead of repeating font-mono text-caption */
@@ -273,27 +269,31 @@
     animation: score-flash 1.2s ease-out 2;
   }
 
-  /* Signature — stadium floodlights above the page. A static sodium glow that
-     fades down into the midnight ground, as if the pitch is lit from overhead.
-     One fixed band at the top; the rest of the page stays quiet. Dark only —
-     a day match has no floodlights. */
-  .ds-floodlight {
-    position: fixed;
-    inset: 0 0 auto 0;
-    height: 340px;
-    z-index: 0;
-    pointer-events: none;
-    background: radial-gradient(
-      130% 100% at 50% -25%,
-      rgb(var(--c-sodium) / 0.16),
-      rgb(var(--c-sodium) / 0.05) 38%,
-      transparent 64%
-    );
+  /* Signature — the desk's signal strip. A meter across the top edge of a
+     story card, filled to the AI quality score, so a grid of cards reads as a
+     bar chart of the desk's confidence. The track runs the full width on every
+     card so a low score reads as "low", not as a missing accent. Set --signal
+     to a percentage. */
+  .ds-signal {
+    @apply relative;
   }
-  [data-theme='light'] .ds-floodlight {
-    display: none;
+  .ds-signal::before,
+  .ds-signal::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 2px;
+    z-index: 1;
   }
-
+  .ds-signal::before {
+    right: 0;
+    background: rgb(var(--c-line));
+  }
+  .ds-signal::after {
+    width: var(--signal, 0%);
+    background: rgb(var(--c-pitch));
+  }
 }
 
 @keyframes live-pulse {
@@ -370,9 +370,6 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .live-dot {
-    animation: none;
-  }
   .score-pulse {
     animation: none;
   }

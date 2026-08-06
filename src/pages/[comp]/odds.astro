@@ -23,7 +23,7 @@ const initialData = await getCompetitionView(competition, env, ctx);
 <Layout title={`umuo — ${competition.label} Odds`}>
   <LeftNav slot="left" comp={comp} active="odds" />
   <main>
-    <h1 class="mb-card font-display text-2xl font-bold tracking-wide text-chalk">
+    <h1 class="mb-card font-display text-hero font-bold tracking-wide text-chalk">
       {competition.label} Odds
     </h1>
     <OddsIsland comp={comp} initialData={initialData} client:load />

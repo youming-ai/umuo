@@ -26,7 +26,7 @@ const [transactions, injuries, initialData] = await Promise.all([
 <Layout title={`umuo — ${competition.label} Roster Moves`}>
   <LeftNav slot="left" comp={comp} active="transactions" />
   <main>
-    <h1 class="mb-card font-display text-2xl font-bold tracking-wide text-chalk">
+    <h1 class="mb-card font-display text-hero font-bold tracking-wide text-chalk">
       {competition.label} Roster Moves
     </h1>
     <MovesView transactions={transactions} injuries={injuries} client:load />

@@ -1,0 +1,51 @@
+---
+// Brand wordmark + ball mark — the single source for Header/Footer. The mark
+// is a stroke SVG in currentColor so it stays theme-adaptive pitch green —
+// never a system emoji.
+interface Props {
+  /** Compact inline variant (footer): no ball circle, no link. */
+  compact?: boolean;
+}
+const { compact = false } = Astro.props;
+---
+{compact ? (
+  <span class="inline-flex items-center gap-1.5 font-display font-bold tracking-display text-chalkdim">
+    <span>umu</span>
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="1.7"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      class="h-3 w-3 text-pitch"
+      aria-hidden="true"
+    >
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 8 15.9 10.4 14.5 15h-5L8.1 10.4 12 8Z" />
+      <path d="M12 3v5M19 9.5l-3.1 1.9M17 15.9 13.9 14M7 15.9l3.1-1.9M5 9.5l3.1 1.9" />
+    </svg>
+  </span>
+) : (
+  <a href="/" aria-label="umuo home" class="group inline-flex shrink-0 items-center gap-2">
+    <span class="font-display text-xl font-bold tracking-display text-chalk">umu</span>
+    <span
+      class="inline-flex h-8 w-8 items-center justify-center rounded-full border border-pitch/45 bg-pitch/10 text-pitch transition-colors duration-150 group-hover:bg-pitch/20"
+      aria-hidden="true"
+    >
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.7"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        class="h-4 w-4"
+      >
+        <circle cx="12" cy="12" r="9" />
+        <path d="M12 8 15.9 10.4 14.5 15h-5L8.1 10.4 12 8Z" />
+        <path d="M12 3v5M19 9.5l-3.1 1.9M17 15.9 13.9 14M7 15.9l3.1-1.9M5 9.5l3.1 1.9" />
+      </svg>
+    </span>
+  </a>
+)}

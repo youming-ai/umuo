@@ -58,6 +58,13 @@ export default {
         lead: 'var(--leading-lead)',
         hero: 'var(--leading-hero)',
       },
+      // Letter-spacing scale — one home for the broadcast-label tracking that
+      // used to be hand-rolled per component (tracking-[0.15em] etc).
+      letterSpacing: {
+        display: '0.08em', // wordmark / display headings
+        data: '0.12em', // card source rows, stat labels
+        caption: '0.16em', // eyebrow / section captions
+      },
       boxShadow: {
         panel: 'var(--shadow-panel)',
         hero: 'var(--shadow-hero)',

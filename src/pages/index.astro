@@ -1,17 +1,17 @@
 ---
 import { env } from 'cloudflare:workers';
-import HomeView from '../components/HomeView';
-import { getHomeView } from '../data/api';
+import ExploreView from '../components/explore/ExploreView';
+import { getExploreFeed, getExploreFilters } from '../data/api';
 import Layout from '../layouts/Layout.astro';
 
-// Global home: aggregated cross-comp news (center) + top headlines + today's
-// scores (right). Leagues live in the Header top nav, so the home needs no
-// left rail. No comp prop → the Header highlights nothing.
 const ctx = Astro.locals.cfContext;
-const { news, scoreboardData } = await getHomeView(env, ctx);
+const [initialData, initialFilters] = await Promise.all([
+  getExploreFeed({}, env, ctx),
+  getExploreFilters('', env, ctx),
+]);
 ---
-<Layout title="umuo — Sports news, scores & standings" showTicker={false}>
+<Layout title="umuo — AI football news" showTicker={false}>
   <main>
-    <HomeView news={news} initialScores={scoreboardData} client:load />
+    <ExploreView initialData={initialData} initialFilters={initialFilters} client:load />
   </main>
 </Layout>

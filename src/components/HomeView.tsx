@@ -32,7 +32,7 @@ function ScoreCard({ m }: { m: TickerMatch }) {
       href={pathFor({ kind: 'match', comp: m.comp, slug: m.slug })}
       className="ds-glass ds-press flex w-56 shrink-0 snap-start flex-col gap-2 p-3 hover:bg-overlay/5"
     >
-      <div className="flex items-center justify-between ds-caption uppercase tracking-[0.16em] text-chalkdim">
+      <div className="flex items-center justify-between ds-caption uppercase tracking-caption text-chalkdim">
         <span className="min-w-0 truncate">{league}</span>
         {live ? (
           <span className="flex shrink-0 items-center gap-1 font-bold text-live">
@@ -83,7 +83,7 @@ export default function HomeView({
     <div className="mx-auto w-full max-w-6xl space-y-section px-page-x py-page-y md:px-page-x-md">
       {matches.length > 0 && (
         <section className="space-y-2">
-          <h2 className="ds-caption uppercase tracking-[0.2em] text-chalkdim">Today's matches</h2>
+          <h2 className="ds-caption uppercase tracking-caption text-chalkdim">Today's matches</h2>
           {/* A scroll rail, not a marquee: these cards are links, and chasing a
               moving target is hostile. Also sidesteps the marquee's duplicated
               (aria-hidden but focusable) second copy. */}

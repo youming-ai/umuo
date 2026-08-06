@@ -30,7 +30,11 @@ export function onRequest(
   if (path === '/fifa.world' || path.startsWith('/fifa.world/'))
     return context.redirect(`/${search}`, 307);
 
-  // Assets + API + known unprefixed routes pass through.
+  // The Explore surface now lives at /. Keep the old URL as a permanent
+  // redirect so bookmarks and crawlers converge on the canonical homepage.
+  if (path === '/explore') return context.redirect(`/${search}`, 308);
+
+  // Assets + API pass through.
   if (path === '/api' || path.startsWith('/api/') || lastSeg.includes('.')) {
     return next();
   }

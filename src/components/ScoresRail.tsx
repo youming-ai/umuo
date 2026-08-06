@@ -35,7 +35,7 @@ export default function ScoresRail({ scores, loading = false }: ScoresRailProps)
                 <span className="text-caption font-mono uppercase text-chalkdim">
                   {COMPETITIONS[m.comp]?.label ?? m.comp}
                 </span>
-                <span className="text-xs font-medium text-chalk flex items-center gap-1.5">
+                <span className="text-xs text-chalk flex items-center gap-1.5">
                   {m.status === 'live' && (
                     <span className="live-dot rounded-full shrink-0" aria-hidden />
                   )}

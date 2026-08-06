@@ -83,6 +83,13 @@ export const COMPETITIONS: Record<string, Competition> = {
   'uefa.champions': soccerLeague('uefa.champions', 'Champions League'),
 };
 
+// The editorial product is intentionally football-only. Keep the legacy
+// basketball entry in COMPETITIONS for old adapter/data-layer fixtures, but
+// derive every new public news surface and ingestion source from this registry.
+export const FOOTBALL_COMPETITIONS: Record<string, Competition> = Object.fromEntries(
+  Object.entries(COMPETITIONS).filter(([, competition]) => competition.sport === 'soccer'),
+);
+
 export const DEFAULT_COMPETITION = 'eng.1';
 
 const ESPN = 'https://site.api.espn.com/apis';

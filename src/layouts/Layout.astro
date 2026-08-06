@@ -7,12 +7,17 @@ import { SITE_ORIGIN } from '../site';
 
 interface Props {
   title?: string;
+  description?: string;
   /** Hide the sticky global Ticker strip. Used on the home page where the
       page itself owns the richer scoreboard band. */
   showTicker?: boolean;
 }
 
-const { title = 'umuo — Sports news, scores & standings', showTicker = true } = Astro.props;
+const {
+  title = 'umuo — AI football news',
+  description = 'AI-curated football news from trusted sources, organized by competition and topic.',
+  showTicker = true,
+} = Astro.props;
 
 // Rails are opt-in per page via named slots. When a page has rails, the shell
 // owns the width + page padding and lays out the 3-col grid. When it has none,
@@ -28,6 +33,11 @@ const cols =
       ? 'lg:grid lg:gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]'
       : 'lg:grid lg:gap-6 lg:grid-cols-[13rem_minmax(0,1fr)]';
 const frame = hasRails ? `mx-auto max-w-6xl px-page-x md:px-page-x-md py-page-y ${cols}` : '';
+
+// --h-topbar (ticker + header) is the shared sticky-offset token, but it
+// assumes the Ticker strip is present. Pages that hide the ticker must narrow
+// it so sticky rails don't float below the actual bar.
+const topbarStyle = showTicker ? undefined : '--h-topbar: var(--h-header)';
 
 // Canonical + og:url must match the actual page path (not a hardcoded /news).
 // Use the production origin so previews/dev still emit stable share URLs.
@@ -49,13 +59,13 @@ const canonicalUrl = `${SITE_ORIGIN}${canonicalPath}`;
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="umuo" />
     <title>{title}</title>
-    <meta name="description" content="Sports news, live scores, fixtures, and standings for the Premier League, NBA, and more — one fast, no-clutter hub." />
+    <meta name="description" content={description} />
     <meta name="robots" content="index, follow" />
     <link rel="canonical" href={canonicalUrl} />
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="umuo" />
     <meta property="og:title" content={title} />
-    <meta property="og:description" content="Breaking sports news, live scores, fixtures, and standings — Premier League, NBA, and more." />
+    <meta property="og:description" content={description} />
     <meta property="og:url" content={canonicalUrl} />
     <meta property="og:image" content={`${SITE_ORIGIN}/og.jpg`} />
     <meta property="og:image:width" content="1200" />
@@ -66,10 +76,13 @@ const canonicalUrl = `${SITE_ORIGIN}${canonicalPath}`;
     <meta property="og:locale:alternate" content="ko_KR" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content={title} />
-    <meta name="twitter:description" content="Breaking sports news, live scores, fixtures, and standings — Premier League, NBA, and more." />
+    <meta name="twitter:description" content={description} />
     <meta name="twitter:image" content={`${SITE_ORIGIN}/og.jpg`} />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <!-- Loaded weights are the contract: Saira Condensed 600/700 (display:
+         use font-semibold/bold — font-black is NOT loaded), Hanken Grotesk
+         400 (body: no heavier weights). Keep this URL in sync with usage. -->
     <link href="https://fonts.googleapis.com/css2?family=Saira+Condensed:wght@600;700&family=Hanken+Grotesk:wght@400&display=swap" rel="stylesheet" />
   </head>
   <body class="min-h-screen">
@@ -111,8 +124,7 @@ const canonicalUrl = `${SITE_ORIGIN}${canonicalPath}`;
         });
       })();
     </script>
-    <div class="ds-floodlight" aria-hidden="true"></div>
-    <div class="relative z-10 flex flex-col min-h-screen">
+    <div class="relative z-10 flex flex-col min-h-screen" style={topbarStyle}>
       <div class="sticky top-0 z-40 bg-night/95 backdrop-blur-md">
         {/* Reserve the ticker's row height so the client:only strip fills it on
             hydration instead of popping in and shoving the header down (CLS).

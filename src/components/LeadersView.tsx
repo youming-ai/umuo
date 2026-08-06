@@ -24,12 +24,12 @@ export default function LeadersView({
     <div className="space-y-card">
       <div className="flex items-baseline justify-between gap-3">
         <h3 className="font-display font-bold text-lg text-chalk tracking-wide">{title}</h3>
-        <span className="ds-caption uppercase tracking-[0.2em] text-chalkdim">{subtitle}</span>
+        <span className="ds-caption uppercase tracking-caption text-chalkdim">{subtitle}</span>
       </div>
 
       <table className="w-full table-fixed text-sm border border-line/30 bg-panel/85 rounded-card overflow-hidden shadow-panel backdrop-blur-sm">
         <caption className="sr-only">{title}</caption>
-        <thead className="text-chalkdim ds-caption uppercase tracking-[0.18em]">
+        <thead className="text-chalkdim ds-caption uppercase tracking-caption">
           <tr className="border-b border-overlay/5 bg-overlay/[0.02]">
             <th scope="col" className="text-left font-medium px-3 py-2 w-8">
               #
