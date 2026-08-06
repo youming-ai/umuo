@@ -46,10 +46,10 @@
       }
     ]
   },
-  "durable_objects": {
-    "bindings": [{ "name": "FOOTBALL_NEWS_AGENT", "class_name": "FootballNewsAgent" }]
-  },
-  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["FootballNewsAgent"] }],
+  // No durable_objects/migrations here on purpose: the queue consumer calls
+  // processArticle directly. A pending DO migration cannot be applied by
+  // `wrangler versions upload`, which is what Workers Builds runs for preview
+  // branches — so a Durable Object here breaks every PR build.
   // Ingest schedule, deliberately off for the first production deploy. Every
   // tick fans out over all FEED_SOURCES and spends one Gemini call per new
   // article, so the first run gets watched before it runs unattended. Restore

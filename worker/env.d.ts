@@ -9,7 +9,6 @@ declare namespace Cloudflare {
     INGEST_QUEUE: Queue;
     ASSETS: Fetcher;
     GEMINI_MODEL: 'gemini-3.6-flash';
-    FOOTBALL_NEWS_AGENT: DurableObjectNamespace<import('./entrypoint').FootballNewsAgent>;
     GEMINI_API_KEY: string;
   }
 }
