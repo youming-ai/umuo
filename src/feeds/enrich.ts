@@ -18,6 +18,20 @@ function freshnessScore(publishedAt: number, now = Date.now()): number {
   return Math.max(0, Math.min(100, Math.round(100 - (ageHours / 72) * 100)));
 }
 
+/**
+ * Gemini returns free-form tags, so "Premier League" and "premier-league" used
+ * to land as two separate rows and show up as two separate facets in the rail.
+ * One spelling per topic: lowercase, whitespace collapsed to a single hyphen.
+ */
+export function normalizeTag(value: string): string {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, '-')
+    .replace(/-{2,}/g, '-')
+    .replace(/^-|-$/g, '');
+}
+
 function safeJson(value: unknown): string {
   try {
     return JSON.stringify(value);
@@ -50,6 +64,14 @@ function score(article: RawArticle, enrichment: ArticleEnrichment): number {
 
 export async function processArticle(env: Env, article: RawArticle): Promise<ArticleProcessResult> {
   if (!env.DB) throw new Error('D1 binding is required');
+
+  // Checked before the agent_runs row is written: a duplicate is not an AI run,
+  // and logging one row per skip grew the table by tens of thousands of rows a
+  // day for nothing. ingestAllSources pre-filters too, but this stays the
+  // authoritative check — it also covers canonical_url, not just fingerprint.
+  const alreadyStored = await storedArticleId(env.DB, article);
+  if (alreadyStored) return { id: alreadyStored, status: 'skipped' };
+
   const runId = crypto.randomUUID();
   const startedAt = Date.now();
   const model = env.GEMINI_MODEL || 'gemini-3.6-flash';
@@ -77,12 +99,6 @@ export async function processArticle(env: Env, article: RawArticle): Promise<Art
   };
 
   try {
-    const existingArticleId = await storedArticleId(env.DB, article);
-    if (existingArticleId) {
-      await finishRun('skipped', existingArticleId);
-      return { id: existingArticleId, status: 'skipped' };
-    }
-
     const enrichment = await enrichWithGemini(env.GEMINI_API_KEY, model, article);
     const now = Date.now();
     const competition = canonicalCompetition(enrichment.competition, article.comp);
@@ -120,12 +136,11 @@ export async function processArticle(env: Env, article: RawArticle): Promise<Art
         now,
         now,
       ),
-      ...[...new Set(enrichment.tags.map((tag) => tag.trim().toLowerCase()).filter(Boolean))].map(
-        (tag) =>
-          env.DB.prepare('INSERT OR IGNORE INTO article_tags (article_id, tag) VALUES (?, ?)').bind(
-            articleId,
-            tag,
-          ),
+      ...[...new Set(enrichment.tags.map(normalizeTag).filter(Boolean))].map((tag) =>
+        env.DB.prepare('INSERT OR IGNORE INTO article_tags (article_id, tag) VALUES (?, ?)').bind(
+          articleId,
+          tag,
+        ),
       ),
       env.DB.prepare('INSERT OR IGNORE INTO source_health (source_id) VALUES (?)').bind(
         article.sourceId,

@@ -4,8 +4,26 @@ import { FEED_SOURCES } from './sources';
 import type { FeedSource, RawArticle } from './types';
 import { parseRss } from './rss';
 
-const USER_AGENT = 'umuo-football-news/1.0 (+https://cup.umuo.app)';
 const MAX_QUEUE_BATCH = 100;
+// The known-fingerprint lookup goes out in chunks so one statement never has
+// to bind a whole tick's worth of articles — a tick fetches ~700 today and
+// grows with every source added.
+const FINGERPRINT_LOOKUP_CHUNK = 90;
+
+// RSS publishers are fine with an honest bot agent, and all fourteen of them
+// serve it. ESPN's WAF is not: every api-json source 403'd on its first
+// production run. site.api is the same host src/data/api.ts reads all day, so
+// api-json sources reuse the browser headers already proven against it there.
+const RSS_HEADERS = {
+  accept: 'application/rss+xml, application/atom+xml, application/json, text/xml, */*',
+  'user-agent': 'umuo-football-news/1.0 (+https://cup.umuo.app)',
+};
+const API_JSON_HEADERS = {
+  accept: 'application/json, text/plain, */*',
+  'accept-language': 'en-US,en;q=0.9',
+  'user-agent':
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+};
 
 export function canonicalizeUrl(value: string): string {
   try {
@@ -39,14 +57,11 @@ export async function fingerprintFor(
   return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, '0')).join('');
 }
 
-async function fetchWithRetry(url: string): Promise<Response> {
+async function fetchWithRetry(url: string, headers: Record<string, string>): Promise<Response> {
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
       const response = await fetch(url, {
-        headers: {
-          accept: 'application/rss+xml, application/atom+xml, application/json, text/xml, */*',
-          'user-agent': USER_AGENT,
-        },
+        headers,
         signal: AbortSignal.timeout(10_000),
       });
       if (response.ok) return response;
@@ -66,7 +81,10 @@ async function readSource(
   source: FeedSource,
   fetchedAt: number,
 ): Promise<Omit<RawArticle, 'canonicalUrl' | 'fingerprint'>[]> {
-  const response = await fetchWithRetry(source.url);
+  const response = await fetchWithRetry(
+    source.url,
+    source.kind === 'rss' ? RSS_HEADERS : API_JSON_HEADERS,
+  );
   if (!response.ok) throw new Error(`${source.name} returned ${response.status}`);
 
   if (source.kind === 'rss') {
@@ -193,9 +211,36 @@ async function recordSourceFailure(db: D1Database, sourceId: string): Promise<vo
     .run();
 }
 
+/**
+ * Fingerprints already in `articles`, so a tick only enqueues genuinely new
+ * work. Best-effort by design: processArticle still does the authoritative
+ * canonical_url + fingerprint check before spending a Gemini call. Without
+ * this every tick re-enqueued every article in every feed — ~450 messages
+ * every 15 minutes that existed only to be recognised and dropped.
+ */
+export async function knownFingerprints(
+  db: D1Database,
+  fingerprints: string[],
+): Promise<Set<string>> {
+  const known = new Set<string>();
+  for (let offset = 0; offset < fingerprints.length; offset += FINGERPRINT_LOOKUP_CHUNK) {
+    const chunk = fingerprints.slice(offset, offset + FINGERPRINT_LOOKUP_CHUNK);
+    const result = await db
+      .prepare(
+        `SELECT fingerprint FROM articles WHERE fingerprint IN (${chunk.map(() => '?').join(',')})`,
+      )
+      .bind(...chunk)
+      .all<{ fingerprint: string }>();
+    for (const row of result.results ?? []) known.add(row.fingerprint);
+  }
+  return known;
+}
+
 export interface IngestReport {
   sources: number;
   fetched: number;
+  /** Already stored, so never enqueued. */
+  skipped: number;
   queued: number;
   failed: string[];
 }
@@ -222,7 +267,12 @@ export async function ingestAllSources(env: Env, ctx: ExecutionContext): Promise
     }),
   );
 
-  const articles = results.flatMap((result) => result.articles);
+  const fetched = results.flatMap((result) => result.articles);
+  const known = await knownFingerprints(
+    env.DB,
+    fetched.map((article) => article.fingerprint),
+  );
+  const articles = fetched.filter((article) => !known.has(article.fingerprint));
   for (let offset = 0; offset < articles.length; offset += MAX_QUEUE_BATCH) {
     const chunk = articles.slice(offset, offset + MAX_QUEUE_BATCH);
     await env.INGEST_QUEUE.sendBatch(chunk.map((body) => ({ body, contentType: 'json' as const })));
@@ -230,7 +280,8 @@ export async function ingestAllSources(env: Env, ctx: ExecutionContext): Promise
 
   return {
     sources: sources.length,
-    fetched: articles.length,
+    fetched: fetched.length,
+    skipped: fetched.length - articles.length,
     queued: articles.length,
     failed: results.map((result) => result.error).filter(Boolean),
   };
