@@ -1,34 +1,17 @@
+import { env } from 'cloudflare:workers';
 import type { APIRoute } from 'astro';
-import { COMPETITIONS } from '../competitions';
-import { SECTIONS } from '../sections';
-import { SITE_ORIGIN } from '../site';
-import { pathFor } from '../utils/router';
+import { getSitemapNews } from '../data/api';
+import { renderSitemap, sitemapEntries } from '../sitemap';
 
 export const prerender = false;
 
-// SSR sitemap of the stable, crawlable pages. We list only routes that return
-// 200 directly — no redirects (the legacy `/explore` hop, or capability
-// deep-links like eng.1/nba `/scorers` that 307 back to `/${comp}/stats`), which
-// search engines flag as "Page with redirect" and drop. Dynamic detail pages
-// (match/team/player) are intentionally omitted: they churn with live ESPN
-// data, are enumerable only by hitting upstream, and go stale/404 fast — the
-// core pages below give crawlers the entry points to reach them via in-page links.
-export const GET: APIRoute = () => {
-  const paths: string[] = ['/']; // global AI football Explore surface
-
-  // Per-competition pages, derived from the one SECTIONS table and gated on
-  // capabilities so we never emit a section that redirects (scorers 307 when off).
-  for (const c of Object.values(COMPETITIONS)) {
-    for (const s of SECTIONS) {
-      if (s.capability && !c.capabilities[s.capability]) continue;
-      paths.push(pathFor({ kind: 'section', comp: c.key, section: s.section }));
-    }
-  }
-
-  const urls = paths.map((p) => `  <url>\n    <loc>${SITE_ORIGIN}${p}</loc>\n  </url>`).join('\n');
-  const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls}\n</urlset>\n`;
-
-  return new Response(xml, {
+// Glue only. The paths and the XML live in src/sitemap.ts, which is pure and
+// testable; the D1 lookup lives in src/data/api.ts behind the same KV cache as
+// everything else. Keep it that way — this file cannot be unit-tested, because
+// importing it pulls in 'cloudflare:workers'.
+export const GET: APIRoute = async ({ locals }) => {
+  const news = await getSitemapNews(env, locals.cfContext as ExecutionContext);
+  return new Response(renderSitemap(sitemapEntries(news)), {
     headers: {
       'content-type': 'application/xml; charset=utf-8',
       'cache-control': 'public, max-age=3600',
