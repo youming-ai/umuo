@@ -2,6 +2,16 @@ import type { Env } from '../data/api';
 
 const DAY_MS = 86_400_000;
 
+/**
+ * The cron that runs this sweep, as written in wrangler.jsonc. Both schedules
+ * arrive at the same scheduled() handler, so this string is the only thing
+ * telling a sweep apart from an ingest tick — change it in one place and the
+ * daily run silently becomes a second full ingest, which is exactly what the
+ * old duplicate "0 7 * * *" entry did. retention.cron.test.ts holds the two
+ * copies together.
+ */
+export const PRUNE_CRON = '17 3 * * *';
+
 /** agent_runs is an audit trail of AI calls, not content. Two weeks is enough
  *  to investigate a bad tick; beyond that it is the largest table in the
  *  database and answers no question anyone asks. */
