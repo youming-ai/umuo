@@ -1,6 +1,6 @@
 import type { Env } from '../data/api';
 import { FOOTBALL_COMPETITIONS } from '../competitions';
-import { enrichWithGemini } from './gemini';
+import { enrichBatchWithGemini, enrichWithGemini } from './gemini';
 import type { ArticleEnrichment, RawArticle } from './types';
 
 function canonicalCompetition(value: string, fallback: string | null): string | null {
@@ -47,7 +47,7 @@ export interface ArticleProcessResult {
   status: ArticleProcessStatus;
 }
 
-async function storedArticleId(db: D1Database, article: RawArticle): Promise<string | null> {
+export async function storedArticleId(db: D1Database, article: RawArticle): Promise<string | null> {
   const result = await db
     .prepare('SELECT id FROM articles WHERE canonical_url = ? OR fingerprint = ? LIMIT 1')
     .bind(article.canonicalUrl, article.fingerprint)
@@ -62,101 +62,132 @@ function score(article: RawArticle, enrichment: ArticleEnrichment): number {
   );
 }
 
-export async function processArticle(env: Env, article: RawArticle): Promise<ArticleProcessResult> {
-  if (!env.DB) throw new Error('D1 binding is required');
+export function modelFor(env: Env): string {
+  return env.GEMINI_MODEL || 'gemini-3.6-flash';
+}
 
-  // Checked before the agent_runs row is written: a duplicate is not an AI run,
-  // and logging one row per skip grew the table by tens of thousands of rows a
-  // day for nothing. ingestAllSources pre-filters too, but this stays the
-  // authoritative check — it also covers canonical_url, not just fingerprint.
-  const alreadyStored = await storedArticleId(env.DB, article);
-  if (alreadyStored) return { id: alreadyStored, status: 'skipped' };
+/**
+ * Enrich a whole queue batch in one Gemini call, falling back to per-article
+ * calls if the batch comes back unusable. A batch that returns the wrong number
+ * of results cannot be mapped positionally, and guessing would attach one
+ * article's summary to another, so the fallback is the only safe response.
+ */
+export async function enrichBatch(env: Env, articles: RawArticle[]): Promise<ArticleEnrichment[]> {
+  const model = modelFor(env);
+  if (articles.length === 1) {
+    return [await enrichWithGemini(env.GEMINI_API_KEY, model, articles[0]!)];
+  }
+  try {
+    return await enrichBatchWithGemini(env.GEMINI_API_KEY, model, articles);
+  } catch (error) {
+    console.error('[enrich] batch failed, falling back to per-article:', error);
+    const results: ArticleEnrichment[] = [];
+    for (const article of articles) {
+      results.push(await enrichWithGemini(env.GEMINI_API_KEY, model, article));
+    }
+    return results;
+  }
+}
 
-  const runId = crypto.randomUUID();
-  const startedAt = Date.now();
-  const model = env.GEMINI_MODEL || 'gemini-3.6-flash';
+/**
+ * Persist one enriched article: the article row, its tags, source health, and
+ * an agent_runs record. The run row is written once with its final status —
+ * the enrichment has already happened by the time we get here, so the old
+ * insert-'processing'-then-update pair was two writes to record one fact.
+ */
+export async function storeEnrichedArticle(
+  env: Env,
+  article: RawArticle,
+  enrichment: ArticleEnrichment,
+): Promise<ArticleProcessResult> {
+  const now = Date.now();
+  const competition = canonicalCompetition(enrichment.competition, article.comp);
+  const isFootball = enrichment.isFootball;
+  const status = isFootball ? 'published' : 'filtered';
+  const articleId = article.fingerprint;
 
+  await env.DB.batch([
+    env.DB.prepare(
+      `INSERT INTO articles (
+           id, source_id, canonical_url, fingerprint, title, description, ai_summary, ai_blurb,
+           image_url, published_at, fetched_at, sport, comp, article_type, is_football,
+           quality_score, freshness_score, status, raw_metadata, created_at, updated_at
+         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'soccer', ?, ?, ?, ?, ?, ?, ?, ?, ?)
+         ON CONFLICT DO NOTHING`,
+    ).bind(
+      articleId,
+      article.sourceId,
+      article.canonicalUrl,
+      article.fingerprint,
+      article.title,
+      article.description,
+      enrichment.summary,
+      enrichment.blurb,
+      article.imageUrl,
+      article.publishedAt,
+      article.fetchedAt,
+      competition,
+      enrichment.articleType,
+      isFootball ? 1 : 0,
+      score(article, enrichment),
+      freshnessScore(article.publishedAt, now),
+      status,
+      safeJson({ source: article.sourceName, sourceAuthority: article.sourceAuthority }),
+      now,
+      now,
+    ),
+    ...[...new Set(enrichment.tags.map(normalizeTag).filter(Boolean))].map((tag) =>
+      env.DB.prepare('INSERT OR IGNORE INTO article_tags (article_id, tag) VALUES (?, ?)').bind(
+        articleId,
+        tag,
+      ),
+    ),
+    env.DB.prepare('INSERT OR IGNORE INTO source_health (source_id) VALUES (?)').bind(
+      article.sourceId,
+    ),
+    env.DB.prepare(
+      `UPDATE source_health
+         SET articles_inserted_count = articles_inserted_count + ?
+       WHERE source_id = ?`,
+    ).bind(isFootball ? 1 : 0, article.sourceId),
+    env.DB.prepare(
+      `INSERT INTO agent_runs (
+         id, article_fingerprint, source_id, status, model, article_id, started_at, finished_at
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    ).bind(
+      crypto.randomUUID(),
+      article.fingerprint,
+      article.sourceId,
+      isFootball ? 'stored' : 'filtered',
+      modelFor(env),
+      articleId,
+      now,
+      Date.now(),
+    ),
+  ]);
+
+  return { id: articleId, status: isFootball ? 'stored' : 'filtered' };
+}
+
+export async function recordFailedRun(
+  env: Env,
+  article: RawArticle,
+  message: string,
+): Promise<void> {
+  const now = Date.now();
   await env.DB.prepare(
     `INSERT INTO agent_runs (
-       id, article_fingerprint, source_id, status, model, started_at
-     ) VALUES (?, ?, ?, 'processing', ?, ?)`,
+       id, article_fingerprint, source_id, status, model, error, started_at, finished_at
+     ) VALUES (?, ?, ?, 'failed', ?, ?, ?, ?)`,
   )
-    .bind(runId, article.fingerprint, article.sourceId, model, startedAt)
-    .run();
-
-  const finishRun = async (
-    status: 'stored' | 'filtered' | 'skipped' | 'failed',
-    articleId: string | null,
-    error = '',
-  ): Promise<void> => {
-    await env.DB.prepare(
-      `UPDATE agent_runs
-          SET status = ?, article_id = ?, error = ?, finished_at = ?
-        WHERE id = ?`,
+    .bind(
+      crypto.randomUUID(),
+      article.fingerprint,
+      article.sourceId,
+      modelFor(env),
+      message.slice(0, 500),
+      now,
+      now,
     )
-      .bind(status, articleId, error, Date.now(), runId)
-      .run();
-  };
-
-  try {
-    const enrichment = await enrichWithGemini(env.GEMINI_API_KEY, model, article);
-    const now = Date.now();
-    const competition = canonicalCompetition(enrichment.competition, article.comp);
-    const isFootball = enrichment.isFootball;
-    const status = isFootball ? 'published' : 'filtered';
-    const articleId = article.fingerprint;
-
-    const statements = [
-      env.DB.prepare(
-        `INSERT INTO articles (
-             id, source_id, canonical_url, fingerprint, title, description, ai_summary, ai_blurb,
-             image_url, published_at, fetched_at, sport, comp, article_type, is_football,
-             quality_score, freshness_score, status, raw_metadata, created_at, updated_at
-           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'soccer', ?, ?, ?, ?, ?, ?, ?, ?, ?)
-           ON CONFLICT DO NOTHING`,
-      ).bind(
-        articleId,
-        article.sourceId,
-        article.canonicalUrl,
-        article.fingerprint,
-        article.title,
-        article.description,
-        enrichment.summary,
-        enrichment.blurb,
-        article.imageUrl,
-        article.publishedAt,
-        article.fetchedAt,
-        competition,
-        enrichment.articleType,
-        isFootball ? 1 : 0,
-        score(article, enrichment),
-        freshnessScore(article.publishedAt, now),
-        status,
-        safeJson({ source: article.sourceName, sourceAuthority: article.sourceAuthority }),
-        now,
-        now,
-      ),
-      ...[...new Set(enrichment.tags.map(normalizeTag).filter(Boolean))].map((tag) =>
-        env.DB.prepare('INSERT OR IGNORE INTO article_tags (article_id, tag) VALUES (?, ?)').bind(
-          articleId,
-          tag,
-        ),
-      ),
-      env.DB.prepare('INSERT OR IGNORE INTO source_health (source_id) VALUES (?)').bind(
-        article.sourceId,
-      ),
-      env.DB.prepare(
-        `UPDATE source_health
-           SET articles_inserted_count = articles_inserted_count + ?
-           WHERE source_id = ?`,
-      ).bind(isFootball ? 1 : 0, article.sourceId),
-    ];
-    await env.DB.batch(statements);
-    await finishRun(isFootball ? 'stored' : 'filtered', articleId);
-    return { id: articleId, status: isFootball ? 'stored' : 'filtered' };
-  } catch (error) {
-    const message = error instanceof Error ? error.message : 'Unknown article processing error';
-    await finishRun('failed', null, message);
-    throw error;
-  }
+    .run();
 }
