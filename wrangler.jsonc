@@ -55,6 +55,9 @@
   // nothing. Measured cost per tick after three supervised runs: ~300 Gemini
   // calls and falling — ingestAllSources drops articles it has already stored
   // before they reach the queue, and the hit rate climbs as the corpus grows.
-  "triggers": { "crons": ["*/15 * * * *"] },
+  // Two schedules, told apart by controller.cron in worker/entrypoint.ts:
+  // */15 ingests, 17 3 runs the retention sweep. Keep the daily string in sync
+  // with PRUNE_CRON there.
+  "triggers": { "crons": ["*/15 * * * *", "17 3 * * *"] },
   "vars": { "GEMINI_MODEL": "gemini-3.6-flash" }
 }
