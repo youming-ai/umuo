@@ -11,18 +11,22 @@ const MAX_QUEUE_BATCH = 100;
 const FINGERPRINT_LOOKUP_CHUNK = 90;
 
 // RSS publishers are fine with an honest bot agent, and all fourteen of them
-// serve it. ESPN's WAF is not: every api-json source 403'd on its first
-// production run. site.api is the same host src/data/api.ts reads all day, so
-// api-json sources reuse the browser headers already proven against it there.
+// serve it, so they keep it.
 const RSS_HEADERS = {
   accept: 'application/rss+xml, application/atom+xml, application/json, text/xml, */*',
   'user-agent': 'umuo-football-news/1.0 (+https://cup.umuo.app)',
 };
+
+// ESPN's WAF allow-lists client agents by name and 403s everything else. It is
+// not fingerprint matching: measured against site.api, `curl/*`,
+// `python-requests/*` and `Go-http-client/*` are served, while a browser UA, no
+// UA at all, `Wget/*`, `node` and our own honest `umuo-football-news/1.0` are
+// all refused. So the UA here is the one thing that decides whether the six
+// api-json sources work, and it has to name an allow-listed client. See
+// ESPN_HEADERS in src/data/api.ts — same host, same reason, keep them in sync.
 const API_JSON_HEADERS = {
   accept: 'application/json, text/plain, */*',
-  'accept-language': 'en-US,en;q=0.9',
-  'user-agent':
-    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+  'user-agent': 'curl/8.7.1',
 };
 
 export function canonicalizeUrl(value: string): string {

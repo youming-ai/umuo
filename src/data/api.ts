@@ -189,6 +189,16 @@ async function runCached(
   return json(result.body, result.status, result.cache);
 }
 
+// ESPN's WAF allow-lists client agents by name and 403s everything else — a
+// browser UA, no UA at all, and our own honest bot UA are all refused, while
+// `curl/*` is served. This used to claim Chrome, which ESPN stopped serving,
+// silently 403ing every scoreboard/standings/summary read. Keep in sync with
+// API_JSON_HEADERS in src/feeds/ingest.ts, which hits the same host.
+const ESPN_HEADERS = {
+  accept: 'application/json, text/plain, */*',
+  'user-agent': 'curl/8.7.1',
+};
+
 // Cache a single upstream URL fetch (scoreboard/standings/summary).
 async function cached(
   cacheKey: string,
@@ -201,14 +211,7 @@ async function cached(
   return runCached(
     cacheKey,
     async () => {
-      const res = await fetchWithRetry(url, {
-        headers: {
-          'user-agent':
-            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-          accept: 'application/json, text/plain, */*',
-          'accept-language': 'en-US,en;q=0.9',
-        },
-      });
+      const res = await fetchWithRetry(url, { headers: ESPN_HEADERS });
       if (!res.ok) throw new Error(`upstream ${res.status}`);
       const text = await res.text();
       // A 2xx is not proof the body is usable: an edge/WAF page or a truncated
