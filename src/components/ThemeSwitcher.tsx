@@ -24,25 +24,34 @@ function detectTheme(): Theme {
 // The only place that touches the theme: reads/persists it and mirrors it onto
 // the document root. No context — nothing else consumes the theme in React
 // (every other surface themes off the `[data-theme]` attribute set here).
+//
+// `theme` starts null so the server and the first client render agree on an
+// icon-less button: this now renders inside an SSR'd `client:load` island, so
+// reading localStorage during render would be a hydration mismatch. The inline
+// script in Layout has already painted the right theme by then — this only
+// catches the button up.
 export default function ThemeSwitcher() {
-  const [theme, setTheme] = useState<Theme>(detectTheme);
+  const [theme, setTheme] = useState<Theme | null>(null);
 
   useEffect(() => {
-    document.documentElement.dataset.theme = theme;
-  }, [theme]);
+    const stored = detectTheme();
+    setTheme(stored);
+    document.documentElement.dataset.theme = stored;
+  }, []);
 
   const cycle = () => {
-    const next = CYCLE[(CYCLE.indexOf(theme) + 1) % CYCLE.length];
+    const next = CYCLE[(CYCLE.indexOf(theme ?? 'dark') + 1) % CYCLE.length]!;
     try {
       localStorage.setItem(STORAGE_KEY, next);
     } catch {
       /* private/full */
     }
+    document.documentElement.dataset.theme = next;
     setTheme(next);
   };
 
-  const Icon = ICONS[theme];
-  const label = THEME_LABELS[theme];
+  const Icon = theme ? ICONS[theme] : null;
+  const label = theme ? THEME_LABELS[theme] : 'Theme';
 
   return (
     <button
@@ -52,7 +61,7 @@ export default function ThemeSwitcher() {
       title={label}
       className="flex min-h-11 min-w-11 items-center justify-center rounded-pill hover:bg-overlay/10 text-chalkdim hover:text-chalk ds-press"
     >
-      <Icon className="w-5 h-5" aria-hidden />
+      {Icon && <Icon className="w-5 h-5" aria-hidden />}
     </button>
   );
 }

@@ -72,10 +72,18 @@
   --h-header: 3.5rem; /* matches Tailwind h-14 (56px) */
   --h-topbar: calc(var(--h-ticker) + var(--h-header));
 
+  /* Explore's own toolbar. It replaces the Header on those pages (one sticky
+     bar, not two), and its rail sticks below it — so the height is pinned on
+     lg where the bar is guaranteed one row. Below lg it wraps and the rail is
+     a drawer, so no offset depends on it. */
+  --h-bar: 3rem;
+
   /* Typography — one scale, role-driven. caption/data stays tight;
-     body/lead breathe for readability. */
-  --text-micro: 0.5625rem;
-  --text-caption: 0.625rem;
+     body/lead breathe for readability. caption is not decoration: it carries
+     source name, article type, tags, dates and every rail filter row, so it
+     sits at 11px, not the 10px it used to be. micro follows at 10px. */
+  --text-micro: 0.625rem;
+  --text-caption: 0.6875rem;
   --text-label: 0.75rem;
   --text-body: 0.875rem;
   --text-lead: 1.125rem;

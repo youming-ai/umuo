@@ -3,6 +3,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { FOOTBALL_COMPETITIONS } from '../../competitions';
 import type { ExploreFeed, ExploreFilterOption, ExploreFilterSet } from '../../types';
 import { pathFor } from '../../utils/router';
+import Logo from '../Logo';
+import ThemeSwitcher from '../ThemeSwitcher';
 import ExploreCard from './ExploreCard';
 
 interface ExploreQueryState {
@@ -90,7 +92,9 @@ function FilterGroup({
   const total = options.reduce((sum, option) => sum + option.count, 0);
   return (
     <div>
-      <p className="px-2 pb-1 ds-micro uppercase tracking-caption text-chalkdim/70">{title}</p>
+      {/* No alpha on the muted token here: chalkdim/70 on the ground is 3.65:1
+          (2.93:1 in light), under AA for text this small. */}
+      <p className="px-2 pb-1 ds-micro uppercase tracking-caption text-chalkdim">{title}</p>
       <FilterRow
         label={allLabel}
         count={total}
@@ -136,6 +140,7 @@ export default function ExploreView({
   const [error, setError] = useState('');
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
   const initialKey = useRef(queryKey(initialQuery));
+  const sentinelRef = useRef<HTMLDivElement>(null);
   const key = useMemo(() => queryKey(query), [query]);
 
   const isFiltered = Boolean(query.source || query.tag || query.q);
@@ -185,10 +190,24 @@ export default function ExploreView({
     setQuery({ ...initialQuery });
   }
 
-  function loadMore() {
-    if (nextCursor === null || loading) return;
-    setQuery((previous) => ({ ...previous, cursor: nextCursor }));
-  }
+  // Infinite scroll. Re-running on [nextCursor, loading] is what makes it
+  // repeat: appending rows fires no new intersection event, so the observer is
+  // rebuilt after each page and re-checks whether the sentinel is still in view.
+  useEffect(() => {
+    const node = sentinelRef.current;
+    if (!node || nextCursor === null || loading) return;
+    const cursor = nextCursor;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) {
+          setQuery((previous) => ({ ...previous, cursor }));
+        }
+      },
+      { rootMargin: '600px' },
+    );
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [nextCursor, loading]);
 
   const rail: ReactNode = (
     <div className="space-y-4">
@@ -252,91 +271,116 @@ export default function ExploreView({
     );
 
   return (
-    <div className="flex">
-      {/* Full-height so the rule down its right edge runs the whole viewport,
-          and its own scroll container so a long index never drags the feed. */}
-      <aside className="no-scrollbar sticky top-[var(--h-topbar)] hidden h-[calc(100vh-var(--h-topbar))] w-52 shrink-0 self-start overflow-y-auto border-r border-line/40 p-2 lg:block">
-        {rail}
-      </aside>
+    <div>
+      {/* The one sticky bar on this page — the shell's Header is switched off
+          here, so the wordmark and the theme switcher live in this row rather
+          than in a second near-empty bar above it. Pinned to --h-bar on lg
+          (guaranteed one row) because the rail sticks below it; it wraps freely
+          below lg, where the rail is a drawer and nothing offsets by it. */}
+      <div className="sticky top-0 z-30 flex flex-wrap items-center gap-2 border-b border-line/40 bg-night/95 px-3 py-1.5 backdrop-blur-md lg:h-[var(--h-bar)] lg:flex-nowrap lg:py-0">
+        <Logo />
 
-      <div className="min-w-0 flex-1">
-        <div className="sticky top-[var(--h-topbar)] z-20 flex flex-wrap items-center gap-2 border-b border-line/40 bg-night/95 px-3 py-2 backdrop-blur-md">
-          <form onSubmit={submitSearch} className="flex min-w-0 flex-1 gap-2 sm:max-w-sm">
-            <label className="sr-only" htmlFor="explore-search">
-              Search football news
-            </label>
-            <input
-              id="explore-search"
-              value={draftSearch}
-              onChange={(event) => setDraftSearch(event.target.value)}
-              placeholder="Search stories"
-              className="ds-input min-h-9 min-w-0 flex-1 py-1"
-            />
-            <button type="submit" className="ds-btn-secondary min-h-9 shrink-0 px-3 text-sm">
-              Search
-            </button>
-          </form>
+        <form onSubmit={submitSearch} className="flex min-w-0 flex-1 gap-2 sm:max-w-xs">
+          <label className="sr-only" htmlFor="explore-search">
+            Search football news
+          </label>
+          <input
+            id="explore-search"
+            value={draftSearch}
+            onChange={(event) => setDraftSearch(event.target.value)}
+            placeholder="Search stories"
+            className="ds-input min-h-9 min-w-0 flex-1 py-1"
+          />
+          <button type="submit" className="ds-btn-secondary min-h-9 shrink-0 px-3 text-sm">
+            Search
+          </button>
+        </form>
 
-          <h1 className="ds-caption uppercase tracking-caption text-chalkdim">
-            <span className="font-bold text-chalk">{scopeLabel}</span> · {items.length}{' '}
-            {items.length === 1 ? 'story' : 'stories'}
-          </h1>
-          {isFiltered && (
-            <button
-              type="button"
-              onClick={clearFilters}
-              className="ds-caption uppercase tracking-caption text-pitch underline-offset-4 hover:underline"
-            >
-              Clear
-            </button>
-          )}
-
-          <fieldset className="ds-segmented ml-auto shrink-0">
-            <legend className="sr-only">Feed layout</legend>
-            <button
-              type="button"
-              aria-pressed={viewMode === 'grid'}
-              onClick={() => setViewMode('grid')}
-              className={`ds-seg-tab min-h-7 px-3 text-xs ${viewMode === 'grid' ? 'ds-seg-tab-active' : 'ds-seg-tab-inactive'}`}
-            >
-              Grid
-            </button>
-            <button
-              type="button"
-              aria-pressed={viewMode === 'list'}
-              onClick={() => setViewMode('list')}
-              className={`ds-seg-tab min-h-7 px-3 text-xs ${viewMode === 'list' ? 'ds-seg-tab-active' : 'ds-seg-tab-inactive'}`}
-            >
-              List
-            </button>
-          </fieldset>
-        </div>
-
-        {/* The rail is a drawer on phones. <details> is the native disclosure —
-            no state, no outside-click handler, works before hydration. */}
-        <details className="border-b border-line/40 lg:hidden">
-          <summary className="cursor-pointer list-none px-3 py-2 ds-caption uppercase tracking-caption text-chalkdim [&::-webkit-details-marker]:hidden">
-            Filters {isFiltered ? '· on' : ''}
-          </summary>
-          <div className="p-2">{rail}</div>
-        </details>
-
-        {error && <p className="px-3 py-2 ds-caption text-live">{error}</p>}
-
-        {feed}
-
-        {nextCursor !== null && (
-          <div className="flex justify-center py-6">
-            <button
-              type="button"
-              onClick={loadMore}
-              disabled={loading}
-              className="ds-btn-secondary"
-            >
-              {loading ? 'Loading…' : 'Load more stories'}
-            </button>
-          </div>
+        <h1 className="ds-caption truncate uppercase tracking-caption font-bold text-chalk">
+          {scopeLabel}
+        </h1>
+        {isFiltered && (
+          <button
+            type="button"
+            onClick={clearFilters}
+            className="ds-caption shrink-0 uppercase tracking-caption text-pitch underline-offset-4 hover:underline"
+          >
+            Clear
+          </button>
         )}
+
+        {/* Decodes the green strip across each card's top edge. A signature
+            nobody can read is just a stray 2px of colour. */}
+        <p className="ml-auto hidden items-center gap-1.5 ds-caption text-chalkdim xl:flex">
+          <span className="h-0.5 w-6 bg-line" aria-hidden="true">
+            <span className="block h-full w-2/3 bg-pitch" />
+          </span>
+          AI signal
+        </p>
+
+        <fieldset className="ds-segmented shrink-0 xl:ml-0 ml-auto">
+          <legend className="sr-only">Feed layout</legend>
+          <button
+            type="button"
+            aria-pressed={viewMode === 'grid'}
+            onClick={() => setViewMode('grid')}
+            className={`ds-seg-tab min-h-7 px-3 text-xs ${viewMode === 'grid' ? 'ds-seg-tab-active' : 'ds-seg-tab-inactive'}`}
+          >
+            Grid
+          </button>
+          <button
+            type="button"
+            aria-pressed={viewMode === 'list'}
+            onClick={() => setViewMode('list')}
+            className={`ds-seg-tab min-h-7 px-3 text-xs ${viewMode === 'list' ? 'ds-seg-tab-active' : 'ds-seg-tab-inactive'}`}
+          >
+            List
+          </button>
+        </fieldset>
+
+        <ThemeSwitcher />
+      </div>
+
+      <div className="flex">
+        {/* Full-height so the rule down its right edge runs the whole viewport,
+            and its own scroll container so a long index never drags the feed. */}
+        <aside className="no-scrollbar sticky top-[var(--h-bar)] hidden h-[calc(100vh-var(--h-bar))] w-52 shrink-0 self-start overflow-y-auto border-r border-line/40 p-2 lg:block">
+          {rail}
+        </aside>
+
+        <div className="min-w-0 flex-1">
+          {/* The rail is a drawer on phones. <details> is the native disclosure —
+              no state, no outside-click handler, works before hydration. */}
+          <details className="border-b border-line/40 lg:hidden">
+            <summary className="cursor-pointer list-none px-3 py-2 ds-caption uppercase tracking-caption text-chalkdim [&::-webkit-details-marker]:hidden">
+              Filters {isFiltered ? '· on' : ''}
+            </summary>
+            <div className="p-2">{rail}</div>
+          </details>
+
+          {error && <p className="px-3 py-2 ds-caption text-live">{error}</p>}
+
+          {feed}
+
+          {/* ponytail: the button stays alongside the sentinel. Auto-load covers
+              scrolling; the button is the keyboard/no-IntersectionObserver path
+              and the only way to reach the footer without the feed growing
+              underneath you. */}
+          <div ref={sentinelRef} className="flex justify-center py-6" aria-live="polite">
+            {nextCursor !== null ? (
+              <button
+                type="button"
+                onClick={() => setQuery((previous) => ({ ...previous, cursor: nextCursor }))}
+                disabled={loading}
+                className="ds-btn-secondary"
+              >
+                {loading ? 'Loading…' : 'Load more stories'}
+              </button>
+            ) : items.length > 0 ? (
+              <p className="ds-caption uppercase tracking-caption text-chalkdim">End of the feed</p>
+            ) : null}
+          </div>
+        </div>
       </div>
     </div>
   );
