@@ -27,26 +27,16 @@ describe('sitemapEntries', () => {
     expect(paths([])).toContain('/');
   });
 
-  it('still lists the competition sections for every competition, nba included', () => {
-    for (const path of ['/nba/schedule', '/nba/stats', '/nba/teams', '/eng.1/schedule']) {
-      expect(paths()).toContain(path);
+  it('emits no competition-section paths — the ESPN plane is gone', () => {
+    for (const path of ['/nba/schedule', '/eng.1/stats', '/eng.1/teams']) {
+      expect(paths()).not.toContain(path);
     }
-  });
-
-  it('omits capability-gated sections that would 307 away', () => {
-    // Only nba has transactions; the soccer comps redirect to /stats.
-    expect(paths()).toContain('/nba/transactions');
-    expect(paths()).not.toContain('/eng.1/transactions');
   });
 
   it('dates each hub by its newest article, and / by the newest of all', () => {
     const entries = sitemapEntries(NEWS);
     expect(entries.find((e) => e.path === '/eng.1')?.lastmod).toBe('2026-08-07T09:03:08.000Z');
     expect(entries.find((e) => e.path === '/')?.lastmod).toBe('2026-08-07T09:06:13.000Z');
-  });
-
-  it('leaves competition sections undated — they read ESPN, not D1', () => {
-    expect(sitemapEntries(NEWS).find((e) => e.path === '/nba/schedule')?.lastmod).toBeUndefined();
   });
 
   it('emits no duplicate paths', () => {
@@ -72,7 +62,7 @@ describe('renderSitemap', () => {
 
   it('writes lastmod only where there is one', () => {
     expect(xml).toContain(`<loc>${SITE_ORIGIN}/eng.1</loc>\n    <lastmod>`);
-    expect(xml).toContain(`<loc>${SITE_ORIGIN}/nba/schedule</loc>\n  </url>`);
+    expect(xml).toContain(`<loc>${SITE_ORIGIN}/uefa.champions</loc>\n    <lastmod>`);
   });
 });
 

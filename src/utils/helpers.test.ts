@@ -1,18 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { slugify, timeAgo } from './helpers';
-
-describe('timeAgo', () => {
-  const now = Date.parse('2026-07-24T12:00:00Z');
-  it('formats past timestamps by largest fitting unit', () => {
-    expect(timeAgo('2026-07-24T10:00:00Z', now)).toBe('2 hours ago');
-    expect(timeAgo('2026-07-22T12:00:00Z', now)).toBe('2 days ago');
-    expect(timeAgo('2026-07-24T11:59:30Z', now)).toBe('30 seconds ago');
-  });
-  it('returns empty string for missing/invalid input', () => {
-    expect(timeAgo(undefined, now)).toBe('');
-    expect(timeAgo('not-a-date', now)).toBe('');
-  });
-});
+import { slugify } from './helpers';
 
 describe('slugify', () => {
   it('should convert mixed case and spaces to kebab-case', () => {

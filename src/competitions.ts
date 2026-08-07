@@ -1,148 +1,41 @@
-// Single source of truth for which competitions the app serves. The Worker
-// (worker/index.ts) and the dev proxy (vite.config.ts) both build their
-// upstream ESPN URLs from here via buildUrl(), so the two never drift.
-// Pure data + a pure function — no DOM/React deps — so both build targets
-// (app tsconfig + tsconfig.worker.json) compile it.
+// Single source of truth for the competitions the news desk covers. Pure
+// data + a pure function — no DOM/React deps — so both build targets
+// (app tsconfig + tsconfig.worker.json) compile it. The ESPN scoreboard plane
+// (scoreboard/standings/summary/teams/…) was removed with the competition
+// pages; what survives of ESPN here is the league-scoped NEWS feed, which the
+// ingest pipeline polls as one of its sources.
 
 export type Sport = 'soccer' | 'basketball';
-export type Resource =
-  | 'scoreboard'
-  | 'standings'
-  | 'summary'
-  | 'news'
-  | 'teams'
-  | 'injuries'
-  | 'transactions';
 
 export interface Competition {
   key: string; // URL first segment, e.g. 'eng.1'
   sport: Sport;
-  league: string; // ESPN league slug
+  league: string; // ESPN league slug (== key for the soccer leagues)
   label: string; // display name
-  season?: number; // fixed season year; omit for cross-year leagues → derived per request (seasonForDate)
-  capabilities: {
-    scorers: boolean;
-    transactions?: boolean; // roster moves feed (US sports; soccer sparse)
-    odds?: boolean; // betting lines from the scoreboard feed → Odds tab
-  };
-  // Where the right-rail Top Scorers get their data: server-side assembleLeaders
-  // over ESPN core.api (eng.1 goals / nba points). Omit for comps with no
-  // top-scorers display. (The /stats page uses getLeaderboards independently.)
-  leadersSource?: 'pipeline';
 }
 
-// A European soccer league: season derived per request, goals leaders via the
-// pipeline, lineups + odds from the scoreboard. Only slug + label vary.
-function soccerLeague(key: string, label: string): Competition {
-  return {
-    key,
-    sport: 'soccer',
-    league: key,
-    label,
-    capabilities: { scorers: true, odds: true },
-    leadersSource: 'pipeline',
-  };
-}
+const league = (key: string, label: string): Competition => ({
+  key,
+  sport: 'soccer',
+  league: key,
+  label,
+});
 
-export const COMPETITIONS: Record<string, Competition> = {
-  'eng.1': {
-    key: 'eng.1',
-    sport: 'soccer',
-    league: 'eng.1',
-    label: 'Premier League',
-    // season 省略 → buildUrl 用 seasonForDate 按请求时刻推导（跨年赛季 8 月翻转），
-    // 避免写死年份的时间引信。scoreboard 无 dates → ESPN 返回当前窗口。见 spec §7。
-    capabilities: {
-      scorers: true,
-      odds: true,
-    },
-    leadersSource: 'pipeline',
-  },
-  nba: {
-    key: 'nba',
-    sport: 'basketball',
-    league: 'nba',
-    label: 'NBA',
-    // season 省略 → buildUrl 用 seasonForDate('basketball', …) 按请求时刻推导
-    // （赛季制 10 月翻转，键为结束年）。scoreboard 无 dates → ESPN 返回当日窗口，
-    // off-season（7–9 月）当日为空由现有空态处理。见 spec §3。
-    capabilities: {
-      scorers: true,
-      transactions: true,
-      odds: true,
-    },
-    leadersSource: 'pipeline',
-  },
-  // European soccer leagues — same shape/capabilities as eng.1 (season-derived,
-  // goals leaders pipeline), differing only by ESPN league slug + label. All
-  // reuse the soccer adapter.
-  'esp.1': soccerLeague('esp.1', 'La Liga'),
-  'ger.1': soccerLeague('ger.1', 'Bundesliga'),
-  'ita.1': soccerLeague('ita.1', 'Serie A'),
-  'fra.1': soccerLeague('fra.1', 'Ligue 1'),
-  'uefa.champions': soccerLeague('uefa.champions', 'Champions League'),
+// The editorial product is football-only; every public news surface and
+// ingestion source derives from this registry.
+export const FOOTBALL_COMPETITIONS: Record<string, Competition> = {
+  'eng.1': league('eng.1', 'Premier League'),
+  'esp.1': league('esp.1', 'La Liga'),
+  'ger.1': league('ger.1', 'Bundesliga'),
+  'ita.1': league('ita.1', 'Serie A'),
+  'fra.1': league('fra.1', 'Ligue 1'),
+  'uefa.champions': league('uefa.champions', 'Champions League'),
 };
-
-// The editorial product is intentionally football-only. Keep the legacy
-// basketball entry in COMPETITIONS for old adapter/data-layer fixtures, but
-// derive every new public news surface and ingestion source from this registry.
-export const FOOTBALL_COMPETITIONS: Record<string, Competition> = Object.fromEntries(
-  Object.entries(COMPETITIONS).filter(([, competition]) => competition.sport === 'soccer'),
-);
 
 export const DEFAULT_COMPETITION = 'eng.1';
 
 const ESPN = 'https://site.api.espn.com/apis';
 
-// ESPN keys a cross-year season by different endpoints per sport:
-// - Soccer (European clubs): by STARTING year, rolls over in August
-//   (Jan–Jul still belongs to the season that kicked off the previous year).
-// - Basketball (NBA): by ENDING year, rolls over in October
-//   (2025-26 season = 2026). Jul–Sep is off-season → the just-ended season's
-//   ending year (still the current calendar year).
-export function seasonForDate(sport: Sport, d: Date): number {
-  if (sport === 'basketball') {
-    // Oct–Dec → next calendar year is the ending year; Jan–Sep → current year.
-    return d.getMonth() >= 9 ? d.getFullYear() + 1 : d.getFullYear();
-  }
-  // soccer (and any other cross-year league defaulting to soccer semantics)
-  return d.getMonth() >= 7 ? d.getFullYear() : d.getFullYear() - 1;
-}
-
-// ESPN quirk: standings lives under /apis/v2/ (NO `site/`); scoreboard and
-// summary live under /apis/site/v2/. See docs/espn-api.md §2 & §9.
-export function buildUrl(c: Competition, resource: Resource, event?: string): string {
-  const path = `sports/${c.sport}/${c.league}`;
-  if (resource === 'standings') {
-    const q = new URLSearchParams({
-      season: String(c.season ?? seasonForDate(c.sport, new Date())),
-    });
-    return `${ESPN}/v2/${path}/standings?${q}`;
-  }
-  if (resource === 'summary') {
-    return `${ESPN}/site/v2/${path}/summary?event=${event}`;
-  }
-  if (resource === 'news') {
-    return `${ESPN}/site/v2/${path}/news?limit=50`;
-  }
-  if (resource === 'teams') {
-    return `${ESPN}/site/v2/${path}/teams`;
-  }
-  if (resource === 'injuries') {
-    return `${ESPN}/site/v2/${path}/injuries`;
-  }
-  if (resource === 'transactions') {
-    return `${ESPN}/site/v2/${path}/transactions`;
-  }
-  // scoreboard
-  const q = new URLSearchParams();
-  q.set('limit', '300'); // ponytail: hardcoded cap; make it a Competition field when a comp needs a different one
-  return `${ESPN}/site/v2/${path}/scoreboard?${q}`;
-}
-
-// Team-scoped site.api URLs for the team detail page (header + roster +
-// schedule). teamId comes from the /<comp>/team/[id] route segment.
-export function teamUrl(c: Competition, teamId: string, sub: '' | 'roster' | 'schedule'): string {
-  const base = `${ESPN}/site/v2/sports/${c.sport}/${c.league}/teams/${teamId}`;
-  return sub ? `${base}/${sub}` : base;
+export function buildUrl(c: Competition): string {
+  return `${ESPN}/site/v2/sports/${c.sport}/${c.league}/news?limit=50`;
 }

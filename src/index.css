@@ -63,15 +63,6 @@
   --space-card: 0.75rem;
   --space-card-inner: 0.5rem;
 
-  /* Sticky top bar geometry — one source of truth for the Ticker reserve
-     height, the Header row, and their sum. Layout reserves `--h-ticker` for
-     the client:only Ticker (avoids CLS), Header is `--h-header` (= Tailwind
-     h-14), and anything sticking below the bar (LeftNav) offsets by the sum
-     so it never slides under the header. Retune the ticker row here once. */
-  --h-ticker: 26px;
-  --h-header: 3.5rem; /* matches Tailwind h-14 (56px) */
-  --h-topbar: calc(var(--h-ticker) + var(--h-header));
-
   /* Explore's own toolbar. It replaces the Header on those pages (one sticky
      bar, not two), and its rail sticks below it — so the height is pinned on
      lg where the bar is guaranteed one row. Below lg it wraps and the rail is
@@ -139,21 +130,6 @@
 }
 
 @layer components {
-  /* Page shell — outer padding matches Header for column alignment */
-  .ds-page {
-    @apply px-page-x md:px-page-x-md py-page-y md:py-page-y-md;
-  }
-  .ds-page-inner {
-    @apply max-w-6xl mx-auto space-y-section;
-  }
-
-  /* Sticky rail surface: vertically scrollable on desktop while the main
-     column scrolls the page. self-start keeps grid items at content height
-     so sticky actually engages. */
-  .ds-rail {
-    @apply lg:self-start lg:sticky lg:top-[var(--h-topbar)] lg:max-h-[calc(100vh-var(--h-topbar))] lg:overflow-y-auto no-scrollbar;
-  }
-
   /* Glass surfaces */
   .ds-glass {
     @apply rounded-card border border-line/30 bg-panel/85 shadow-panel backdrop-blur-md;
@@ -262,20 +238,6 @@
   .ds-lead {
     @apply font-body text-lead leading-lead;
   }
-  /* Broadcast tally light */
-  .live-dot {
-    @apply inline-block w-1.5 h-1.5 bg-live;
-    animation: live-pulse 1.4s ease-in-out infinite;
-  }
-
-  /* Live score event pulse — a brief ring + number flash when a match score
-     changes. The visual signature of umuo: the scoreboard lights up. */
-  .score-pulse {
-    animation: score-pulse 1.2s ease-out 2;
-  }
-  .score-flash {
-    animation: score-flash 1.2s ease-out 2;
-  }
 
   /* Signature — the desk's signal strip. A meter across the top edge of a
      story card, filled to the AI quality score, so a grid of cards reads as a
@@ -301,88 +263,6 @@
   .ds-signal::after {
     width: var(--signal, 0%);
     background: rgb(var(--c-pitch));
-  }
-}
-
-@keyframes live-pulse {
-  0%,
-  100% {
-    opacity: 1;
-    box-shadow: 0 0 0 0 rgb(var(--c-live) / 0.55);
-  }
-  50% {
-    opacity: 0.55;
-    box-shadow: 0 0 0 5px rgb(var(--c-live) / 0);
-  }
-}
-
-@keyframes marquee-scroll {
-  from {
-    transform: translateX(-50%);
-  }
-  to {
-    transform: translateX(0);
-  }
-}
-
-.marquee-viewport {
-  overflow: hidden;
-}
-.marquee-group {
-  flex-shrink: 0;
-  min-width: 100vw;
-}
-.marquee-track {
-  animation: marquee-scroll 45s linear infinite;
-  will-change: transform;
-}
-.marquee-track:hover {
-  animation-play-state: paused;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .live-dot {
-    animation: none;
-  }
-  .marquee-track {
-    animation: none;
-    will-change: auto;
-  }
-  .marquee-viewport {
-    overflow-x: auto;
-  }
-  .marquee-copy {
-    display: none;
-  }
-}
-
-@keyframes score-pulse {
-  0% {
-    box-shadow: 0 0 0 0 rgb(var(--c-live) / 0.4);
-  }
-  70% {
-    box-shadow: 0 0 0 10px rgb(var(--c-live) / 0);
-  }
-  100% {
-    box-shadow: 0 0 0 0 rgb(var(--c-live) / 0);
-  }
-}
-
-@keyframes score-flash {
-  0%, 100% {
-    color: rgb(var(--c-text));
-  }
-  50% {
-    color: rgb(var(--c-live));
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .score-pulse {
-    animation: none;
-  }
-  .score-flash {
-    animation: none;
   }
 }
 

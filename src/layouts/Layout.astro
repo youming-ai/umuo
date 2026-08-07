@@ -1,51 +1,17 @@
 ---
 import '../index.css';
 import Footer from '../components/Footer.astro';
-import Header from '../components/Header.astro';
-import Ticker from '../components/Ticker';
 import { SITE_ORIGIN } from '../site';
 
 interface Props {
   title?: string;
   description?: string;
-  /** Hide the sticky global Ticker strip. Used on the home page where the
-      page itself owns the richer scoreboard band. */
-  showTicker?: boolean;
-  /** Hide the global Header row. The Explore pages carry the wordmark and the
-      theme switcher inside their own toolbar, so a second near-empty sticky
-      bar above it is pure chrome. */
-  showHeader?: boolean;
 }
 
 const {
   title = 'umuo — AI football news',
   description = 'AI-curated football news from trusted sources, organized by competition and topic.',
-  showTicker = true,
-  showHeader = true,
 } = Astro.props;
-
-// Rails are opt-in per page via named slots. When a page has rails, the shell
-// owns the width + page padding and lays out the 3-col grid. When it has none,
-// the shell adds nothing — the page's own content wrapper keeps its width and
-// padding (so existing pages need no change and never double-pad).
-const hasLeft = Astro.slots.has('left');
-const hasRight = Astro.slots.has('right');
-const hasRails = hasLeft || hasRight;
-const cols =
-  hasLeft && hasRight
-    ? 'lg:grid lg:gap-6 lg:grid-cols-[13rem_minmax(0,1fr)_20rem]'
-    : hasRight
-      ? 'lg:grid lg:gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]'
-      : 'lg:grid lg:gap-6 lg:grid-cols-[13rem_minmax(0,1fr)]';
-const frame = hasRails ? `mx-auto max-w-6xl px-page-x md:px-page-x-md py-page-y ${cols}` : '';
-
-// --h-topbar (ticker + header) is the shared sticky-offset token, but it
-// assumes both rows are present. Pages that hide either must narrow it so
-// sticky rails don't float below the actual bar.
-const topbarStyle =
-  showTicker && showHeader
-    ? undefined
-    : `--h-topbar: ${showTicker ? 'var(--h-ticker)' : showHeader ? 'var(--h-header)' : '0px'}`;
 
 // Canonical + og:url must match the actual page path (not a hardcoded /news).
 // Use the production origin so previews/dev still emit stable share URLs.
@@ -132,35 +98,9 @@ const canonicalUrl = `${SITE_ORIGIN}${canonicalPath}`;
         });
       })();
     </script>
-    <div class="relative z-10 flex flex-col min-h-screen" style={topbarStyle}>
-      {(showTicker || showHeader) && (
-        <div class="sticky top-0 z-40 bg-night/95 backdrop-blur-md">
-          {/* Reserve the ticker's row height so the client:only strip fills it on
-              hydration instead of popping in and shoving the header down (CLS).
-              Height is the shared `--h-ticker` token (see index.css) so the
-              reserve and every sticky offset below the bar stay in sync. */}
-          {showTicker ? (
-            <div class="min-h-[var(--h-ticker)]">
-              <Ticker client:only="react" />
-            </div>
-          ) : null}
-          {showHeader ? <Header /> : null}
-        </div>
-      )}
-      <div class={`flex-1 w-full ${frame}`}>
-        {hasLeft && (
-          <aside class="mb-4 lg:mb-0 lg:self-start lg:sticky lg:top-[var(--h-topbar)] lg:max-h-[calc(100vh-var(--h-topbar))] lg:overflow-y-auto no-scrollbar">
-            <slot name="left" />
-          </aside>
-        )}
-        <div class="min-w-0">
-          <slot />
-        </div>
-        {hasRight && (
-          <aside class="mt-4 lg:mt-0 lg:self-start lg:sticky lg:top-[var(--h-topbar)] lg:max-h-[calc(100vh-var(--h-topbar))] lg:overflow-y-auto no-scrollbar">
-            <slot name="right" />
-          </aside>
-        )}
+    <div class="relative z-10 flex flex-col min-h-screen">
+      <div class="flex-1 w-full">
+        <slot />
       </div>
       <Footer />
     </div>

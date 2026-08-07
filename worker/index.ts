@@ -1,15 +1,6 @@
 /// <reference types="@cloudflare/workers-types" />
 
-import { COMPETITIONS, type Resource } from '../src/competitions';
-import {
-  exploreQueryFromUrl,
-  type Env,
-  serve,
-  serveExplore,
-  serveExploreFilters,
-  serveLeaders,
-  serveSummary,
-} from '../src/data/api';
+import { exploreQueryFromUrl, type Env, serveExplore, serveExploreFilters } from '../src/data/api';
 
 // Thin HTTP wrapper around the shared data layer (src/data/api.ts). The SWR
 // primitives + composed serve* functions live there so Astro SSR pages can
@@ -27,19 +18,6 @@ export default {
       if (url.pathname === '/api/explore/filters') {
         if (request.method !== 'GET') return new Response('Method not allowed', { status: 405 });
         return serveExploreFilters(url.searchParams.get('comp') ?? '', env, ctx);
-      }
-      const m = url.pathname.match(/^\/api\/([^/]+)\/(scoreboard|standings|summary|leaders|news)$/);
-      if (m) {
-        if (!Object.hasOwn(COMPETITIONS, m[1])) return new Response('Not found', { status: 404 });
-        const comp = COMPETITIONS[m[1]];
-        const resource = m[2];
-        if (resource === 'summary') {
-          return serveSummary(comp, url.searchParams.get('event') ?? '', env, ctx);
-        }
-        if (resource === 'leaders') {
-          return serveLeaders(comp, env, ctx);
-        }
-        return serve(comp, resource as Resource, env, ctx);
       }
       if (url.pathname.startsWith('/api/')) return new Response('Not found', { status: 404 });
       return env.ASSETS.fetch(request); // static assets + SPA fallback

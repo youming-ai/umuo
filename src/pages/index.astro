@@ -10,7 +10,7 @@ const [initialData, initialFilters] = await Promise.all([
   getExploreFilters('', env, ctx),
 ]);
 ---
-<Layout title="umuo — AI football news" showTicker={false} showHeader={false}>
+<Layout title="umuo — AI football news">
   <main>
     <ExploreView initialData={initialData} initialFilters={initialFilters} client:load />
   </main>

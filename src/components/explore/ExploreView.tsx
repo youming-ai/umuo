@@ -2,7 +2,6 @@ import type { FormEvent, ReactNode } from 'react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { FOOTBALL_COMPETITIONS } from '../../competitions';
 import type { ExploreFeed, ExploreFilterOption, ExploreFilterSet } from '../../types';
-import { pathFor } from '../../utils/router';
 import Logo from '../Logo';
 import ThemeSwitcher from '../ThemeSwitcher';
 import ExploreCard from './ExploreCard';
@@ -223,9 +222,7 @@ export default function ExploreView({
         allLabel="All football"
         options={initialFilters.competitions}
         value={initialComp}
-        hrefFor={(value) =>
-          value ? pathFor({ kind: 'section', comp: value, section: 'news' }) : '/'
-        }
+        hrefFor={(value) => (value ? `/${value}` : '/')}
       />
       <FilterGroup
         title="Topics"

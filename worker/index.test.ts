@@ -2,16 +2,42 @@
 // @vitest-environment node
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { COMPETITIONS, type Competition, seasonForDate } from '../src/competitions';
-import { type Env, json, serve, serveLeaders, serveSummary } from '../src/data/api';
+import { type Env, json, serveExplore } from '../src/data/api';
 import worker from './index';
 
-const EPL = COMPETITIONS['eng.1'];
+const fetchMock = vi.fn();
+globalThis.fetch = fetchMock as unknown as typeof globalThis.fetch;
 
-// KV keys carry the computed season so a rollover can't serve last season's
-// body as fresh/stale under the same key. Mirrors `serve()` in src/data/api.ts.
-const cacheKey = (comp: Competition, resource: string) =>
-  `${comp.key}:${resource}:${comp.season ?? seasonForDate(comp.sport, new Date())}`;
+function mockEnv(kvData?: { body: string; at: number } | null): Env {
+  // The explore cache key embeds the normalized query — tests don't need to
+  // reproduce it, so a stored copy is returned regardless of the key asked.
+  return {
+    CACHE: {
+      get: vi.fn(async () => (kvData ? { ...kvData } : null)),
+      put: vi.fn(),
+    },
+    DB: mockDb(),
+  } as unknown as Env;
+}
+
+// D1 mock: prepare() returns an object with both bind() and all() (the
+// filters query calls all() without bind), `all` resolved to an empty result
+// set unless overridden.
+function mockDb(overrides?: { all?: ReturnType<typeof vi.fn> }): Env['DB'] {
+  const all = overrides?.all ?? vi.fn().mockResolvedValue({ results: [] });
+  return {
+    prepare: vi.fn(() => ({ bind: vi.fn(() => ({ all })), all })),
+  } as unknown as Env['DB'];
+}
+
+function mockCtx(): ExecutionContext {
+  return {
+    waitUntil: vi.fn(async () => {}),
+    passThroughOnException: vi.fn(),
+    props: {},
+    tracing: {},
+  } as unknown as ExecutionContext;
+}
 
 // ---- json helper ----
 
@@ -36,144 +62,61 @@ describe('json helper', () => {
   });
 });
 
-// ---- serve function ----
+// ---- runCached semantics via serveExplore ----
 
-const fetchMock = vi.fn();
-globalThis.fetch = fetchMock as unknown as typeof globalThis.fetch;
-
-function mockEnv(kvData?: { body: string; at: number } | null, key = cacheKey(EPL, 'standings')) {
-  const store = new Map<string, string>();
-  if (kvData) {
-    store.set(key, JSON.stringify(kvData));
-  }
-  return {
-    CACHE: {
-      get: vi.fn(async (k: string) => {
-        const v = store.get(k);
-        return v ? JSON.parse(v) : null;
-      }),
-      put: vi.fn(async (k: string, value: string) => {
-        store.set(k, value);
-      }),
-    },
-  };
-}
-
-function mockCtx(): ExecutionContext {
-  return {
-    waitUntil: vi.fn(async () => {}),
-    passThroughOnException: vi.fn(),
-    props: {},
-    tracing: {},
-  } as unknown as ExecutionContext;
-}
-
-describe('serve', () => {
+describe('serveExplore', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
   it('returns HIT when stored body is fresh', async () => {
     const now = Date.now();
-    const storedAt = now - 30_000; // 30s ago — fresh is 300s
-    const env = mockEnv({ body: '{"data":"cached"}', at: storedAt });
-    const ctx = mockCtx();
-
-    const res = await serve(EPL, 'standings', env as unknown as Env, ctx);
+    const env = mockEnv({ body: '{"items":[],"nextCursor":null}', at: now - 30_000 }); // fresh is 60s
+    const res = await serveExplore({}, env, mockCtx());
     expect(res.status).toBe(200);
     expect(res.headers.get('x-cache')).toBe('HIT');
-    const body = await res.text();
-    expect(body).toBe('{"data":"cached"}');
+    expect(await res.text()).toBe('{"items":[],"nextCursor":null}');
   });
 
-  it('returns MISS on first fetch with no stored data', async () => {
-    fetchMock.mockResolvedValueOnce({ ok: true, text: async () => '{"data":"fresh"}' });
-
+  it('returns MISS on first query with no stored data', async () => {
     const env = mockEnv(null);
-    const ctx = mockCtx();
-
-    const res = await serve(EPL, 'standings', env as unknown as Env, ctx);
+    const res = await serveExplore({}, env, mockCtx());
     expect(res.status).toBe(200);
     expect(res.headers.get('x-cache')).toBe('MISS');
-    const body = await res.text();
-    expect(body).toBe('{"data":"fresh"}');
+    expect(await res.text()).toBe('{"items":[],"nextCursor":null}');
   });
 
-  it('treats a KV read failure as a miss and still serves upstream (no 500)', async () => {
-    fetchMock.mockResolvedValueOnce({ ok: true, text: async () => '{"data":"fresh"}' });
+  it('treats a KV read failure as a miss and still serves (no 500)', async () => {
     const env = mockEnv(null);
-    // Transient isolate-level KV hiccup: the read rejects. runCached must
-    // swallow it, treat stored as null, and revalidate from upstream.
     vi.mocked(env.CACHE.get).mockRejectedValueOnce(new Error('kv down'));
-    const ctx = mockCtx();
-
-    const res = await serve(EPL, 'standings', env as unknown as Env, ctx);
+    const res = await serveExplore({}, env, mockCtx());
     expect(res.status).toBe(200);
     expect(res.headers.get('x-cache')).toBe('MISS');
-    expect(await res.text()).toBe('{"data":"fresh"}');
   });
 
-  it('returns REVALIDATED when stored data is stale but fetch succeeds', async () => {
-    fetchMock.mockResolvedValueOnce({ ok: true, text: async () => '{"data":"updated"}' });
-
+  it('returns STALE when the DB query fails but a stored copy exists', async () => {
     const now = Date.now();
-    const storedAt = now - 600_000; // 10min ago — stale (fresh is 300s)
-    const env = mockEnv({ body: '{"data":"old"}', at: storedAt });
-    const ctx = mockCtx();
-
-    const res = await serve(EPL, 'standings', env as unknown as Env, ctx);
-    expect(res.status).toBe(200);
-    expect(res.headers.get('x-cache')).toBe('REVALIDATED');
-    const body = await res.text();
-    expect(body).toBe('{"data":"updated"}');
-  });
-
-  it('returns STALE when upstream fails but a stored copy exists', async () => {
-    fetchMock.mockRejectedValueOnce(new Error('Network error'));
-
-    const now = Date.now();
-    const storedAt = now - 600_000; // stale
-    const env = mockEnv({ body: '{"data":"stale"}', at: storedAt });
-    const ctx = mockCtx();
-
-    const res = await serve(EPL, 'standings', env as unknown as Env, ctx);
+    const env = mockEnv({ body: '{"items":[],"nextCursor":null}', at: now - 600_000 });
+    const failing = vi.fn().mockRejectedValueOnce(new Error('D1 down'));
+    env.DB = mockDb({ all: failing });
+    const res = await serveExplore({}, env, mockCtx());
     expect(res.status).toBe(200);
     expect(res.headers.get('x-cache')).toBe('STALE');
-    const body = await res.text();
-    expect(body).toBe('{"data":"stale"}');
   });
 
-  it('returns 502 when upstream fails and no stored copy exists', async () => {
-    fetchMock.mockRejectedValueOnce(new Error('Network error'));
-
+  it('returns 502 when the DB query fails and no stored copy exists', async () => {
     const env = mockEnv(null);
-    const ctx = mockCtx();
-
-    const res = await serve(EPL, 'standings', env as unknown as Env, ctx);
-    expect(res.status).toBe(502);
-    expect(res.headers.get('x-cache')).toBe('MISS');
-    const body = await res.text();
-    expect(body).toBe('{"error":"upstream unavailable"}');
-  });
-
-  it('returns 502 when upstream responds with non-ok and no stored copy', async () => {
-    fetchMock.mockResolvedValueOnce({ ok: false, status: 500, text: async () => 'Internal Error' });
-
-    const env = mockEnv(null);
-    const ctx = mockCtx();
-
-    const res = await serve(EPL, 'standings', env as unknown as Env, ctx);
+    const failing = vi.fn().mockRejectedValueOnce(new Error('D1 down'));
+    env.DB = mockDb({ all: failing });
+    const res = await serveExplore({}, env, mockCtx());
     expect(res.status).toBe(502);
     expect(res.headers.get('x-cache')).toBe('MISS');
   });
 
-  it('caches the fresh upstream body in KV after a MISS', async () => {
-    fetchMock.mockResolvedValueOnce({ ok: true, text: async () => '{"data":"to-cache"}' });
-
+  it('caches the produced body in KV after a MISS', async () => {
     const env = mockEnv(null);
     const ctx = mockCtx();
-
-    await serve(EPL, 'standings', env as unknown as Env, ctx);
+    await serveExplore({}, env, ctx);
     expect(ctx.waitUntil).toHaveBeenCalled();
     expect((env.CACHE as ReturnType<typeof mockEnv>['CACHE']).put).toHaveBeenCalled();
   });
@@ -181,272 +124,79 @@ describe('serve', () => {
   it('lets N coalesced callers each read the body without `Body is unusable`', async () => {
     // Regression guard for the body-reuse bug: if `inflight` ever stored
     // `Promise<Response>`, the second caller reading `.text()` on the shared
-    // body would throw `Body is unusable: Body has already been read`. With
-    // the fix (shared payload is a plain object; each caller rebuilds its
-    // own Response), all N concurrent readers must succeed.
+    // body would throw `Body is unusable: Body has already been read`.
     const gate = Promise.withResolvers<void>();
-    fetchMock.mockImplementationOnce(async () => {
+    const slowAll = vi.fn(async () => {
       await gate.promise;
-      return { ok: true, text: async () => '{"data":"fan-out"}' };
+      return { results: [] };
     });
-
     const env = mockEnv(null);
-    const ctx = mockCtx();
+    env.DB = mockDb({ all: slowAll });
 
     const N = 10;
-    const responses = Array.from({ length: N }, () =>
-      serve(EPL, 'standings', env as unknown as Env, ctx),
-    );
+    const responses = Array.from({ length: N }, () => serveExplore({}, env, mockCtx()));
     gate.resolve();
 
     const settled = await Promise.all(responses);
-    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(slowAll).toHaveBeenCalledTimes(1);
     expect(settled).toHaveLength(N);
 
     const bodies = await Promise.all(settled.map((r) => r.text()));
-    expect(bodies.every((b) => b === '{"data":"fan-out"}')).toBe(true);
+    expect(bodies.every((b) => b === '{"items":[],"nextCursor":null}')).toBe(true);
+  });
+
+  it('bypasses KV entirely for free-text search', async () => {
+    const env = mockEnv({ body: '{"items":[],"nextCursor":null}', at: Date.now() });
+    const res = await serveExplore({ q: 'transfer' }, env, mockCtx());
+    expect(res.headers.get('x-cache')).toBe('MISS'); // never a HIT from KV
+    expect((env.CACHE as ReturnType<typeof mockEnv>['CACHE']).get).not.toHaveBeenCalled();
   });
 });
 
-describe('serveSummary', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
-  it('returns 400 for a non-numeric event id', async () => {
-    const env = mockEnv(null);
-    const res = await serveSummary(EPL, 'abc; DROP', env as unknown as Env, mockCtx());
-    expect(res.status).toBe(400);
-    expect(fetchMock).not.toHaveBeenCalled();
-  });
-
-  it('returns 400 for an empty event id', async () => {
-    const env = mockEnv(null);
-    const res = await serveSummary(EPL, '', env as unknown as Env, mockCtx());
-    expect(res.status).toBe(400);
-  });
-
-  it('fetches and caches the ESPN summary for a numeric id', async () => {
-    fetchMock.mockResolvedValueOnce({ ok: true, text: async () => '{"boxscore":{}}' });
-    const env = mockEnv(null);
-    const ctx = mockCtx();
-    const res = await serveSummary(EPL, '760420', env as unknown as Env, ctx);
-    expect(res.status).toBe(200);
-    expect(res.headers.get('x-cache')).toBe('MISS');
-    expect(await res.text()).toBe('{"boxscore":{}}');
-    expect((env.CACHE as ReturnType<typeof mockEnv>['CACHE']).put).toHaveBeenCalledWith(
-      'summary:eng.1:760420',
-      expect.any(String),
-      expect.objectContaining({ expirationTtl: expect.any(Number) }),
-    );
-  });
-});
-
-describe('serveLeaders', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
-  // nba is a pipeline comp; season is derived at request time. We assert cache
-  // semantics via the KV mock (HIT/MISS/STALE), not the exact upstream URLs —
-  // assembleLeaders itself is unit-tested in src/leaders.test.ts.
-  const NBA = COMPETITIONS.nba;
-
-  it('returns HIT with the stored Leader[] when fresh', async () => {
-    const now = Date.now();
-    const cached = JSON.stringify([
-      {
-        rank: 1,
-        name: 'L. James',
-        teamName: 'Lakers',
-        teamLogo: '',
-        displayValue: '30.2',
-        value: 30.2,
-      },
-    ]);
-    const env = mockEnv({ body: cached, at: now - 60_000 }, cacheKey(COMPETITIONS.nba, 'leaders')); // fresh is 3600s
-    const res = await serveLeaders(NBA, env as unknown as Env, mockCtx());
-    expect(res.status).toBe(200);
-    expect(res.headers.get('x-cache')).toBe('HIT');
-    expect(await res.text()).toBe(cached);
-    expect(fetchMock).not.toHaveBeenCalled(); // fresh HIT never runs the producer
-  });
-
-  it('runs the producer and caches its result on a MISS', async () => {
-    // The producer (assembleLeaders) fetches the leaders doc then athlete/team
-    // refs. Canned: the configured category exists but has no leaders yet.
-    fetchMock.mockResolvedValue({
-      ok: true,
-      json: async () => ({ categories: [{ name: 'points', leaders: [] }] }),
-    });
-    const env = mockEnv(null, cacheKey(COMPETITIONS.nba, 'leaders'));
-    const ctx = mockCtx();
-    const res = await serveLeaders(NBA, env as unknown as Env, ctx);
-    expect(res.status).toBe(200);
-    expect(res.headers.get('x-cache')).toBe('MISS');
-    expect(await res.text()).toBe('[]');
-    expect(ctx.waitUntil).toHaveBeenCalled();
-    expect((env.CACHE as ReturnType<typeof mockEnv>['CACHE']).put).toHaveBeenCalledWith(
-      cacheKey(COMPETITIONS.nba, 'leaders'),
-      expect.any(String),
-      expect.objectContaining({ expirationTtl: expect.any(Number) }),
-    );
-  });
-
-  it('serves a STALE stored copy when the producer throws', async () => {
-    fetchMock.mockRejectedValue(new Error('core.api down'));
-    const stale = JSON.stringify([
-      { rank: 1, name: 'x', teamName: '', teamLogo: '', displayValue: '1', value: 1 },
-    ]);
-    const env = mockEnv(
-      { body: stale, at: Date.now() - 7_200_000 },
-      cacheKey(COMPETITIONS.nba, 'leaders'),
-    ); // stale (fresh 3600s)
-    const res = await serveLeaders(NBA, env as unknown as Env, mockCtx());
-    expect(res.status).toBe(200);
-    expect(res.headers.get('x-cache')).toBe('STALE');
-    expect(await res.text()).toBe(stale);
-  });
-
-  // Finding 2: a primary leaders-doc failure (bad HTTP status from the core.api
-  // leaders doc) must serve the STALE stored copy, not overwrite it with an
-  // empty board. This only holds because assembleLeaders now THROWS on a
-  // primary-doc failure instead of swallowing it to [] (src/leaders.test.ts).
-  it('serves STALE (never an empty overwrite) when the primary leaders-doc fetch is not ok', async () => {
-    fetchMock.mockResolvedValue({ ok: false, status: 503, json: async () => ({}) });
-    const stale = JSON.stringify([
-      {
-        rank: 1,
-        name: 'L. James',
-        teamName: 'Lakers',
-        teamLogo: '',
-        displayValue: '30.2',
-        value: 30.2,
-      },
-    ]);
-    const env = mockEnv(
-      { body: stale, at: Date.now() - 7_200_000 },
-      cacheKey(COMPETITIONS.nba, 'leaders'),
-    ); // stale (fresh 3600s)
-    const res = await serveLeaders(NBA, env as unknown as Env, mockCtx());
-    expect(res.status).toBe(200);
-    expect(res.headers.get('x-cache')).toBe('STALE');
-    expect(await res.text()).toBe(stale);
-  });
-});
+// ---- fetch routing ----
 
 describe('fetch routing', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it('404s on an unknown competition key', async () => {
+  it('routes GET /api/explore through serveExplore', async () => {
     const env = mockEnv(null);
-    const res = await worker.fetch(
-      new Request('https://x/api/nope/scoreboard'),
-      env as unknown as Env,
-      mockCtx(),
-    );
-    expect(res.status).toBe(404);
-    expect(fetchMock).not.toHaveBeenCalled();
-  });
-
-  it('404s on a prototype-name competition key', async () => {
-    // A bare truthy index (COMPETITIONS[m[1]]) would resolve 'constructor' to
-    // Object.prototype.constructor and wrongly treat it as a known competition.
-    const env = mockEnv(null);
-    const res = await worker.fetch(
-      new Request('https://x/api/constructor/scoreboard'),
-      env as unknown as Env,
-      mockCtx(),
-    );
-    expect(res.status).toBe(404);
-    expect(fetchMock).not.toHaveBeenCalled();
-  });
-
-  it('routes a known competition scoreboard through serve', async () => {
-    fetchMock.mockResolvedValueOnce({ ok: true, text: async () => '{"events":[]}' });
-    const env = mockEnv(null);
-    const res = await worker.fetch(
-      new Request('https://x/api/eng.1/scoreboard'),
-      env as unknown as Env,
-      mockCtx(),
-    );
+    const res = await worker.fetch(new Request('https://x/api/explore'), env, mockCtx());
     expect(res.status).toBe(200);
     expect(res.headers.get('x-cache')).toBe('MISS');
-    expect(await res.text()).toBe('{"events":[]}');
   });
 
-  it('routes a known competition leaders through serveLeaders', async () => {
-    fetchMock.mockResolvedValue({
-      ok: true,
-      json: async () => ({ categories: [{ name: 'points', leaders: [] }] }),
-    });
-    const env = mockEnv(null, cacheKey(COMPETITIONS.nba, 'leaders'));
+  it('rejects non-GET on /api/explore', async () => {
+    const env = mockEnv(null);
     const res = await worker.fetch(
-      new Request('https://x/api/nba/leaders'),
-      env as unknown as Env,
+      new Request('https://x/api/explore', { method: 'POST' }),
+      env,
+      mockCtx(),
+    );
+    expect(res.status).toBe(405);
+  });
+
+  it('routes /api/explore/filters through serveExploreFilters', async () => {
+    const env = mockEnv(null);
+    const res = await worker.fetch(
+      new Request('https://x/api/explore/filters?comp=eng.1'),
+      env,
       mockCtx(),
     );
     expect(res.status).toBe(200);
-    expect(await res.text()).toBe('[]');
-  });
-
-  it('404s on leaders for an unknown competition key', async () => {
-    const env = mockEnv(null);
-    const res = await worker.fetch(
-      new Request('https://x/api/nope/leaders'),
-      env as unknown as Env,
-      mockCtx(),
-    );
-    expect(res.status).toBe(404);
+    expect(await res.json()).toEqual({ competitions: [], sources: [], tags: [] });
   });
 
   it('404s on an unknown /api/ path', async () => {
     const env = mockEnv(null);
-    const res = await worker.fetch(
-      new Request('https://x/api/eng.1/nonsense'),
-      env as unknown as Env,
-      mockCtx(),
-    );
+    const res = await worker.fetch(new Request('https://x/api/eng.1/scoreboard'), env, mockCtx());
     expect(res.status).toBe(404);
   });
-});
 
-describe('per-competition news', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
-  it('proxies the site.api league news feed and caches under a news key', async () => {
-    fetchMock.mockResolvedValue(new Response('{"articles":[]}', { status: 200 }));
+  it('404s on an unknown competition key', async () => {
     const env = mockEnv(null);
-    const ctx = mockCtx();
-    const res = await serve(EPL, 'news', env as unknown as Env, ctx);
-    expect(res.status).toBe(200);
-    expect(await res.text()).toBe('{"articles":[]}');
-    expect(fetchMock.mock.calls[0][0]).toBe(
-      'https://site.api.espn.com/apis/site/v2/sports/soccer/eng.1/news?limit=50',
-    );
-    expect(env.CACHE.put).toHaveBeenCalledWith(
-      cacheKey(EPL, 'news'),
-      expect.any(String),
-      expect.objectContaining({ expirationTtl: 86400 }),
-    );
-  });
-
-  it('routes GET /api/<comp>/news through the fetch handler', async () => {
-    fetchMock.mockResolvedValue(new Response('{"articles":[]}', { status: 200 }));
-    const env = mockEnv(null);
-    const ctx = mockCtx();
-    const res = await worker.fetch(
-      new Request('https://x/api/nba/news'),
-      env as unknown as Env,
-      ctx,
-    );
-    expect(res.status).toBe(200);
-    expect(fetchMock.mock.calls[0][0]).toBe(
-      'https://site.api.espn.com/apis/site/v2/sports/basketball/nba/news?limit=50',
-    );
+    const res = await worker.fetch(new Request('https://x/api/nope/scoreboard'), env, mockCtx());
+    expect(res.status).toBe(404);
   });
 });
