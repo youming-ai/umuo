@@ -11,12 +11,17 @@ interface Props {
   /** Hide the sticky global Ticker strip. Used on the home page where the
       page itself owns the richer scoreboard band. */
   showTicker?: boolean;
+  /** Hide the global Header row. The Explore pages carry the wordmark and the
+      theme switcher inside their own toolbar, so a second near-empty sticky
+      bar above it is pure chrome. */
+  showHeader?: boolean;
 }
 
 const {
   title = 'umuo — AI football news',
   description = 'AI-curated football news from trusted sources, organized by competition and topic.',
   showTicker = true,
+  showHeader = true,
 } = Astro.props;
 
 // Rails are opt-in per page via named slots. When a page has rails, the shell
@@ -35,9 +40,12 @@ const cols =
 const frame = hasRails ? `mx-auto max-w-6xl px-page-x md:px-page-x-md py-page-y ${cols}` : '';
 
 // --h-topbar (ticker + header) is the shared sticky-offset token, but it
-// assumes the Ticker strip is present. Pages that hide the ticker must narrow
-// it so sticky rails don't float below the actual bar.
-const topbarStyle = showTicker ? undefined : '--h-topbar: var(--h-header)';
+// assumes both rows are present. Pages that hide either must narrow it so
+// sticky rails don't float below the actual bar.
+const topbarStyle =
+  showTicker && showHeader
+    ? undefined
+    : `--h-topbar: ${showTicker ? 'var(--h-ticker)' : showHeader ? 'var(--h-header)' : '0px'}`;
 
 // Canonical + og:url must match the actual page path (not a hardcoded /news).
 // Use the production origin so previews/dev still emit stable share URLs.
@@ -125,18 +133,20 @@ const canonicalUrl = `${SITE_ORIGIN}${canonicalPath}`;
       })();
     </script>
     <div class="relative z-10 flex flex-col min-h-screen" style={topbarStyle}>
-      <div class="sticky top-0 z-40 bg-night/95 backdrop-blur-md">
-        {/* Reserve the ticker's row height so the client:only strip fills it on
-            hydration instead of popping in and shoving the header down (CLS).
-            Height is the shared `--h-ticker` token (see index.css) so the
-            reserve and every sticky offset below the bar stay in sync. */}
-        {showTicker ? (
-          <div class="min-h-[var(--h-ticker)]">
-            <Ticker client:only="react" />
-          </div>
-        ) : null}
-        <Header />
-      </div>
+      {(showTicker || showHeader) && (
+        <div class="sticky top-0 z-40 bg-night/95 backdrop-blur-md">
+          {/* Reserve the ticker's row height so the client:only strip fills it on
+              hydration instead of popping in and shoving the header down (CLS).
+              Height is the shared `--h-ticker` token (see index.css) so the
+              reserve and every sticky offset below the bar stay in sync. */}
+          {showTicker ? (
+            <div class="min-h-[var(--h-ticker)]">
+              <Ticker client:only="react" />
+            </div>
+          ) : null}
+          {showHeader ? <Header /> : null}
+        </div>
+      )}
       <div class={`flex-1 w-full ${frame}`}>
         {hasLeft && (
           <aside class="mb-4 lg:mb-0 lg:self-start lg:sticky lg:top-[var(--h-topbar)] lg:max-h-[calc(100vh-var(--h-topbar))] lg:overflow-y-auto no-scrollbar">

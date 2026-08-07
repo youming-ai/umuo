@@ -7,6 +7,7 @@ import { renderToString } from 'react-dom/server';
 import { expect, it } from 'vitest';
 import type { TickerMatch } from '../hooks/useTicker';
 import type { CompMatch } from '../types';
+import ExploreView from './explore/ExploreView';
 import FixturesView from './FixturesView';
 import HomeView from './HomeView';
 import MatchDetailIsland from './MatchDetailIsland';
@@ -134,4 +135,22 @@ it('renders the odds board server-side with a UTC kickoff', () => {
   expect(html).toContain('DraftKings');
   expect(html).toContain('+240');
   expect(html).toContain('2026-08-01T18:30:00.000Z');
+});
+
+// The Explore bar now carries the wordmark and the theme switcher, and the
+// whole island is SSR'd via client:load. ThemeSwitcher therefore must not read
+// localStorage during render — there is no `window` here, exactly like workerd,
+// and a differing first client render would throw the SSR markup away.
+it('renders the Explore shell server-side without touching browser globals', () => {
+  const html = renderToString(
+    <ExploreView
+      initialData={{ items: [], nextCursor: null }}
+      initialFilters={{ competitions: [], sources: [], tags: [] }}
+    />,
+  );
+  expect(html).toContain('umu');
+  expect(html).toContain('Search stories');
+  // Icon-less until mount: an icon in the SSR markup would mean the switcher
+  // guessed a theme on the server.
+  expect(html).not.toContain('<svg');
 });
