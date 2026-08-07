@@ -50,14 +50,10 @@
   // processArticle directly. A pending DO migration cannot be applied by
   // `wrangler versions upload`, which is what Workers Builds runs for preview
   // branches — so a Durable Object here breaks every PR build.
-  // Ingest schedule. One entry, not two: scheduled() ignores the controller, so
-  // the old "0 7 * * *" ran exactly the same ingest as the */15 and bought
-  // nothing. Measured cost per tick after three supervised runs: ~300 Gemini
-  // calls and falling — ingestAllSources drops articles it has already stored
-  // before they reach the queue, and the hit rate climbs as the corpus grows.
   // Two schedules, told apart by controller.cron in worker/entrypoint.ts:
-  // */15 ingests, 17 3 runs the retention sweep. Keep the daily string in sync
-  // with PRUNE_CRON there.
+  // */15 ingests, 17 3 sweeps. The daily string is duplicated in PRUNE_CRON
+  // (src/feeds/retention.ts) because the Worker cannot read this file at
+  // runtime; retention.cron.test.ts asserts the two stay identical.
   "triggers": { "crons": ["*/15 * * * *", "17 3 * * *"] },
   "vars": { "GEMINI_MODEL": "gemini-3.6-flash" }
 }

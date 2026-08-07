@@ -3,14 +3,9 @@
 import { handle } from '@astrojs/cloudflare/handler';
 import { ingestAllSources } from '../src/feeds/ingest';
 import { processNewsQueue } from '../src/feeds/queue';
-import { pruneOldRecords } from '../src/feeds/retention';
+import { PRUNE_CRON, pruneOldRecords } from '../src/feeds/retention';
 import type { RawArticle } from '../src/feeds/types';
 import type { Env } from '../src/data/api';
-
-// Must match the daily entry in wrangler.jsonc `triggers.crons`. Both schedules
-// land in the same scheduled() handler, so the controller's cron string is what
-// tells them apart — anything that is not this one is an ingest tick.
-const PRUNE_CRON = '17 3 * * *';
 
 // The Astro adapter owns normal HTTP/SSR routing. This custom entrypoint adds
 // the Cloudflare event handlers that Astro's default entrypoint cannot expose:
