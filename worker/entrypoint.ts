@@ -17,6 +17,15 @@ const entrypoint: ExportedHandler<Env, RawArticle> = {
   async scheduled(_controller, env, ctx) {
     const report = await ingestAllSources(env, ctx);
     console.log('[scheduled] football news ingest completed:', report);
+    // A source can fail every tick for a day without anything surfacing —
+    // ESPN's six did, and only a hand-written source_health query found it.
+    // Split to error level so Workers observability can alert on it.
+    if (report.failed.length > 0) {
+      console.error(
+        `[scheduled] ${report.failed.length}/${report.sources} sources failed:`,
+        report.failed.join(', '),
+      );
+    }
   },
 
   async queue(batch, env, ctx) {
