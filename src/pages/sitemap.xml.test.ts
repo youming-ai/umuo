@@ -59,3 +59,14 @@ describe('sitemap.xml', () => {
     for (const loc of locs) expect(loc.startsWith(`${SITE_ORIGIN}/`)).toBe(true);
   });
 });
+
+describe('canonical origin', () => {
+  it('points at a host that actually serves the site', () => {
+    // Every <loc>, canonical tag and og:url derives from this one constant. It
+    // read cup.umuo.app for months, which is NXDOMAIN, so search engines were
+    // told the canonical copy of every page lived somewhere unreachable.
+    expect(SITE_ORIGIN).toBe('https://umuo.app');
+    expect(SITE_ORIGIN.startsWith('https://')).toBe(true);
+    expect(SITE_ORIGIN.endsWith('/')).toBe(false);
+  });
+});

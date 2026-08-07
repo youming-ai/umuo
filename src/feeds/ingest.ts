@@ -14,7 +14,7 @@ const FINGERPRINT_LOOKUP_CHUNK = 90;
 // serve it, so they keep it.
 const RSS_HEADERS = {
   accept: 'application/rss+xml, application/atom+xml, application/json, text/xml, */*',
-  'user-agent': 'umuo-football-news/1.0 (+https://cup.umuo.app)',
+  'user-agent': 'umuo-football-news/1.0 (+https://umuo.app)',
 };
 
 // ESPN's WAF allow-lists client agents by name and 403s everything else. It is
