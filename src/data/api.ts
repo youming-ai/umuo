@@ -430,7 +430,8 @@ export interface ExploreQuery {
   source?: string;
   tag?: string;
   q?: string;
-  cursor?: number;
+  /** Opaque page boundary from ExploreFeed.nextCursor — see parseExploreCursor. */
+  cursor?: string;
   limit?: number;
 }
 
@@ -532,19 +533,38 @@ function exploreArticle(row: ExploreRow): ExploreArticle {
   };
 }
 
+/**
+ * A page boundary, as the sort key of the last row already delivered:
+ * `<published_at>:<id>`. Keyset, not an offset — the feed has rows inserted at
+ * the top every ingest tick, and an offset would slide the whole window down
+ * underneath the reader, so page 2 would repeat rows from page 1.
+ */
+export function parseExploreCursor(value: string | undefined): [number, string] | null {
+  if (!value) return null;
+  const separator = value.indexOf(':');
+  if (separator <= 0) return null;
+  const publishedAt = Number(value.slice(0, separator));
+  const id = value.slice(separator + 1);
+  if (!Number.isFinite(publishedAt) || !id) return null;
+  return [publishedAt, id];
+}
+
+function exploreCursorFor(row: ExploreRow): string {
+  return `${rowNumber(row.published_at)}:${rowString(row.id)}`;
+}
+
 function normalizedExploreQuery(
   query: ExploreQuery,
-): Required<Pick<ExploreQuery, 'cursor' | 'limit'>> & Omit<ExploreQuery, 'cursor' | 'limit'> {
+): Required<Pick<ExploreQuery, 'limit'>> & Omit<ExploreQuery, 'limit'> {
   const comp =
     query.comp && Object.hasOwn(FOOTBALL_COMPETITIONS, query.comp) ? query.comp : undefined;
-  const cursor = Number.isInteger(query.cursor) ? Math.max(0, query.cursor ?? 0) : 0;
   const limit = Number.isInteger(query.limit) ? Math.min(24, Math.max(1, query.limit ?? 12)) : 12;
   return {
     comp,
     source: query.source?.trim().slice(0, 80) || undefined,
     tag: query.tag?.trim().toLowerCase().slice(0, 80) || undefined,
     q: query.q?.trim().slice(0, 100) || undefined,
-    cursor,
+    cursor: query.cursor?.slice(0, 120) || undefined,
     limit,
   };
 }
@@ -574,6 +594,14 @@ async function queryExplore(query: ExploreQuery, env: Env): Promise<ExploreFeed>
     where.push('(a.title LIKE ? OR a.ai_summary LIKE ? OR a.ai_blurb LIKE ?)');
     bindings.push(search, search, search);
   }
+  // Strictly after the last row delivered, in the same (published_at, id) order
+  // the query sorts by. An unparseable cursor falls through to the first page
+  // rather than erroring — a stale bookmark should still render something.
+  const cursor = parseExploreCursor(normalized.cursor);
+  if (cursor) {
+    where.push('(a.published_at < ? OR (a.published_at = ? AND a.id < ?))');
+    bindings.push(cursor[0], cursor[0], cursor[1]);
+  }
 
   const statement = env.DB.prepare(
     `SELECT
@@ -584,29 +612,28 @@ async function queryExplore(query: ExploreQuery, env: Env): Promise<ExploreFeed>
        FROM articles a
        JOIN sources s ON s.id = a.source_id
        WHERE ${where.join(' AND ')}
-       ORDER BY a.published_at DESC, a.quality_score DESC, a.id DESC
-       LIMIT ? OFFSET ?`,
-  ).bind(...bindings, normalized.limit + 1, normalized.cursor);
+       ORDER BY a.published_at DESC, a.id DESC
+       LIMIT ?`,
+  ).bind(...bindings, normalized.limit + 1);
   const result = await statement.all<ExploreRow>();
   const rows = result.results ?? [];
   const hasMore = rows.length > normalized.limit;
+  const page = rows.slice(0, normalized.limit);
   return {
-    items: rows.slice(0, normalized.limit).map(exploreArticle),
-    nextCursor: hasMore ? normalized.cursor + normalized.limit : null,
+    items: page.map(exploreArticle),
+    nextCursor: hasMore && page.length > 0 ? exploreCursorFor(page[page.length - 1]!) : null,
   };
 }
 
 export function exploreQueryFromUrl(url: URL): ExploreQuery {
-  const cursorValue = url.searchParams.get('cursor');
   const limitValue = url.searchParams.get('limit');
-  const cursor = cursorValue === null ? Number.NaN : Number(cursorValue);
   const limit = limitValue === null ? Number.NaN : Number(limitValue);
   return {
     comp: url.searchParams.get('comp') ?? undefined,
     source: url.searchParams.get('source') ?? undefined,
     tag: url.searchParams.get('tag') ?? undefined,
     q: url.searchParams.get('q') ?? undefined,
-    cursor: Number.isFinite(cursor) ? cursor : undefined,
+    cursor: url.searchParams.get('cursor') ?? undefined,
     limit: Number.isFinite(limit) ? limit : undefined,
   };
 }

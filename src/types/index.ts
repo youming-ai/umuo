@@ -220,7 +220,8 @@ export interface ExploreArticle {
 
 export interface ExploreFeed {
   items: ExploreArticle[];
-  nextCursor: number | null;
+  /** Opaque; pass back as `cursor` for the next page. null when exhausted. */
+  nextCursor: string | null;
 }
 
 export interface ExploreFilterOption {

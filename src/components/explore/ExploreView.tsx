@@ -10,7 +10,8 @@ interface ExploreQueryState {
   source: string;
   tag: string;
   q: string;
-  cursor: number;
+  /** Opaque page boundary from the API; '' means the first page. */
+  cursor: string;
 }
 
 type ViewMode = 'grid' | 'list';
@@ -27,7 +28,7 @@ function apiUrl(query: ExploreQueryState): string {
   if (query.source) params.set('source', query.source);
   if (query.tag) params.set('tag', query.tag);
   if (query.q) params.set('q', query.q);
-  if (query.cursor > 0) params.set('cursor', String(query.cursor));
+  if (query.cursor) params.set('cursor', query.cursor);
   params.set('limit', '24');
   return `/api/explore?${params}`;
 }
@@ -125,7 +126,7 @@ export default function ExploreView({
     source: '',
     tag: '',
     q: '',
-    cursor: 0,
+    cursor: '',
   };
   const [query, setQuery] = useState(initialQuery);
   const [draftSearch, setDraftSearch] = useState('');
@@ -157,7 +158,7 @@ export default function ExploreView({
         return (await response.json()) as ExploreFeed;
       })
       .then((feed) => {
-        setItems((previous) => (query.cursor === 0 ? feed.items : [...previous, ...feed.items]));
+        setItems((previous) => (query.cursor ? [...previous, ...feed.items] : feed.items));
         setNextCursor(feed.nextCursor);
       })
       .catch((reason: unknown) => {
@@ -172,11 +173,11 @@ export default function ExploreView({
 
   function submitSearch(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setQuery((previous) => ({ ...previous, q: draftSearch.trim(), cursor: 0 }));
+    setQuery((previous) => ({ ...previous, q: draftSearch.trim(), cursor: '' }));
   }
 
   function changeFilter(field: FilterField, value: string) {
-    setQuery((previous) => ({ ...previous, [field]: value, cursor: 0 }));
+    setQuery((previous) => ({ ...previous, [field]: value, cursor: '' }));
   }
 
   function clearFilters() {

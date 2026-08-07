@@ -50,11 +50,11 @@
   // processArticle directly. A pending DO migration cannot be applied by
   // `wrangler versions upload`, which is what Workers Builds runs for preview
   // branches — so a Durable Object here breaks every PR build.
-  // Ingest schedule, deliberately off for the first production deploy. Every
-  // tick fans out over all FEED_SOURCES and spends one Gemini call per new
-  // article, so the first run gets watched before it runs unattended. Restore
-  // this line once the spend per tick is known. Note both entries call the
-  // same ingest — scheduled() ignores the controller — so one is enough.
-  // "triggers": { "crons": ["*/15 * * * *", "0 7 * * *"] },
+  // Ingest schedule. One entry, not two: scheduled() ignores the controller, so
+  // the old "0 7 * * *" ran exactly the same ingest as the */15 and bought
+  // nothing. Measured cost per tick after three supervised runs: ~300 Gemini
+  // calls and falling — ingestAllSources drops articles it has already stored
+  // before they reach the queue, and the hit rate climbs as the corpus grows.
+  "triggers": { "crons": ["*/15 * * * *"] },
   "vars": { "GEMINI_MODEL": "gemini-3.6-flash" }
 }
