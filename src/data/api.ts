@@ -553,6 +553,11 @@ function exploreCursorFor(row: ExploreRow): string {
   return `${rowNumber(row.published_at)}:${rowString(row.id)}`;
 }
 
+function canonicalCursor(value: string | undefined): string | undefined {
+  const parsed = parseExploreCursor(value?.slice(0, 120));
+  return parsed ? `${parsed[0]}:${parsed[1]}` : undefined;
+}
+
 function normalizedExploreQuery(
   query: ExploreQuery,
 ): Required<Pick<ExploreQuery, 'limit'>> & Omit<ExploreQuery, 'limit'> {
@@ -564,7 +569,10 @@ function normalizedExploreQuery(
     source: query.source?.trim().slice(0, 80) || undefined,
     tag: query.tag?.trim().toLowerCase().slice(0, 80) || undefined,
     q: query.q?.trim().slice(0, 100) || undefined,
-    cursor: query.cursor?.slice(0, 120) || undefined,
+    // Re-serialised from the parsed form, so a malformed cursor collapses to
+    // "first page" instead of becoming its own cache key. Only cursors that
+    // name a real (published_at, id) boundary can reach KV.
+    cursor: canonicalCursor(query.cursor),
     limit,
   };
 }
@@ -644,6 +652,27 @@ export async function serveExplore(
   ctx: ExecutionContext,
 ): Promise<Response> {
   const normalized = normalizedExploreQuery(query);
+
+  // Free-text search bypasses KV. The cache key embeds the whole query, so a
+  // hundred characters of arbitrary text is a hundred characters of arbitrary
+  // cache key: an unauthenticated caller could write KV entries without limit
+  // just by varying `q`. Caching would buy nothing anyway — a distinct search
+  // is a miss by definition, and repeats are rare enough not to pay for.
+  if (normalized.q) {
+    try {
+      return json(JSON.stringify(await queryExplore(normalized, env)), 200, 'MISS');
+    } catch (error) {
+      console.error('[data] explore search failed:', error);
+      return json('{"error":"upstream unavailable"}', 502, 'MISS');
+    }
+  }
+
+  // Everything reaching KV is now drawn from a bounded set: comp is checked
+  // against FOOTBALL_COMPETITIONS, cursor against real row boundaries, limit is
+  // clamped. source and tag stay user-supplied — a caller who varies them still
+  // writes distinct keys, bounded only by the 1h TTL. They are kept cached
+  // because rail clicks are the queries most worth caching; revisit if the
+  // write volume ever shows up on the bill.
   const key = `explore:${encodeURIComponent(JSON.stringify(normalized))}`;
   return runCached(
     key,
