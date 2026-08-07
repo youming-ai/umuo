@@ -217,8 +217,9 @@ async function recordSourceFailure(db: D1Database, sourceId: string): Promise<vo
 
 /**
  * Fingerprints already in `articles`, so a tick only enqueues genuinely new
- * work. Best-effort by design: processArticle still does the authoritative
- * canonical_url + fingerprint check before spending a Gemini call. Without
+ * work. Best-effort by design: the queue consumer still does the
+ * authoritative canonical_url + fingerprint check before the model is called.
+ * Without
  * this every tick re-enqueued every article in every feed — ~450 messages
  * every 15 minutes that existed only to be recognised and dropped.
  */

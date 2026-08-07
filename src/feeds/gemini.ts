@@ -22,7 +22,7 @@ const enrichmentSchema = z.object({
   qualityScore: z.number().int().min(0).max(100),
 });
 
-const RESPONSE_SCHEMA = {
+const ENRICHMENT_PROPERTIES = {
   type: 'object',
   additionalProperties: false,
   properties: {
@@ -44,6 +44,20 @@ const RESPONSE_SCHEMA = {
     'qualityScore',
   ],
 } as const;
+
+const RESPONSE_SCHEMA = ENRICHMENT_PROPERTIES;
+
+// A whole queue batch in one interaction. Results are positional, so the schema
+// pins the array and the prompt repeats the ordering requirement; a response of
+// the wrong length is rejected rather than mapped onto the wrong articles.
+const BATCH_RESPONSE_SCHEMA = {
+  type: 'object',
+  additionalProperties: false,
+  properties: { results: { type: 'array', items: ENRICHMENT_PROPERTIES } },
+  required: ['results'],
+} as const;
+
+const batchSchema = z.object({ results: z.array(enrichmentSchema) });
 
 interface GeminiResponse {
   output_text?: unknown;
@@ -88,19 +102,44 @@ function outputText(value: unknown): string {
 
 function promptFor(article: RawArticle): string {
   return [
-    'You are the editorial classification agent for a football-only news site.',
+    ...CLASSIFIER_RULES,
     'Classify and summarize the supplied source article as JSON matching the schema.',
-    'Reject non-football stories with isFootball=false and an empty competition.',
-    'Use only facts present in the source text. Do not invent scores, quotes, transfers, dates, or names.',
-    'Choose a canonical competition only when the article clearly identifies one:',
-    'eng.1 Premier League; esp.1 La Liga; ger.1 Bundesliga; ita.1 Serie A; fra.1 Ligue 1; uefa.champions Champions League.',
-    'For football articles that do not clearly belong to one competition, leave competition empty.',
     '',
+    ...articleBlock(article),
+  ].join('\n');
+}
+
+const CLASSIFIER_RULES = [
+  'You are the editorial classification agent for a football-only news site.',
+  'Reject non-football stories with isFootball=false and an empty competition.',
+  'Use only facts present in the source text. Do not invent scores, quotes, transfers, dates, or names.',
+  'Choose a canonical competition only when the article clearly identifies one:',
+  'eng.1 Premier League; esp.1 La Liga; ger.1 Bundesliga; ita.1 Serie A; fra.1 Ligue 1; uefa.champions Champions League.',
+  'For football articles that do not clearly belong to one competition, leave competition empty.',
+];
+
+function articleBlock(article: RawArticle): string[] {
+  return [
     `Source: ${article.sourceName}`,
     `Known source competition: ${article.comp ?? 'unknown'}`,
     `Title: ${article.title}`,
     `Description: ${article.description || '(none)'}`,
     `URL: ${article.url}`,
+  ];
+}
+
+function promptForBatch(articles: RawArticle[]): string {
+  return [
+    ...CLASSIFIER_RULES,
+    `Classify and summarize each of the ${articles.length} articles below.`,
+    'Return "results" holding exactly one object per article, in the same order.',
+    'Judge each article only on its own text; do not let one influence another.',
+    '',
+    ...articles.flatMap((article, index) => [
+      `--- ARTICLE ${index + 1} ---`,
+      ...articleBlock(article),
+      '',
+    ]),
   ].join('\n');
 }
 
@@ -109,6 +148,7 @@ async function requestGemini(
   model: string,
   input: string,
   attempt: number,
+  schema: unknown = RESPONSE_SCHEMA,
 ): Promise<Response> {
   const response = await fetch('https://generativelanguage.googleapis.com/v1beta/interactions', {
     method: 'POST',
@@ -122,7 +162,7 @@ async function requestGemini(
       response_format: {
         type: 'text',
         mime_type: 'application/json',
-        schema: RESPONSE_SCHEMA,
+        schema,
       },
       store: false,
     }),
@@ -158,4 +198,55 @@ export async function enrichWithGemini(
   }
 
   throw new Error('Gemini enrichment failed');
+}
+
+/**
+ * One interaction for a whole queue batch. Results are positional, so a
+ * response whose length does not match the input is rejected outright rather
+ * than risking an article being written with another article's summary — the
+ * caller falls back to per-article calls when that happens.
+ *
+ * Only worth it in bursts. Steady state is a handful of new articles per tick,
+ * where this is one call instead of three; it earns its keep on a backfill, a
+ * newly added source, or a feed catching up after an outage.
+ */
+export async function enrichBatchWithGemini(
+  apiKey: string,
+  model: string,
+  articles: RawArticle[],
+): Promise<ArticleEnrichment[]> {
+  if (!apiKey) throw new Error('GEMINI_API_KEY is not configured');
+  if (articles.length === 0) return [];
+
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const response = await requestGemini(
+        apiKey,
+        model,
+        promptForBatch(articles),
+        attempt,
+        BATCH_RESPONSE_SCHEMA,
+      );
+      if (response.ok) {
+        const text = outputText(await response.json());
+        const { results } = batchSchema.parse(JSON.parse(text) as unknown);
+        if (results.length !== articles.length) {
+          throw new Error(
+            `Gemini returned ${results.length} results for ${articles.length} articles`,
+          );
+        }
+        return results;
+      }
+
+      if (response.status < 500 && response.status !== 429) {
+        throw new Error(`Gemini batch request failed with ${response.status}`);
+      }
+      if (attempt === 2) throw new Error(`Gemini batch request failed with ${response.status}`);
+    } catch (error) {
+      if (attempt === 2) throw error;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 500 * (attempt + 1)));
+  }
+
+  throw new Error('Gemini batch enrichment failed');
 }
