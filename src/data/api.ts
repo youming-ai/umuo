@@ -668,7 +668,10 @@ export async function getExploreFeed(
     const feed = parsed as Partial<ExploreFeed>;
     return {
       items: Array.isArray(feed.items) ? (feed.items as ExploreArticle[]) : [],
-      nextCursor: typeof feed.nextCursor === 'number' ? feed.nextCursor : null,
+      // string, not number: the cursor became a keyset key. While this still
+      // checked for a number it coerced every SSR page to null, so the first
+      // paint always claimed the feed was exhausted and pagination never began.
+      nextCursor: typeof feed.nextCursor === 'string' ? feed.nextCursor : null,
     };
   } catch {
     return { items: [], nextCursor: null };
