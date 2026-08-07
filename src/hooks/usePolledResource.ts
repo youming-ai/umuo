@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 // The shared stale-while-revalidate + AbortController + visibility-gated poll
-// engine behind useCompetition / useNews / useLeaders / useMatchDetail. A wrapper supplies:
+// engine behind useCompetition / useLeaders / useMatchDetail. A wrapper supplies:
 //   - fetcher(signal): does the actual fetch(es) + parse/transform, throws on failure
 //   - key: reset trigger — when it changes (e.g. comp switch) the cache and
 //     displayed state drop so one key's data never flashes on another's
