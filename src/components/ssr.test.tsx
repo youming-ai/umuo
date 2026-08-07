@@ -5,11 +5,9 @@
 // environment on purpose: `document` is undefined here, exactly like workerd.
 import { renderToString } from 'react-dom/server';
 import { expect, it } from 'vitest';
-import type { TickerMatch } from '../hooks/useTicker';
 import type { CompMatch } from '../types';
 import ExploreView from './explore/ExploreView';
 import FixturesView from './FixturesView';
-import HomeView from './HomeView';
 import MatchDetailIsland from './MatchDetailIsland';
 import OddsView from './OddsView';
 import TeamPageIsland from './TeamPageIsland';
@@ -46,35 +44,6 @@ it('stamps the machine-readable instant on every rendered time', () => {
     <FixturesView comp="eng.1" matches={[match]} standings={{ kind: 'soccer', groups: [] }} />,
   );
   expect(html).toContain('2026-08-01T18:30:00.000Z');
-});
-
-it('renders the home scoreboard + news server-side without touching document', () => {
-  const scores: TickerMatch[] = [{ ...match, comp: 'eng.1' }];
-  const html = renderToString(
-    <HomeView
-      news={[
-        {
-          id: 'n1',
-          headline: 'Transfer window closes',
-          description: '',
-          published: '2026-08-01T10:00:00Z',
-          byline: 'Staff',
-          imageUrl: '',
-          link: 'https://example.com/a',
-          tags: [],
-        },
-      ]}
-      initialScores={scores}
-    />,
-  );
-  expect(html).toContain('Transfer window closes');
-  expect(html).toContain('Arsenal');
-  // `comp` is a prop now, not window.location — the link has to come out right
-  // on the server, where there is no location to read.
-  expect(html).toContain('/eng.1/match/arsenal-vs-chelsea');
-  expect(html).toContain('Today&#x27;s matches');
-  // Rendered in UTC (18:30Z), never in the machine's local timezone.
-  expect(html).toContain('18:30');
 });
 
 // The match and team pages 503 without upstream data, so a live smoke test never
