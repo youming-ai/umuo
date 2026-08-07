@@ -760,6 +760,54 @@ async function queryExploreFilters(comp: string, env: Env): Promise<ExploreFilte
   return { competitions: competitionOptions, sources: sourceOptions, tags: tagOptions };
 }
 
+export interface SitemapNewsHub {
+  comp: string;
+  /** Newest published article in that hub, as an ISO 8601 instant. */
+  lastmod: string;
+}
+
+/**
+ * The competition hubs that actually hold published articles, newest first
+ * article date included. Derived from D1 rather than the competition registry:
+ * a hub the desk has never written about is a thin page, and /nba has no news
+ * hub at all — src/pages/[comp]/index.astro serves football only, so listing
+ * it from COMPETITIONS advertised a 404.
+ *
+ * Degrades to an empty list. A sitemap missing its news hubs is survivable;
+ * a 500 on /sitemap.xml is not.
+ */
+export async function getSitemapNews(env: Env, ctx: ExecutionContext): Promise<SitemapNewsHub[]> {
+  try {
+    const response = await runCached(
+      'sitemap:news',
+      async () => {
+        if (!env.DB) throw new Error('D1 binding is required');
+        const result = await env.DB.prepare(
+          `SELECT comp AS value, MAX(published_at) AS count
+             FROM articles
+            WHERE status = 'published' AND is_football = 1 AND sport = 'soccer'
+              AND comp IS NOT NULL
+            GROUP BY comp`,
+        ).all<CountRow>();
+        return JSON.stringify(result.results ?? []);
+      },
+      3600,
+      86400,
+      env,
+      ctx,
+    );
+    if (!response.ok) return [];
+    const rows = (await response.json()) as CountRow[];
+    return rows
+      .map((row) => ({ comp: rowString(row.value), newest: rowNumber(row.count) }))
+      .filter((row) => Object.hasOwn(FOOTBALL_COMPETITIONS, row.comp) && row.newest > 0)
+      .map((row) => ({ comp: row.comp, lastmod: new Date(row.newest).toISOString() }));
+  } catch (error) {
+    console.error('[data] sitemap news lookup failed:', error);
+    return [];
+  }
+}
+
 export async function serveExploreFilters(
   comp: string,
   env: Env,
