@@ -387,6 +387,7 @@ export async function serveExplore(
 export async function serveExploreRss(
   query: ExploreQuery,
   selfUrl: string,
+  origin: string,
   env: Env,
   ctx: ExecutionContext,
 ): Promise<Response> {
@@ -402,13 +403,20 @@ export async function serveExploreRss(
   const scopeLabel = normalized.comp
     ? (FOOTBALL_COMPETITIONS[normalized.comp]?.label ?? normalized.comp)
     : 'All football';
+  // <link> in the channel jumps a reader that clicks through back into the
+  // matching hub on the site rather than the global home. Per-comp feeds go
+  // to /<comp>; the global feed stays on /.
+  const channelLink = normalized.comp ? `${origin}/${normalized.comp}` : `${origin}/`;
 
   const key = `explore:rss:${encodeURIComponent(JSON.stringify(normalized))}`;
   const cached = await runCached(
     key,
     async () => {
       const feed = await queryExplore(normalized, env);
-      return renderExploreRss(feed, scopeLabel, { includeAtomSelfLink: selfUrl });
+      return renderExploreRss(feed, scopeLabel, {
+        includeAtomSelfLink: selfUrl,
+        channelLink,
+      });
     },
     60,
     3600,

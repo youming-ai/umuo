@@ -26,8 +26,9 @@ export default {
       // q / cursor are intentionally dropped — a feed is a head, not a query.
       if (url.pathname === '/api/explore/rss') {
         if (request.method !== 'GET') return new Response('Method not allowed', { status: 405 });
-        const selfUrl = `${url.protocol}//${url.host}${url.pathname}`;
-        return serveExploreRss(exploreQueryFromUrl(url), selfUrl, env, ctx);
+        const origin = `${url.protocol}//${url.host}`;
+        const selfUrl = `${origin}${url.pathname}`;
+        return serveExploreRss(exploreQueryFromUrl(url), selfUrl, origin, env, ctx);
       }
       if (url.pathname === '/api/explore/filters') {
         if (request.method !== 'GET') return new Response('Method not allowed', { status: 405 });

@@ -164,4 +164,17 @@ describe('renderExploreRss', () => {
       '<atom:link href="/api/explore.rss" rel="self" type="application/rss+xml" />',
     );
   });
+
+  it('points the channel link to a per-competition hub when one is supplied', () => {
+    const xml = renderExploreRss({ items: [], nextCursor: null }, 'Premier League', {
+      channelLink: 'https://umuo.app/eng.1',
+    });
+    expect(xml).toContain('<link>https://umuo.app/eng.1</link>');
+    expect(xml).not.toContain('<link>https://umuo.app/</link>');
+  });
+
+  it('falls back to the global origin when no channel link is supplied', () => {
+    const xml = renderExploreRss({ items: [], nextCursor: null }, 'All football');
+    expect(xml).toContain('<link>https://umuo.app/</link>');
+  });
 });

@@ -76,16 +76,21 @@ function renderItem(article: ExploreArticle): string {
  * Render an `ExploreFeed` as an RSS 2.0 document. The 50-item slice mirrors
  * the same cap used at the JSON endpoint: it keeps one reader-poll bounded
  * without losing anything — beyond today's top 50 the signal is noise.
+ *
+ * `channelLink` lets the per-competition feed jump the reader into the
+ * right hub (`/eng.1`) rather than the global home — clicking a PL story
+ * out of NetNewsWire shouldn't land on a Bundesliga story.
  */
 export function renderExploreRss(
   feed: ExploreFeed,
   scopeLabel: string,
-  options: { includeAtomSelfLink?: string } = {},
+  options: { includeAtomSelfLink?: string; channelLink?: string } = {},
 ): string {
   const channelTitle =
     scopeLabel === 'All football'
       ? 'umuo — AI football news'
       : `umuo — ${scopeLabel} football news`;
+  const channelLink = options.channelLink ?? `${SITE_ORIGIN}/`;
   const channelDescription =
     'AI-curated football news from 20 trusted publishers, refreshed every 15 minutes.';
   const published = new Date().toUTCString();
@@ -97,7 +102,7 @@ export function renderExploreRss(
 <rss version="2.0" xmlns:atom="${RSS_XMLNS}">
   <channel>
     <title>${escapeXml(channelTitle)}</title>
-    <link>${SITE_ORIGIN}/</link>
+    <link>${escapeXml(channelLink)}</link>
     <description>${escapeXml(channelDescription)}</description>
     <language>en-us</language>
     <lastBuildDate>${published}</lastBuildDate>

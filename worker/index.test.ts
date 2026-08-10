@@ -210,6 +210,20 @@ describe('fetch routing', () => {
     expect(body.startsWith('<?xml version="1.0" encoding="UTF-8"?>')).toBe(true);
     expect(body).toContain('<rss version="2.0"');
     expect(body).toContain('<title>umuo \u2014 AI football news</title>');
+    // Global feed points its channel link at the site origin.
+    expect(body).toContain('<link>https://x/</link>');
+  });
+
+  it('points the per-competition RSS channel link at the league hub', async () => {
+    const env = mockEnv(null);
+    const res = await worker.fetch(
+      new Request('https://x/api/explore/rss?comp=eng.1'),
+      env,
+      mockCtx(),
+    );
+    const body = await res.text();
+    expect(body).toContain('<title>umuo \u2014 Premier League football news</title>');
+    expect(body).toContain('<link>https://x/eng.1</link>');
   });
 
   it('rejects non-GET on /api/explore/rss', async () => {
