@@ -143,9 +143,11 @@ export default function ExploreView({
   const key = useMemo(() => queryKey(query), [query]);
 
   const isFiltered = Boolean(query.source || query.tag || query.q);
+  // Only the competition pages carry a scope label — the global home is
+  // implicit in the wordmark, so "All football" next to it was noise.
   const scopeLabel = initialComp
     ? (FOOTBALL_COMPETITIONS[initialComp]?.label ?? initialComp)
-    : 'All football';
+    : '';
 
   useEffect(() => {
     if (initialKey.current === key) {
@@ -308,37 +310,46 @@ export default function ExploreView({
       <div className="sticky top-0 z-30 flex flex-wrap items-center gap-x-3 gap-y-1.5 border-b border-line/40 bg-night/95 px-3 py-1.5 backdrop-blur-md lg:h-[var(--h-bar)] lg:flex-nowrap lg:py-0">
         <div className="flex min-w-0 items-center gap-3">
           <Logo />
-          <h1 className="ds-caption truncate uppercase tracking-caption font-bold text-chalk">
-            {scopeLabel}
-          </h1>
+          {scopeLabel && (
+            <>
+              <span className="h-4 w-px bg-line/40" aria-hidden="true" />
+              <h1 className="ds-caption truncate uppercase tracking-caption font-bold text-chalk">
+                {scopeLabel}
+              </h1>
+            </>
+          )}
         </div>
 
-        <form onSubmit={submitSearch} className="flex min-w-0 flex-1 gap-2 sm:max-w-xs lg:mx-auto">
+        <form onSubmit={submitSearch} className="relative flex min-w-0 flex-1 sm:max-w-xs lg:mx-auto">
           <label className="sr-only" htmlFor="explore-search">
             Search football news
           </label>
+          <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-chalkdim">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 20 20"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              className="h-3.5 w-3.5"
+              aria-hidden="true"
+            >
+              <circle cx="9" cy="9" r="6" />
+              <path d="m14.5 14.5 3.5 3.5" />
+            </svg>
+          </span>
           <input
             id="explore-search"
             value={draftSearch}
             onChange={(event) => setDraftSearch(event.target.value)}
             placeholder="Search stories"
-            className="ds-input min-h-9 min-w-0 flex-1 py-1"
+            enterKeyHint="search"
+            className="ds-input min-h-9 min-w-0 flex-1 py-1 pl-8"
           />
-          <button type="submit" className="ds-btn-secondary min-h-9 shrink-0 px-3 text-sm">
-            Search
-          </button>
         </form>
 
         <div className="flex items-center gap-2 lg:ml-auto">
-          {/* Decodes the green strip across each card's top edge. A signature
-              nobody can read is just a stray 2px of colour. */}
-          <p className="hidden items-center gap-1.5 ds-caption text-chalkdim xl:flex">
-            <span className="h-0.5 w-6 bg-line" aria-hidden="true">
-              <span className="block h-full w-2/3 bg-pitch" />
-            </span>
-            AI signal
-          </p>
-
           <fieldset className="ds-segmented shrink-0">
             <legend className="sr-only">Feed layout</legend>
             <button
