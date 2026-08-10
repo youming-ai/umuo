@@ -24,11 +24,3 @@ export function arr(v: unknown): unknown[] {
 export function str(v: unknown): string {
   return typeof v === 'string' ? v : typeof v === 'number' ? String(v) : '';
 }
-
-// A team crest URL from either ESPN shape: scoreboard uses `team.logo`
-// (string), standings uses `team.logos: [{href}]`.
-export function teamLogo(team: Record<string, unknown>): string {
-  if (str(team.logo)) return str(team.logo);
-  const logos = arr(team.logos);
-  return logos.length ? str(obj(logos[0]).href) : '';
-}

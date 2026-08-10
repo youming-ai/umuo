@@ -1,8 +1,9 @@
 ---
 import { env } from 'cloudflare:workers';
 import { FOOTBALL_COMPETITIONS } from '../../competitions';
+import DeskStats from '../../components/DeskStats.astro';
 import ExploreView from '../../components/explore/ExploreView';
-import { getExploreFeed, getExploreFilters } from '../../data/api';
+import { getDeskStats, getExploreFeed, getExploreFilters } from '../../data/api';
 import Layout from '../../layouts/Layout.astro';
 
 const { comp } = Astro.params;
@@ -11,15 +12,28 @@ if (!comp || !Object.hasOwn(FOOTBALL_COMPETITIONS, comp)) {
 }
 const competition = FOOTBALL_COMPETITIONS[comp]!;
 const ctx = Astro.locals.cfContext;
-const [initialData, initialFilters] = await Promise.all([
+// Per-competition desk stats: scan stays global (sources aren't comp-scoped);
+// keep / reject / last reset to this league's column. The KV key is
+// `desk:stats:v1:comp:<comp>` so the home and league caches don't collide.
+const [initialData, initialFilters, deskStats] = await Promise.all([
   getExploreFeed({ comp }, env, ctx),
   getExploreFilters(comp, env, ctx),
+  getDeskStats(env, ctx, comp),
 ]);
+// Both the <head> autodiscovery link and the strip's "+ feed" CTA point at
+// this league's feed. Handing a reader on /eng.1 the global feed would
+// silently subscribe them to six competitions they didn't ask for.
+const feedPath = `/${comp}/rss.xml`;
 ---
-<Layout title={`umuo — ${competition.label} football news`}>
+<Layout
+  title={`umuo — ${competition.label} football news`}
+  feedPath={feedPath}
+  feedTitle={`umuo — ${competition.label} football news`}
+>
   {/* No left rail here: the ExploreView toolbar already carries the
       competition index. */}
   <main>
+    <DeskStats stats={deskStats} scopeLabel={competition.label} feedHref={feedPath} />
     <ExploreView
       initialData={initialData}
       initialFilters={initialFilters}

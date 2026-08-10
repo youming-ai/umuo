@@ -43,6 +43,18 @@ describe('sitemapEntries', () => {
     const all = paths();
     expect(new Set(all).size).toBe(all.length);
   });
+
+  it('lists the global RSS feed and one per competition hub', () => {
+    expect(paths()).toContain('/rss.xml');
+    expect(paths()).toContain('/eng.1/rss.xml');
+    expect(paths()).toContain('/uefa.champions/rss.xml');
+  });
+
+  it('gives RSS entries no lastmod (feeds are always fresh)', () => {
+    const entries = sitemapEntries(NEWS);
+    expect(entries.find((e) => e.path === '/rss.xml')?.lastmod).toBeUndefined();
+    expect(entries.find((e) => e.path === '/eng.1/rss.xml')?.lastmod).toBeUndefined();
+  });
 });
 
 describe('renderSitemap', () => {

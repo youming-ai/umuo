@@ -32,6 +32,8 @@ Cloudflare 能力分工：
 
 - `/`：AI football news 首页，包含搜索、competition/source/tag 筛选的资讯探索页。
 - `/<competition>`：某个足球联赛的 AI 新闻页，例如 `/eng.1`、`/esp.1`。
+- `/rss.xml`、`/<competition>/rss.xml`：可订阅的 RSS 2.0 源，读者可加入 NetNewsWire / Feedly 等阅读器，每个联赛一份独立的 feed。
+- `/sitemap.xml`：站点地图（页面 + 一份 feed/联赛对）。
 
 公开导航和新资讯链路只使用 `FOOTBALL_COMPETITIONS`。旧的 NBA/ESPN 比赛数据模块仍保留在代码中，用于兼容已有测试和历史链接；它们不再出现在新的资讯导航和首页数据链路中，可在后续清理阶段移除。
 
@@ -43,6 +45,8 @@ src/agents/                FootballNewsAgent Durable Object
 src/data/api.ts            D1 Explore queries + KV cache + legacy ESPN composers
 src/components/explore/   Explore SSR island and article cards
 src/pages/index.astro     global Explore page
+src/pages/rss.xml.ts      RSS 2.0 endpoint at /rss.xml
+src/pages/[comp]/rss.xml.ts   per-competition RSS at /<comp>/rss.xml
 worker/entrypoint.ts       Astro custom Worker + Cron + Queue handlers
 worker/index.ts            legacy API bridge and /api/explore dispatcher
 migrations/                D1 SQL migrations
@@ -77,15 +81,16 @@ bunx wrangler deploy --dry-run --outdir=.wrangler/dry-run
 
 ## Cloudflare 部署
 
-首次部署需要准备 D1 和两个 Queue：
+首次部署需要准备 D1、KV 和两个 Queue：
 
 ```bash
 bunx wrangler d1 create umuo-content
+bunx wrangler kv namespace create CACHE
 bunx wrangler queues create umuo-news-ingest
 bunx wrangler queues create umuo-news-ingest-dlq
 ```
 
-把 D1 返回的 `database_id` 补进 `wrangler.jsonc` 的 `d1_databases`，然后执行：
+把 D1 返回的 `database_id` 和 KV 返回的 `id` 分别补进 `wrangler.jsonc` 的 `d1_databases[0]` 和 `kv_namespaces[0]`，然后执行：
 
 ```bash
 bunx wrangler d1 migrations apply umuo-content --remote
@@ -103,5 +108,5 @@ bunx wrangler deploy
 - 所有 D1 查询使用 prepared statements；批量写入使用 D1 `batch()`。
 - 文章只会在 AI 判定 `isFootball=true` 时进入 `published`，非足球内容写入 D1 的 `filtered` 状态，便于审计和调参。
 - URL 去掉追踪参数，文章以 canonical URL 和 SHA-256 fingerprint 双重去重。
-- Gemini、源站或 D1 临时异常不会让 SSR 页面崩溃；Explore 无可用 D1 数据时显示空态，兼容的旧 ESPN API 继续使用 KV stale fallback。
+- Gemini、源站或 D1 临时异常不会让 SSR 页面崩溃；Explore 无可用 D1 数据时显示空态；KV 读失败降冷路径、上游失败返 stale。
 - 生产代码只依赖 Web/Workers API，不依赖 Node 或 Bun runtime API。

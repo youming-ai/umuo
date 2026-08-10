@@ -130,27 +130,24 @@
 }
 
 @layer components {
-  /* Glass surfaces */
+  /* Glass surfaces — the rounded-card glass panel is the only one still in use
+     since the WC hero panel was retired. The hero variant follows when a
+     surface that big returns; delete it otherwise. */
   .ds-glass {
     @apply rounded-card border border-line/30 bg-panel/85 shadow-panel backdrop-blur-md;
-  }
-  .ds-glass-hero {
-    @apply rounded-panel md:rounded-hero border border-line/30 bg-gradient-to-b from-panel/95 to-panel/85 shadow-hero backdrop-blur-md;
   }
 
   /* Light theme: white-on-white flattens the glass panels; a firmer hairline
      restores the card/panel hierarchy the dark floodlit ground gives for free. */
-  [data-theme='light'] .ds-glass,
-  [data-theme='light'] .ds-glass-hero {
+  [data-theme='light'] .ds-glass {
     @apply border-line/70;
   }
 
-  /* Capsule segmented controls */
+  /* Capsule segmented controls — used by the explore Grid/List toggle. The
+     `ds-segmented-blur` variant carried the additional backdrop-blur a glass
+     surface needed; nothing currently sits on glass. */
   .ds-segmented {
     @apply flex items-center gap-1 p-1 rounded-pill bg-panel/60 border border-line/20 select-none;
-  }
-  .ds-segmented-blur {
-    @apply ds-segmented backdrop-blur-md;
   }
   /* Tactile press feedback for any pressable (buttons, tabs, cards). Scoped
      transition (never `all`) covering hover colors + the press scale. */
@@ -169,8 +166,7 @@
   }
   @media (prefers-reduced-motion: reduce) {
     .ds-press:active,
-    .ds-seg-tab:active,
-    .ds-chip:active {
+    .ds-seg-tab:active {
       transform: none;
     }
   }
@@ -193,30 +189,10 @@
     @apply text-chalkdim hover:text-chalk;
   }
 
-  /* Filter / stage chips */
-  .ds-chip {
-    @apply inline-flex shrink-0 items-center justify-center min-h-9 px-3 py-1 rounded-pill font-mono text-caption uppercase tracking-wider border;
-    transition:
-      transform 150ms var(--ease-out),
-      color 150ms var(--ease-out),
-      background-color 150ms var(--ease-out),
-      border-color 150ms var(--ease-out),
-      box-shadow 150ms var(--ease-out);
-  }
-  .ds-chip:active {
-    transform: scale(0.97);
-  }
-  .ds-chip-active {
-    @apply bg-overlay/10 text-chalk border-overlay/10 font-bold shadow-sm;
-  }
-  .ds-chip-inactive {
-    @apply bg-transparent border-overlay/5 text-chalkdim hover:text-chalk hover:bg-overlay/5;
-  }
-
-  /* Buttons: two voices across the whole UI. */
-  .ds-btn-primary {
-    @apply inline-flex items-center justify-center min-h-11 px-4 py-2 rounded-control bg-pitch text-onaccent font-display font-semibold tracking-wide hover:brightness-110 ds-press;
-  }
+  /* Buttons: one voice — the secondary outlined control. A `ds-btn-primary`
+     existed for the hero CTAs that the WC/MultiSport shells were removed to
+     house; nothing in the news surface calls it now. Add it back when a
+     pitch-filled action has a real home. */
   .ds-btn-secondary {
     @apply inline-flex items-center justify-center min-h-11 px-4 py-2 rounded-control border border-line/50 bg-panel/70 text-chalk font-display font-semibold tracking-wide hover:bg-overlay/10 ds-press;
   }
@@ -235,15 +211,13 @@
   .ds-body {
     @apply font-body text-body leading-body;
   }
-  .ds-lead {
-    @apply font-body text-lead leading-lead;
-  }
 
   /* Signature — the desk's signal strip. A meter across the top edge of a
      story card, filled to the AI quality score, so a grid of cards reads as a
      bar chart of the desk's confidence. The track runs the full width on every
-     card so a low score reads as "low", not as a missing accent. Set --signal
-     to a percentage. */
+     card so a low score reads as "low", not as a missing accent. The fill
+     color comes from `--signal-accent`: pitch, amber, or live — the same
+     quality thresholds the FreshMeter uses on the bottom edge. */
   .ds-signal {
     @apply relative;
   }
@@ -262,7 +236,14 @@
   }
   .ds-signal::after {
     width: var(--signal, 0%);
-    background: rgb(var(--c-pitch));
+    background: rgb(var(--signal-accent, var(--c-pitch)));
+  }
+
+  /* Freshness strip — the bottom edge of every grid card. The fill is the
+     child <span>, the track is the parent; we set the track here so cards
+     without a freshness value still show a low-contrast rail. */
+  .ds-fresh {
+    background: rgb(var(--c-line) / 0.4);
   }
 }
 

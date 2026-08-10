@@ -6,11 +6,19 @@ import { SITE_ORIGIN } from '../site';
 interface Props {
   title?: string;
   description?: string;
+  /** RSS surface this page is the web twin of — `/rss.xml` globally,
+   *  `/<comp>/rss.xml` on a league hub. A reader hitting "subscribe" in the
+   *  browser chrome on /eng.1 must land on the Premier League feed, not the
+   *  global one. */
+  feedPath?: string;
+  feedTitle?: string;
 }
 
 const {
   title = 'umuo — AI football news',
   description = 'AI-curated football news from trusted sources, organized by competition and topic.',
+  feedPath = '/rss.xml',
+  feedTitle = 'umuo — AI football news',
 } = Astro.props;
 
 // Canonical + og:url must match the actual page path (not a hardcoded /news).
@@ -36,6 +44,12 @@ const canonicalUrl = `${SITE_ORIGIN}${canonicalPath}`;
     <meta name="description" content={description} />
     <meta name="robots" content="index, follow" />
     <link rel="canonical" href={canonicalUrl} />
+    <link
+      rel="alternate"
+      type="application/rss+xml"
+      title={feedTitle}
+      href={`${SITE_ORIGIN}${feedPath}`}
+    />
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="umuo" />
     <meta property="og:title" content={title} />

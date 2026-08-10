@@ -1,6 +1,7 @@
 /// <reference types="@cloudflare/workers-types" />
 
 import { FOOTBALL_COMPETITIONS } from '../competitions';
+import { renderExploreRss } from './exploreRss';
 import type {
   ExploreArticle,
   ExploreArticleType,
@@ -367,6 +368,90 @@ export async function serveExplore(
   );
 }
 
+/** Items a feed poll carries. Equal to `normalizedExploreQuery`'s own clamp —
+ *  a subscriber gets the most the query layer will hand out. */
+const RSS_ITEM_LIMIT = 24;
+
+/**
+ * RSS 2.0 surface for the same Explore feed. A reader (NetNewsWire, Feedly,
+ * Inoreader, Reeder) polls it and gets the head of the feed in stable,
+ * guid-pinned form.
+ *
+ * - Asks for `limit: 24`, the ceiling `normalizedExploreQuery` clamps to. A
+ *   feed wants more than the 12-item web default and there is no reason to
+ *   give a subscriber less than the page can serve.
+ * - Drops `q` (free-text search is a transient query, not a feed), keeps
+ *   comp/source/tag since those are bookmarks readers re-subscribe against.
+ * - Drops `cursor` (subscribers don't paginate; they take the head).
+ * - Honours the same SWR freshness/cache as the JSON endpoint, with a
+ *   slightly longer keep window so a reader that polls every 30min always
+ *   sees consistent lists.
+ * - Sets the standard `application/rss+xml` Content-Type and an
+ *   explicit Cache-Control so the reader's own HTTP cache stays warm too.
+ * - A stale hit still renders (SWR serves the stored copy at 200). Only a
+ *   cold-cache upstream failure reaches the reader, and that goes back
+ *   verbatim as `runCached`'s 502 — never relabelled as a feed.
+ */
+export async function serveExploreRss(
+  query: ExploreQuery,
+  selfUrl: string,
+  origin: string,
+  env: Env,
+  ctx: ExecutionContext,
+): Promise<Response> {
+  // A feed is the head of the query, nothing transient. Build a fresh
+  // normalized shape that drops search + cursor before going to KV so a
+  // cache key only carries the bookmark-worthy facets.
+  const normalized = normalizedExploreQuery({
+    ...query,
+    q: undefined,
+    cursor: undefined,
+    limit: RSS_ITEM_LIMIT,
+  });
+
+  const scopeLabel = normalized.comp
+    ? (FOOTBALL_COMPETITIONS[normalized.comp]?.label ?? normalized.comp)
+    : 'All football';
+  // <link> in the channel jumps a reader that clicks through back into the
+  // matching hub on the site rather than the global home. Per-comp feeds go
+  // to /<comp>; the global feed stays on /.
+  const channelLink = normalized.comp ? `${origin}/${normalized.comp}` : `${origin}/`;
+
+  const key = `explore:rss:${encodeURIComponent(JSON.stringify(normalized))}`;
+  const cached = await runCached(
+    key,
+    async () => {
+      const feed = await queryExplore(normalized, env);
+      return renderExploreRss(feed, scopeLabel, {
+        includeAtomSelfLink: selfUrl,
+        channelLink,
+      });
+    },
+    60,
+    3600,
+    env,
+    ctx,
+  );
+
+  // A non-OK response from runCached is its JSON error body, not a feed.
+  // Relabelling that as application/rss+xml would hand every reader a parse
+  // error, and the 5-minute Cache-Control below would pin the failure in
+  // their HTTP cache long after D1 recovered. Pass it through untouched.
+  if (!cached.ok) return cached;
+
+  // Wrap the SWR's JSON-shaped response into the RSS content type a reader
+  // expects. The body is still XML; runCached only inspects the string.
+  const xCache = cached.headers.get('x-cache') ?? 'MISS';
+  return new Response(cached.body, {
+    status: cached.status,
+    headers: {
+      'content-type': 'application/rss+xml; charset=utf-8',
+      'x-cache': xCache,
+      'cache-control': 'public, max-age=300',
+    },
+  });
+}
+
 export async function getExploreFeed(
   query: ExploreQuery,
   env: Env,
@@ -526,4 +611,138 @@ export async function getExploreFilters(
   } catch {
     return EMPTY_EXPLORE_FILTERS;
   }
+}
+
+// --- "Today's desk" stats ---
+
+const EMPTY_DESK_STATS: DeskStats = {
+  fetchedAllTime: 0,
+  published: 0,
+  filtered: 0,
+  lastIngestedAt: 0,
+};
+
+export interface DeskStats {
+  /** Articles pulled from upstream feeds **since launch**, not today.
+   *  `source_health.articles_fetched_count` is a running tally the ingest
+   *  tick increments and nothing ever resets, and there is no per-day column
+   *  to bound it with — so this is the one all-time number in the set and the
+   *  strip has to label it as such. */
+  fetchedAllTime: number;
+  /** Articles published to the desk since midnight UTC (status='published'). */
+  published: number;
+  /** Articles rejected as non-football or off-topic since midnight UTC
+   *  (status='filtered'); a high number next to a low published is a noisy
+   *  day, an honest AI-editing one. */
+  filtered: number;
+  /** ms epoch of the most recent article the desk **wrote today** —
+   *  `created_at`, i.e. when the story landed on the desk, not the
+   *  publisher's own `published_at`. This row measures desk activity, so
+   *  ingest time is the honest clock, and the day bound keeps it on the same
+   *  axis as `published`/`filtered`. 0 when the desk has written nothing
+   *  today. */
+  lastIngestedAt: number;
+}
+
+/**
+ * The "today's desk" row the home page leads with: how many stories the desk
+ * kept and rejected since 00:00 UTC, and when it last wrote one. Always real
+ * numbers — pulled from `articles` and `source_health`, computed by D1, never
+ * made up. `fetchedAllTime` is the one number outside the day window; see its
+ * field doc.
+ *
+ * SWR cache `fresh=300/keep=3600`: a tap on the rail or a refresh must never
+ * hammer D1; the genuine pulse is "new ingest tick happens every 15 minutes",
+ * so 5-minute freshness is the right floor. Returns zeros on any failure —
+ * a dashboard that fakes its numbers is worse than a dashboard that blanks.
+ */
+export async function getDeskStats(
+  env: Env,
+  ctx: ExecutionContext,
+  comp?: string,
+): Promise<DeskStats> {
+  try {
+    // The per-competition variant counts articles within `comp`;
+    // `fetchedAllTime` is left as the global input tally because source_health
+    // has no comp column and pretending otherwise would mean claiming "scanned
+    // for Premier League" when the scan was global.
+    const compFilter = comp && Object.hasOwn(FOOTBALL_COMPETITIONS, comp) ? comp : '';
+    const cacheKey = compFilter ? `desk:stats:v1:comp:${compFilter}` : 'desk:stats:v1';
+    const response = await runCached(
+      cacheKey,
+      async () => {
+        if (!env.DB) throw new Error('D1 binding is required');
+        // Whole UTC day so the count resets visibly on the page at 00:00 UTC
+        // — a local-day boundary would have readers on different tz see a
+        // "today" that disagrees with their clock.
+        const startOfDayUtc = new Date();
+        startOfDayUtc.setUTCHours(0, 0, 0, 0);
+        const since = startOfDayUtc.getTime();
+        // Four counts in one batch: the source_health aggregate for the input,
+        // two day-bounded counts on articles for the outcomes, and a MAX for
+        // the clock. The per-comp variant adds `AND comp = ?` to the three
+        // article-side statements; the input tally stays global.
+        //
+        // ponytail: there is no index on articles.created_at, so the three
+        // article-side statements scan. Retention keeps the table small and
+        // the 5-minute SWR window caps this at ~12 scans an hour; add
+        // `(status, created_at)` if the row count ever makes that show up.
+        const compWhere = compFilter ? ' AND comp = ?' : '';
+        const compBinding = compFilter ? [compFilter] : [];
+        const [fetched, published, filtered, lastIngested] = await env.DB.batch([
+          env.DB.prepare(
+            'SELECT COALESCE(SUM(articles_fetched_count), 0) AS total FROM source_health',
+          ),
+          env.DB.prepare(
+            `SELECT COUNT(*) AS total FROM articles
+              WHERE status = 'published' AND created_at >= ?${compWhere}`,
+          ).bind(since, ...compBinding),
+          env.DB.prepare(
+            `SELECT COUNT(*) AS total FROM articles
+              WHERE status = 'filtered' AND created_at >= ?${compWhere}`,
+          ).bind(since, ...compBinding),
+          // Day-bounded like the two counts above it. Unbounded, this would
+          // print yesterday's clock time next to "keep 0 / reject 0" and read
+          // as activity that hasn't happened — the same mixed-axis lie the
+          // `scan` label had to be qualified for. Empty day → 0 → "—".
+          env.DB.prepare(
+            `SELECT MAX(created_at) AS newest FROM articles
+              WHERE status = 'published' AND created_at >= ?${compWhere}`,
+          ).bind(since, ...compBinding),
+        ]);
+        return JSON.stringify({
+          fetchedAllTime: firstNumber(fetched.results) ?? 0,
+          published: firstNumber(published.results) ?? 0,
+          filtered: firstNumber(filtered.results) ?? 0,
+          lastIngestedAt: firstNumber(lastIngested.results) ?? 0,
+        } satisfies DeskStats);
+      },
+      300,
+      3600,
+      env,
+      ctx,
+    );
+    if (!response.ok) return EMPTY_DESK_STATS;
+    const parsed: unknown = await response.json();
+    if (!parsed || typeof parsed !== 'object') return EMPTY_DESK_STATS;
+    const stats = parsed as Partial<DeskStats>;
+    return {
+      fetchedAllTime: typeof stats.fetchedAllTime === 'number' ? stats.fetchedAllTime : 0,
+      published: typeof stats.published === 'number' ? stats.published : 0,
+      filtered: typeof stats.filtered === 'number' ? stats.filtered : 0,
+      lastIngestedAt: typeof stats.lastIngestedAt === 'number' ? stats.lastIngestedAt : 0,
+    };
+  } catch (error) {
+    console.error('[data] desk stats lookup failed:', error);
+    return EMPTY_DESK_STATS;
+  }
+}
+
+// D1's `.all<T>()` returns `{results: T[]} | null`. For the desk-stats SUM/COUNT
+// rows we expect exactly one object, so reaching the first column is enough.
+function firstNumber(rows: unknown): number | null {
+  if (!Array.isArray(rows) || rows.length === 0) return null;
+  const first = rows[0] as Record<string, unknown>;
+  const value = first.total ?? first.newest;
+  return typeof value === 'number' && Number.isFinite(value) ? value : null;
 }

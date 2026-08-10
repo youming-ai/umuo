@@ -199,4 +199,13 @@ describe('fetch routing', () => {
     const res = await worker.fetch(new Request('https://x/api/nope/scoreboard'), env, mockCtx());
     expect(res.status).toBe(404);
   });
+
+  it('the RSS surface is no longer dispatched from /api/explore/rss', async () => {
+    // The RSS feed moved to /rss.xml and /<comp>/rss.xml (Astro page
+    // endpoints); /api/* is reserved for JSON. A stray /api/explore/rss hit
+    // should 404 rather than fall through to JSON or a generic ASSETS miss.
+    const env = mockEnv(null);
+    const res = await worker.fetch(new Request('https://x/api/explore/rss'), env, mockCtx());
+    expect(res.status).toBe(404);
+  });
 });

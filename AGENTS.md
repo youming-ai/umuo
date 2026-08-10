@@ -55,7 +55,7 @@ Bun locally, `workerd` in production.
 | | |
 |---|---|
 | Worker | `umuo`, deployed by Workers Builds from `main` |
-| KV | `CACHE` `1ec03cc0…` |
+| KV | `CACHE` `b5d6927e…` |
 | D1 | `DB` → `umuo-content`, primary region **APAC** (cannot be moved without recreating) |
 | Queue | `INGEST_QUEUE` → `umuo-news-ingest`, batch 10, DLQ `umuo-news-ingest-dlq` (no consumer — messages that land there are invisible) |
 | Crons | `*/15 * * * *` ingest, `17 3 * * *` retention sweep |

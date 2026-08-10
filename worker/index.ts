@@ -5,7 +5,10 @@ import { type Env, exploreQueryFromUrl, serveExplore, serveExploreFilters } from
 // Thin HTTP wrapper around the shared data layer (src/data/api.ts). The SWR
 // primitives + composed serve* functions live there so Astro SSR pages can
 // call them directly (env from 'cloudflare:workers' + Astro.locals.cfContext).
-// This file only does URL parsing → serve* dispatch, and the ASSETS passthrough.
+// This file only does URL parsing → serve* dispatch for the JSON /api/* surface,
+// plus the ASSETS passthrough. The RSS surface lives at /rss.xml and is served
+// by Astro page endpoints (src/pages/rss.xml.ts and src/pages/[comp]/rss.xml.ts)
+// — Astro routing matches the `.xml` suffix cleanly without going through /api/.
 
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {

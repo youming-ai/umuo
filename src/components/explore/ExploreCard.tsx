@@ -16,13 +16,18 @@ function scoreValue(value: number): number {
   return Math.max(0, Math.min(100, Math.round(value)));
 }
 
-/** Thin meter carrying the AI quality score. Inline in a row, top edge on a card. */
-function Signal({ score }: { score: number }) {
-  return (
-    <span className="hidden h-0.5 w-8 shrink-0 bg-line sm:block" aria-hidden="true">
-      <span className="block h-full bg-pitch" style={{ width: `${score}%` }} />
-    </span>
-  );
+/**
+ * Accent for a 0–100 signal score. Both meters on the card use it — the top
+ * strip's width is AI quality (the desk's confidence in the article), the
+ * bottom strip's is freshness (how recent the story is) — so the same colour
+ * language reads across both: high (pitch) is "the desk endorses this", mid
+ * (amber) is "useable, take with a grain of salt", low (live) is "low
+ * confidence, treat as noise".
+ */
+function signalAccent(score: number): 'pitch' | 'amber' | 'live' {
+  if (score >= 75) return 'pitch';
+  if (score >= 45) return 'amber';
+  return 'live';
 }
 
 export default function ExploreCard({
@@ -56,18 +61,34 @@ export default function ExploreCard({
           <span className="ds-caption hidden shrink-0 uppercase tracking-data text-chalkdim lg:block">
             {typeLabel(article.articleType)}
           </span>
-          <Signal score={score} />
+          {/* List rows are tight: a single shared accent dot replaces the two
+              edge meters. Color still encodes the quality band. */}
+          <span
+            aria-hidden="true"
+            className="hidden h-2 w-2 shrink-0 rounded-pill sm:inline-block"
+            style={{ backgroundColor: `rgb(var(--c-${signalAccent(score)}))` }}
+          />
           <span className="ds-caption shrink-0 tabular-nums text-chalkdim">{date}</span>
-          <span className="sr-only">AI signal {score} of 100</span>
+          <span className="sr-only">
+            AI signal {score} of 100, published {date}
+          </span>
         </a>
       </li>
     );
   }
 
+  const accent = signalAccent(score);
+  const freshness = scoreValue(article.freshnessScore);
   return (
     <article
       className="ds-signal mb-3 overflow-hidden break-inside-avoid rounded-card border border-line/40 bg-panel/70"
-      style={{ '--signal': `${score}%` } as React.CSSProperties}
+      style={
+        {
+          '--signal': `${score}%`,
+          '--signal-accent': `var(--c-${accent})`,
+          '--fresh': `${freshness}%`,
+        } as React.CSSProperties
+      }
     >
       <div className="flex items-center gap-2 border-b border-line/40 px-3 py-1.5 ds-caption text-pitch">
         <span aria-hidden="true">&gt;_</span>
@@ -106,10 +127,24 @@ export default function ExploreCard({
           <p className="mt-1 flex items-center gap-2 ds-caption text-chalkdim">
             <span className="truncate">{article.sourceName || domain}</span>
             <span className="ml-auto shrink-0 tabular-nums">{date}</span>
-            <span className="sr-only">AI signal {score} of 100</span>
+            <span className="sr-only">
+              AI signal {score} of 100, freshness {freshness}, published {date}
+            </span>
           </p>
         </div>
       </a>
+
+      {/* Bottom freshness strip — synced to the same accent as the top signal.
+          A reader can tell quality + age of the story at a glance. */}
+      <span aria-hidden="true" className="block h-0.5 w-full ds-fresh">
+        <span
+          className="block h-full"
+          style={{
+            width: `${freshness}%`,
+            backgroundColor: `rgb(var(--c-${accent}))`,
+          }}
+        />
+      </span>
     </article>
   );
 }
