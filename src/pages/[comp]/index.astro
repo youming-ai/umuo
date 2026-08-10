@@ -16,9 +16,9 @@ const [initialData, initialFilters] = await Promise.all([
   getExploreFilters(comp, env, ctx),
 ]);
 ---
-<Layout title={`umuo — ${competition.label} football news`} showTicker={false} showHeader={false}>
-  {/* No LeftNav here: it renders a single self-referential "News" link, and the
-      rail inside ExploreView already carries the competition index. */}
+<Layout title={`umuo — ${competition.label} football news`}>
+  {/* No left rail here: the ExploreView toolbar already carries the
+      competition index. */}
   <main>
     <ExploreView
       initialData={initialData}

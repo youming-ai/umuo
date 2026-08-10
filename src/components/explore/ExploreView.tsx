@@ -2,7 +2,6 @@ import type { FormEvent, ReactNode } from 'react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { FOOTBALL_COMPETITIONS } from '../../competitions';
 import type { ExploreFeed, ExploreFilterOption, ExploreFilterSet } from '../../types';
-import { pathFor } from '../../utils/router';
 import Logo from '../Logo';
 import ThemeSwitcher from '../ThemeSwitcher';
 import ExploreCard from './ExploreCard';
@@ -223,9 +222,7 @@ export default function ExploreView({
         allLabel="All football"
         options={initialFilters.competitions}
         value={initialComp}
-        hrefFor={(value) =>
-          value ? pathFor({ kind: 'section', comp: value, section: 'news' }) : '/'
-        }
+        hrefFor={(value) => (value ? `/${value}` : '/')}
       />
       <FilterGroup
         title="Topics"
@@ -272,11 +269,11 @@ export default function ExploreView({
 
   return (
     <div>
-      {/* The one sticky bar on this page — the shell's Header is switched off
-          here, so the wordmark and the theme switcher live in this row rather
-          than in a second near-empty bar above it. Pinned to --h-bar on lg
-          (guaranteed one row) because the rail sticks below it; it wraps freely
-          below lg, where the rail is a drawer and nothing offsets by it. */}
+      {/* The one sticky bar on the page — the wordmark and the theme switcher
+          live in this row (the shell no longer ships its own header). Pinned to
+          --h-bar on lg (guaranteed one row) because the rail sticks below it;
+          it wraps freely below lg, where the rail is a drawer and nothing
+          offsets by it. */}
       <div className="sticky top-0 z-30 flex flex-wrap items-center gap-2 border-b border-line/40 bg-night/95 px-3 py-1.5 backdrop-blur-md lg:h-[var(--h-bar)] lg:flex-nowrap lg:py-0">
         <Logo />
 

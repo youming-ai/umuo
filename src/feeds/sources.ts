@@ -131,7 +131,7 @@ const ESPN_SOURCES: FeedSource[] = Object.values(FOOTBALL_COMPETITIONS).map((com
   id: `espn-${competition.key}`,
   kind: 'api-json',
   name: `ESPN ${competition.label}`,
-  url: buildUrl(competition, 'news'),
+  url: buildUrl(competition),
   sport: 'soccer',
   comp: competition.key,
   authorityScore: 86,

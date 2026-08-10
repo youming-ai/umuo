@@ -11,15 +11,15 @@
 2. **AI curation** — use an LLM (Gemini) to classify, tag, summarize, score, and de-duplicate articles.
 3. **Explorer UI** — redesign the news surface around category/source filters, a search bar, and a dense card grid (poche.app/explore style).
 4. **Cloudflare-native backend** — store articles, sources, and metadata in Cloudflare D1; keep the existing KV cache for hot reads; run ingest workers via Cron + Queues; call Gemini REST for all LLM/embedding work.
-5. **Backwards compatibility** — keep ESPN scoreboards, standings, match detail, and per-competition sections intact; the new feed is an additional layer that can optionally replace the news tab over time.
+5. **Product scope (updated 2026)** — the ESPN scoreboard plane (scoreboards, standings, match detail, per-competition sections) was removed after this RFC was written; news ingestion + AI curation is the entire product, and ESPN survives only as one of the ~20 ingest sources.
 
 ## 2. Existing Architecture Recap
 
 - **Astro 7 SSR + React islands** on Cloudflare Workers (`workerd`).
 - **Data layer** (`src/data/api.ts`): KV-backed stale-while-revalidate, in-flight coalescing, serve-stale-on-outage. Used by both SSR pages and the `/api/*` Worker bridge (`worker/index.ts`).
-- **News today**: `getCompNews`/`getAggregatedNews` fetch ESPN per-league news; `NewsItem` is rendered by `NewsCard` in `NewsView`/`HomeView`.
+- **News today**: the D1 explore feed (`getExploreFeed`/`getExploreFilters`) renders as the masonry board; ESPN per-league news is one of the ~20 ingest sources.
 - **DB/storage**: only KV `CACHE` binding today (`wrangler.jsonc`).
-- **UI shell**: 3-column `Layout.astro`, `Header.astro` top sport bar, `LeftNav.astro` per-comp sections, `HomeView.tsx` vertical feed.
+- **UI shell**: `Layout.astro` shell (head/meta/theme/PWA + `Footer`); the Explore pages carry the wordmark and theme switcher in their own toolbar.
 
 ## 3. AI Aggregation Mechanism
 

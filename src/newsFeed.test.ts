@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseNewsFeed, prioritizeNewsForComp } from './newsFeed';
-import type { NewsItem } from './types';
+import { parseNewsFeed } from './newsFeed';
 
 const feed = {
   headlines: [
@@ -99,50 +98,5 @@ describe('parseNewsFeed', () => {
         tags: [],
       },
     ]);
-  });
-});
-
-// Minimal NewsItem factory for sort tests.
-function newsItem(id: string, tags: NewsItem['tags']): NewsItem {
-  return {
-    id,
-    headline: id,
-    description: '',
-    published: '',
-    byline: '',
-    imageUrl: '',
-    link: '',
-    tags,
-  };
-}
-
-describe('prioritizeNewsForComp', () => {
-  it('floats items matching the competition league slug to the top', () => {
-    const items = [
-      newsItem('generic', [{ kind: 'league', label: 'Soccer' }]),
-      newsItem('esp', [{ kind: 'league', label: 'Spanish LALIGA', leagueSlug: 'esp.1' }]),
-    ];
-    const sorted = prioritizeNewsForComp(items, { league: 'esp.1', label: 'Spanish LALIGA' });
-    expect(sorted.map((i) => i.id)).toEqual(['esp', 'generic']);
-  });
-
-  it('matches by label substring when leagueSlug is absent', () => {
-    const items = [
-      newsItem('generic', [{ kind: 'league', label: 'Soccer' }]),
-      newsItem('epl', [{ kind: 'league', label: 'English Premier League' }]),
-    ];
-    const sorted = prioritizeNewsForComp(items, { league: 'eng.1', label: 'Premier League' });
-    expect(sorted.map((i) => i.id)).toEqual(['epl', 'generic']);
-  });
-
-  it('preserves relative order within matched and unmatched groups', () => {
-    const items = [
-      newsItem('a-generic', [{ kind: 'league', label: 'Soccer' }]),
-      newsItem('b-match', [{ kind: 'league', label: 'Premier League', leagueSlug: 'eng.1' }]),
-      newsItem('c-generic', [{ kind: 'league', label: 'Soccer' }]),
-      newsItem('d-match', [{ kind: 'league', label: 'Premier League', leagueSlug: 'eng.1' }]),
-    ];
-    const sorted = prioritizeNewsForComp(items, { league: 'eng.1', label: 'Premier League' });
-    expect(sorted.map((i) => i.id)).toEqual(['b-match', 'd-match', 'a-generic', 'c-generic']);
   });
 });
