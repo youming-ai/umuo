@@ -624,10 +624,20 @@ export interface DeskStats {
  * so 5-minute freshness is the right floor. Returns zeros on any failure —
  * a dashboard that fakes its numbers is worse than a dashboard that blanks.
  */
-export async function getDeskStats(env: Env, ctx: ExecutionContext): Promise<DeskStats> {
+export async function getDeskStats(
+  env: Env,
+  ctx: ExecutionContext,
+  comp?: string,
+): Promise<DeskStats> {
   try {
+    // The per-competition variant counts articles within `comp`; `fetched` is
+    // left as the global input tally because source_health has no comp column
+    // and pretending otherwise would mean claiming "scanned for Premier League"
+    // when the scan was global.
+    const compFilter = comp && Object.hasOwn(FOOTBALL_COMPETITIONS, comp) ? comp : '';
+    const cacheKey = compFilter ? `desk:stats:v1:comp:${compFilter}` : 'desk:stats:v1';
     const response = await runCached(
-      'desk:stats:v1',
+      cacheKey,
       async () => {
         if (!env.DB) throw new Error('D1 binding is required');
         // Whole UTC day so the count resets visibly on the page at 00:00 UTC
@@ -640,23 +650,26 @@ export async function getDeskStats(env: Env, ctx: ExecutionContext): Promise<Des
         // input, plus two filtered counts on articles for the outcomes.
         // The MAX() is fine here — articles.id is the PK and `created_at` is
         // indexed for the retention sweep, so the planner picks the covering
-        // index without a full scan.
+        // index without a full scan. The per-comp variant adds `AND comp = ?`
+        // to the three article-side statements; the input tally stays global.
+        const compWhere = compFilter ? ' AND comp = ?' : '';
+        const compBinding = compFilter ? [compFilter] : [];
         const [fetched, published, filtered, lastPublished] = await env.DB.batch([
           env.DB.prepare(
             'SELECT COALESCE(SUM(articles_fetched_count), 0) AS total FROM source_health',
           ),
           env.DB.prepare(
             `SELECT COUNT(*) AS total FROM articles
-              WHERE status = 'published' AND created_at >= ?`,
-          ).bind(since),
+              WHERE status = 'published' AND created_at >= ?${compWhere}`,
+          ).bind(since, ...compBinding),
           env.DB.prepare(
             `SELECT COUNT(*) AS total FROM articles
-              WHERE status = 'filtered' AND created_at >= ?`,
-          ).bind(since),
+              WHERE status = 'filtered' AND created_at >= ?${compWhere}`,
+          ).bind(since, ...compBinding),
           env.DB.prepare(
             `SELECT MAX(created_at) AS newest FROM articles
-              WHERE status = 'published'`,
-          ),
+              WHERE status = 'published'${compWhere}`,
+          ).bind(...compBinding),
         ]);
         const fetchedCount = firstNumber(fetched.results) ?? 0;
         const publishedCount = firstNumber(published.results) ?? 0;

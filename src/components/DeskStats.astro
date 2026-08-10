@@ -9,14 +9,20 @@
 //   live   = filtered   (the work it rejected);
 //   chalk  = fetched    (the work it scanned, neutral voice).
 // One signal axis, three meanings.
+//
+// `scopeLabel` is the "for X" tag the strip leads with. The home page
+// passes "All football"; the league pages pass "Premier League". Leaving
+// it empty renders without the leading tag, for layouts that prefer the
+// bare stats.
 
 import type { DeskStats } from '../data/api';
 
 interface Props {
   stats: DeskStats;
+  scopeLabel?: string;
 }
 
-const { stats } = Astro.props;
+const { stats, scopeLabel = 'All football' } = Astro.props;
 
 // HH:MM UTC of the most recently published article. The AI desk pauses
 // between matches; an "ago" relative string is the wrong shape because
@@ -27,12 +33,17 @@ const lastPublishedLabel =
     : '—';
 
 const hasAnyActivity = stats.fetched + stats.published + stats.filtered > 0;
+const ariaScope = scopeLabel === 'All football' ? '' : ` for ${scopeLabel}`;
 ---
 
 <dl
   class="flex flex-wrap items-baseline gap-x-5 gap-y-1 border-b border-line/30 px-3 py-2 ds-caption uppercase tracking-caption"
-  aria-label="Today's desk activity"
+  aria-label={`Today's desk activity${ariaScope}`}
 >
+  <div class="flex items-baseline gap-1.5">
+    <dt class="text-chalkdim">desk</dt>
+    <dd class="text-chalk" data-test="desk-scope">{scopeLabel}</dd>
+  </div>
   <div class="flex items-baseline gap-1.5">
     <dt class="text-chalkdim">scan</dt>
     <dd class="tabular-nums text-chalk" data-test="desk-fetched">{stats.fetched}</dd>
@@ -49,6 +60,15 @@ const hasAnyActivity = stats.fetched + stats.published + stats.filtered > 0;
     <dt class="text-chalkdim">last</dt>
     <dd class="tabular-nums text-chalk" data-test="desk-last">{lastPublishedLabel}</dd>
   </div>
+  <a
+    href="/api/explore/rss"
+    class="rounded-pill border border-line/40 px-2 py-0.5 uppercase tracking-caption text-chalkdim transition-colors hover:border-pitch/60 hover:text-pitch ds-press"
+    data-test="desk-feed-link"
+    rel="alternate"
+    type="application/rss+xml"
+  >
+    + feed
+  </a>
   {!hasAnyActivity && (
     <p class="w-full text-chalkdim normal-case tracking-normal">
       The desk has not run an ingest tick today yet.

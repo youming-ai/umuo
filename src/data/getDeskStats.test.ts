@@ -106,4 +106,45 @@ describe('getDeskStats', () => {
     expect(stats.filtered).toBe(0);
     expect(stats.lastPublishedAt).toBe(0);
   });
+
+  it('scopes published, filtered, and lastPublishedAt to a competition when given', async () => {
+    const env = mockEnv([
+      { total: 1247 }, // source_health SUM — global, never per-comp
+      { total: 24 }, // published WHERE comp = ?
+      { total: 3 }, // filtered WHERE comp = ?
+      { newest: 1786900000000 },
+    ]);
+    const stats = await getDeskStats(env, mockCtx(), 'eng.1');
+    // The input tally is global on purpose: source_health has no comp column.
+    expect(stats).toEqual({
+      fetched: 1247,
+      published: 24,
+      filtered: 3,
+      lastPublishedAt: 1786900000000,
+    });
+  });
+
+  it('uses a different KV key for the per-comp variant', async () => {
+    // Regression: if home (`comp=undefined`) and `/eng.1` share a cache key,
+    // every SSR page will pin the home numbers for the league pages. Confirm
+    // they diverge by reading the underlying cache key passed in.
+    const seenKeys: string[] = [];
+    const kvGet = vi.fn().mockImplementation(async (key: string) => {
+      seenKeys.push(key);
+      return null;
+    });
+    const home = mockEnv([{ total: 1 }, { total: 1 }, { total: 1 }, { newest: 1 }], kvGet);
+    const league = mockEnv([{ total: 1 }, { total: 1 }, { total: 1 }, { newest: 1 }], kvGet);
+    await getDeskStats(home, mockCtx());
+    await getDeskStats(league, mockCtx(), 'uefa.champions');
+    expect(seenKeys).toContain('desk:stats:v1');
+    expect(seenKeys).toContain('desk:stats:v1:comp:uefa.champions');
+  });
+
+  it('ignores an unknown comp and falls back to the global path', async () => {
+    const env = mockEnv([{ total: 50 }, { total: 10 }, { total: 2 }, { newest: 99 }]);
+    const stats = await getDeskStats(env, mockCtx(), 'nope.not.in.registry');
+    // No per-comp filter applied; counts read the global art.
+    expect(stats.published).toBe(10);
+  });
 });
