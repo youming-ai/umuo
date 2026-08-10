@@ -1,7 +1,7 @@
 // Pure, defensive parse of ESPN's "now" news JSON into the app's NewsItem[].
 // ESPN JSON is untyped/heterogeneous (categories mix team/athlete/league/guid/
-// topic/…), so coerce with obj()/arr()/str() rather than trusting shapes —
-// same discipline as the sport adapters. No DOM/React: unit-testable in isolation.
+// topic/…), so coerce with obj()/arr()/str() rather than trusting shapes.
+// No DOM/React: unit-testable in isolation.
 import type { NewsItem, NewsTag } from './types';
 import { arr, obj, str } from './utils/coerce';
 import { slugify } from './utils/helpers';

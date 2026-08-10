@@ -5,7 +5,8 @@
 // pages; what survives of ESPN here is the league-scoped NEWS feed, which the
 // ingest pipeline polls as one of its sources.
 
-export type Sport = 'soccer' | 'basketball';
+// Football-only product: the union existed for the removed basketball plane.
+export type Sport = 'soccer';
 
 export interface Competition {
   key: string; // URL first segment, e.g. 'eng.1'

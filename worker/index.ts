@@ -1,6 +1,6 @@
 /// <reference types="@cloudflare/workers-types" />
 
-import { exploreQueryFromUrl, type Env, serveExplore, serveExploreFilters } from '../src/data/api';
+import { type Env, exploreQueryFromUrl, serveExplore, serveExploreFilters } from '../src/data/api';
 
 // Thin HTTP wrapper around the shared data layer (src/data/api.ts). The SWR
 // primitives + composed serve* functions live there so Astro SSR pages can
