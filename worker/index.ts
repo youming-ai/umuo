@@ -1,6 +1,12 @@
 /// <reference types="@cloudflare/workers-types" />
 
-import { type Env, exploreQueryFromUrl, serveExplore, serveExploreFilters } from '../src/data/api';
+import {
+  type Env,
+  exploreQueryFromUrl,
+  serveExplore,
+  serveExploreFilters,
+  serveExploreRss,
+} from '../src/data/api';
 
 // Thin HTTP wrapper around the shared data layer (src/data/api.ts). The SWR
 // primitives + composed serve* functions live there so Astro SSR pages can
@@ -14,6 +20,14 @@ export default {
       if (url.pathname === '/api/explore') {
         if (request.method !== 'GET') return new Response('Method not allowed', { status: 405 });
         return serveExplore(exploreQueryFromUrl(url), env, ctx);
+      }
+      // RSS 2.0 surface for the same Explore data. A reader (NetNewsWire,
+      // Feedly, Inoreader, Reeder) polls the same URL with no special config;
+      // q / cursor are intentionally dropped — a feed is a head, not a query.
+      if (url.pathname === '/api/explore/rss') {
+        if (request.method !== 'GET') return new Response('Method not allowed', { status: 405 });
+        const selfUrl = `${url.protocol}//${url.host}${url.pathname}`;
+        return serveExploreRss(exploreQueryFromUrl(url), selfUrl, env, ctx);
       }
       if (url.pathname === '/api/explore/filters') {
         if (request.method !== 'GET') return new Response('Method not allowed', { status: 405 });

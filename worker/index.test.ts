@@ -199,4 +199,26 @@ describe('fetch routing', () => {
     const res = await worker.fetch(new Request('https://x/api/nope/scoreboard'), env, mockCtx());
     expect(res.status).toBe(404);
   });
+
+  it('routes GET /api/explore/rss through serveExploreRss with the RSS content type', async () => {
+    const env = mockEnv(null);
+    const res = await worker.fetch(new Request('https://x/api/explore/rss'), env, mockCtx());
+    expect(res.status).toBe(200);
+    expect(res.headers.get('content-type')).toBe('application/rss+xml; charset=utf-8');
+    expect(res.headers.get('cache-control')).toBe('public, max-age=300');
+    const body = await res.text();
+    expect(body.startsWith('<?xml version="1.0" encoding="UTF-8"?>')).toBe(true);
+    expect(body).toContain('<rss version="2.0"');
+    expect(body).toContain('<title>umuo \u2014 AI football news</title>');
+  });
+
+  it('rejects non-GET on /api/explore/rss', async () => {
+    const env = mockEnv(null);
+    const res = await worker.fetch(
+      new Request('https://x/api/explore/rss', { method: 'POST' }),
+      env,
+      mockCtx(),
+    );
+    expect(res.status).toBe(405);
+  });
 });

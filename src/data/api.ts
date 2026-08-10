@@ -1,6 +1,7 @@
 /// <reference types="@cloudflare/workers-types" />
 
 import { FOOTBALL_COMPETITIONS } from '../competitions';
+import { renderExploreRss } from './rss';
 import type {
   ExploreArticle,
   ExploreArticleType,
@@ -367,6 +368,67 @@ export async function serveExplore(
   );
 }
 
+/**
+ * RSS 2.0 surface for the same Explore feed. A reader (NetNewsWire, Feedly,
+ * Inoreader, Reeder) polls the same URL the JSON endpoint serves and gets
+ * 50 items in stable, guid-pinned form.
+ *
+ * - Drops `q` (free-text search is a transient query, not a feed), keeps
+ *   comp/source/tag since those are bookmarks readers re-subscribe against.
+ * - Drops `cursor` (subscribers don't paginate; they take the head).
+ * - Honours the same SWR freshness/cache as the JSON endpoint, with a
+ *   slightly longer keep window so a reader that polls every 30min always
+ *   sees consistent lists.
+ * - Sets the standard `application/rss+xml` Content-Type and an
+ *   explicit Cache-Control so the reader's own HTTP cache stays warm too.
+ * - On KV read failure, falls through to a synchronous fresh render —
+ *   readers will degrade to a few stale items, never an empty feed.
+ */
+export async function serveExploreRss(
+  query: ExploreQuery,
+  selfUrl: string,
+  env: Env,
+  ctx: ExecutionContext,
+): Promise<Response> {
+  // A feed is the head of the query, nothing transient. Build a fresh
+  // normalized shape that drops search + cursor before going to KV so a
+  // cache key only carries the bookmark-worthy facets.
+  const normalized = normalizedExploreQuery({
+    ...query,
+    q: undefined,
+    cursor: undefined,
+  });
+
+  const scopeLabel = normalized.comp
+    ? (FOOTBALL_COMPETITIONS[normalized.comp]?.label ?? normalized.comp)
+    : 'All football';
+
+  const key = `explore:rss:${encodeURIComponent(JSON.stringify(normalized))}`;
+  const cached = await runCached(
+    key,
+    async () => {
+      const feed = await queryExplore(normalized, env);
+      return renderExploreRss(feed, scopeLabel, { includeAtomSelfLink: selfUrl });
+    },
+    60,
+    3600,
+    env,
+    ctx,
+  );
+
+  // Wrap the SWR's JSON-shaped response into the RSS content type a reader
+  // expects. The body is still XML; runCached only inspects the string.
+  const xCache = cached.headers.get('x-cache') ?? 'MISS';
+  return new Response(cached.body, {
+    status: cached.status,
+    headers: {
+      'content-type': 'application/rss+xml; charset=utf-8',
+      'x-cache': xCache,
+      'cache-control': 'public, max-age=300',
+    },
+  });
+}
+
 export async function getExploreFeed(
   query: ExploreQuery,
   env: Env,
@@ -526,4 +588,113 @@ export async function getExploreFilters(
   } catch {
     return EMPTY_EXPLORE_FILTERS;
   }
+}
+
+// --- "Today's desk" stats ---
+
+const EMPTY_DESK_STATS: DeskStats = {
+  fetched: 0,
+  published: 0,
+  filtered: 0,
+  lastPublishedAt: 0,
+};
+
+export interface DeskStats {
+  /** Articles pulled from upstream feeds since midnight UTC. Cumulative tally
+   *  on `source_health.articles_fetched_count`; reset only on a fresh boot. */
+  fetched: number;
+  /** Articles published to the desk since midnight UTC (status='published'). */
+  published: number;
+  /** Articles rejected as non-football or off-topic since midnight UTC
+   *  (status='filtered'); a high number next to a low published is a noisy
+   *  day, an honest AI-editing one. */
+  filtered: number;
+  /** ms epoch of the most recently published article, or 0 when the desk has
+   *  published nothing yet. */
+  lastPublishedAt: number;
+}
+
+/**
+ * The "today's desk" row the home page leads with: how many stories the desk
+ * scraped, kept, and rejected since 00:00 UTC. Always real numbers — pulled
+ * from `articles` and `source_health`, computed by D1, never made up.
+ *
+ * SWR cache `fresh=300/keep=3600`: a tap on the rail or a refresh must never
+ * hammer D1; the genuine pulse is "new ingest tick happens every 15 minutes",
+ * so 5-minute freshness is the right floor. Returns zeros on any failure —
+ * a dashboard that fakes its numbers is worse than a dashboard that blanks.
+ */
+export async function getDeskStats(env: Env, ctx: ExecutionContext): Promise<DeskStats> {
+  try {
+    const response = await runCached(
+      'desk:stats:v1',
+      async () => {
+        if (!env.DB) throw new Error('D1 binding is required');
+        // Whole UTC day so the count resets visibly on the page at 00:00 UTC
+        // — a local-day boundary would have readers on different tz see a
+        // "today" that disagrees with their clock.
+        const startOfDayUtc = new Date();
+        startOfDayUtc.setUTCHours(0, 0, 0, 0);
+        const since = startOfDayUtc.getTime();
+        // Three cheap counts in parallel: source_health aggregate for the
+        // input, plus two filtered counts on articles for the outcomes.
+        // The MAX() is fine here — articles.id is the PK and `created_at` is
+        // indexed for the retention sweep, so the planner picks the covering
+        // index without a full scan.
+        const [fetched, published, filtered, lastPublished] = await env.DB.batch([
+          env.DB.prepare(
+            'SELECT COALESCE(SUM(articles_fetched_count), 0) AS total FROM source_health',
+          ),
+          env.DB.prepare(
+            `SELECT COUNT(*) AS total FROM articles
+              WHERE status = 'published' AND created_at >= ?`,
+          ).bind(since),
+          env.DB.prepare(
+            `SELECT COUNT(*) AS total FROM articles
+              WHERE status = 'filtered' AND created_at >= ?`,
+          ).bind(since),
+          env.DB.prepare(
+            `SELECT MAX(created_at) AS newest FROM articles
+              WHERE status = 'published'`,
+          ),
+        ]);
+        const fetchedCount = firstNumber(fetched.results) ?? 0;
+        const publishedCount = firstNumber(published.results) ?? 0;
+        const filteredCount = firstNumber(filtered.results) ?? 0;
+        const lastPublishedCount = firstNumber(lastPublished.results) ?? 0;
+        return JSON.stringify({
+          fetched: fetchedCount,
+          published: publishedCount,
+          filtered: filteredCount,
+          lastPublishedAt: lastPublishedCount,
+        } satisfies DeskStats);
+      },
+      300,
+      3600,
+      env,
+      ctx,
+    );
+    if (!response.ok) return EMPTY_DESK_STATS;
+    const parsed: unknown = await response.json();
+    if (!parsed || typeof parsed !== 'object') return EMPTY_DESK_STATS;
+    const stats = parsed as Partial<DeskStats>;
+    return {
+      fetched: typeof stats.fetched === 'number' ? stats.fetched : 0,
+      published: typeof stats.published === 'number' ? stats.published : 0,
+      filtered: typeof stats.filtered === 'number' ? stats.filtered : 0,
+      lastPublishedAt: typeof stats.lastPublishedAt === 'number' ? stats.lastPublishedAt : 0,
+    };
+  } catch (error) {
+    console.error('[data] desk stats lookup failed:', error);
+    return EMPTY_DESK_STATS;
+  }
+}
+
+// D1's `.all<T>()` returns `{results: T[]} | null`. For the desk-stats SUM/COUNT
+// rows we expect exactly one object, so reaching the first column is enough.
+function firstNumber(rows: unknown): number | null {
+  if (!Array.isArray(rows) || rows.length === 0) return null;
+  const first = rows[0] as Record<string, unknown>;
+  const value = first.total ?? first.newest;
+  return typeof value === 'number' && Number.isFinite(value) ? value : null;
 }

@@ -1,0 +1,57 @@
+---
+// Pure SSR. Reads the desk-stats object fed in from the page and renders
+// a one-line mono-caption "today's desk" strip. No React, no hydration —
+// these numbers update with each SSR hit (every navigation), and the
+// SWR inside `getDeskStats` keeps the D1 hit rate low.
+//
+// The three colours track the same accent rules the cards do:
+//   pitch  = published  (the work the desk kept);
+//   live   = filtered   (the work it rejected);
+//   chalk  = fetched    (the work it scanned, neutral voice).
+// One signal axis, three meanings.
+
+import type { DeskStats } from '../data/api';
+
+interface Props {
+  stats: DeskStats;
+}
+
+const { stats } = Astro.props;
+
+// HH:MM UTC of the most recently published article. The AI desk pauses
+// between matches; an "ago" relative string is the wrong shape because
+// international readers parse it inconsistently — clock time is honest.
+const lastPublishedLabel =
+  stats.lastPublishedAt > 0
+    ? new Date(stats.lastPublishedAt).toISOString().slice(11, 16) + ' UTC'
+    : '—';
+
+const hasAnyActivity = stats.fetched + stats.published + stats.filtered > 0;
+---
+
+<dl
+  class="flex flex-wrap items-baseline gap-x-5 gap-y-1 border-b border-line/30 px-3 py-2 ds-caption uppercase tracking-caption"
+  aria-label="Today's desk activity"
+>
+  <div class="flex items-baseline gap-1.5">
+    <dt class="text-chalkdim">scan</dt>
+    <dd class="tabular-nums text-chalk" data-test="desk-fetched">{stats.fetched}</dd>
+  </div>
+  <div class="flex items-baseline gap-1.5">
+    <dt class="text-chalkdim">keep</dt>
+    <dd class="tabular-nums font-bold text-pitch" data-test="desk-published">{stats.published}</dd>
+  </div>
+  <div class="flex items-baseline gap-1.5">
+    <dt class="text-chalkdim">reject</dt>
+    <dd class="tabular-nums text-live" data-test="desk-filtered">{stats.filtered}</dd>
+  </div>
+  <div class="ml-auto flex items-baseline gap-1.5" aria-live="off">
+    <dt class="text-chalkdim">last</dt>
+    <dd class="tabular-nums text-chalk" data-test="desk-last">{lastPublishedLabel}</dd>
+  </div>
+  {!hasAnyActivity && (
+    <p class="w-full text-chalkdim normal-case tracking-normal">
+      The desk has not run an ingest tick today yet.
+    </p>
+  )}
+</dl>
