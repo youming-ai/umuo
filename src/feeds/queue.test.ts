@@ -2,17 +2,15 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Env } from '../data/api';
 import { processNewsQueue } from './queue';
-import type { RawArticle } from './types';
+import type { ArticleEnrichment, RawArticle } from './types';
 
 const storedArticleId = vi.hoisted(() => vi.fn());
 const enrichBatch = vi.hoisted(() => vi.fn());
 const storeEnrichedArticle = vi.hoisted(() => vi.fn());
-const recordFailedRun = vi.hoisted(() => vi.fn());
 vi.mock('./enrich', () => ({
   storedArticleId,
   enrichBatch,
   storeEnrichedArticle,
-  recordFailedRun,
 }));
 
 const env = { DB: {} } as unknown as Env;
@@ -35,10 +33,9 @@ describe('processNewsQueue', () => {
     vi.spyOn(console, 'error').mockImplementation(() => {});
     storedArticleId.mockResolvedValue(null);
     enrichBatch.mockImplementation(async (_e, articles: RawArticle[]) =>
-      articles.map(() => ({ isFootball: true, tags: [] })),
+      articles.map(() => ({ isFootball: true, tags: [] }) as unknown as ArticleEnrichment),
     );
     storeEnrichedArticle.mockResolvedValue({ id: 'x', status: 'stored' });
-    recordFailedRun.mockResolvedValue(undefined);
   });
 
   it('spends one enrichment call for the whole batch', async () => {
@@ -92,7 +89,6 @@ describe('processNewsQueue', () => {
     expect(c.ack).toHaveBeenCalledOnce();
     expect(b.ack).not.toHaveBeenCalled();
     expect(b.retry).toHaveBeenCalledOnce();
-    expect(recordFailedRun).toHaveBeenCalledOnce();
   });
 
   it('pairs each enrichment with the article at the same index', async () => {
@@ -106,5 +102,23 @@ describe('processNewsQueue', () => {
     expect(storeEnrichedArticle.mock.calls[0]![2].tags).toEqual(['first']);
     expect(storeEnrichedArticle.mock.calls[1]![1].fingerprint).toBe('b');
     expect(storeEnrichedArticle.mock.calls[1]![2].tags).toEqual(['second']);
+  });
+
+  it('isolates a poison article to its own retry without losing the batch', async () => {
+    // enrichBatch returns null for article 'b' — the poison-article contract.
+    // The other two articles must still be acked; only 'b' retries.
+    enrichBatch.mockResolvedValue([
+      { isFootball: true, tags: ['a'] },
+      null,
+      { isFootball: true, tags: ['c'] },
+    ]);
+    const [a, b, c] = [message('a'), message('b'), message('c')];
+    await run([a, b, c]);
+
+    expect(a.ack).toHaveBeenCalledOnce();
+    expect(c.ack).toHaveBeenCalledOnce();
+    expect(storeEnrichedArticle).toHaveBeenCalledTimes(2);
+    expect(b.ack).not.toHaveBeenCalled();
+    expect(b.retry).toHaveBeenCalledOnce();
   });
 });

@@ -171,33 +171,47 @@ async function requestGemini(
   return response;
 }
 
+/**
+ * Shared retry/backoff scaffold for the two enrichment paths. 3 attempts,
+ * backoff `500 * (attempt + 1)`, retries only on 5xx/429/throw. A 4xx is a
+ * permanent failure (bad request) and throws immediately. Returns whatever
+ * `parse` extracts from a successful response.
+ */
+async function callWithRetry<T>(
+  request: (attempt: number) => Promise<Response>,
+  parse: (text: string) => T,
+  failLabel: string,
+): Promise<T> {
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const response = await request(attempt);
+      if (response.ok) {
+        const text = outputText(await response.json());
+        return parse(text);
+      }
+      if (response.status < 500 && response.status !== 429) {
+        throw new Error(`${failLabel} failed with ${response.status}`);
+      }
+      if (attempt === 2) throw new Error(`${failLabel} failed with ${response.status}`);
+    } catch (error) {
+      if (attempt === 2) throw error;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 500 * (attempt + 1)));
+  }
+  throw new Error(`${failLabel} failed`);
+}
+
 export async function enrichWithGemini(
   apiKey: string,
   model: string,
   article: RawArticle,
 ): Promise<ArticleEnrichment> {
   if (!apiKey) throw new Error('GEMINI_API_KEY is not configured');
-
-  for (let attempt = 0; attempt < 3; attempt++) {
-    try {
-      const response = await requestGemini(apiKey, model, promptFor(article), attempt);
-      if (response.ok) {
-        const text = outputText(await response.json());
-        const parsed = JSON.parse(text) as unknown;
-        return enrichmentSchema.parse(parsed);
-      }
-
-      if (response.status < 500 && response.status !== 429) {
-        throw new Error(`Gemini request failed with ${response.status}`);
-      }
-      if (attempt === 2) throw new Error(`Gemini request failed with ${response.status}`);
-    } catch (error) {
-      if (attempt === 2) throw error;
-    }
-    await new Promise((resolve) => setTimeout(resolve, 500 * (attempt + 1)));
-  }
-
-  throw new Error('Gemini enrichment failed');
+  return callWithRetry(
+    (attempt) => requestGemini(apiKey, model, promptFor(article), attempt),
+    (text) => enrichmentSchema.parse(JSON.parse(text) as unknown),
+    'Gemini request',
+  );
 }
 
 /**
@@ -217,36 +231,18 @@ export async function enrichBatchWithGemini(
 ): Promise<ArticleEnrichment[]> {
   if (!apiKey) throw new Error('GEMINI_API_KEY is not configured');
   if (articles.length === 0) return [];
-
-  for (let attempt = 0; attempt < 3; attempt++) {
-    try {
-      const response = await requestGemini(
-        apiKey,
-        model,
-        promptForBatch(articles),
-        attempt,
-        BATCH_RESPONSE_SCHEMA,
-      );
-      if (response.ok) {
-        const text = outputText(await response.json());
-        const { results } = batchSchema.parse(JSON.parse(text) as unknown);
-        if (results.length !== articles.length) {
-          throw new Error(
-            `Gemini returned ${results.length} results for ${articles.length} articles`,
-          );
-        }
-        return results;
+  return callWithRetry(
+    (attempt) =>
+      requestGemini(apiKey, model, promptForBatch(articles), attempt, BATCH_RESPONSE_SCHEMA),
+    (text) => {
+      const { results } = batchSchema.parse(JSON.parse(text) as unknown);
+      if (results.length !== articles.length) {
+        throw new Error(
+          `Gemini returned ${results.length} results for ${articles.length} articles`,
+        );
       }
-
-      if (response.status < 500 && response.status !== 429) {
-        throw new Error(`Gemini batch request failed with ${response.status}`);
-      }
-      if (attempt === 2) throw new Error(`Gemini batch request failed with ${response.status}`);
-    } catch (error) {
-      if (attempt === 2) throw error;
-    }
-    await new Promise((resolve) => setTimeout(resolve, 500 * (attempt + 1)));
-  }
-
-  throw new Error('Gemini batch enrichment failed');
+      return results;
+    },
+    'Gemini batch request',
+  );
 }
