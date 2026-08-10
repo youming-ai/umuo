@@ -20,9 +20,11 @@ it('renders the Explore shell server-side without touching browser globals', () 
   );
   expect(html).toContain('umu');
   expect(html).toContain('Search stories');
-  // Icon-less until mount: an icon in the SSR markup would mean the switcher
-  // guessed a theme on the server.
-  expect(html).not.toContain('<svg');
+  // The search magnifier is an intentional SSR icon (static, theme-neutral).
+  // The theme switcher must NOT guess a theme on the server — an icon in its
+  // button would mean it read localStorage during SSR, which would mismatch
+  // on hydration. Scope the guard to the switcher's aria-label.
+  expect(html).not.toMatch(/<button[^>]*aria-label="[^"]*theme[^"]*"[\s\S]*?<svg/i);
 });
 
 it('renders article cards server-side', () => {
