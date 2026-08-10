@@ -32,6 +32,8 @@ Cloudflare 能力分工：
 
 - `/`：AI football news 首页，包含搜索、competition/source/tag 筛选的资讯探索页。
 - `/<competition>`：某个足球联赛的 AI 新闻页，例如 `/eng.1`、`/esp.1`。
+- `/rss.xml`、`/<competition>/rss.xml`：可订阅的 RSS 2.0 源，读者可加入 NetNewsWire / Feedly 等阅读器，每个联赛一份独立的 feed。
+- `/sitemap.xml`：站点地图（页面 + 一份 feed/联赛对）。
 
 公开导航和新资讯链路只使用 `FOOTBALL_COMPETITIONS`。旧的 NBA/ESPN 比赛数据模块仍保留在代码中，用于兼容已有测试和历史链接；它们不再出现在新的资讯导航和首页数据链路中，可在后续清理阶段移除。
 
@@ -43,6 +45,8 @@ src/agents/                FootballNewsAgent Durable Object
 src/data/api.ts            D1 Explore queries + KV cache + legacy ESPN composers
 src/components/explore/   Explore SSR island and article cards
 src/pages/index.astro     global Explore page
+src/pages/rss.xml.ts      RSS 2.0 endpoint at /rss.xml
+src/pages/[comp]/rss.xml.ts   per-competition RSS at /<comp>/rss.xml
 worker/entrypoint.ts       Astro custom Worker + Cron + Queue handlers
 worker/index.ts            legacy API bridge and /api/explore dispatcher
 migrations/                D1 SQL migrations
