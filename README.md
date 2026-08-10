@@ -81,15 +81,16 @@ bunx wrangler deploy --dry-run --outdir=.wrangler/dry-run
 
 ## Cloudflare 部署
 
-首次部署需要准备 D1 和两个 Queue：
+首次部署需要准备 D1、KV 和两个 Queue：
 
 ```bash
 bunx wrangler d1 create umuo-content
+bunx wrangler kv namespace create CACHE
 bunx wrangler queues create umuo-news-ingest
 bunx wrangler queues create umuo-news-ingest-dlq
 ```
 
-把 D1 返回的 `database_id` 补进 `wrangler.jsonc` 的 `d1_databases`，然后执行：
+把 D1 返回的 `database_id` 和 KV 返回的 `id` 分别补进 `wrangler.jsonc` 的 `d1_databases[0]` 和 `kv_namespaces[0]`，然后执行：
 
 ```bash
 bunx wrangler d1 migrations apply umuo-content --remote
@@ -107,5 +108,5 @@ bunx wrangler deploy
 - 所有 D1 查询使用 prepared statements；批量写入使用 D1 `batch()`。
 - 文章只会在 AI 判定 `isFootball=true` 时进入 `published`，非足球内容写入 D1 的 `filtered` 状态，便于审计和调参。
 - URL 去掉追踪参数，文章以 canonical URL 和 SHA-256 fingerprint 双重去重。
-- Gemini、源站或 D1 临时异常不会让 SSR 页面崩溃；Explore 无可用 D1 数据时显示空态，兼容的旧 ESPN API 继续使用 KV stale fallback。
+- Gemini、源站或 D1 临时异常不会让 SSR 页面崩溃；Explore 无可用 D1 数据时显示空态；KV 读失败降冷路径、上游失败返 stale。
 - 生产代码只依赖 Web/Workers API，不依赖 Node 或 Bun runtime API。

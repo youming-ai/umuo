@@ -23,7 +23,7 @@
     "directory": "./dist",
     "binding": "ASSETS"
   },
-  "kv_namespaces": [{ "binding": "CACHE", "id": "1ec03cc00a6d43068e3d7c4473973fd3" }],
+  "kv_namespaces": [{ "binding": "CACHE", "id": "b5d6927aea7345efaddf56bcc2878e89" }],
   "d1_databases": [
     {
       "binding": "DB",
