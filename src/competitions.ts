@@ -33,8 +33,6 @@ export const FOOTBALL_COMPETITIONS: Record<string, Competition> = {
   'uefa.champions': league('uefa.champions', 'Champions League'),
 };
 
-export const DEFAULT_COMPETITION = 'eng.1';
-
 const ESPN = 'https://site.api.espn.com/apis';
 
 export function buildUrl(c: Competition): string {

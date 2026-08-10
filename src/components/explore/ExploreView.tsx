@@ -208,6 +208,35 @@ export default function ExploreView({
     return () => observer.disconnect();
   }, [nextCursor, loading]);
 
+  // Track which user-driven facets are still applied (everything except comp,
+  // which is the route itself). Used by the ActiveFilterChips row below the bar.
+  const activeFacets: { key: string; label: string; onClear: () => void }[] = [];
+  if (query.source) {
+    const sourceOption = initialFilters.sources.find((option) => option.value === query.source);
+    activeFacets.push({
+      key: `source:${query.source}`,
+      label: sourceOption?.label ?? query.source,
+      onClear: () => changeFilter('source', ''),
+    });
+  }
+  if (query.tag) {
+    activeFacets.push({
+      key: `tag:${query.tag}`,
+      label: query.tag,
+      onClear: () => changeFilter('tag', ''),
+    });
+  }
+  if (query.q) {
+    activeFacets.push({
+      key: `q:${query.q}`,
+      label: `“${query.q}”`,
+      onClear: () => {
+        setDraftSearch('');
+        setQuery((previous) => ({ ...previous, q: '', cursor: '' }));
+      },
+    });
+  }
+
   const rail: ReactNode = (
     <div className="space-y-4">
       <FilterGroup
@@ -269,15 +298,21 @@ export default function ExploreView({
 
   return (
     <div>
-      {/* The one sticky bar on the page — the wordmark and the theme switcher
-          live in this row (the shell no longer ships its own header). Pinned to
-          --h-bar on lg (guaranteed one row) because the rail sticks below it;
-          it wraps freely below lg, where the rail is a drawer and nothing
-          offsets by it. */}
-      <div className="sticky top-0 z-30 flex flex-wrap items-center gap-2 border-b border-line/40 bg-night/95 px-3 py-1.5 backdrop-blur-md lg:h-[var(--h-bar)] lg:flex-nowrap lg:py-0">
-        <Logo />
+      {/* The one sticky bar on the page — three groups, visual order:
+            [identity · scope]  [search]  [preferences].
+          Identity owns the left rail (logo + page title), search lives in the
+          middle as the dominant affordance, view theme/preference live on the
+          right. A row here does three different jobs; the markup and the
+          flex roles make that legible. */}
+      <div className="sticky top-0 z-30 flex flex-wrap items-center gap-x-3 gap-y-1.5 border-b border-line/40 bg-night/95 px-3 py-1.5 backdrop-blur-md lg:h-[var(--h-bar)] lg:flex-nowrap lg:py-0">
+        <div className="flex min-w-0 items-center gap-3">
+          <Logo />
+          <h1 className="ds-caption truncate uppercase tracking-caption font-bold text-chalk">
+            {scopeLabel}
+          </h1>
+        </div>
 
-        <form onSubmit={submitSearch} className="flex min-w-0 flex-1 gap-2 sm:max-w-xs">
+        <form onSubmit={submitSearch} className="flex min-w-0 flex-1 gap-2 sm:max-w-xs lg:mx-auto">
           <label className="sr-only" htmlFor="explore-search">
             Search football news
           </label>
@@ -293,50 +328,71 @@ export default function ExploreView({
           </button>
         </form>
 
-        <h1 className="ds-caption truncate uppercase tracking-caption font-bold text-chalk">
-          {scopeLabel}
-        </h1>
-        {isFiltered && (
+        <div className="flex items-center gap-2 lg:ml-auto">
+          {/* Decodes the green strip across each card's top edge. A signature
+              nobody can read is just a stray 2px of colour. */}
+          <p className="hidden items-center gap-1.5 ds-caption text-chalkdim xl:flex">
+            <span className="h-0.5 w-6 bg-line" aria-hidden="true">
+              <span className="block h-full w-2/3 bg-pitch" />
+            </span>
+            AI signal
+          </p>
+
+          <fieldset className="ds-segmented shrink-0">
+            <legend className="sr-only">Feed layout</legend>
+            <button
+              type="button"
+              aria-pressed={viewMode === 'grid'}
+              onClick={() => setViewMode('grid')}
+              className={`ds-seg-tab min-h-7 px-3 text-xs ${viewMode === 'grid' ? 'ds-seg-tab-active' : 'ds-seg-tab-inactive'}`}
+            >
+              Grid
+            </button>
+            <button
+              type="button"
+              aria-pressed={viewMode === 'list'}
+              onClick={() => setViewMode('list')}
+              className={`ds-seg-tab min-h-7 px-3 text-xs ${viewMode === 'list' ? 'ds-seg-tab-active' : 'ds-seg-tab-inactive'}`}
+            >
+              List
+            </button>
+          </fieldset>
+
+          <ThemeSwitcher />
+        </div>
+      </div>
+
+      {activeFacets.length > 0 && (
+        // The "currently filtered" strip moved out of the bar so the bar stays a
+        // fixed set of identity/search/preference roles. Pills read as filters
+        // rather than as orphans, and a single Clear button does the obvious
+        // thing.
+        <nav
+          className="flex flex-wrap items-center gap-2 border-b border-line/40 bg-night/40 px-3 py-2 ds-caption text-chalkdim"
+          aria-label="Active filters"
+        >
+          <span className="uppercase tracking-caption">Filtering by</span>
+          {activeFacets.map((facet) => (
+            <button
+              key={facet.key}
+              type="button"
+              onClick={facet.onClear}
+              className="inline-flex items-center gap-1 rounded-pill border border-line/40 bg-panel/70 px-2 py-0.5 uppercase tracking-caption hover:border-pitch/50 hover:text-chalk ds-press"
+            >
+              <span>{facet.label}</span>
+              <span aria-hidden="true">×</span>
+              <span className="sr-only">Remove {facet.label} filter</span>
+            </button>
+          ))}
           <button
             type="button"
             onClick={clearFilters}
-            className="ds-caption shrink-0 uppercase tracking-caption text-pitch underline-offset-4 hover:underline"
+            className="ml-auto uppercase tracking-caption text-pitch underline-offset-4 hover:underline"
           >
-            Clear
+            Clear all
           </button>
-        )}
-
-        {/* Decodes the green strip across each card's top edge. A signature
-            nobody can read is just a stray 2px of colour. */}
-        <p className="ml-auto hidden items-center gap-1.5 ds-caption text-chalkdim xl:flex">
-          <span className="h-0.5 w-6 bg-line" aria-hidden="true">
-            <span className="block h-full w-2/3 bg-pitch" />
-          </span>
-          AI signal
-        </p>
-
-        <fieldset className="ds-segmented shrink-0 xl:ml-0 ml-auto">
-          <legend className="sr-only">Feed layout</legend>
-          <button
-            type="button"
-            aria-pressed={viewMode === 'grid'}
-            onClick={() => setViewMode('grid')}
-            className={`ds-seg-tab min-h-7 px-3 text-xs ${viewMode === 'grid' ? 'ds-seg-tab-active' : 'ds-seg-tab-inactive'}`}
-          >
-            Grid
-          </button>
-          <button
-            type="button"
-            aria-pressed={viewMode === 'list'}
-            onClick={() => setViewMode('list')}
-            className={`ds-seg-tab min-h-7 px-3 text-xs ${viewMode === 'list' ? 'ds-seg-tab-active' : 'ds-seg-tab-inactive'}`}
-          >
-            List
-          </button>
-        </fieldset>
-
-        <ThemeSwitcher />
-      </div>
+        </nav>
+      )}
 
       <div className="flex">
         {/* Full-height so the rule down its right edge runs the whole viewport,
