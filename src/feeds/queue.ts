@@ -1,6 +1,13 @@
 import type { Env } from '../data/api';
-import { enrichBatch, recordFailedRun, storeEnrichedArticle, storedArticleId } from './enrich';
-import type { RawArticle } from './types';
+import { enrichBatch, storeEnrichedArticle, storedArticleId } from './enrich';
+import type { ArticleEnrichment, RawArticle } from './types';
+
+type QueueMessage = MessageBatch<RawArticle>['messages'][number];
+
+/** Exponential backoff capped at 5 minutes, same formula for every retry site. */
+function retryDelay(message: QueueMessage) {
+  return { delaySeconds: Math.min(300, 10 * 2 ** message.attempts) };
+}
 
 /**
  * One Gemini call per queue batch instead of one per article.
@@ -11,11 +18,17 @@ import type { RawArticle } from './types';
  * that fails is retried on its own — retrying the batch would re-bill every
  * message in it that had already succeeded. Retries stay safe because a
  * re-delivered article is caught by the duplicate check above.
+ *
+ * Poison-article isolation: `enrichBatch` returns null for any article the
+ * model could not enrich (in the batch path via a length mismatch, in the
+ * per-article fallback via a try/catch). A null slot retries only its own
+ * message, so one consistently-failing story can no longer drag the whole
+ * batch to the DLQ.
  */
 export async function processNewsQueue(batch: MessageBatch<RawArticle>, env: Env): Promise<void> {
   if (!env.DB) throw new Error('D1 binding is required');
 
-  const pending: { message: (typeof batch.messages)[number]; article: RawArticle }[] = [];
+  const pending: { message: QueueMessage; article: RawArticle }[] = [];
   for (const message of batch.messages) {
     try {
       if (await storedArticleId(env.DB, message.body)) {
@@ -25,41 +38,37 @@ export async function processNewsQueue(batch: MessageBatch<RawArticle>, env: Env
       pending.push({ message, article: message.body });
     } catch (error) {
       console.error(`[queue] ${message.body?.sourceId ?? 'unknown'} dedupe check failed:`, error);
-      message.retry({ delaySeconds: Math.min(300, 10 * 2 ** message.attempts) });
+      message.retry(retryDelay(message));
     }
   }
   if (pending.length === 0) return;
 
-  let enrichments: Awaited<ReturnType<typeof enrichBatch>>;
+  let enrichments: (ArticleEnrichment | null)[];
   try {
     enrichments = await enrichBatch(
       env,
       pending.map((item) => item.article),
     );
   } catch (error) {
-    // Enrichment failed for the batch and for every per-article retry behind
-    // it — almost always the model being unreachable, so retry them all.
+    // Enrichment failed for the whole batch — almost always the model being
+    // unreachable, so retry them all.
     console.error('[queue] enrichment failed for the whole batch:', error);
-    for (const { message } of pending) {
-      message.retry({ delaySeconds: Math.min(300, 10 * 2 ** message.attempts) });
-    }
+    for (const { message } of pending) message.retry(retryDelay(message));
     return;
   }
 
   for (const [index, { message, article }] of pending.entries()) {
     const enrichment = enrichments[index];
     if (!enrichment) {
-      message.retry({ delaySeconds: Math.min(300, 10 * 2 ** message.attempts) });
+      message.retry(retryDelay(message));
       continue;
     }
     try {
       await storeEnrichedArticle(env, article, enrichment);
       message.ack();
     } catch (error) {
-      const detail = error instanceof Error ? error.message : 'Unknown article write error';
       console.error(`[queue] ${article.sourceId} write failed:`, error);
-      await recordFailedRun(env, article, detail).catch(() => {});
-      message.retry({ delaySeconds: Math.min(300, 10 * 2 ** message.attempts) });
+      message.retry(retryDelay(message));
     }
   }
 }

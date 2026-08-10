@@ -21,7 +21,7 @@ graph TD
   Home["/ and /:comp"] --> Explore[getExploreFeed] --> KV1[(KV CACHE)] --> D1
 ```
 
-`ingestAllSources` fans out over `FEED_SOURCES` (RSS/JSON incl. per-league ESPN news), normalises to `RawArticle`, drops anything whose fingerprint is already stored, and enqueues the rest. The consumer re-checks for duplicates, sends whatever survives as **one** Gemini interaction, then writes each article, its tags and one `agent_runs` row. Reads go through `getExploreFeed` / `getExploreFilters`, cached in KV.
+`ingestAllSources` fans out over `FEED_SOURCES` (RSS/JSON incl. per-league ESPN news), normalises to `RawArticle`, drops anything whose fingerprint is already stored, and enqueues the rest. The consumer re-checks for duplicates, sends whatever survives as **one** Gemini interaction, then writes each article and its tags. Reads go through `getExploreFeed` / `getExploreFilters`, cached in KV.
 
 ## Architecture notes
 

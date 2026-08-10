@@ -32,14 +32,6 @@ export function normalizeTag(value: string): string {
     .replace(/^-|-$/g, '');
 }
 
-function safeJson(value: unknown): string {
-  try {
-    return JSON.stringify(value);
-  } catch {
-    return '{}';
-  }
-}
-
 export type ArticleProcessStatus = 'stored' | 'filtered' | 'skipped';
 
 export interface ArticleProcessResult {
@@ -71,29 +63,46 @@ export function modelFor(env: Env): string {
  * calls if the batch comes back unusable. A batch that returns the wrong number
  * of results cannot be mapped positionally, and guessing would attach one
  * article's summary to another, so the fallback is the only safe response.
+ *
+ * In the fallback, a single "poison" article (one the model consistently
+ * refuses or returns unparseable JSON for) is isolated to a null slot rather
+ * than allowed to throw — the caller retries only that message, so one bad
+ * story can no longer drag the whole batch to the DLQ.
  */
-export async function enrichBatch(env: Env, articles: RawArticle[]): Promise<ArticleEnrichment[]> {
+export async function enrichBatch(
+  env: Env,
+  articles: RawArticle[],
+): Promise<(ArticleEnrichment | null)[]> {
   const model = modelFor(env);
   if (articles.length === 1) {
-    return [await enrichWithGemini(env.GEMINI_API_KEY, model, articles[0]!)];
+    try {
+      return [await enrichWithGemini(env.GEMINI_API_KEY, model, articles[0]!)];
+    } catch (error) {
+      console.error('[enrich] single-article enrichment failed:', error);
+      return [null];
+    }
   }
   try {
     return await enrichBatchWithGemini(env.GEMINI_API_KEY, model, articles);
   } catch (error) {
     console.error('[enrich] batch failed, falling back to per-article:', error);
-    const results: ArticleEnrichment[] = [];
+    const results: (ArticleEnrichment | null)[] = [];
     for (const article of articles) {
-      results.push(await enrichWithGemini(env.GEMINI_API_KEY, model, article));
+      try {
+        results.push(await enrichWithGemini(env.GEMINI_API_KEY, model, article));
+      } catch (articleError) {
+        console.error(`[enrich] ${article.sourceId} failed in fallback:`, articleError);
+        results.push(null);
+      }
     }
     return results;
   }
 }
 
 /**
- * Persist one enriched article: the article row, its tags, source health, and
- * an agent_runs record. The run row is written once with its final status —
- * the enrichment has already happened by the time we get here, so the old
- * insert-'processing'-then-update pair was two writes to record one fact.
+ * Persist one enriched article: the article row and its tags. The agent_runs
+ * audit trail and source_health counters were dropped — neither was ever read
+ * back, so the writes were pure overhead.
  */
 export async function storeEnrichedArticle(
   env: Env,
@@ -111,8 +120,8 @@ export async function storeEnrichedArticle(
       `INSERT INTO articles (
            id, source_id, canonical_url, fingerprint, title, description, ai_summary, ai_blurb,
            image_url, published_at, fetched_at, sport, comp, article_type, is_football,
-           quality_score, freshness_score, status, raw_metadata, created_at, updated_at
-         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'soccer', ?, ?, ?, ?, ?, ?, ?, ?, ?)
+           quality_score, freshness_score, status, created_at, updated_at
+         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'soccer', ?, ?, ?, ?, ?, ?, ?, ?)
          ON CONFLICT DO NOTHING`,
     ).bind(
       articleId,
@@ -132,7 +141,6 @@ export async function storeEnrichedArticle(
       score(article, enrichment),
       freshnessScore(article.publishedAt, now),
       status,
-      safeJson({ source: article.sourceName, sourceAuthority: article.sourceAuthority }),
       now,
       now,
     ),
@@ -142,52 +150,7 @@ export async function storeEnrichedArticle(
         tag,
       ),
     ),
-    env.DB.prepare('INSERT OR IGNORE INTO source_health (source_id) VALUES (?)').bind(
-      article.sourceId,
-    ),
-    env.DB.prepare(
-      `UPDATE source_health
-         SET articles_inserted_count = articles_inserted_count + ?
-       WHERE source_id = ?`,
-    ).bind(isFootball ? 1 : 0, article.sourceId),
-    env.DB.prepare(
-      `INSERT INTO agent_runs (
-         id, article_fingerprint, source_id, status, model, article_id, started_at, finished_at
-       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-    ).bind(
-      crypto.randomUUID(),
-      article.fingerprint,
-      article.sourceId,
-      isFootball ? 'stored' : 'filtered',
-      modelFor(env),
-      articleId,
-      now,
-      Date.now(),
-    ),
   ]);
 
   return { id: articleId, status: isFootball ? 'stored' : 'filtered' };
-}
-
-export async function recordFailedRun(
-  env: Env,
-  article: RawArticle,
-  message: string,
-): Promise<void> {
-  const now = Date.now();
-  await env.DB.prepare(
-    `INSERT INTO agent_runs (
-       id, article_fingerprint, source_id, status, model, error, started_at, finished_at
-     ) VALUES (?, ?, ?, 'failed', ?, ?, ?, ?)`,
-  )
-    .bind(
-      crypto.randomUUID(),
-      article.fingerprint,
-      article.sourceId,
-      modelFor(env),
-      message.slice(0, 500),
-      now,
-      now,
-    )
-    .run();
 }

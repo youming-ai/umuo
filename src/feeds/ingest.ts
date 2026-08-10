@@ -183,35 +183,15 @@ async function enabledSources(db: D1Database): Promise<FeedSource[]> {
   return FEED_SOURCES.filter((source) => enabled.has(source.id));
 }
 
-async function recordSourceSuccess(
-  db: D1Database,
-  sourceId: string,
-  fetched: number,
-  latency: number,
-): Promise<void> {
+// Best-effort: the articles have already been fetched and normalised by the
+// time this runs, so a D1 hiccup here must not lose the whole tick's work.
+// The tally is the only live column (getDeskStats sums it for the home strip).
+async function recordSourceSuccess(db: D1Database, sourceId: string, fetched: number) {
   await db
     .prepare(
-      `UPDATE source_health
-       SET last_fetch_at = ?, last_success_at = ?, consecutive_failures = 0,
-           avg_latency_ms = CASE
-             WHEN avg_latency_ms = 0 THEN ?
-             ELSE CAST((avg_latency_ms * 4 + ?) / 5 AS INTEGER)
-           END,
-           articles_fetched_count = articles_fetched_count + ?
-       WHERE source_id = ?`,
+      'UPDATE source_health SET articles_fetched_count = articles_fetched_count + ? WHERE source_id = ?',
     )
-    .bind(Date.now(), Date.now(), latency, latency, fetched, sourceId)
-    .run();
-}
-
-async function recordSourceFailure(db: D1Database, sourceId: string): Promise<void> {
-  await db
-    .prepare(
-      `UPDATE source_health
-       SET last_fetch_at = ?, consecutive_failures = consecutive_failures + 1
-       WHERE source_id = ?`,
-    )
-    .bind(Date.now(), sourceId)
+    .bind(fetched, sourceId)
     .run();
 }
 
@@ -258,14 +238,16 @@ export async function ingestAllSources(env: Env, ctx: ExecutionContext): Promise
 
   const results = await Promise.all(
     sources.map(async (source) => {
-      const started = Date.now();
       try {
-        const raw = await readSource(source, started);
+        const raw = await readSource(source, Date.now());
         const articles = await normalizeArticles(source, raw);
-        await recordSourceSuccess(env.DB, source.id, articles.length, Date.now() - started);
+        // Health telemetry is best-effort: the articles are already in hand,
+        // and a D1 write failure here must not discard a successful fetch.
+        await recordSourceSuccess(env.DB, source.id, articles.length).catch((err) =>
+          console.error(`[ingest] ${source.id} health write failed:`, err),
+        );
         return { source, articles, error: '' };
       } catch (error) {
-        await recordSourceFailure(env.DB, source.id);
         console.error(`[ingest] ${source.id} failed:`, error);
         return { source, articles: [], error: source.id };
       }
