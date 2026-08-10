@@ -200,39 +200,12 @@ describe('fetch routing', () => {
     expect(res.status).toBe(404);
   });
 
-  it('routes GET /api/explore/rss through serveExploreRss with the RSS content type', async () => {
+  it('the RSS surface is no longer dispatched from /api/explore/rss', async () => {
+    // The RSS feed moved to /rss.xml and /<comp>/rss.xml (Astro page
+    // endpoints); /api/* is reserved for JSON. A stray /api/explore/rss hit
+    // should 404 rather than fall through to JSON or a generic ASSETS miss.
     const env = mockEnv(null);
     const res = await worker.fetch(new Request('https://x/api/explore/rss'), env, mockCtx());
-    expect(res.status).toBe(200);
-    expect(res.headers.get('content-type')).toBe('application/rss+xml; charset=utf-8');
-    expect(res.headers.get('cache-control')).toBe('public, max-age=300');
-    const body = await res.text();
-    expect(body.startsWith('<?xml version="1.0" encoding="UTF-8"?>')).toBe(true);
-    expect(body).toContain('<rss version="2.0"');
-    expect(body).toContain('<title>umuo \u2014 AI football news</title>');
-    // Global feed points its channel link at the site origin.
-    expect(body).toContain('<link>https://x/</link>');
-  });
-
-  it('points the per-competition RSS channel link at the league hub', async () => {
-    const env = mockEnv(null);
-    const res = await worker.fetch(
-      new Request('https://x/api/explore/rss?comp=eng.1'),
-      env,
-      mockCtx(),
-    );
-    const body = await res.text();
-    expect(body).toContain('<title>umuo \u2014 Premier League football news</title>');
-    expect(body).toContain('<link>https://x/eng.1</link>');
-  });
-
-  it('rejects non-GET on /api/explore/rss', async () => {
-    const env = mockEnv(null);
-    const res = await worker.fetch(
-      new Request('https://x/api/explore/rss', { method: 'POST' }),
-      env,
-      mockCtx(),
-    );
-    expect(res.status).toBe(405);
+    expect(res.status).toBe(404);
   });
 });

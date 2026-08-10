@@ -1,17 +1,14 @@
 /// <reference types="@cloudflare/workers-types" />
 
-import {
-  type Env,
-  exploreQueryFromUrl,
-  serveExplore,
-  serveExploreFilters,
-  serveExploreRss,
-} from '../src/data/api';
+import { type Env, exploreQueryFromUrl, serveExplore, serveExploreFilters } from '../src/data/api';
 
 // Thin HTTP wrapper around the shared data layer (src/data/api.ts). The SWR
 // primitives + composed serve* functions live there so Astro SSR pages can
 // call them directly (env from 'cloudflare:workers' + Astro.locals.cfContext).
-// This file only does URL parsing → serve* dispatch, and the ASSETS passthrough.
+// This file only does URL parsing → serve* dispatch for the JSON /api/* surface,
+// plus the ASSETS passthrough. The RSS surface lives at /rss.xml and is served
+// by Astro page endpoints (src/pages/rss.xml.ts and src/pages/[comp]/rss.xml.ts)
+// — Astro routing matches the `.xml` suffix cleanly without going through /api/.
 
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
@@ -20,15 +17,6 @@ export default {
       if (url.pathname === '/api/explore') {
         if (request.method !== 'GET') return new Response('Method not allowed', { status: 405 });
         return serveExplore(exploreQueryFromUrl(url), env, ctx);
-      }
-      // RSS 2.0 surface for the same Explore data. A reader (NetNewsWire,
-      // Feedly, Inoreader, Reeder) polls the same URL with no special config;
-      // q / cursor are intentionally dropped — a feed is a head, not a query.
-      if (url.pathname === '/api/explore/rss') {
-        if (request.method !== 'GET') return new Response('Method not allowed', { status: 405 });
-        const origin = `${url.protocol}//${url.host}`;
-        const selfUrl = `${origin}${url.pathname}`;
-        return serveExploreRss(exploreQueryFromUrl(url), selfUrl, origin, env, ctx);
       }
       if (url.pathname === '/api/explore/filters') {
         if (request.method !== 'GET') return new Response('Method not allowed', { status: 405 });

@@ -158,11 +158,9 @@ describe('renderExploreRss', () => {
 
   it('renders an Atom self link when given one', () => {
     const xml = renderExploreRss({ items: [], nextCursor: null }, 'All football', {
-      includeAtomSelfLink: '/api/explore.rss',
+      includeAtomSelfLink: '/rss.xml',
     });
-    expect(xml).toContain(
-      '<atom:link href="/api/explore.rss" rel="self" type="application/rss+xml" />',
-    );
+    expect(xml).toContain('<atom:link href="/rss.xml" rel="self" type="application/rss+xml" />');
   });
 
   it('points the channel link to a per-competition hub when one is supplied', () => {
