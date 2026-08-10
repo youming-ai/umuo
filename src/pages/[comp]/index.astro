@@ -20,12 +20,20 @@ const [initialData, initialFilters, deskStats] = await Promise.all([
   getExploreFilters(comp, env, ctx),
   getDeskStats(env, ctx, comp),
 ]);
+// Both the <head> autodiscovery link and the strip's "+ feed" CTA point at
+// this league's feed. Handing a reader on /eng.1 the global feed would
+// silently subscribe them to six competitions they didn't ask for.
+const feedPath = `/${comp}/rss.xml`;
 ---
-<Layout title={`umuo — ${competition.label} football news`}>
+<Layout
+  title={`umuo — ${competition.label} football news`}
+  feedPath={feedPath}
+  feedTitle={`umuo — ${competition.label} football news`}
+>
   {/* No left rail here: the ExploreView toolbar already carries the
       competition index. */}
   <main>
-    <DeskStats stats={deskStats} scopeLabel={competition.label} />
+    <DeskStats stats={deskStats} scopeLabel={competition.label} feedHref={feedPath} />
     <ExploreView
       initialData={initialData}
       initialFilters={initialFilters}

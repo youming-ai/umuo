@@ -3,7 +3,7 @@
 // milliseconds. If the JSON shape ExploreArticle carries ever changes,
 // renderExploreRss is the most likely place to feel it first.
 import { describe, expect, it } from 'vitest';
-import { renderExploreRss } from './rss';
+import { renderExploreRss } from './exploreRss';
 import type { ExploreFeed } from '../types';
 
 function article(
@@ -148,12 +148,14 @@ describe('renderExploreRss', () => {
     expect(itemsOnly(empty)).not.toContain('<description>');
   });
 
-  it('caps the rendered feed at 50 items even when the underlying feed is larger', () => {
+  // The renderer holds no cap of its own — `serveExploreRss` asks the query
+  // layer for its clamped maximum and the renderer emits exactly that. A cap
+  // here would have been dead code the moment the clamp sat below it.
+  it('renders every item it is handed', () => {
     const items = Array.from({ length: 120 }, (_, i) => article({ id: `id-${i}` }));
     const xml = renderExploreRss({ items, nextCursor: null }, 'All football');
-    expect(xml.match(/<item>/g)).toHaveLength(50);
-    expect(xml).toContain('<guid isPermaLink="false">id-49</guid>');
-    expect(xml).not.toContain('<guid isPermaLink="false">id-50</guid>');
+    expect(xml.match(/<item>/g)).toHaveLength(120);
+    expect(xml).toContain('<guid isPermaLink="false">id-119</guid>');
   });
 
   it('renders an Atom self link when given one', () => {

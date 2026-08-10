@@ -60,10 +60,10 @@ describe('getDeskStats', () => {
     const env = mockEnv([{ total: 1247 }, { total: 84 }, { total: 19 }, { newest: 1786700000000 }]);
     const stats = await getDeskStats(env, mockCtx());
     expect(stats).toEqual({
-      fetched: 1247,
+      fetchedAllTime: 1247,
       published: 84,
       filtered: 19,
-      lastPublishedAt: 1786700000000,
+      lastIngestedAt: 1786700000000,
     });
     expect((env.DB as ReturnType<typeof mockEnv>['DB']).batch).toHaveBeenCalledTimes(1);
   });
@@ -74,15 +74,15 @@ describe('getDeskStats', () => {
       throw new Error('d1 down');
     });
     const stats = await getDeskStats(env, mockCtx());
-    expect(stats).toEqual({ fetched: 0, published: 0, filtered: 0, lastPublishedAt: 0 });
+    expect(stats).toEqual({ fetchedAllTime: 0, published: 0, filtered: 0, lastIngestedAt: 0 });
   });
 
   it('reads through KV cache when a stored copy is fresh', async () => {
     const stored = JSON.stringify({
-      fetched: 50,
+      fetchedAllTime: 50,
       published: 10,
       filtered: 2,
-      lastPublishedAt: 1786700000000,
+      lastIngestedAt: 1786700000000,
     });
     const env = mockEnv(
       [],
@@ -90,10 +90,10 @@ describe('getDeskStats', () => {
     );
     const stats = await getDeskStats(env, mockCtx());
     expect(stats).toEqual({
-      fetched: 50,
+      fetchedAllTime: 50,
       published: 10,
       filtered: 2,
-      lastPublishedAt: 1786700000000,
+      lastIngestedAt: 1786700000000,
     });
     expect((env.DB as ReturnType<typeof mockEnv>['DB']).batch).not.toHaveBeenCalled();
   });
@@ -101,13 +101,13 @@ describe('getDeskStats', () => {
   it('coerces non-numeric D1 rows into zeros rather than throwing', async () => {
     const env = mockEnv([{}, {}, {}, {}]);
     const stats = await getDeskStats(env, mockCtx());
-    expect(stats.fetched).toBe(0);
+    expect(stats.fetchedAllTime).toBe(0);
     expect(stats.published).toBe(0);
     expect(stats.filtered).toBe(0);
-    expect(stats.lastPublishedAt).toBe(0);
+    expect(stats.lastIngestedAt).toBe(0);
   });
 
-  it('scopes published, filtered, and lastPublishedAt to a competition when given', async () => {
+  it('scopes published, filtered, and lastIngestedAt to a competition when given', async () => {
     const env = mockEnv([
       { total: 1247 }, // source_health SUM — global, never per-comp
       { total: 24 }, // published WHERE comp = ?
@@ -117,10 +117,10 @@ describe('getDeskStats', () => {
     const stats = await getDeskStats(env, mockCtx(), 'eng.1');
     // The input tally is global on purpose: source_health has no comp column.
     expect(stats).toEqual({
-      fetched: 1247,
+      fetchedAllTime: 1247,
       published: 24,
       filtered: 3,
-      lastPublishedAt: 1786900000000,
+      lastIngestedAt: 1786900000000,
     });
   });
 
@@ -146,5 +146,24 @@ describe('getDeskStats', () => {
     const stats = await getDeskStats(env, mockCtx(), 'nope.not.in.registry');
     // No per-comp filter applied; counts read the global art.
     expect(stats.published).toBe(10);
+  });
+
+  // Regression: the strip renders keep / reject / last as one "today" row, so
+  // every article-side statement has to carry the same day bound. Unbounded,
+  // `last` printed yesterday's clock time beside "keep 0 / reject 0" — and
+  // beside the "has not run an ingest tick today yet" note.
+  it('bounds published, filtered, and last to the same UTC day', async () => {
+    const env = mockEnv([{ total: 1 }, { total: 1 }, { total: 1 }, { newest: 1 }]);
+    await getDeskStats(env, mockCtx());
+    const prepare = vi.mocked((env.DB as ReturnType<typeof mockEnv>['DB']).prepare);
+    const sql = prepare.mock.calls.map(([statement]) => statement);
+    const articleSide = sql.filter((statement: string) => statement.includes('FROM articles'));
+    expect(articleSide).toHaveLength(3);
+    for (const statement of articleSide) {
+      expect(statement).toContain('created_at >= ?');
+    }
+    // The input tally is the one all-time number and must stay unbounded.
+    const inputSide = sql.filter((statement: string) => statement.includes('source_health'));
+    expect(inputSide[0]).not.toContain('created_at');
   });
 });

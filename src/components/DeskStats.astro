@@ -1,67 +1,81 @@
 ---
 // Pure SSR. Reads the desk-stats object fed in from the page and renders
-// a one-line mono-caption "today's desk" strip. No React, no hydration —
+// a one-line mono-caption desk-activity strip. No React, no hydration —
 // these numbers update with each SSR hit (every navigation), and the
 // SWR inside `getDeskStats` keeps the D1 hit rate low.
 //
 // The three colours track the same accent rules the cards do:
-//   pitch  = published  (the work the desk kept);
-//   live   = filtered   (the work it rejected);
-//   chalk  = fetched    (the work it scanned, neutral voice).
+//   pitch  = published      (the work the desk kept);
+//   live   = filtered       (the work it rejected);
+//   chalk  = fetchedAllTime (the work it scanned, neutral voice).
 // One signal axis, three meanings.
 //
+// keep / reject / last are today's numbers; scan is the all-time input
+// tally (source_health has no per-day column), so it carries its own
+// "all time" qualifier rather than sitting silently under a "today"
+// heading and reading as a day figure.
+//
 // `scopeLabel` is the "for X" tag the strip leads with. The home page
-// passes "All football"; the league pages pass "Premier League". Leaving
-// it empty renders without the leading tag, for layouts that prefer the
-// bare stats.
+// passes "All football"; the league pages pass "Premier League".
+//
+// `feedHref` is the RSS surface matching this scope — /rss.xml globally,
+// /<comp>/rss.xml on a league page. The CTA has to follow the strip's own
+// scope, or a reader on /eng.1 subscribes to the global desk by accident.
 
 import type { DeskStats } from '../data/api';
 
 interface Props {
   stats: DeskStats;
   scopeLabel?: string;
+  feedHref?: string;
 }
 
-const { stats, scopeLabel = 'All football' } = Astro.props;
+const { stats, scopeLabel = 'All football', feedHref = '/rss.xml' } = Astro.props;
 
-// HH:MM UTC of the most recently published article. The AI desk pauses
+// HH:MM UTC of the most recent article the desk wrote. The AI desk pauses
 // between matches; an "ago" relative string is the wrong shape because
 // international readers parse it inconsistently — clock time is honest.
-const lastPublishedLabel =
-  stats.lastPublishedAt > 0
-    ? new Date(stats.lastPublishedAt).toISOString().slice(11, 16) + ' UTC'
+const lastIngestedLabel =
+  stats.lastIngestedAt > 0
+    ? new Date(stats.lastIngestedAt).toISOString().slice(11, 16) + ' UTC'
     : '—';
 
-const hasAnyActivity = stats.fetched + stats.published + stats.filtered > 0;
+const hasAnyActivity = stats.published + stats.filtered > 0;
 const ariaScope = scopeLabel === 'All football' ? '' : ` for ${scopeLabel}`;
 ---
 
-<dl
+{/* <dl> may only contain <dt>/<dd> (and wrapper <div>s), so the CTA and the
+    empty-state note are siblings of the list, not children of it. */}
+<div
   class="flex flex-wrap items-baseline gap-x-5 gap-y-1 border-b border-line/30 px-3 py-2 ds-caption uppercase tracking-caption"
-  aria-label={`Today's desk activity${ariaScope}`}
 >
-  <div class="flex items-baseline gap-1.5">
-    <dt class="text-chalkdim">desk</dt>
-    <dd class="text-chalk" data-test="desk-scope">{scopeLabel}</dd>
-  </div>
-  <div class="flex items-baseline gap-1.5">
-    <dt class="text-chalkdim">scan</dt>
-    <dd class="tabular-nums text-chalk" data-test="desk-fetched">{stats.fetched}</dd>
-  </div>
-  <div class="flex items-baseline gap-1.5">
-    <dt class="text-chalkdim">keep</dt>
-    <dd class="tabular-nums font-bold text-pitch" data-test="desk-published">{stats.published}</dd>
-  </div>
-  <div class="flex items-baseline gap-1.5">
-    <dt class="text-chalkdim">reject</dt>
-    <dd class="tabular-nums text-live" data-test="desk-filtered">{stats.filtered}</dd>
-  </div>
-  <div class="ml-auto flex items-baseline gap-1.5" aria-live="off">
-    <dt class="text-chalkdim">last</dt>
-    <dd class="tabular-nums text-chalk" data-test="desk-last">{lastPublishedLabel}</dd>
-  </div>
+  <dl
+    class="flex flex-1 flex-wrap items-baseline gap-x-5 gap-y-1"
+    aria-label={`Desk activity today${ariaScope}`}
+  >
+    <div class="flex items-baseline gap-1.5">
+      <dt class="text-chalkdim">desk</dt>
+      <dd class="text-chalk" data-test="desk-scope">{scopeLabel}</dd>
+    </div>
+    <div class="flex items-baseline gap-1.5">
+      <dt class="text-chalkdim">scan<span class="ml-1 normal-case text-chalkdim/70">(all time)</span></dt>
+      <dd class="tabular-nums text-chalk" data-test="desk-fetched">{stats.fetchedAllTime}</dd>
+    </div>
+    <div class="flex items-baseline gap-1.5">
+      <dt class="text-chalkdim">keep</dt>
+      <dd class="tabular-nums font-bold text-pitch" data-test="desk-published">{stats.published}</dd>
+    </div>
+    <div class="flex items-baseline gap-1.5">
+      <dt class="text-chalkdim">reject</dt>
+      <dd class="tabular-nums text-live" data-test="desk-filtered">{stats.filtered}</dd>
+    </div>
+    <div class="ml-auto flex items-baseline gap-1.5" aria-live="off">
+      <dt class="text-chalkdim">last</dt>
+      <dd class="tabular-nums text-chalk" data-test="desk-last">{lastIngestedLabel}</dd>
+    </div>
+  </dl>
   <a
-    href="/rss.xml"
+    href={feedHref}
     class="rounded-pill border border-line/40 px-2 py-0.5 uppercase tracking-caption text-chalkdim transition-colors hover:border-pitch/60 hover:text-pitch ds-press"
     data-test="desk-feed-link"
     rel="alternate"
@@ -74,4 +88,4 @@ const ariaScope = scopeLabel === 'All football' ? '' : ` for ${scopeLabel}`;
       The desk has not run an ingest tick today yet.
     </p>
   )}
-</dl>
+</div>

@@ -189,10 +189,6 @@
     @apply text-chalkdim hover:text-chalk;
   }
 
-/* Filter / stage chips — unreferenced since the WC/MultiSport planes were
-   retired. Kept available if a future filter surface needs them; delete if
-   no caller appears by the time the next consolidation pass runs. */
-
   /* Buttons: one voice — the secondary outlined control. A `ds-btn-primary`
      existed for the hero CTAs that the WC/MultiSport shells were removed to
      house; nothing in the news surface calls it now. Add it back when a

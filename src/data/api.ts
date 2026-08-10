@@ -1,7 +1,7 @@
 /// <reference types="@cloudflare/workers-types" />
 
 import { FOOTBALL_COMPETITIONS } from '../competitions';
-import { renderExploreRss } from './rss';
+import { renderExploreRss } from './exploreRss';
 import type {
   ExploreArticle,
   ExploreArticleType,
@@ -368,11 +368,18 @@ export async function serveExplore(
   );
 }
 
+/** Items a feed poll carries. Equal to `normalizedExploreQuery`'s own clamp —
+ *  a subscriber gets the most the query layer will hand out. */
+const RSS_ITEM_LIMIT = 24;
+
 /**
  * RSS 2.0 surface for the same Explore feed. A reader (NetNewsWire, Feedly,
- * Inoreader, Reeder) polls the same URL the JSON endpoint serves and gets
- * 50 items in stable, guid-pinned form.
+ * Inoreader, Reeder) polls it and gets the head of the feed in stable,
+ * guid-pinned form.
  *
+ * - Asks for `limit: 24`, the ceiling `normalizedExploreQuery` clamps to. A
+ *   feed wants more than the 12-item web default and there is no reason to
+ *   give a subscriber less than the page can serve.
  * - Drops `q` (free-text search is a transient query, not a feed), keeps
  *   comp/source/tag since those are bookmarks readers re-subscribe against.
  * - Drops `cursor` (subscribers don't paginate; they take the head).
@@ -381,8 +388,9 @@ export async function serveExplore(
  *   sees consistent lists.
  * - Sets the standard `application/rss+xml` Content-Type and an
  *   explicit Cache-Control so the reader's own HTTP cache stays warm too.
- * - On KV read failure, falls through to a synchronous fresh render —
- *   readers will degrade to a few stale items, never an empty feed.
+ * - A stale hit still renders (SWR serves the stored copy at 200). Only a
+ *   cold-cache upstream failure reaches the reader, and that goes back
+ *   verbatim as `runCached`'s 502 — never relabelled as a feed.
  */
 export async function serveExploreRss(
   query: ExploreQuery,
@@ -398,6 +406,7 @@ export async function serveExploreRss(
     ...query,
     q: undefined,
     cursor: undefined,
+    limit: RSS_ITEM_LIMIT,
   });
 
   const scopeLabel = normalized.comp
@@ -423,6 +432,12 @@ export async function serveExploreRss(
     env,
     ctx,
   );
+
+  // A non-OK response from runCached is its JSON error body, not a feed.
+  // Relabelling that as application/rss+xml would hand every reader a parse
+  // error, and the 5-minute Cache-Control below would pin the failure in
+  // their HTTP cache long after D1 recovered. Pass it through untouched.
+  if (!cached.ok) return cached;
 
   // Wrap the SWR's JSON-shaped response into the RSS content type a reader
   // expects. The body is still XML; runCached only inspects the string.
@@ -601,31 +616,40 @@ export async function getExploreFilters(
 // --- "Today's desk" stats ---
 
 const EMPTY_DESK_STATS: DeskStats = {
-  fetched: 0,
+  fetchedAllTime: 0,
   published: 0,
   filtered: 0,
-  lastPublishedAt: 0,
+  lastIngestedAt: 0,
 };
 
 export interface DeskStats {
-  /** Articles pulled from upstream feeds since midnight UTC. Cumulative tally
-   *  on `source_health.articles_fetched_count`; reset only on a fresh boot. */
-  fetched: number;
+  /** Articles pulled from upstream feeds **since launch**, not today.
+   *  `source_health.articles_fetched_count` is a running tally the ingest
+   *  tick increments and nothing ever resets, and there is no per-day column
+   *  to bound it with — so this is the one all-time number in the set and the
+   *  strip has to label it as such. */
+  fetchedAllTime: number;
   /** Articles published to the desk since midnight UTC (status='published'). */
   published: number;
   /** Articles rejected as non-football or off-topic since midnight UTC
    *  (status='filtered'); a high number next to a low published is a noisy
    *  day, an honest AI-editing one. */
   filtered: number;
-  /** ms epoch of the most recently published article, or 0 when the desk has
-   *  published nothing yet. */
-  lastPublishedAt: number;
+  /** ms epoch of the most recent article the desk **wrote today** —
+   *  `created_at`, i.e. when the story landed on the desk, not the
+   *  publisher's own `published_at`. This row measures desk activity, so
+   *  ingest time is the honest clock, and the day bound keeps it on the same
+   *  axis as `published`/`filtered`. 0 when the desk has written nothing
+   *  today. */
+  lastIngestedAt: number;
 }
 
 /**
  * The "today's desk" row the home page leads with: how many stories the desk
- * scraped, kept, and rejected since 00:00 UTC. Always real numbers — pulled
- * from `articles` and `source_health`, computed by D1, never made up.
+ * kept and rejected since 00:00 UTC, and when it last wrote one. Always real
+ * numbers — pulled from `articles` and `source_health`, computed by D1, never
+ * made up. `fetchedAllTime` is the one number outside the day window; see its
+ * field doc.
  *
  * SWR cache `fresh=300/keep=3600`: a tap on the rail or a refresh must never
  * hammer D1; the genuine pulse is "new ingest tick happens every 15 minutes",
@@ -638,10 +662,10 @@ export async function getDeskStats(
   comp?: string,
 ): Promise<DeskStats> {
   try {
-    // The per-competition variant counts articles within `comp`; `fetched` is
-    // left as the global input tally because source_health has no comp column
-    // and pretending otherwise would mean claiming "scanned for Premier League"
-    // when the scan was global.
+    // The per-competition variant counts articles within `comp`;
+    // `fetchedAllTime` is left as the global input tally because source_health
+    // has no comp column and pretending otherwise would mean claiming "scanned
+    // for Premier League" when the scan was global.
     const compFilter = comp && Object.hasOwn(FOOTBALL_COMPETITIONS, comp) ? comp : '';
     const cacheKey = compFilter ? `desk:stats:v1:comp:${compFilter}` : 'desk:stats:v1';
     const response = await runCached(
@@ -654,15 +678,18 @@ export async function getDeskStats(
         const startOfDayUtc = new Date();
         startOfDayUtc.setUTCHours(0, 0, 0, 0);
         const since = startOfDayUtc.getTime();
-        // Three cheap counts in parallel: source_health aggregate for the
-        // input, plus two filtered counts on articles for the outcomes.
-        // The MAX() is fine here — articles.id is the PK and `created_at` is
-        // indexed for the retention sweep, so the planner picks the covering
-        // index without a full scan. The per-comp variant adds `AND comp = ?`
-        // to the three article-side statements; the input tally stays global.
+        // Four counts in one batch: the source_health aggregate for the input,
+        // two day-bounded counts on articles for the outcomes, and a MAX for
+        // the clock. The per-comp variant adds `AND comp = ?` to the three
+        // article-side statements; the input tally stays global.
+        //
+        // ponytail: there is no index on articles.created_at, so the three
+        // article-side statements scan. Retention keeps the table small and
+        // the 5-minute SWR window caps this at ~12 scans an hour; add
+        // `(status, created_at)` if the row count ever makes that show up.
         const compWhere = compFilter ? ' AND comp = ?' : '';
         const compBinding = compFilter ? [compFilter] : [];
-        const [fetched, published, filtered, lastPublished] = await env.DB.batch([
+        const [fetched, published, filtered, lastIngested] = await env.DB.batch([
           env.DB.prepare(
             'SELECT COALESCE(SUM(articles_fetched_count), 0) AS total FROM source_health',
           ),
@@ -674,20 +701,20 @@ export async function getDeskStats(
             `SELECT COUNT(*) AS total FROM articles
               WHERE status = 'filtered' AND created_at >= ?${compWhere}`,
           ).bind(since, ...compBinding),
+          // Day-bounded like the two counts above it. Unbounded, this would
+          // print yesterday's clock time next to "keep 0 / reject 0" and read
+          // as activity that hasn't happened — the same mixed-axis lie the
+          // `scan` label had to be qualified for. Empty day → 0 → "—".
           env.DB.prepare(
             `SELECT MAX(created_at) AS newest FROM articles
-              WHERE status = 'published'${compWhere}`,
-          ).bind(...compBinding),
+              WHERE status = 'published' AND created_at >= ?${compWhere}`,
+          ).bind(since, ...compBinding),
         ]);
-        const fetchedCount = firstNumber(fetched.results) ?? 0;
-        const publishedCount = firstNumber(published.results) ?? 0;
-        const filteredCount = firstNumber(filtered.results) ?? 0;
-        const lastPublishedCount = firstNumber(lastPublished.results) ?? 0;
         return JSON.stringify({
-          fetched: fetchedCount,
-          published: publishedCount,
-          filtered: filteredCount,
-          lastPublishedAt: lastPublishedCount,
+          fetchedAllTime: firstNumber(fetched.results) ?? 0,
+          published: firstNumber(published.results) ?? 0,
+          filtered: firstNumber(filtered.results) ?? 0,
+          lastIngestedAt: firstNumber(lastIngested.results) ?? 0,
         } satisfies DeskStats);
       },
       300,
@@ -700,10 +727,10 @@ export async function getDeskStats(
     if (!parsed || typeof parsed !== 'object') return EMPTY_DESK_STATS;
     const stats = parsed as Partial<DeskStats>;
     return {
-      fetched: typeof stats.fetched === 'number' ? stats.fetched : 0,
+      fetchedAllTime: typeof stats.fetchedAllTime === 'number' ? stats.fetchedAllTime : 0,
       published: typeof stats.published === 'number' ? stats.published : 0,
       filtered: typeof stats.filtered === 'number' ? stats.filtered : 0,
-      lastPublishedAt: typeof stats.lastPublishedAt === 'number' ? stats.lastPublishedAt : 0,
+      lastIngestedAt: typeof stats.lastIngestedAt === 'number' ? stats.lastIngestedAt : 0,
     };
   } catch (error) {
     console.error('[data] desk stats lookup failed:', error);

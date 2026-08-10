@@ -5,7 +5,10 @@
 import { SITE_ORIGIN } from '../site';
 import type { ExploreArticle, ExploreFeed } from '../types';
 
-const RSS_XMLNS = 'http://www.w3.org/2005/Atom';
+// Bound to the `atom:` prefix on <rss>, not to RSS itself — the only Atom
+// element in the document is <atom:link rel="self">, which RSS 2.0 has no
+// native equivalent for and every reader expects.
+const ATOM_XMLNS = 'http://www.w3.org/2005/Atom';
 
 // Every feed needs a unique string id. The channel uses the origin itself
 // (a stable value the reader stores once); items use the article's `id`
@@ -62,9 +65,10 @@ function renderItem(article: ExploreArticle): string {
   ];
   const description = descriptionFor(article);
   if (description) parts.push(`      <description>${escapeXml(description)}</description>`);
-  const author = article.sourceName || article.sourceDomain;
-  if (author)
-    parts.push(`      <author>noreply@${escapeXml(article.sourceDomain || 'umuo.app')}</author>`);
+  // RSS 2.0 <author> is specified as an email address, so the publisher's
+  // domain is all we can honestly put in it — the display name goes in
+  // <category> and the description instead.
+  parts.push(`      <author>noreply@${escapeXml(article.sourceDomain || 'umuo.app')}</author>`);
   for (const category of categoriesFor(article)) {
     parts.push(`      <category>${escapeXml(category)}</category>`);
   }
@@ -73,9 +77,9 @@ function renderItem(article: ExploreArticle): string {
 }
 
 /**
- * Render an `ExploreFeed` as an RSS 2.0 document. The 50-item slice mirrors
- * the same cap used at the JSON endpoint: it keeps one reader-poll bounded
- * without losing anything — beyond today's top 50 the signal is noise.
+ * Render an `ExploreFeed` as an RSS 2.0 document. Renders every item it is
+ * handed — the caller decides how long a poll is, and `serveExploreRss` asks
+ * the query layer for its clamped maximum.
  *
  * `channelLink` lets the per-competition feed jump the reader into the
  * right hub (`/eng.1`) rather than the global home — clicking a PL story
@@ -94,12 +98,12 @@ export function renderExploreRss(
   const channelDescription =
     'AI-curated football news from 20 trusted publishers, refreshed every 15 minutes.';
   const published = new Date().toUTCString();
-  const items = feed.items.slice(0, 50).map(renderItem).join('\n');
+  const items = feed.items.map(renderItem).join('\n');
   const atomLink = options.includeAtomSelfLink
     ? `\n    <atom:link href="${escapeXml(options.includeAtomSelfLink)}" rel="self" type="application/rss+xml" />`
     : '';
   return `<?xml version="1.0" encoding="UTF-8"?>
-<rss version="2.0" xmlns:atom="${RSS_XMLNS}">
+<rss version="2.0" xmlns:atom="${ATOM_XMLNS}">
   <channel>
     <title>${escapeXml(channelTitle)}</title>
     <link>${escapeXml(channelLink)}</link>

@@ -17,11 +17,12 @@ function scoreValue(value: number): number {
 }
 
 /**
- * Top meter — the AI signal strip. Width = AI quality (the desk's confidence
- * in the article), width = freshness (how recent the story is). The same
- * accent color carries through both: high (pitch) is "the desk endorses
- * this", mid (amber) is "useable, take with a grain of salt", low (live)
- * is "low confidence, treat as noise". One accent, one signal.
+ * Accent for a 0–100 signal score. Both meters on the card use it — the top
+ * strip's width is AI quality (the desk's confidence in the article), the
+ * bottom strip's is freshness (how recent the story is) — so the same colour
+ * language reads across both: high (pitch) is "the desk endorses this", mid
+ * (amber) is "useable, take with a grain of salt", low (live) is "low
+ * confidence, treat as noise".
  */
 function signalAccent(score: number): 'pitch' | 'amber' | 'live' {
   if (score >= 75) return 'pitch';

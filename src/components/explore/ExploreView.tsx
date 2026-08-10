@@ -209,7 +209,8 @@ export default function ExploreView({
   }, [nextCursor, loading]);
 
   // Track which user-driven facets are still applied (everything except comp,
-  // which is the route itself). Used by the ActiveFilterChips row below the bar.
+  // which is the route itself). Drives the "Active filters" chip row rendered
+  // below the toolbar.
   const activeFacets: { key: string; label: string; onClear: () => void }[] = [];
   if (query.source) {
     const sourceOption = initialFilters.sources.find((option) => option.value === query.source);
