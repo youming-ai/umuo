@@ -320,7 +320,7 @@ export default function ExploreView({
           )}
         </div>
 
-        <form onSubmit={submitSearch} className="relative flex min-w-0 flex-1 sm:max-w-xs lg:mx-auto">
+        <form onSubmit={submitSearch} className="relative flex min-w-0 flex-1 sm:max-w-md lg:mx-auto lg:max-w-xl">
           <label className="sr-only" htmlFor="explore-search">
             Search football news
           </label>

@@ -141,7 +141,7 @@ async function normalizeArticles(
 async function ensureSources(db: D1Database): Promise<void> {
   const now = Date.now();
   await db.batch(
-    FEED_SOURCES.flatMap((source) => [
+    FEED_SOURCES.map((source) =>
       db
         .prepare(
           `INSERT INTO sources (
@@ -168,8 +168,7 @@ async function ensureSources(db: D1Database): Promise<void> {
           now,
           now,
         ),
-      db.prepare('INSERT OR IGNORE INTO source_health (source_id) VALUES (?)').bind(source.id),
-    ]),
+    ),
   );
 }
 
@@ -181,18 +180,6 @@ async function enabledSources(db: D1Database): Promise<FeedSource[]> {
     (result.results ?? []).map((row) => (typeof row.id === 'string' ? row.id : '')).filter(Boolean),
   );
   return FEED_SOURCES.filter((source) => enabled.has(source.id));
-}
-
-// Best-effort: the articles have already been fetched and normalised by the
-// time this runs, so a D1 hiccup here must not lose the whole tick's work.
-// The tally is the only live column (getDeskStats sums it for the home strip).
-async function recordSourceSuccess(db: D1Database, sourceId: string, fetched: number) {
-  await db
-    .prepare(
-      'UPDATE source_health SET articles_fetched_count = articles_fetched_count + ? WHERE source_id = ?',
-    )
-    .bind(fetched, sourceId)
-    .run();
 }
 
 /**
@@ -241,11 +228,6 @@ export async function ingestAllSources(env: Env, ctx: ExecutionContext): Promise
       try {
         const raw = await readSource(source, Date.now());
         const articles = await normalizeArticles(source, raw);
-        // Health telemetry is best-effort: the articles are already in hand,
-        // and a D1 write failure here must not discard a successful fetch.
-        await recordSourceSuccess(env.DB, source.id, articles.length).catch((err) =>
-          console.error(`[ingest] ${source.id} health write failed:`, err),
-        );
         return { source, articles, error: '' };
       } catch (error) {
         console.error(`[ingest] ${source.id} failed:`, error);
