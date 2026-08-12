@@ -59,4 +59,4 @@ dead_letter_queue = "umuo-news-ingest-dlq"
 crons = ["*/15 * * * *", "17 3 * * *"]
 
 [vars]
-LLM_BASE_URL = "https://api.z.ai/api/paas/v4"
+LLM_BASE_URL = "https://api.z.ai/api/coding/paas/v4"

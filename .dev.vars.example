@@ -2,4 +2,4 @@
 # Do not commit .dev.vars or real API keys.
 LLM_API_KEY=
 LLM_MODEL=glm-5.2
-LLM_BASE_URL=https://api.z.ai/api/paas/v4
+LLM_BASE_URL=https://api.z.ai/api/coding/paas/v4

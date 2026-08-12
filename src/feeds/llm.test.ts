@@ -27,7 +27,7 @@ const enrichment = {
   qualityScore: 88,
 };
 
-const BASE_URL = 'https://api.z.ai/api/paas/v4';
+const BASE_URL = 'https://api.z.ai/api/coding/paas/v4';
 const MODEL = 'glm-5.2';
 
 function openAIResponse(content: unknown): Response {
