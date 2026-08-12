@@ -1,14 +1,15 @@
 /// <reference types="@cloudflare/workers-types" />
 
-// Secret bindings are supplied by `wrangler secret put` and therefore cannot
-// be inferred from wrangler.jsonc.
+// Manual declarations for the worker tsconfig, which does not include the
+// root env.d.ts. Literal types must match wrangler.jsonc vars exactly.
 declare namespace Cloudflare {
   interface Env {
     CACHE: KVNamespace;
     DB: D1Database;
     INGEST_QUEUE: Queue;
     ASSETS: Fetcher;
-    GEMINI_MODEL: 'gemini-3.6-flash';
-    GEMINI_API_KEY: string;
+    LLM_MODEL: string;
+    LLM_BASE_URL: string;
+    LLM_API_KEY: string;
   }
 }

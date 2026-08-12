@@ -1,0 +1,178 @@
+import { z } from 'zod';
+import type { ArticleEnrichment, RawArticle } from './types';
+
+const ARTICLE_TYPES = [
+  'news',
+  'analysis',
+  'rumor',
+  'interview',
+  'match-report',
+  'transfer',
+  'injury',
+  'video',
+] as const;
+
+const enrichmentSchema = z.object({
+  isFootball: z.boolean(),
+  competition: z.string().max(80),
+  articleType: z.enum(ARTICLE_TYPES),
+  tags: z.array(z.string().min(1).max(60)).max(8),
+  summary: z.string().min(1).max(280),
+  blurb: z.string().min(1).max(700),
+  qualityScore: z.number().int().min(0).max(100),
+});
+
+const batchSchema = z.object({ results: z.array(enrichmentSchema) });
+
+const JSON_FIELDS = [
+  'Respond as a JSON object with exactly these fields:',
+  '- isFootball: boolean — true only for football/soccer stories',
+  '- competition: string — "eng.1", "esp.1", "ger.1", "ita.1", "fra.1", "uefa.champions", or ""',
+  `- articleType: string — one of: ${ARTICLE_TYPES.join(', ')}`,
+  '- tags: string[] — up to 8 short lowercase-hyphen topic tags',
+  '- summary: string — one factual sentence, at most 280 characters',
+  '- blurb: string — concise editorial summary, at most 700 characters',
+  '- qualityScore: integer 0-100 — confidence in this classification',
+].join('\n');
+
+const CLASSIFIER_RULES = [
+  'You are the editorial classification agent for a football-only news site.',
+  'Reject non-football stories with isFootball=false and an empty competition.',
+  'Use only facts present in the source text. Do not invent scores, quotes, transfers, dates, or names.',
+  'Choose a canonical competition only when the article clearly identifies one:',
+  'eng.1 Premier League; esp.1 La Liga; ger.1 Bundesliga; ita.1 Serie A; fra.1 Ligue 1; uefa.champions Champions League.',
+  'For football articles that do not clearly belong to one competition, leave competition empty.',
+];
+
+function articleBlock(article: RawArticle): string[] {
+  return [
+    `Source: ${article.sourceName}`,
+    `Known source competition: ${article.comp ?? 'unknown'}`,
+    `Title: ${article.title}`,
+    `Description: ${article.description || '(none)'}`,
+    `URL: ${article.url}`,
+  ];
+}
+
+function promptFor(article: RawArticle): string {
+  return [...CLASSIFIER_RULES, JSON_FIELDS, '', ...articleBlock(article)].join('\n');
+}
+
+function promptForBatch(articles: RawArticle[]): string {
+  return [
+    ...CLASSIFIER_RULES,
+    `Classify and summarize each of the ${articles.length} articles below.`,
+    `Return a JSON object {"results": [...]} holding exactly one object per article, in the same order.`,
+    `Each object must have these fields:\n${JSON_FIELDS}`,
+    'Judge each article only on its own text; do not let one influence another.',
+    '',
+    ...articles.flatMap((article, index) => [
+      `--- ARTICLE ${index + 1} ---`,
+      ...articleBlock(article),
+      '',
+    ]),
+  ].join('\n');
+}
+
+/**
+ * One OpenAI-compatible /chat/completions call. The base URL is configurable
+ * (env LLM_BASE_URL) so the same code works against z.ai, Groq, OpenAI, or any
+ * other compatible endpoint. response_format json_object guarantees valid JSON;
+ * Zod validates the structure.
+ */
+async function requestLLM(
+  apiKey: string,
+  baseUrl: string,
+  model: string,
+  input: string,
+  attempt: number,
+): Promise<Response> {
+  return fetch(`${baseUrl}/chat/completions`, {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      authorization: `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      model,
+      messages: [{ role: 'user', content: input }],
+      response_format: { type: 'json_object' },
+    }),
+    signal: AbortSignal.timeout(20_000 + attempt * 5_000),
+  });
+}
+
+/**
+ * Shared retry/backoff scaffold. 3 attempts, backoff 500 × (attempt + 1),
+ * retries only on 5xx/429/throw. A 4xx is a permanent failure and throws
+ * immediately. Extracts the text content from an OpenAI-format response.
+ */
+async function callWithRetry<T>(
+  request: (attempt: number) => Promise<Response>,
+  parse: (text: string) => T,
+  failLabel: string,
+): Promise<T> {
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const response = await request(attempt);
+      if (response.ok) {
+        const data = (await response.json()) as {
+          choices?: { message?: { content?: string } }[];
+        };
+        const text = data.choices?.[0]?.message?.content ?? '';
+        return parse(text);
+      }
+      if (response.status < 500 && response.status !== 429) {
+        throw new Error(`${failLabel} failed with ${response.status}`);
+      }
+      if (attempt === 2) throw new Error(`${failLabel} failed with ${response.status}`);
+    } catch (error) {
+      if (attempt === 2) throw error;
+    }
+    const { promise, resolve } = Promise.withResolvers<void>();
+    setTimeout(resolve, 500 * (attempt + 1));
+    await promise;
+  }
+  throw new Error(`${failLabel} failed`);
+}
+
+export async function enrichWithLLM(
+  apiKey: string,
+  baseUrl: string,
+  model: string,
+  article: RawArticle,
+): Promise<ArticleEnrichment> {
+  if (!apiKey) throw new Error('LLM_API_KEY is not configured');
+  return callWithRetry(
+    (attempt) => requestLLM(apiKey, baseUrl, model, promptFor(article), attempt),
+    (text) => enrichmentSchema.parse(JSON.parse(text) as unknown),
+    'LLM request',
+  );
+}
+
+/**
+ * One call for a whole batch. Results are positional, so a response whose
+ * length does not match the input is rejected outright rather than risking an
+ * article being written with another article's summary — the caller falls back
+ * to per-article calls when that happens.
+ */
+export async function enrichBatchWithLLM(
+  apiKey: string,
+  baseUrl: string,
+  model: string,
+  articles: RawArticle[],
+): Promise<ArticleEnrichment[]> {
+  if (!apiKey) throw new Error('LLM_API_KEY is not configured');
+  if (articles.length === 0) return [];
+  return callWithRetry(
+    (attempt) => requestLLM(apiKey, baseUrl, model, promptForBatch(articles), attempt),
+    (text) => {
+      const { results } = batchSchema.parse(JSON.parse(text) as unknown);
+      if (results.length !== articles.length) {
+        throw new Error(`LLM returned ${results.length} results for ${articles.length} articles`);
+      }
+      return results;
+    },
+    'LLM batch request',
+  );
+}

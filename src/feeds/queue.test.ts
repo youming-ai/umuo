@@ -69,7 +69,7 @@ describe('processNewsQueue', () => {
   });
 
   it('retries the batch when enrichment is unreachable', async () => {
-    enrichBatch.mockRejectedValue(new Error('gemini down'));
+    enrichBatch.mockRejectedValue(new Error('LLM down'));
     const messages = [message('a', 2), message('b', 2)];
     await run(messages);
 

@@ -230,7 +230,7 @@ export interface IngestReport {
  * cadence: a failed article is not stored, so the next tick re-fetches and
  * re-enriches it without any queue machinery.
  *
- * Error isolation mirrors the old queue consumer: a batch-level Gemini
+ * Error isolation mirrors the old queue consumer: a batch-level LLM
  * failure logs and moves on (every article retries next tick); a per-article
  * store failure logs and continues to the next article.
  */
