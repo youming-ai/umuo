@@ -475,6 +475,50 @@ export async function getExploreFeed(
   }
 }
 
+/**
+ * Fetch one published article by ID for the `/a/{id}` detail page. Returns
+ * null for anything not found, not published, or not football — the route
+ * renders a 404. Cached per-article so a crawler burst of detail-page hits
+ * doesn't fan out to D1.
+ */
+export async function getArticle(
+  id: string,
+  env: Env,
+  ctx: ExecutionContext,
+): Promise<ExploreArticle | null> {
+  try {
+    const response = await runCached(
+      `article:${id}`,
+      async () => {
+        if (!env.DB) throw new Error('D1 binding is required');
+        const row = await env.DB.prepare(
+          `SELECT
+             a.id, a.title, a.description, a.ai_summary, a.ai_blurb, a.canonical_url,
+             a.image_url, a.source_id, s.name AS source_name, s.url AS source_url,
+             a.published_at, a.comp, a.article_type, a.quality_score, a.freshness_score,
+             COALESCE((SELECT json_group_array(at.tag) FROM article_tags at WHERE at.article_id = a.id), '[]') AS tags
+           FROM articles a
+           JOIN sources s ON s.id = a.source_id
+           WHERE a.id = ? AND a.status = 'published' AND a.is_football = 1 AND a.sport = 'soccer'`,
+        )
+          .bind(id)
+          .first<ExploreRow>();
+        return JSON.stringify(row);
+      },
+      300,
+      3600,
+      env,
+      ctx,
+    );
+    if (!response.ok) return null;
+    const row = (await response.json()) as ExploreRow | null;
+    return row ? exploreArticle(row) : null;
+  } catch (error) {
+    console.error('[data] article lookup failed:', error);
+    return null;
+  }
+}
+
 async function queryExploreFilters(comp: string, env: Env): Promise<ExploreFilterSet> {
   if (!env.DB) throw new Error('D1 binding is required');
   // Source and topic counts are scoped to the page's competition — on /eng.1 a
@@ -534,45 +578,83 @@ export interface SitemapNewsHub {
   lastmod: string;
 }
 
+/** A single article URL for the sitemap. The AI summary page at `/a/{id}`. */
+export interface SitemapArticle {
+  id: string;
+  lastmod: string;
+}
+
+/** Everything `/sitemap.xml` renders: competition hubs + individual articles. */
+export interface SitemapData {
+  hubs: SitemapNewsHub[];
+  articles: SitemapArticle[];
+}
+
 /**
- * The competition hubs that actually hold published articles, newest first
- * article date included. Derived from D1 rather than the competition registry:
- * a hub the desk has never written about is a thin page, and /nba has no news
- * hub at all — src/pages/[comp]/index.astro serves football only, so listing
- * it from COMPETITIONS advertised a 404.
+ * Competition hubs + individual articles for the sitemap. Both are derived
+ * from D1 rather than the competition registry: a hub the desk has never
+ * published in is a thin page (and /nba has no news hub — src/pages/[comp]/
+ * index.astro serves football only, so listing it from COMPETITIONS
+ * advertised a 404). Article URLs at `/a/{id}` give each AI summary its own
+ * crawlable page.
  *
- * Degrades to an empty list. A sitemap missing its news hubs is survivable;
- * a 500 on /sitemap.xml is not.
+ * One D1 batch, one cache entry. The article sub-query is bounded by the
+ * 90-day retention window — published rows age out to archived, so the set
+ * is naturally capped. A LIMIT 50000 guards the sitemap's 50 000-URL ceiling;
+ * the hub + RSS entries (~14) fit well within the margin.
+ *
+ * Degrades to empty arrays. A sitemap missing entries is survivable; a 500
+ * on /sitemap.xml is not.
  */
-export async function getSitemapNews(env: Env, ctx: ExecutionContext): Promise<SitemapNewsHub[]> {
+export async function getSitemapNews(env: Env, ctx: ExecutionContext): Promise<SitemapData> {
+  const empty: SitemapData = { hubs: [], articles: [] };
   try {
     const response = await runCached(
       'sitemap:news',
       async () => {
         if (!env.DB) throw new Error('D1 binding is required');
-        const result = await env.DB.prepare(
-          `SELECT comp AS value, MAX(published_at) AS count
-             FROM articles
-            WHERE status = 'published' AND is_football = 1 AND sport = 'soccer'
-              AND comp IS NOT NULL
-            GROUP BY comp`,
-        ).all<CountRow>();
-        return JSON.stringify(result.results ?? []);
+        const [hubs, articles] = await env.DB.batch([
+          env.DB.prepare(
+            `SELECT comp AS value, MAX(published_at) AS count
+               FROM articles
+              WHERE status = 'published' AND is_football = 1 AND sport = 'soccer'
+                AND comp IS NOT NULL
+              GROUP BY comp`,
+          ),
+          env.DB.prepare(
+            `SELECT id, published_at
+               FROM articles
+              WHERE status = 'published' AND is_football = 1 AND sport = 'soccer'
+              ORDER BY published_at DESC
+              LIMIT 50000`,
+          ),
+        ]);
+        return JSON.stringify({ hubs: hubs.results ?? [], articles: articles.results ?? [] });
       },
       3600,
       86400,
       env,
       ctx,
     );
-    if (!response.ok) return [];
-    const rows = (await response.json()) as CountRow[];
-    return rows
+    if (!response.ok) return empty;
+    const raw = (await response.json()) as {
+      hubs: CountRow[];
+      articles: { id: unknown; published_at: unknown }[];
+    };
+    const hubs: SitemapNewsHub[] = raw.hubs
       .map((row) => ({ comp: rowString(row.value), newest: rowNumber(row.count) }))
       .filter((row) => Object.hasOwn(FOOTBALL_COMPETITIONS, row.comp) && row.newest > 0)
       .map((row) => ({ comp: row.comp, lastmod: new Date(row.newest).toISOString() }));
+    const articles: SitemapArticle[] = raw.articles
+      .map((row) => ({
+        id: rowString(row.id),
+        lastmod: new Date(rowNumber(row.published_at)).toISOString(),
+      }))
+      .filter((row) => row.id);
+    return { hubs, articles };
   } catch (error) {
     console.error('[data] sitemap news lookup failed:', error);
-    return [];
+    return empty;
   }
 }
 

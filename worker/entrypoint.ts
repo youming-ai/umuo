@@ -36,8 +36,7 @@ const entrypoint: ExportedHandler<Env, RawArticle> = {
   },
 
   async queue(batch, env, ctx) {
-    void ctx;
-    await processNewsQueue(batch, env);
+    await processNewsQueue(batch, env, ctx);
   },
 };
 

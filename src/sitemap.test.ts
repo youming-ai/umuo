@@ -1,18 +1,26 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
-import type { SitemapNewsHub } from './data/api';
+import type { SitemapData } from './data/api';
 import { renderSitemap, sitemapEntries } from './sitemap';
 import { SITE_ORIGIN } from './site';
 
 // Mirrors what production actually holds: six football hubs with content, and
 // no nba hub, because the desk is football-only.
-const NEWS: SitemapNewsHub[] = [
-  { comp: 'eng.1', lastmod: '2026-08-07T09:03:08.000Z' },
-  { comp: 'esp.1', lastmod: '2026-08-07T09:06:13.000Z' },
-  { comp: 'uefa.champions', lastmod: '2026-08-06T13:23:52.000Z' },
-];
+const DATA: SitemapData = {
+  hubs: [
+    { comp: 'eng.1', lastmod: '2026-08-07T09:03:08.000Z' },
+    { comp: 'esp.1', lastmod: '2026-08-07T09:06:13.000Z' },
+    { comp: 'uefa.champions', lastmod: '2026-08-06T13:23:52.000Z' },
+  ],
+  articles: [
+    { id: 'aaa111', lastmod: '2026-08-07T09:03:08.000Z' },
+    { id: 'bbb222', lastmod: '2026-08-06T13:23:52.000Z' },
+  ],
+};
 
-const paths = (news = NEWS) => sitemapEntries(news).map((e) => e.path);
+const empty: SitemapData = { hubs: [], articles: [] };
+
+const paths = (data: SitemapData = DATA) => sitemapEntries(data).map((e) => e.path);
 
 describe('sitemapEntries', () => {
   it('never lists a news hub the desk has not published in', () => {
@@ -23,8 +31,8 @@ describe('sitemapEntries', () => {
   });
 
   it('lists a hub only while it has content', () => {
-    expect(paths([])).not.toContain('/eng.1');
-    expect(paths([])).toContain('/');
+    expect(paths(empty)).not.toContain('/eng.1');
+    expect(paths(empty)).toContain('/');
   });
 
   it('emits no competition-section paths — the ESPN plane is gone', () => {
@@ -34,7 +42,7 @@ describe('sitemapEntries', () => {
   });
 
   it('dates each hub by its newest article, and / by the newest of all', () => {
-    const entries = sitemapEntries(NEWS);
+    const entries = sitemapEntries(DATA);
     expect(entries.find((e) => e.path === '/eng.1')?.lastmod).toBe('2026-08-07T09:03:08.000Z');
     expect(entries.find((e) => e.path === '/')?.lastmod).toBe('2026-08-07T09:06:13.000Z');
   });
@@ -51,14 +59,25 @@ describe('sitemapEntries', () => {
   });
 
   it('gives RSS entries no lastmod (feeds are always fresh)', () => {
-    const entries = sitemapEntries(NEWS);
+    const entries = sitemapEntries(DATA);
     expect(entries.find((e) => e.path === '/rss.xml')?.lastmod).toBeUndefined();
     expect(entries.find((e) => e.path === '/eng.1/rss.xml')?.lastmod).toBeUndefined();
+  });
+
+  it('lists each article at /a/{id} with its published date as lastmod', () => {
+    const entries = sitemapEntries(DATA);
+    expect(entries.find((e) => e.path === '/a/aaa111')?.lastmod).toBe('2026-08-07T09:03:08.000Z');
+    expect(entries.find((e) => e.path === '/a/bbb222')?.lastmod).toBe('2026-08-06T13:23:52.000Z');
+  });
+
+  it('emits no article paths when there are none', () => {
+    const noArticles = sitemapEntries({ hubs: DATA.hubs, articles: [] });
+    expect(noArticles.every((e) => !e.path.startsWith('/a/'))).toBe(true);
   });
 });
 
 describe('renderSitemap', () => {
-  const xml = renderSitemap(sitemapEntries(NEWS));
+  const xml = renderSitemap(sitemapEntries(DATA));
 
   it('is valid XML in the sitemap namespace', () => {
     expect(xml).toContain('<?xml version="1.0" encoding="UTF-8"?>');
@@ -75,6 +94,10 @@ describe('renderSitemap', () => {
   it('writes lastmod only where there is one', () => {
     expect(xml).toContain(`<loc>${SITE_ORIGIN}/eng.1</loc>\n    <lastmod>`);
     expect(xml).toContain(`<loc>${SITE_ORIGIN}/uefa.champions</loc>\n    <lastmod>`);
+  });
+
+  it('writes article URLs with lastmod', () => {
+    expect(xml).toContain(`<loc>${SITE_ORIGIN}/a/aaa111</loc>\n    <lastmod>`);
   });
 });
 

@@ -1,3 +1,4 @@
+import { articlePath } from '../../site';
 import type { ExploreArticle } from '../../types';
 
 /** UTC-only so the SSR string and the hydrated string always match. */
@@ -46,9 +47,7 @@ export default function ExploreCard({
     return (
       <li>
         <a
-          href={article.url}
-          target="_blank"
-          rel="noopener noreferrer"
+          href={articlePath(article.id)}
           className="flex items-baseline gap-3 px-3 py-2 hover:bg-overlay/5"
         >
           <span className="ds-caption hidden w-44 shrink-0 truncate text-pitch sm:block">
@@ -95,7 +94,7 @@ export default function ExploreCard({
         <span className="truncate">{domain}</span>
       </div>
 
-      <a href={article.url} target="_blank" rel="noopener noreferrer" className="group block">
+      <a href={articlePath(article.id)} className="group block">
         {article.imageUrl && (
           // Natural aspect, not cropped — the ragged card heights are what makes
           // the masonry columns read as a board rather than a grid.

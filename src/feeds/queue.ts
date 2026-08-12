@@ -1,5 +1,6 @@
 import type { Env } from '../data/api';
 import { enrichBatch, storeEnrichedArticle, storedArticleId } from './enrich';
+import { articleUrl, notifyIndexNow } from './indexnow';
 import type { ArticleEnrichment, RawArticle } from './types';
 
 type QueueMessage = MessageBatch<RawArticle>['messages'][number];
@@ -24,8 +25,16 @@ function retryDelay(message: QueueMessage) {
  * per-article fallback via a try/catch). A null slot retries only its own
  * message, so one consistently-failing story can no longer drag the whole
  * batch to the DLQ.
+ *
+ * After writing, any newly published football articles are pinged to
+ * IndexNow so participating search engines discover them within minutes
+ * instead of waiting for the next sitemap crawl.
  */
-export async function processNewsQueue(batch: MessageBatch<RawArticle>, env: Env): Promise<void> {
+export async function processNewsQueue(
+  batch: MessageBatch<RawArticle>,
+  env: Env,
+  ctx?: ExecutionContext,
+): Promise<void> {
   if (!env.DB) throw new Error('D1 binding is required');
 
   const pending: { message: QueueMessage; article: RawArticle }[] = [];
@@ -56,6 +65,7 @@ export async function processNewsQueue(batch: MessageBatch<RawArticle>, env: Env
     for (const { message } of pending) message.retry(retryDelay(message));
     return;
   }
+  const storedUrls: string[] = [];
 
   for (const [index, { message, article }] of pending.entries()) {
     const enrichment = enrichments[index];
@@ -64,11 +74,16 @@ export async function processNewsQueue(batch: MessageBatch<RawArticle>, env: Env
       continue;
     }
     try {
-      await storeEnrichedArticle(env, article, enrichment);
+      const result = await storeEnrichedArticle(env, article, enrichment);
       message.ack();
+      if (result.status === 'stored') {
+        storedUrls.push(articleUrl(result.id));
+      }
     } catch (error) {
       console.error(`[queue] ${article.sourceId} write failed:`, error);
       message.retry(retryDelay(message));
     }
   }
+
+  if (ctx) notifyIndexNow(storedUrls, ctx);
 }

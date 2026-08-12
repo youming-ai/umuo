@@ -1,0 +1,114 @@
+---
+import { env } from 'cloudflare:workers';
+import { getArticle } from '../../data/api';
+import { FOOTBALL_COMPETITIONS } from '../../competitions';
+import { SITE_ORIGIN, articlePath } from '../../site';
+import Layout from '../../layouts/Layout.astro';
+
+export const prerender = false;
+
+const { id } = Astro.params;
+if (!id) return new Response('Not found', { status: 404 });
+
+const article = await getArticle(id, env, Astro.locals.cfContext as ExecutionContext);
+if (!article) return new Response('Not found', { status: 404 });
+
+const competition = article.competition ? FOOTBALL_COMPETITIONS[article.competition] : null;
+const backHref = competition ? `/${article.competition}` : '/';
+const backLabel = competition?.label ?? 'All football';
+const description = article.summary || article.blurb || article.description;
+const domain = article.sourceDomain || article.sourceName || 'football source';
+const pubDate = new Date(article.publishedAt);
+const pubIso = pubDate.toISOString();
+const pubDisplay = pubDate.toLocaleDateString('en-US', {
+  month: 'short',
+  day: 'numeric',
+  year: 'numeric',
+  timeZone: 'UTC',
+});
+const articleType = article.articleType.replaceAll('-', ' ');
+const selfUrl = `${SITE_ORIGIN}${articlePath(article.id)}`;
+
+// NewsArticle structured data. The AI summary is the page's own content; the
+// original source is attributed via `isBasedOn` + the visible outbound link.
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'NewsArticle',
+  headline: article.title,
+  description,
+  datePublished: pubIso,
+  dateModified: pubIso,
+  author: { '@type': 'Organization', name: 'umuo' },
+  publisher: {
+    '@type': 'Organization',
+    name: 'umuo',
+    url: SITE_ORIGIN,
+  },
+  mainEntityOfPage: { '@type': 'WebPage', '@id': selfUrl },
+  url: selfUrl,
+  articleSection: competition?.label ?? 'Football',
+  ...(article.tags.length > 0 ? { keywords: article.tags.join(', ') } : {}),
+  ...(article.imageUrl ? { image: article.imageUrl } : {}),
+  isBasedOn: article.url,
+  creditText: article.sourceName || domain,
+};
+---
+<Layout title={`${article.title} — umuo`} description={description} ogType="article">
+  <script is:inline type="application/ld+json" set:html={JSON.stringify(jsonLd)} />
+  <main class="mx-auto max-w-2xl px-4 py-6 sm:py-8">
+    <a href={backHref} class="ds-caption text-chalkdim transition-colors hover:text-pitch">
+      ← {backLabel}
+    </a>
+
+    <div class="mt-4 flex items-center gap-2 ds-caption text-pitch">
+      <span aria-hidden="true">&gt;_</span>
+      <span class="truncate">{domain}</span>
+      <span class="text-chalkdim">·</span>
+      <time datetime={pubIso} class="text-chalkdim">{pubDisplay}</time>
+      {articleType !== 'news' && (
+        <span class="text-chalkdim">· {articleType}</span>
+      )}
+    </div>
+
+    <h1 class="mt-2 font-display text-2xl font-bold leading-tight text-chalk sm:text-3xl">
+      {article.title}
+    </h1>
+
+    <div class="mt-3 flex gap-4 ds-caption text-chalkdim">
+      <span>AI signal <span class="text-chalk">{article.qualityScore}</span>/100</span>
+      <span>freshness <span class="text-chalk">{article.freshnessScore}</span>/100</span>
+    </div>
+
+    {article.imageUrl && (
+      <img
+        src={article.imageUrl}
+        alt={article.title}
+        class="mt-4 w-full rounded-card border border-line/40"
+        loading="eager"
+      />
+    )}
+
+    {description && (
+      <div class="mt-4 ds-body text-chalk leading-relaxed whitespace-pre-line">
+        {description}
+      </div>
+    )}
+
+    <a
+      href={article.url}
+      target="_blank"
+      rel="noopener noreferrer"
+      class="mt-6 inline-flex items-center gap-2 rounded-card border border-line/40 px-4 py-2 text-pitch transition-colors hover:bg-overlay/5"
+    >
+      Read original at {domain} →
+    </a>
+
+    {article.tags.length > 0 && (
+      <div class="mt-6 flex flex-wrap gap-2">
+        {article.tags.map((tag) => (
+          <span class="ds-caption rounded-pill bg-overlay/10 px-2 py-1 text-chalkdim">{tag}</span>
+        ))}
+      </div>
+    )}
+  </main>
+</Layout>
