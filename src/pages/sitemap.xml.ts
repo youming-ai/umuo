@@ -10,8 +10,8 @@ export const prerender = false;
 // everything else. Keep it that way — this file cannot be unit-tested, because
 // importing it pulls in 'cloudflare:workers'.
 export const GET: APIRoute = async ({ locals }) => {
-  const news = await getSitemapNews(env, locals.cfContext as ExecutionContext);
-  return new Response(renderSitemap(sitemapEntries(news)), {
+  const data = await getSitemapNews(env, locals.cfContext as ExecutionContext);
+  return new Response(renderSitemap(sitemapEntries(data)), {
     headers: {
       'content-type': 'application/xml; charset=utf-8',
       'cache-control': 'public, max-age=3600',

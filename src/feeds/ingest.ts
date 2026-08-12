@@ -1,10 +1,11 @@
 import { parseNewsFeed } from '../newsFeed';
 import type { Env } from '../data/api';
-import { FEED_SOURCES } from './sources';
-import type { FeedSource, RawArticle } from './types';
+import { enrichBatch, storeEnrichedArticle } from './enrich';
+import { articleUrl, notifyIndexNow } from './indexnow';
 import { parseRss } from './rss';
+import { FEED_SOURCES } from './sources';
+import type { ArticleEnrichment, FeedSource, RawArticle } from './types';
 
-const MAX_QUEUE_BATCH = 100;
 // The known-fingerprint lookup goes out in chunks so one statement never has
 // to bind a whole tick's worth of articles — a tick fetches ~700 today and
 // grows with every source added.
@@ -211,15 +212,30 @@ export async function knownFingerprints(
 export interface IngestReport {
   sources: number;
   fetched: number;
-  /** Already stored, so never enqueued. */
+  /** Already stored, so never re-enriched. */
   skipped: number;
-  queued: number;
+  /** Newly enriched and stored in this tick. */
+  stored: number;
   failed: string[];
 }
 
+/**
+ * Fetch every source, drop stored fingerprints, then enrich and persist the
+ * survivors — all in one scheduled handler pass.
+ *
+ * The queue was removed: at ~3 operations per article (send + receive + ack)
+ * and 96 ticks/day, even ~35 new articles per tick exhausted the Queues free
+ * tier's 10 000 daily-operation ceiling. Enriching in-process costs zero
+ * queue operations. The 15-minute cron interval is itself a natural retry
+ * cadence: a failed article is not stored, so the next tick re-fetches and
+ * re-enriches it without any queue machinery.
+ *
+ * Error isolation mirrors the old queue consumer: a batch-level Gemini
+ * failure logs and moves on (every article retries next tick); a per-article
+ * store failure logs and continues to the next article.
+ */
 export async function ingestAllSources(env: Env, ctx: ExecutionContext): Promise<IngestReport> {
-  void ctx;
-  if (!env.DB || !env.INGEST_QUEUE) throw new Error('D1 and INGEST_QUEUE bindings are required');
+  if (!env.DB) throw new Error('D1 binding is required');
   await ensureSources(env.DB);
   const sources = await enabledSources(env.DB);
 
@@ -242,16 +258,44 @@ export async function ingestAllSources(env: Env, ctx: ExecutionContext): Promise
     fetched.map((article) => article.fingerprint),
   );
   const articles = fetched.filter((article) => !known.has(article.fingerprint));
-  for (let offset = 0; offset < articles.length; offset += MAX_QUEUE_BATCH) {
-    const chunk = articles.slice(offset, offset + MAX_QUEUE_BATCH);
-    await env.INGEST_QUEUE.sendBatch(chunk.map((body) => ({ body, contentType: 'json' as const })));
+
+  let stored = 0;
+  if (articles.length > 0) {
+    let enrichments: (ArticleEnrichment | null)[];
+    try {
+      enrichments = await enrichBatch(env, articles);
+    } catch (error) {
+      console.error('[ingest] enrichment failed for the whole batch:', error);
+      return {
+        sources: sources.length,
+        fetched: fetched.length,
+        skipped: fetched.length - articles.length,
+        stored: 0,
+        failed: results.map((result) => result.error).filter(Boolean),
+      };
+    }
+    const storedUrls: string[] = [];
+    for (const [index, article] of articles.entries()) {
+      const enrichment = enrichments[index];
+      if (!enrichment) continue;
+      try {
+        const result = await storeEnrichedArticle(env, article, enrichment);
+        stored++;
+        if (result.status === 'stored') {
+          storedUrls.push(articleUrl(result.id));
+        }
+      } catch (error) {
+        console.error(`[ingest] ${article.sourceId} store failed:`, error);
+      }
+    }
+    notifyIndexNow(storedUrls, ctx);
   }
 
   return {
     sources: sources.length,
     fetched: fetched.length,
     skipped: fetched.length - articles.length,
-    queued: articles.length,
+    stored,
     failed: results.map((result) => result.error).filter(Boolean),
   };
 }
