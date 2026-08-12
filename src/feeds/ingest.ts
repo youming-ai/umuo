@@ -6,25 +6,18 @@ import { parseRss } from './rss';
 import { FEED_SOURCES } from './sources';
 import type { ArticleEnrichment, FeedSource, RawArticle } from './types';
 
-// The known-fingerprint lookup goes out in chunks so one statement never has
-// to bind a whole tick's worth of articles — a tick fetches ~700 today and
-// grows with every source added.
+// Lookups go out in chunks — a tick fetches ~700 articles today, and that grows
+// with every source added.
 const FINGERPRINT_LOOKUP_CHUNK = 90;
 
-// RSS publishers are fine with an honest bot agent, and all fourteen of them
-// serve it, so they keep it.
 const RSS_HEADERS = {
   accept: 'application/rss+xml, application/atom+xml, application/json, text/xml, */*',
   'user-agent': 'umuo-football-news/1.0 (+https://umuo.app)',
 };
 
-// ESPN's WAF allow-lists client agents by name and 403s everything else. It is
-// not fingerprint matching: measured against site.api, `curl/*`,
-// `python-requests/*` and `Go-http-client/*` are served, while a browser UA, no
-// UA at all, `Wget/*`, `node` and our own honest `umuo-football-news/1.0` are
-// all refused. So the UA here is the one thing that decides whether the six
-// api-json sources work, and it has to name an allow-listed client. See
-// ESPN_HEADERS in src/data/api.ts — same host, same reason, keep them in sync.
+// ESPN's WAF allow-lists client agents by name (curl/*, python-requests/*,
+// Go-http-client/*) and 403s everything else. Keep this in sync with any
+// other ESPN call site.
 const API_JSON_HEADERS = {
   accept: 'application/json, text/plain, */*',
   'user-agent': 'curl/8.7.1',
@@ -183,14 +176,8 @@ async function enabledSources(db: D1Database): Promise<FeedSource[]> {
   return FEED_SOURCES.filter((source) => enabled.has(source.id));
 }
 
-/**
- * Fingerprints already in `articles`, so a tick only enqueues genuinely new
- * work. Best-effort by design: the queue consumer still does the
- * authoritative canonical_url + fingerprint check before the model is called.
- * Without
- * this every tick re-enqueued every article in every feed — ~450 messages
- * every 15 minutes that existed only to be recognised and dropped.
- */
+/** Drop fingerprints already in `articles` so a tick only enqueues new work.
+ *  Best-effort: the queue consumer still re-checks before the model is called. */
 export async function knownFingerprints(
   db: D1Database,
   fingerprints: string[],
@@ -219,21 +206,9 @@ export interface IngestReport {
   failed: string[];
 }
 
-/**
- * Fetch every source, drop stored fingerprints, then enrich and persist the
- * survivors — all in one scheduled handler pass.
- *
- * The queue was removed: at ~3 operations per article (send + receive + ack)
- * and 96 ticks/day, even ~35 new articles per tick exhausted the Queues free
- * tier's 10 000 daily-operation ceiling. Enriching in-process costs zero
- * queue operations. The 15-minute cron interval is itself a natural retry
- * cadence: a failed article is not stored, so the next tick re-fetches and
- * re-enriches it without any queue machinery.
- *
- * Error isolation mirrors the old queue consumer: a batch-level LLM
- * failure logs and moves on (every article retries next tick); a per-article
- * store failure logs and continues to the next article.
- */
+/** Fetch every source, drop stored fingerprints, then enrich and persist the
+ *  survivors in one scheduled handler pass. A failed article is not stored,
+ *  so the next tick re-fetches and re-enriches it. */
 export async function ingestAllSources(env: Env, ctx: ExecutionContext): Promise<IngestReport> {
   if (!env.DB) throw new Error('D1 binding is required');
   await ensureSources(env.DB);

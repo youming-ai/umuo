@@ -5,14 +5,8 @@ import { serveExploreRss } from '../../data/api';
 
 export const prerender = false;
 
-// Per-competition RSS feed, served at /<comp>/rss.xml. Pairs with the league
-// page at /<comp> — both share the same URL prefix and the same scope label,
-// so the feed and the page read as one bundle.
-//
-// `comp` is validated against the registry before dispatch so an attacker
-// can't pin arbitrary KV keys by hitting `/anything/rss.xml`. The key whitelist
-// is small (six leagues) and grows only by editing competitions.ts, which is
-// a deliberate speed bump.
+// Per-competition RSS feed at /<comp>/rss.xml. `comp` is validated against
+// the registry so an attacker can't pin arbitrary KV keys via /anything/rss.xml.
 export const GET: APIRoute = ({ params, request, locals }) => {
   const comp = params.comp;
   if (typeof comp !== 'string' || !Object.hasOwn(FOOTBALL_COMPETITIONS, comp)) {

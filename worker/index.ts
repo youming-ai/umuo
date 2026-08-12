@@ -2,14 +2,6 @@
 
 import { type Env, exploreQueryFromUrl, serveExplore, serveExploreFilters } from '../src/data/api';
 
-// Thin HTTP wrapper around the shared data layer (src/data/api.ts). The SWR
-// primitives + composed serve* functions live there so Astro SSR pages can
-// call them directly (env from 'cloudflare:workers' + Astro.locals.cfContext).
-// This file only does URL parsing → serve* dispatch for the JSON /api/* surface,
-// plus the ASSETS passthrough. The RSS surface lives at /rss.xml and is served
-// by Astro page endpoints (src/pages/rss.xml.ts and src/pages/[comp]/rss.xml.ts)
-// — Astro routing matches the `.xml` suffix cleanly without going through /api/.
-
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     try {
@@ -25,8 +17,6 @@ export default {
       if (url.pathname.startsWith('/api/')) return new Response('Not found', { status: 404 });
       return env.ASSETS.fetch(request); // static assets + SPA fallback
     } catch (err) {
-      // Defense-in-depth: runCached already swallows KV-read hiccups, but any
-      // other unexpected throw must not surface as an opaque workerd 1101.
       console.error('[worker] unhandled error:', err);
       return new Response('{"error":"internal"}', {
         status: 500,

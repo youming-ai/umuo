@@ -57,9 +57,9 @@ Bun locally, `workerd` in production.
 | Worker | `umuo`, deployed by Workers Builds from `main` |
 | KV | `CACHE` `b5d6927e…` |
 | D1 | `DB` → `umuo-content`, primary region **APAC** (cannot be moved without recreating) |
-| Queue | `INGEST_QUEUE` → `umuo-news-ingest`, batch 10, DLQ `umuo-news-ingest-dlq` (no consumer — messages that land there are invisible) |
+| Queue | `INGEST_QUEUE` → `umuo-news-ingest`, batch 10, `max_retries = 5` (failed messages dropped after 5 retries; per-article fallback in `queue.ts` + 15-minute re-ingest cover what a DLQ would have caught) |
 | Crons | `*/15 * * * *` ingest, `17 3 * * *` retention sweep |
-| Secret | `GEMINI_API_KEY` (`wrangler secret put`) |
+| Secret | `LLM_API_KEY`, `LLM_MODEL` (`wrangler secret put`) |
 
 ## Conventions
 

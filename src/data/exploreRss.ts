@@ -1,19 +1,13 @@
-// RSS 2.0 renderer for the AI-curated Explore feed. Pure: takes an
-// `ExploreFeed` + scope label and emits a channel XML document. No DOM,
-// no D1, no Worker bindings — testable in isolation and importable by
-// both the API handler and the SSR pages.
-import { SITE_ORIGIN } from '../site';
+// RSS 2.0 renderer for the Explore feed. Pure: no DOM, no D1, no Worker
+// bindings — importable by both the API handler and the SSR pages.
+import { SITE_DESCRIPTION, SITE_NAME, SITE_ORIGIN, SITE_TITLE } from '../site';
 import type { ExploreArticle, ExploreFeed } from '../types';
 
-// Bound to the `atom:` prefix on <rss>, not to RSS itself — the only Atom
-// element in the document is <atom:link rel="self">, which RSS 2.0 has no
-// native equivalent for and every reader expects.
+// Bound to the `atom:` prefix; the only Atom element is <atom:link rel="self">.
 const ATOM_XMLNS = 'http://www.w3.org/2005/Atom';
 
-// Every feed needs a unique string id. The channel uses the origin itself
-// (a stable value the reader stores once); items use the article's `id`
-// (the AI fingerprint — stable across rebuilds) so deletes/sweeps don't
-// shift the guid and force a re-download.
+// Channel uses the origin; items use the article's `id` so deletes/sweeps
+// don't shift the guid.
 function escapeXml(value: string): string {
   return value
     .replace(/&/g, '&amp;')
@@ -23,17 +17,13 @@ function escapeXml(value: string): string {
     .replace(/'/g, '&apos;');
 }
 
-// RFC 822 with explicit `GMT` — readers that ignore `<pubDate>` quietly are
-// rare but real, and an omit-zone date string fails to parse elsewhere. The
-// AI stable ms value goes to the second, no ms — that is what news readers
-// actually compare against.
+// RFC 822 with explicit `GMT` — some readers ignore <pubDate> quietly, and an
+// omit-zone date string fails to parse elsewhere.
 function rfc822(timestamp: number): string {
   if (!Number.isFinite(timestamp) || timestamp <= 0) return '';
   return new Date(timestamp).toUTCString();
 }
 
-// `<category>` per assignment kept human-readable: "competition:eng.1" beats
-// a bare slug, and readers (NetNewsWire, Feedbin, Reeder) sort them as tags.
 function categoriesFor(article: ExploreArticle): string[] {
   const categories: string[] = [];
   if (article.competition) categories.push(`competition:${article.competition}`);
@@ -43,10 +33,8 @@ function categoriesFor(article: ExploreArticle): string[] {
   return categories;
 }
 
-// Description is the AI blurb (the editorial 1–2 sentence summary); if the
-// model hadn't pushed one through we fall back to the publisher description.
-// Both paths are plain-text in D1 today, so XML-escaping is sufficient — no
-// CDATA needed, no HTML stripping, reader will render them as text.
+// Prefer the AI blurb, fall back to the publisher description. Both are
+// plain-text in D1, so XML-escaping is sufficient.
 function descriptionFor(article: ExploreArticle): string {
   return article.summary || article.blurb || article.description || '';
 }
@@ -56,18 +44,15 @@ function renderItem(article: ExploreArticle): string {
     '    <item>',
     `      <title>${escapeXml(article.title)}</title>`,
     `      <link>${escapeXml(article.url)}</link>`,
-    // guid isPermaLink=false: the article *id* (AI fingerprint) is the stable
-    // identity, not the publisher URL — publishers move / 301 that link all
-    // the time, and the canonical_url normaliser has already collapsed the
-    // tracking junk.
+    // isPermaLink=false: the article *id* (AI fingerprint) is the stable
+    // identity, not the publisher URL.
     `      <guid isPermaLink="false">${escapeXml(article.id)}</guid>`,
     `      <pubDate>${rfc822(article.publishedAt)}</pubDate>`,
   ];
   const description = descriptionFor(article);
   if (description) parts.push(`      <description>${escapeXml(description)}</description>`);
-  // RSS 2.0 <author> is specified as an email address, so the publisher's
-  // domain is all we can honestly put in it — the display name goes in
-  // <category> and the description instead.
+  // <author> is specified as an email address; the publisher's domain is all
+  // we can honestly put in it.
   parts.push(`      <author>noreply@${escapeXml(article.sourceDomain || 'umuo.app')}</author>`);
   for (const category of categoriesFor(article)) {
     parts.push(`      <category>${escapeXml(category)}</category>`);
@@ -76,27 +61,17 @@ function renderItem(article: ExploreArticle): string {
   return parts.join('\n');
 }
 
-/**
- * Render an `ExploreFeed` as an RSS 2.0 document. Renders every item it is
- * handed — the caller decides how long a poll is, and `serveExploreRss` asks
- * the query layer for its clamped maximum.
- *
- * `channelLink` lets the per-competition feed jump the reader into the
- * right hub (`/eng.1`) rather than the global home — clicking a PL story
- * out of NetNewsWire shouldn't land on a Bundesliga story.
- */
+/** Render an `ExploreFeed` as an RSS 2.0 document. `channelLink` lets the
+ *  per-competition feed jump a reader into the matching hub. */
 export function renderExploreRss(
   feed: ExploreFeed,
   scopeLabel: string,
   options: { includeAtomSelfLink?: string; channelLink?: string } = {},
 ): string {
   const channelTitle =
-    scopeLabel === 'All football'
-      ? 'umuo — AI football news'
-      : `umuo — ${scopeLabel} football news`;
+    scopeLabel === 'All football' ? SITE_TITLE : `${SITE_NAME} — ${scopeLabel} football news`;
   const channelLink = options.channelLink ?? `${SITE_ORIGIN}/`;
-  const channelDescription =
-    'AI-curated football news from 20 trusted publishers, refreshed every 15 minutes.';
+  const channelDescription = SITE_DESCRIPTION;
   const published = new Date().toUTCString();
   const items = feed.items.map(renderItem).join('\n');
   const atomLink = options.includeAtomSelfLink
@@ -110,7 +85,7 @@ export function renderExploreRss(
     <description>${escapeXml(channelDescription)}</description>
     <language>en-us</language>
     <lastBuildDate>${published}</lastBuildDate>
-    <generator>umuo</generator>${atomLink}
+    <generator>${SITE_NAME}</generator>${atomLink}
 ${items}
   </channel>
 </rss>

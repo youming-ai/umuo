@@ -17,14 +17,8 @@ function scoreValue(value: number): number {
   return Math.max(0, Math.min(100, Math.round(value)));
 }
 
-/**
- * Accent for a 0–100 signal score. Both meters on the card use it — the top
- * strip's width is AI quality (the desk's confidence in the article), the
- * bottom strip's is freshness (how recent the story is) — so the same colour
- * language reads across both: high (pitch) is "the desk endorses this", mid
- * (amber) is "useable, take with a grain of salt", low (live) is "low
- * confidence, treat as noise".
- */
+/** Accent for a 0–100 signal. The top strip is AI quality, the bottom
+ *  strip is freshness — same colour language reads across both. */
 function signalAccent(score: number): 'pitch' | 'amber' | 'live' {
   if (score >= 75) return 'pitch';
   if (score >= 45) return 'amber';
@@ -60,8 +54,6 @@ export default function ExploreCard({
           <span className="ds-caption hidden shrink-0 uppercase tracking-data text-chalkdim lg:block">
             {typeLabel(article.articleType)}
           </span>
-          {/* List rows are tight: a single shared accent dot replaces the two
-              edge meters. Color still encodes the quality band. */}
           <span
             aria-hidden="true"
             className="hidden h-2 w-2 shrink-0 rounded-pill sm:inline-block"
@@ -96,8 +88,8 @@ export default function ExploreCard({
 
       <a href={articlePath(article.id)} className="group block">
         {article.imageUrl && (
-          // Natural aspect, not cropped — the ragged card heights are what makes
-          // the masonry columns read as a board rather than a grid.
+          // Natural aspect, not cropped — the ragged card heights are what make
+          // the masonry read as a board.
           <img
             src={article.imageUrl}
             alt=""
@@ -133,8 +125,7 @@ export default function ExploreCard({
         </div>
       </a>
 
-      {/* Bottom freshness strip — synced to the same accent as the top signal.
-          A reader can tell quality + age of the story at a glance. */}
+      {/* Bottom freshness strip — synced to the same accent as the top signal. */}
       <span aria-hidden="true" className="block h-0.5 w-full ds-fresh">
         <span
           className="block h-full"

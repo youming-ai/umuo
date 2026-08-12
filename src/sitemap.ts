@@ -6,20 +6,10 @@ export interface SitemapEntry {
   lastmod?: string;
 }
 
-/**
- * Every stable, crawlable path:
- *
- * - `/` plus one hub per competition the desk has actually published in, each
- *   carrying the date of its newest article. The competition sections
- *   (schedule/stats/teams/odds/transactions) were removed with the ESPN plane.
- * - `/a/{id}` for each published article — the AI summary page. These give
- *   the AI-generated summaries their own crawlable URLs so search engines
- *   can index the unique content, not just the hub pages.
- * - The RSS feeds live next to their hubs: `/rss.xml` is the global one,
- *   each league also exposes its own `/{comp}/rss.xml` so a reader can
- *   subscribe to just the Premier League desk. No `lastmod` for the RSS
- *   entries — a feed is always fresh and a cached lastmod would mislead
- *   crawlers into thinking the surface is static.
+/** Every stable, crawlable path:
+ *  - `/` plus one hub per competition with published articles (date = newest article)
+ *  - `/a/{id}` for each published article — gives each AI summary a crawlable URL
+ *  - `/rss.xml` and `/<comp>/rss.xml` — no `lastmod`; a feed is always fresh
  */
 export function sitemapEntries(data: SitemapData): SitemapEntry[] {
   const newest = data.hubs.map((hub) => hub.lastmod).sort();

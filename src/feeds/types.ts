@@ -13,8 +13,8 @@ export interface FeedSource {
   defaultEnabled: boolean;
 }
 
-// Queue messages are deliberately plain data. They cross the Worker → Queue
-// → Durable Object boundary and must remain structured-clone serializable.
+// Queue messages are deliberately plain data — they cross the Worker → Queue
+// boundary and must remain structured-clone serializable.
 export interface RawArticle {
   sourceId: string;
   sourceName: string;

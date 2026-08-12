@@ -18,11 +18,7 @@ function freshnessScore(publishedAt: number, now = Date.now()): number {
   return Math.max(0, Math.min(100, Math.round(100 - (ageHours / 72) * 100)));
 }
 
-/**
- * The model returns free-form tags, so "Premier League" and "premier-league" used
- * to land as two separate rows and show up as two separate facets in the rail.
- * One spelling per topic: lowercase, whitespace collapsed to a single hyphen.
- */
+/** One spelling per topic: lowercase, whitespace collapsed to a single hyphen. */
 export function normalizeTag(value: string): string {
   return value
     .trim()
@@ -58,17 +54,11 @@ export function modelFor(env: Env): string {
   return env.LLM_MODEL || 'glm-5.2';
 }
 
-/**
- * Enrich a whole batch in one LLM call, falling back to per-article calls if
- * the batch comes back unusable. A batch that returns the wrong number of
- * results cannot be mapped positionally, and guessing would attach one
- * article's summary to another, so the fallback is the only safe response.
- *
- * In the fallback, a single "poison" article (one the model consistently
- * refuses or returns unparseable JSON for) is isolated to a null slot rather
- * than allowed to throw — the caller retries only that message, so one bad
- * story can no longer drag the whole batch to the DLQ.
- */
+/** Enrich a whole batch in one LLM call, falling back to per-article calls if
+ *  the batch comes back unusable. A batch that returns the wrong number of
+ *  results cannot be mapped positionally, so the fallback is the only safe
+ *  response. In the fallback, a single poison article is isolated to a null
+ *  slot rather than allowed to throw — the caller retries only that message. */
 export async function enrichBatch(
   env: Env,
   articles: RawArticle[],
@@ -101,11 +91,7 @@ export async function enrichBatch(
   }
 }
 
-/**
- * Persist one enriched article: the article row and its tags. The agent_runs
- * audit trail and source_health counters were dropped — neither was ever read
- * back, so the writes were pure overhead.
- */
+/** Persist one enriched article: the article row and its tags. */
 export async function storeEnrichedArticle(
   env: Env,
   article: RawArticle,

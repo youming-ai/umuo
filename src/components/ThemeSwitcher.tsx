@@ -18,18 +18,14 @@ function detectTheme(): Theme {
   } catch {
     /* private/full */
   }
-  return 'dark'; // 默认 dark
+  return 'dark';
 }
 
-// The only place that touches the theme: reads/persists it and mirrors it onto
-// the document root. No context — nothing else consumes the theme in React
-// (every other surface themes off the `[data-theme]` attribute set here).
-//
 // `theme` starts null so the server and the first client render agree on an
-// icon-less button: this now renders inside an SSR'd `client:load` island, so
-// reading localStorage during render would be a hydration mismatch. The inline
-// script in Layout has already painted the right theme by then — this only
-// catches the button up.
+// icon-less button: this renders inside an SSR'd `client:load` island, so
+// reading localStorage during render would be a hydration mismatch. The
+// inline script in Layout has already painted the right theme by then — this
+// only catches the button up.
 export default function ThemeSwitcher() {
   const [theme, setTheme] = useState<Theme | null>(null);
 

@@ -3,6 +3,7 @@ import { env } from 'cloudflare:workers';
 import { FOOTBALL_COMPETITIONS } from '../../competitions';
 import ExploreView from '../../components/explore/ExploreView';
 import { getExploreFeed, getExploreFilters } from '../../data/api';
+import { SITE_NAME } from '../../site';
 import Layout from '../../layouts/Layout.astro';
 
 const { comp } = Astro.params;
@@ -16,17 +17,14 @@ const [initialData, initialFilters] = await Promise.all([
   getExploreFilters(comp, env, ctx),
 ]);
 // Both the <head> autodiscovery link and the strip's "+ feed" CTA point at
-// this league's feed. Handing a reader on /eng.1 the global feed would
-// silently subscribe them to six competitions they didn't ask for.
+// this league's feed.
 const feedPath = `/${comp}/rss.xml`;
 ---
 <Layout
-  title={`umuo — ${competition.label} football news`}
+  title={`${SITE_NAME} — ${competition.label} football news`}
   feedPath={feedPath}
-  feedTitle={`umuo — ${competition.label} football news`}
+  feedTitle={`${SITE_NAME} — ${competition.label} football news`}
 >
-  {/* No left rail here: the ExploreView toolbar already carries the
-      competition index. */}
   <main>
     <ExploreView
       initialData={initialData}

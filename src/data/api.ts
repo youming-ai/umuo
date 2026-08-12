@@ -10,16 +10,6 @@ import type {
   ExploreFilterSet,
 } from '../types';
 
-// KV SWR core + the AI-curated Explore feed. The ESPN scoreboard plane
-// (serve* / adapters / leaders) was removed with the competition pages; this
-// file now only serves the D1 news surface. `runCached` keeps the shared
-// cache + in-flight coalescing + serve-stale-on-outage semantics; `json`
-// turns its payload into a Response.
-//
-// `fresh` = seconds a cached copy is served without revalidating.
-// `keep`  = how long KV retains it (≥ fresh) so a stale copy can cover an outage.
-// KV TTL minimum is 60s.
-
 export type Env = Cloudflare.Env;
 
 interface Entry {
@@ -42,17 +32,13 @@ export function json(body: string, status: number, cache: CacheState): Response 
   });
 }
 
-// Request coalescing: concurrent callers share one upstream fetch and one
-// cached payload (a plain {body, status, cache} object — JSON-safe, not a
-// stream). Each caller then calls `json(...)` to build its OWN `Response`
-// from that shared payload; we never share the Response itself, because
-// `Response#body` is a one-shot stream and a second `.text()` would throw
-// `Body is unusable: Body has already been read`.
+// Coalesce concurrent identical requests: each caller builds its OWN Response
+// from the shared {body, status, cache} payload, because `Response#body` is a
+// one-shot stream.
 const inflight = new Map<string, Promise<CachedResult>>();
 
-// Shared cache/coalesce/serve-stale core. `produce` returns the body STRING to
-// cache. Everything downstream funnels through this one copy of the KV +
-// in-flight coalescing + serve-stale-on-outage logic.
+// `fresh` = seconds a cached copy serves without revalidating.
+// `keep`  = how long KV retains it (≥ fresh) so a stale copy covers an outage.
 async function runCached(
   cacheKey: string,
   produce: () => Promise<string>,
@@ -65,9 +51,7 @@ async function runCached(
   try {
     stored = await env.CACHE.get<Entry>(cacheKey, 'json');
   } catch (err) {
-    // A KV read hiccup (transient isolate-level failure) must not 500 the
-    // request — treat it as a miss and revalidate from upstream. The produce
-    // path below still owns serve-stale-on-outage for upstream failures.
+    // KV hiccup — treat as miss; the produce path below still owns serve-stale.
     console.error(`[data] KV get failed for ${cacheKey}:`, err);
   }
   const now = Date.now();
@@ -114,7 +98,6 @@ export interface ExploreQuery {
   source?: string;
   tag?: string;
   q?: string;
-  /** Opaque page boundary from ExploreFeed.nextCursor — see parseExploreCursor. */
   cursor?: string;
   limit?: number;
 }
@@ -205,8 +188,7 @@ function exploreArticle(row: ExploreRow): ExploreArticle {
     imageUrl: rowString(row.image_url),
     sourceId: rowString(row.source_id),
     sourceName: rowString(row.source_name),
-    // Where the story lives, not where we polled it: the feed URL would print
-    // feeds.bbci.co.uk / site.api.espn.com instead of bbc.com / espn.com.
+    // Story domain, not poll URL — feeds.bbci.co.uk → bbc.com.
     sourceDomain: sourceDomain(row.canonical_url),
     publishedAt: rowNumber(row.published_at),
     competition: rowString(row.comp) || null,
@@ -217,12 +199,8 @@ function exploreArticle(row: ExploreRow): ExploreArticle {
   };
 }
 
-/**
- * A page boundary, as the sort key of the last row already delivered:
- * `<published_at>:<id>`. Keyset, not an offset — the feed has rows inserted at
- * the top every ingest tick, and an offset would slide the whole window down
- * underneath the reader, so page 2 would repeat rows from page 1.
- */
+/** Keyset cursor `<published_at>:<id>`. Offset would slide under rows inserted
+ *  at the top every ingest tick. */
 export function parseExploreCursor(value: string | undefined): [number, string] | null {
   if (!value) return null;
   const separator = value.indexOf(':');
@@ -253,9 +231,8 @@ function normalizedExploreQuery(
     source: query.source?.trim().slice(0, 80) || undefined,
     tag: query.tag?.trim().toLowerCase().slice(0, 80) || undefined,
     q: query.q?.trim().slice(0, 100) || undefined,
-    // Re-serialised from the parsed form, so a malformed cursor collapses to
-    // "first page" instead of becoming its own cache key. Only cursors that
-    // name a real (published_at, id) boundary can reach KV.
+    // Re-serialised so a malformed cursor collapses to "first page" instead of
+    // becoming its own KV key.
     cursor: canonicalCursor(query.cursor),
     limit,
   };
@@ -287,8 +264,7 @@ async function queryExplore(query: ExploreQuery, env: Env): Promise<ExploreFeed>
     bindings.push(search, search, search);
   }
   // Strictly after the last row delivered, in the same (published_at, id) order
-  // the query sorts by. An unparseable cursor falls through to the first page
-  // rather than erroring — a stale bookmark should still render something.
+  // the query sorts by.
   const cursor = parseExploreCursor(normalized.cursor);
   if (cursor) {
     where.push('(a.published_at < ? OR (a.published_at = ? AND a.id < ?))');
@@ -337,11 +313,8 @@ export async function serveExplore(
 ): Promise<Response> {
   const normalized = normalizedExploreQuery(query);
 
-  // Free-text search bypasses KV. The cache key embeds the whole query, so a
-  // hundred characters of arbitrary text is a hundred characters of arbitrary
-  // cache key: an unauthenticated caller could write KV entries without limit
-  // just by varying `q`. Caching would buy nothing anyway — a distinct search
-  // is a miss by definition, and repeats are rare enough not to pay for.
+  // Free-text search bypasses KV — `q` is user-controlled, so caching it lets
+  // an unauthenticated caller write unlimited KV entries.
   if (normalized.q) {
     try {
       return json(JSON.stringify(await queryExplore(normalized, env)), 200, 'MISS');
@@ -351,12 +324,9 @@ export async function serveExplore(
     }
   }
 
-  // Everything reaching KV is now drawn from a bounded set: comp is checked
-  // against FOOTBALL_COMPETITIONS, cursor against real row boundaries, limit is
-  // clamped. source and tag stay user-supplied — a caller who varies them still
-  // writes distinct keys, bounded only by the 1h TTL. They are kept cached
-  // because rail clicks are the queries most worth caching; revisit if the
-  // write volume ever shows up on the bill.
+  // Everything reaching KV is drawn from a bounded set: comp is checked against
+  // FOOTBALL_COMPETITIONS, cursor against real row boundaries, limit is clamped.
+  // source and tag stay user-supplied and bounded only by the 1h TTL.
   const key = `explore:${encodeURIComponent(JSON.stringify(normalized))}`;
   return runCached(
     key,
@@ -368,30 +338,12 @@ export async function serveExplore(
   );
 }
 
-/** Items a feed poll carries. Equal to `normalizedExploreQuery`'s own clamp —
- *  a subscriber gets the most the query layer will hand out. */
+/** Items a feed poll carries, equal to `normalizedExploreQuery`'s ceiling. */
 const RSS_ITEM_LIMIT = 24;
 
-/**
- * RSS 2.0 surface for the same Explore feed. A reader (NetNewsWire, Feedly,
- * Inoreader, Reeder) polls it and gets the head of the feed in stable,
- * guid-pinned form.
- *
- * - Asks for `limit: 24`, the ceiling `normalizedExploreQuery` clamps to. A
- *   feed wants more than the 12-item web default and there is no reason to
- *   give a subscriber less than the page can serve.
- * - Drops `q` (free-text search is a transient query, not a feed), keeps
- *   comp/source/tag since those are bookmarks readers re-subscribe against.
- * - Drops `cursor` (subscribers don't paginate; they take the head).
- * - Honours the same SWR freshness/cache as the JSON endpoint, with a
- *   slightly longer keep window so a reader that polls every 30min always
- *   sees consistent lists.
- * - Sets the standard `application/rss+xml` Content-Type and an
- *   explicit Cache-Control so the reader's own HTTP cache stays warm too.
- * - A stale hit still renders (SWR serves the stored copy at 200). Only a
- *   cold-cache upstream failure reaches the reader, and that goes back
- *   verbatim as `runCached`'s 502 — never relabelled as a feed.
- */
+/** RSS 2.0 surface for the Explore feed. Drops `q` (transient) and `cursor`
+ *  (subscribers take the head, not paginate); keeps comp/source/tag for
+ *  bookmarks. Honours the same SWR freshness/cache as the JSON endpoint. */
 export async function serveExploreRss(
   query: ExploreQuery,
   selfUrl: string,
@@ -399,9 +351,8 @@ export async function serveExploreRss(
   env: Env,
   ctx: ExecutionContext,
 ): Promise<Response> {
-  // A feed is the head of the query, nothing transient. Build a fresh
-  // normalized shape that drops search + cursor before going to KV so a
-  // cache key only carries the bookmark-worthy facets.
+  // A feed is the head of the query, nothing transient. Drop search + cursor
+  // before going to KV so the cache key only carries the bookmark-worthy facets.
   const normalized = normalizedExploreQuery({
     ...query,
     q: undefined,
@@ -412,9 +363,8 @@ export async function serveExploreRss(
   const scopeLabel = normalized.comp
     ? (FOOTBALL_COMPETITIONS[normalized.comp]?.label ?? normalized.comp)
     : 'All football';
-  // <link> in the channel jumps a reader that clicks through back into the
-  // matching hub on the site rather than the global home. Per-comp feeds go
-  // to /<comp>; the global feed stays on /.
+  // Per-comp feeds link to /<comp> so a reader clicking through lands on the
+  // matching hub rather than the global home.
   const channelLink = normalized.comp ? `${origin}/${normalized.comp}` : `${origin}/`;
 
   const key = `explore:rss:${encodeURIComponent(JSON.stringify(normalized))}`;
@@ -433,14 +383,12 @@ export async function serveExploreRss(
     ctx,
   );
 
-  // A non-OK response from runCached is its JSON error body, not a feed.
-  // Relabelling that as application/rss+xml would hand every reader a parse
-  // error, and the 5-minute Cache-Control below would pin the failure in
-  // their HTTP cache long after D1 recovered. Pass it through untouched.
+  // Pass runCached's non-OK response through untouched: relabelling the JSON
+  // error body as application/rss+xml would hand every reader a parse error.
   if (!cached.ok) return cached;
 
-  // Wrap the SWR's JSON-shaped response into the RSS content type a reader
-  // expects. The body is still XML; runCached only inspects the string.
+  // Wrap the SWR's JSON-shaped response into the RSS content type. The body is
+  // still XML; runCached only inspects the string.
   const xCache = cached.headers.get('x-cache') ?? 'MISS';
   return new Response(cached.body, {
     status: cached.status,
@@ -465,9 +413,8 @@ export async function getExploreFeed(
     const feed = parsed as Partial<ExploreFeed>;
     return {
       items: Array.isArray(feed.items) ? (feed.items as ExploreArticle[]) : [],
-      // string, not number: the cursor became a keyset key. While this still
-      // checked for a number it coerced every SSR page to null, so the first
-      // paint always claimed the feed was exhausted and pagination never began.
+      // String, not number: keyset cursor. While it checked for number it
+      // coerced every SSR page to null, so pagination never began.
       nextCursor: typeof feed.nextCursor === 'string' ? feed.nextCursor : null,
     };
   } catch {
@@ -475,12 +422,8 @@ export async function getExploreFeed(
   }
 }
 
-/**
- * Fetch one published article by ID for the `/a/{id}` detail page. Returns
- * null for anything not found, not published, or not football — the route
- * renders a 404. Cached per-article so a crawler burst of detail-page hits
- * doesn't fan out to D1.
- */
+/** One published article for the `/a/{id}` detail page. Cached so a crawler
+ *  burst of detail-page hits doesn't fan out to D1. */
 export async function getArticle(
   id: string,
   env: Env,
@@ -521,10 +464,8 @@ export async function getArticle(
 
 async function queryExploreFilters(comp: string, env: Env): Promise<ExploreFilterSet> {
   if (!env.DB) throw new Error('D1 binding is required');
-  // Source and topic counts are scoped to the page's competition — on /eng.1 a
-  // row reading "BBC Sport Football 29" has to mean 29 Premier League stories,
-  // not 29 across all football. The competition list itself stays global: it is
-  // the nav, so every league must remain reachable from every page.
+  // Source + topic counts are scoped to the page's competition; the
+  // competition list itself is global — every league must stay reachable.
   const published = `a.status = 'published' AND a.is_football = 1 AND a.sport = 'soccer'`;
   const scope = comp ? ' AND a.comp = ?' : '';
   const scopeBinding = comp ? [comp] : [];
@@ -578,34 +519,20 @@ export interface SitemapNewsHub {
   lastmod: string;
 }
 
-/** A single article URL for the sitemap. The AI summary page at `/a/{id}`. */
 export interface SitemapArticle {
   id: string;
   lastmod: string;
 }
 
-/** Everything `/sitemap.xml` renders: competition hubs + individual articles. */
 export interface SitemapData {
   hubs: SitemapNewsHub[];
   articles: SitemapArticle[];
 }
 
-/**
- * Competition hubs + individual articles for the sitemap. Both are derived
- * from D1 rather than the competition registry: a hub the desk has never
- * published in is a thin page (and /nba has no news hub — src/pages/[comp]/
- * index.astro serves football only, so listing it from COMPETITIONS
- * advertised a 404). Article URLs at `/a/{id}` give each AI summary its own
- * crawlable page.
- *
- * One D1 batch, one cache entry. The article sub-query is bounded by the
- * 90-day retention window — published rows age out to archived, so the set
- * is naturally capped. A LIMIT 50000 guards the sitemap's 50 000-URL ceiling;
- * the hub + RSS entries (~14) fit well within the margin.
- *
- * Degrades to empty arrays. A sitemap missing entries is survivable; a 500
- * on /sitemap.xml is not.
- */
+/** Competition hubs + individual articles for the sitemap, derived from D1.
+ *  Article URLs at `/a/{id}` give each AI summary its own crawlable page.
+ *  Degrades to empty arrays — a sitemap missing entries is survivable; a 500
+ *  on /sitemap.xml is not. */
 export async function getSitemapNews(env: Env, ctx: ExecutionContext): Promise<SitemapData> {
   const empty: SitemapData = { hubs: [], articles: [] };
   try {

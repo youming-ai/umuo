@@ -24,8 +24,6 @@ const FOOTBALL_RSS_SOURCES: FeedSource[] = [
     id: 'sky-football',
     kind: 'rss',
     name: 'Sky Sports Football',
-    // 12040 is Sky's *all sport* feed — it was shipping cricket, golf and
-    // boxing under a "Football" label. 11095 is football-only.
     url: 'https://www.skysports.com/rss/11095',
     sport: 'soccer',
     authorityScore: 90,
@@ -51,13 +49,10 @@ const FOOTBALL_RSS_SOURCES: FeedSource[] = [
   },
 ];
 
-// Competition-scoped feeds. These are worth more than another general firehose:
-// the publisher has already told us which league a story belongs to, so `comp`
-// is attributed without waiting on the AI enrichment step.
-//
-// The slugs are each publisher's own and do NOT derive from our comp keys
-// (eng.1 → premierleague at the Guardian, premier-league at the BBC), so both
-// maps are written out by hand. Every URL here was verified to return items.
+// Competition-scoped feeds. The publisher has already told us which league a
+// story belongs to, so `comp` is attributed without waiting on AI enrichment.
+// Slugs are each publisher's own (eng.1 → premierleague at the Guardian,
+// premier-league at the BBC) and don't derive from our comp keys.
 const GUARDIAN_COMP_SLUGS: Record<string, string> = {
   'eng.1': 'premierleague',
   'esp.1': 'laligafootball',
@@ -124,9 +119,8 @@ const COMP_RSS_SOURCES: FeedSource[] = [
   },
 ];
 
-// ESPN remains a useful structured source for league-scoped coverage. The
-// public surface is football-only even though the legacy adapter registry
-// still contains basketball code for backwards-compatible unit fixtures.
+// ESPN remains useful for league-scoped coverage; the per-league news feed is
+// football-only even where the rest of the surface isn't.
 const ESPN_SOURCES: FeedSource[] = Object.values(FOOTBALL_COMPETITIONS).map((competition) => ({
   id: `espn-${competition.key}`,
   kind: 'api-json',
