@@ -7,9 +7,6 @@ import { PRUNE_CRON, pruneOldRecords } from '../src/feeds/retention';
 import type { RawArticle } from '../src/feeds/types';
 import type { Env } from '../src/data/api';
 
-// The Astro adapter owns normal HTTP/SSR routing. This custom entrypoint adds
-// the Cloudflare event handlers that Astro's default entrypoint cannot expose:
-// cron-triggered ingestion and Queue-triggered AI processing.
 const entrypoint: ExportedHandler<Env, RawArticle> = {
   fetch(request, env, ctx) {
     return handle(request, env, ctx);
@@ -17,16 +14,13 @@ const entrypoint: ExportedHandler<Env, RawArticle> = {
 
   async scheduled(controller, env, ctx) {
     if (controller.cron === PRUNE_CRON) {
-      const report = await pruneOldRecords(env);
-      console.log('[scheduled] retention sweep completed:', report);
+      await pruneOldRecords(env);
       return;
     }
 
     const report = await ingestAllSources(env, ctx);
-    console.log('[scheduled] football news ingest completed:', report);
-    // A source can fail every tick for a day without anything surfacing —
-    // ESPN's six did, and only a hand-written source_health query found it.
-    // Split to error level so Workers observability can alert on it.
+    // Surfacing failed sources at error level so observability can alert. A
+    // source can fail every tick for a day without anything else noticing.
     if (report.failed.length > 0) {
       console.error(
         `[scheduled] ${report.failed.length}/${report.sources} sources failed:`,

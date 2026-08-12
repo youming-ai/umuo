@@ -74,12 +74,9 @@ function promptForBatch(articles: RawArticle[]): string {
   ].join('\n');
 }
 
-/**
- * One OpenAI-compatible /chat/completions call. The base URL is configurable
- * (env LLM_BASE_URL) so the same code works against z.ai, Groq, OpenAI, or any
- * other compatible endpoint. response_format json_object guarantees valid JSON;
- * Zod validates the structure.
- */
+/** One OpenAI-compatible /chat/completions call. baseUrl is configurable
+ *  (env LLM_BASE_URL) so the same code works against any compatible endpoint.
+ *  response_format json_object + Zod guarantee valid JSON. */
 async function requestLLM(
   apiKey: string,
   baseUrl: string,
@@ -102,11 +99,8 @@ async function requestLLM(
   });
 }
 
-/**
- * Shared retry/backoff scaffold. 3 attempts, backoff 500 × (attempt + 1),
- * retries only on 5xx/429/throw. A 4xx is a permanent failure and throws
- * immediately. Extracts the text content from an OpenAI-format response.
- */
+/** 3 attempts, backoff 500 × (attempt + 1), retries only on 5xx/429/throw.
+ *  4xx is permanent and throws immediately. */
 async function callWithRetry<T>(
   request: (attempt: number) => Promise<Response>,
   parse: (text: string) => T,
@@ -150,12 +144,8 @@ export async function enrichWithLLM(
   );
 }
 
-/**
- * One call for a whole batch. Results are positional, so a response whose
- * length does not match the input is rejected outright rather than risking an
- * article being written with another article's summary — the caller falls back
- * to per-article calls when that happens.
- */
+/** One call for a whole batch. A response whose length does not match the
+ *  input is rejected outright — the caller falls back to per-article calls. */
 export async function enrichBatchWithLLM(
   apiKey: string,
   baseUrl: string,

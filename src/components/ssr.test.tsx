@@ -7,7 +7,7 @@ import { renderToString } from 'react-dom/server';
 import { expect, it } from 'vitest';
 import ExploreView from './explore/ExploreView';
 
-// The Explore bar carries the wordmark and the theme switcher, and the whole
+// The Explore bar carries the brand mark and the theme switcher, and the whole
 // island is SSR'd via client:load. ThemeSwitcher therefore must not read
 // localStorage during render — there is no `window` here, exactly like workerd,
 // and a differing first client render would throw the SSR markup away.
@@ -18,6 +18,7 @@ it('renders the Explore shell server-side without touching browser globals', () 
       initialFilters={{ competitions: [], sources: [], tags: [] }}
     />,
   );
+  expect(html).toContain('⚽');
   expect(html).toContain('umu');
   expect(html).toContain('Search stories');
   // The search magnifier is an intentional SSR icon (static, theme-neutral).

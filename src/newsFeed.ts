@@ -1,20 +1,16 @@
-// Pure, defensive parse of ESPN's "now" news JSON into the app's NewsItem[].
-// ESPN JSON is untyped/heterogeneous (categories mix team/athlete/league/guid/
-// topic/…), so coerce with obj()/arr()/str() rather than trusting shapes.
-// No DOM/React: unit-testable in isolation.
+// Defensive parse of ESPN's league-news JSON into NewsItem[]. ESPN JSON is
+// untyped/heterogeneous (categories mix team/athlete/league/guid/topic/…),
+// so coerce with obj()/arr()/str() rather than trusting shapes.
 import type { NewsItem, NewsTag } from './types';
 import { arr, obj, str } from './utils/coerce';
 import { slugify } from './utils/helpers';
 
-// Hide the deep ESPN league-href walk behind one helper so callers don't depend
-// on four levels of nested object shape.
 function getLeagueHref(c: Record<string, unknown>): string {
   const viaLeague = str(obj(obj(obj(obj(c.league).links).web).leagues).href);
   const viaCategory = str(obj(obj(obj(obj(c).links).web).leagues).href);
   return viaLeague || viaCategory;
 }
 
-// Pull team/athlete/league entities out of a headline's `categories`, deduped.
 function tagsFrom(categories: unknown): NewsTag[] {
   const tags: NewsTag[] = [];
   const seen = new Set<string>();
@@ -54,8 +50,7 @@ function tagsFrom(categories: unknown): NewsTag[] {
 
 export function parseNewsFeed(json: unknown): NewsItem[] {
   const root = obj(json);
-  // site.api per-league news wraps items in `articles`; the article object shape
-  // (headline/description/published/images/categories/links) is otherwise identical.
+  // site.api per-league news wraps items in `articles`; the shape is otherwise identical.
   const list = arr(root.articles).length ? arr(root.articles) : arr(root.headlines);
   return list.map((raw): NewsItem => {
     const h = obj(raw);

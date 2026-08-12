@@ -5,31 +5,17 @@ import type { ArticleEnrichment, RawArticle } from './types';
 
 type QueueMessage = MessageBatch<RawArticle>['messages'][number];
 
-/** Exponential backoff capped at 5 minutes, same formula for every retry site. */
+/** Exponential backoff capped at 5 minutes. */
 function retryDelay(message: QueueMessage) {
   return { delaySeconds: Math.min(300, 10 * 2 ** message.attempts) };
 }
 
-/**
- * One LLM call per queue batch instead of one per article.
- *
- * Order of business matters. Duplicates are dropped first, so they never reach
- * the model and never cost anything; whatever survives goes out as a single
- * interaction; then each result is written and acked individually. A message
- * that fails is retried on its own — retrying the batch would re-bill every
- * message in it that had already succeeded. Retries stay safe because a
- * re-delivered article is caught by the duplicate check above.
- *
- * Poison-article isolation: `enrichBatch` returns null for any article the
- * model could not enrich (in the batch path via a length mismatch, in the
- * per-article fallback via a try/catch). A null slot retries only its own
- * message, so one consistently-failing story can no longer drag the whole
- * batch to the DLQ.
- *
- * After writing, any newly published football articles are pinged to
- * IndexNow so participating search engines discover them within minutes
- * instead of waiting for the next sitemap crawl.
- */
+/** One LLM call per queue batch. Duplicates are dropped first (so they never
+ *  reach the model); whatever survives goes out as a single interaction; each
+ *  result is then written and acked individually. `enrichBatch` returns null
+ *  for any article the model could not enrich — a null slot retries only its
+ *  own message, so one consistently-failing story cannot keep the whole batch
+ *  failing forever. Stored articles are pinged to IndexNow. */
 export async function processNewsQueue(
   batch: MessageBatch<RawArticle>,
   env: Env,
@@ -59,8 +45,7 @@ export async function processNewsQueue(
       pending.map((item) => item.article),
     );
   } catch (error) {
-    // Enrichment failed for the whole batch — almost always the model being
-    // unreachable, so retry them all.
+    // Model unreachable — retry the whole batch.
     console.error('[queue] enrichment failed for the whole batch:', error);
     for (const { message } of pending) message.retry(retryDelay(message));
     return;

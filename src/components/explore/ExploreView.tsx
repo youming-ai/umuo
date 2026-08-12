@@ -59,8 +59,8 @@ function FilterRow({
       {count !== null && <span className="shrink-0 tabular-nums opacity-70">{count}</span>}
     </>
   );
-  // A competition is a route, not a filter — it gets a real link so the URL,
-  // the title and a refresh all agree. Sources and topics stay in-page state.
+  // A competition is a route, not a filter — sources and topics stay in-page
+  // state; competitions get a real link.
   return href ? (
     <a href={href} aria-current={active ? 'page' : undefined} className={className}>
       {body}
@@ -91,8 +91,6 @@ function FilterGroup({
   const total = options.reduce((sum, option) => sum + option.count, 0);
   return (
     <div>
-      {/* No alpha on the muted token here: chalkdim/70 on the ground is 3.65:1
-          (2.93:1 in light), under AA for text this small. */}
       <p className="px-2 pb-1 ds-micro uppercase tracking-caption text-chalkdim">{title}</p>
       <FilterRow
         label={allLabel}
@@ -143,11 +141,8 @@ export default function ExploreView({
   const key = useMemo(() => queryKey(query), [query]);
 
   const isFiltered = Boolean(query.source || query.tag || query.q);
-  // Only the competition pages carry a scope label — the global home is
-  // implicit in the wordmark, so "All football" next to it was noise.
-  const scopeLabel = initialComp
-    ? (FOOTBALL_COMPETITIONS[initialComp]?.label ?? initialComp)
-    : '';
+  // Competition pages carry a scope label; the global home is implicit in the wordmark.
+  const scopeLabel = initialComp ? (FOOTBALL_COMPETITIONS[initialComp]?.label ?? initialComp) : '';
 
   useEffect(() => {
     if (initialKey.current === key) {
@@ -191,9 +186,9 @@ export default function ExploreView({
     setQuery({ ...initialQuery });
   }
 
-  // Infinite scroll. Re-running on [nextCursor, loading] is what makes it
-  // repeat: appending rows fires no new intersection event, so the observer is
-  // rebuilt after each page and re-checks whether the sentinel is still in view.
+  // Infinite scroll: re-running on [nextCursor, loading] is what makes it
+  // repeat. Appending rows fires no new intersection event, so the observer is
+  // rebuilt after each page.
   useEffect(() => {
     const node = sentinelRef.current;
     if (!node || nextCursor === null || loading) return;
@@ -210,9 +205,7 @@ export default function ExploreView({
     return () => observer.disconnect();
   }, [nextCursor, loading]);
 
-  // Track which user-driven facets are still applied (everything except comp,
-  // which is the route itself). Drives the "Active filters" chip row rendered
-  // below the toolbar.
+  // User-driven facets only (comp is the route itself).
   const activeFacets: { key: string; label: string; onClear: () => void }[] = [];
   if (query.source) {
     const sourceOption = initialFilters.sources.find((option) => option.value === query.source);
@@ -286,9 +279,9 @@ export default function ExploreView({
         ))}
       </ol>
     ) : (
-      // ponytail: native CSS multi-column, not a masonry lib. Fills column-major
-      // (items 1..n down column 1) rather than round-robin across columns —
-      // swap in an SSR round-robin split if reading order ever has to be exact.
+      // Native CSS multi-column, not a masonry lib. Fills column-major
+      // (items 1..n down column 1); swap in an SSR round-robin split if
+      // reading order ever has to be exact.
       <section
         className="columns-1 gap-3 p-3 md:columns-2 xl:columns-3 2xl:columns-4"
         aria-label="Football news"
@@ -301,12 +294,6 @@ export default function ExploreView({
 
   return (
     <div>
-      {/* The one sticky bar on the page — three groups, visual order:
-            [identity · scope]  [search]  [preferences].
-          Identity owns the left rail (logo + page title), search lives in the
-          middle as the dominant affordance, view theme/preference live on the
-          right. A row here does three different jobs; the markup and the
-          flex roles make that legible. */}
       <div className="sticky top-0 z-30 flex flex-wrap items-center gap-x-3 gap-y-1.5 border-b border-line/40 bg-night/95 px-3 py-1.5 backdrop-blur-md lg:h-[var(--h-bar)] lg:flex-nowrap lg:py-0">
         <div className="flex min-w-0 items-center gap-3">
           <Logo />
@@ -320,7 +307,10 @@ export default function ExploreView({
           )}
         </div>
 
-        <form onSubmit={submitSearch} className="relative flex min-w-0 flex-1 sm:max-w-md lg:mx-auto lg:max-w-xl">
+        <form
+          onSubmit={submitSearch}
+          className="relative flex min-w-0 flex-1 sm:max-w-md lg:mx-auto lg:max-w-xl"
+        >
           <label className="sr-only" htmlFor="explore-search">
             Search football news
           </label>
@@ -375,10 +365,6 @@ export default function ExploreView({
       </div>
 
       {activeFacets.length > 0 && (
-        // The "currently filtered" strip moved out of the bar so the bar stays a
-        // fixed set of identity/search/preference roles. Pills read as filters
-        // rather than as orphans, and a single Clear button does the obvious
-        // thing.
         <nav
           className="flex flex-wrap items-center gap-2 border-b border-line/40 bg-night/40 px-3 py-2 ds-caption text-chalkdim"
           aria-label="Active filters"
@@ -407,15 +393,12 @@ export default function ExploreView({
       )}
 
       <div className="flex">
-        {/* Full-height so the rule down its right edge runs the whole viewport,
-            and its own scroll container so a long index never drags the feed. */}
         <aside className="no-scrollbar sticky top-[var(--h-bar)] hidden h-[calc(100vh-var(--h-bar))] w-52 shrink-0 self-start overflow-y-auto border-r border-line/40 p-2 lg:block">
           {rail}
         </aside>
 
         <div className="min-w-0 flex-1">
-          {/* The rail is a drawer on phones. <details> is the native disclosure —
-              no state, no outside-click handler, works before hydration. */}
+          {/* <details> is the native disclosure — no state, no outside-click handler. */}
           <details className="border-b border-line/40 lg:hidden">
             <summary className="cursor-pointer list-none px-3 py-2 ds-caption uppercase tracking-caption text-chalkdim [&::-webkit-details-marker]:hidden">
               Filters {isFiltered ? '· on' : ''}
@@ -427,10 +410,7 @@ export default function ExploreView({
 
           {feed}
 
-          {/* ponytail: the button stays alongside the sentinel. Auto-load covers
-              scrolling; the button is the keyboard/no-IntersectionObserver path
-              and the only way to reach the footer without the feed growing
-              underneath you. */}
+          {/* Auto-load covers scrolling; the button is the keyboard / no-IO path. */}
           <div ref={sentinelRef} className="flex justify-center py-6" aria-live="polite">
             {nextCursor !== null ? (
               <button

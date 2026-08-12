@@ -5,10 +5,8 @@ import { renderSitemap, sitemapEntries } from '../sitemap';
 
 export const prerender = false;
 
-// Glue only. The paths and the XML live in src/sitemap.ts, which is pure and
-// testable; the D1 lookup lives in src/data/api.ts behind the same KV cache as
-// everything else. Keep it that way — this file cannot be unit-tested, because
-// importing it pulls in 'cloudflare:workers'.
+// Glue only. The paths + XML live in src/sitemap.ts (pure, testable); the D1
+// lookup lives in src/data/api.ts behind the same KV cache.
 export const GET: APIRoute = async ({ locals }) => {
   const data = await getSitemapNews(env, locals.cfContext as ExecutionContext);
   return new Response(renderSitemap(sitemapEntries(data)), {

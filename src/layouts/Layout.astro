@@ -1,49 +1,46 @@
 ---
 import '../index.css';
 import Footer from '../components/Footer.astro';
-import { SITE_ORIGIN } from '../site';
+import {
+  SITE_DESCRIPTION,
+  SITE_LANGUAGE,
+  SITE_LOCALE,
+  SITE_NAME,
+  SITE_ORIGIN,
+  SITE_TITLE,
+} from '../site';
 
 interface Props {
   title?: string;
   description?: string;
   /** RSS surface this page is the web twin of — `/rss.xml` globally,
-   *  `/<comp>/rss.xml` on a league hub. A reader hitting "subscribe" in the
-   *  browser chrome on /eng.1 must land on the Premier League feed, not the
-   *  global one. */
+   *  `/<comp>/rss.xml` on a league hub. */
   feedPath?: string;
   feedTitle?: string;
-  /** Open Graph object type. `article` on /a/{id} detail pages so social
-   *  scrapers classify them as articles, not generic websites. */
+  /** Open Graph object type. `article` on /a/{id} detail pages. */
   ogType?: 'website' | 'article';
 }
 
 const {
-  title = 'umuo — AI football news',
-  description = 'AI-curated football news from trusted sources, organized by competition and topic.',
+  title = SITE_TITLE,
+  description = SITE_DESCRIPTION,
   feedPath = '/rss.xml',
-  feedTitle = 'umuo — AI football news',
+  feedTitle = SITE_TITLE,
   ogType = 'website',
 } = Astro.props;
 
-// Canonical + og:url must match the actual page path (not a hardcoded /news).
-// Use the production origin so previews/dev still emit stable share URLs.
+// Strip a trailing slash from the path so canonical/og:url match the actual page.
 const rawPath = Astro.url.pathname;
 const canonicalPath =
   rawPath.length > 1 && rawPath.endsWith('/') ? rawPath.slice(0, -1) : rawPath || '/';
 const canonicalUrl = `${SITE_ORIGIN}${canonicalPath}`;
 ---
 <!doctype html>
-<html lang="en">
+<html lang={SITE_LANGUAGE}>
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/png" href="/favicon.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="" />
-    <link rel="manifest" href="/manifest.webmanifest" />
-    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-    <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <meta name="apple-mobile-web-app-title" content="umuo" />
     <title>{title}</title>
     <meta name="description" content={description} />
     <meta name="robots" content="index, follow" />
@@ -56,28 +53,19 @@ const canonicalUrl = `${SITE_ORIGIN}${canonicalPath}`;
       href={`${SITE_ORIGIN}${feedPath}`}
     />
     <meta property="og:type" content={ogType} />
-    <meta property="og:site_name" content="umuo" />
+    <meta property="og:site_name" content={SITE_NAME} />
     <meta property="og:title" content={title} />
     <meta property="og:description" content={description} />
     <meta property="og:url" content={canonicalUrl} />
-    <meta property="og:image" content={`${SITE_ORIGIN}/og.jpg`} />
-    <meta property="og:image:width" content="1200" />
-    <meta property="og:image:height" content="630" />
-    <meta property="og:locale" content="en_US" />
-    <meta property="og:locale:alternate" content="zh_CN" />
-    <meta property="og:locale:alternate" content="ja_JP" />
-    <meta property="og:locale:alternate" content="ko_KR" />
-    <meta name="twitter:card" content="summary_large_image" />
+    <meta property="og:locale" content={SITE_LOCALE} />
+    <meta name="twitter:card" content="summary" />
     <meta name="twitter:title" content={title} />
     <meta name="twitter:description" content={description} />
-    <meta name="twitter:image" content={`${SITE_ORIGIN}/og.jpg`} />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <!-- Loaded weights are the contract: Saira Condensed 600/700 (display:
-         use font-semibold/bold — font-black is NOT loaded), Hanken Grotesk
-         400 (body: no heavier weights). Keep this URL in sync with usage. -->
+    <!-- Loaded weights: Saira Condensed 600/700, Hanken Grotesk 400.
+         Keep this URL in sync with usage. -->
     <link href="https://fonts.googleapis.com/css2?family=Saira+Condensed:wght@600;700&family=Hanken+Grotesk:wght@400&display=swap" rel="stylesheet" />
-    <!-- Microsoft Clarity — session heatmaps & recordings -->
     <script is:inline>
       (function(c,l,a,r,i,t,y){
         c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
@@ -88,6 +76,7 @@ const canonicalUrl = `${SITE_ORIGIN}${canonicalPath}`;
   </head>
   <body class="min-h-screen">
     <script is:inline>
+      // Read theme before paint so the first frame already carries the right chrome.
       (() => {
         try {
           const t = localStorage.getItem('theme');
@@ -111,17 +100,6 @@ const canonicalUrl = `${SITE_ORIGIN}${canonicalPath}`;
         new MutationObserver(syncThemeColor).observe(document.documentElement, {
           attributes: true,
           attributeFilter: ['data-theme'],
-        });
-      })();
-    </script>
-    <script is:inline>
-      // PWA service worker — production only (localhost/dev keeps network free).
-      (() => {
-        const host = location.hostname;
-        const isLocal = host === 'localhost' || host === '127.0.0.1' || host === '::1';
-        if (isLocal || !('serviceWorker' in navigator)) return;
-        window.addEventListener('load', () => {
-          navigator.serviceWorker.register('/sw.js').catch(() => {});
         });
       })();
     </script>

@@ -1,11 +1,5 @@
-// Single source of truth for the competitions the news desk covers. Pure
-// data + a pure function — no DOM/React deps — so both build targets
-// (app tsconfig + tsconfig.worker.json) compile it. The ESPN scoreboard plane
-// (scoreboard/standings/summary/teams/…) was removed with the competition
-// pages; what survives of ESPN here is the league-scoped NEWS feed, which the
-// ingest pipeline polls as one of its sources.
-
-// Football-only product: the union existed for the removed basketball plane.
+// Football-only product. The ESPN league-news feed is the only ESPN surface
+// that still runs.
 export type Sport = 'soccer';
 
 export interface Competition {
@@ -22,8 +16,6 @@ const league = (key: string, label: string): Competition => ({
   label,
 });
 
-// The editorial product is football-only; every public news surface and
-// ingestion source derives from this registry.
 export const FOOTBALL_COMPETITIONS: Record<string, Competition> = {
   'eng.1': league('eng.1', 'Premier League'),
   'esp.1': league('esp.1', 'La Liga'),

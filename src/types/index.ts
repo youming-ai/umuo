@@ -49,7 +49,6 @@ export interface ExploreFilterSet {
 
 // --- ESPN league news feed (ingest source) ---
 
-// An entity parsed from an article's ESPN `categories` (team/athlete/league).
 export interface NewsTag {
   kind: 'team' | 'athlete' | 'league';
   label: string;

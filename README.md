@@ -22,7 +22,7 @@ graph LR
 Cloudflare 能力分工：
 
 - D1：sources、source health、AI 处理后的 articles、tags 和去重 cluster。
-- Queue：把抓取和 LLM 处理拆开，避免 Cron 请求被 Gemini 延迟拖住；失败消息进入重试和 dead-letter queue。
+- Queue：把抓取和 LLM 处理拆开，避免 Cron 请求被 Gemini 延迟拖住；失败消息重试 5 次后丢弃，由下一轮 15 分钟的 ingest 覆盖。
 - Durable Object / Agents SDK：`FootballNewsAgent` 作为有状态、可串行化的处理入口；按 fingerprint/canonical URL 幂等写入。
 - Cron：每 15 分钟抓取资讯；每天 07:00 UTC 再跑一次补偿抓取。
 - KV：只缓存 Explore 查询结果和仍在兼容期的旧 ESPN 数据接口。
@@ -60,7 +60,7 @@ wrangler.jsonc             D1/KV/Queue/DO/Cron/Assets bindings
 ```bash
 bun install
 cp .dev.vars.example .dev.vars
-# 在 .dev.vars 中填写 GEMINI_API_KEY
+# 在 .dev.vars 中填写 LLM_API_KEY
 
 bunx wrangler d1 migrations apply umuo-content --local
 bun run dev
@@ -87,14 +87,14 @@ bunx wrangler deploy --dry-run --outdir=.wrangler/dry-run
 bunx wrangler d1 create umuo-content
 bunx wrangler kv namespace create CACHE
 bunx wrangler queues create umuo-news-ingest
-bunx wrangler queues create umuo-news-ingest-dlq
 ```
 
 把 D1 返回的 `database_id` 和 KV 返回的 `id` 分别补进 `wrangler.jsonc` 的 `d1_databases[0]` 和 `kv_namespaces[0]`，然后执行：
 
 ```bash
 bunx wrangler d1 migrations apply umuo-content --remote
-bunx wrangler secret put GEMINI_API_KEY
+bunx wrangler secret put LLM_API_KEY
+bunx wrangler secret put LLM_MODEL
 bunx wrangler types
 bun run build
 bunx wrangler deploy
