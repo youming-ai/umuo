@@ -1,6 +1,6 @@
 import type { Env } from '../data/api';
 import { FOOTBALL_COMPETITIONS } from '../competitions';
-import { enrichBatchWithGemini, enrichWithGemini } from './gemini';
+import { enrichBatchWithLLM, enrichWithLLM } from './llm';
 import type { ArticleEnrichment, RawArticle } from './types';
 
 function canonicalCompetition(value: string, fallback: string | null): string | null {
@@ -19,7 +19,7 @@ function freshnessScore(publishedAt: number, now = Date.now()): number {
 }
 
 /**
- * Gemini returns free-form tags, so "Premier League" and "premier-league" used
+ * The model returns free-form tags, so "Premier League" and "premier-league" used
  * to land as two separate rows and show up as two separate facets in the rail.
  * One spelling per topic: lowercase, whitespace collapsed to a single hyphen.
  */
@@ -55,13 +55,13 @@ function score(article: RawArticle, enrichment: ArticleEnrichment): number {
 }
 
 export function modelFor(env: Env): string {
-  return env.GEMINI_MODEL || 'gemini-3.6-flash';
+  return env.LLM_MODEL || 'glm-5.2';
 }
 
 /**
- * Enrich a whole queue batch in one Gemini call, falling back to per-article
- * calls if the batch comes back unusable. A batch that returns the wrong number
- * of results cannot be mapped positionally, and guessing would attach one
+ * Enrich a whole batch in one LLM call, falling back to per-article calls if
+ * the batch comes back unusable. A batch that returns the wrong number of
+ * results cannot be mapped positionally, and guessing would attach one
  * article's summary to another, so the fallback is the only safe response.
  *
  * In the fallback, a single "poison" article (one the model consistently
@@ -73,23 +73,25 @@ export async function enrichBatch(
   env: Env,
   articles: RawArticle[],
 ): Promise<(ArticleEnrichment | null)[]> {
+  const apiKey = env.LLM_API_KEY;
+  const baseUrl = env.LLM_BASE_URL || 'https://api.z.ai/api/paas/v4';
   const model = modelFor(env);
   if (articles.length === 1) {
     try {
-      return [await enrichWithGemini(env.GEMINI_API_KEY, model, articles[0]!)];
+      return [await enrichWithLLM(apiKey, baseUrl, model, articles[0]!)];
     } catch (error) {
       console.error('[enrich] single-article enrichment failed:', error);
       return [null];
     }
   }
   try {
-    return await enrichBatchWithGemini(env.GEMINI_API_KEY, model, articles);
+    return await enrichBatchWithLLM(apiKey, baseUrl, model, articles);
   } catch (error) {
     console.error('[enrich] batch failed, falling back to per-article:', error);
     const results: (ArticleEnrichment | null)[] = [];
     for (const article of articles) {
       try {
-        results.push(await enrichWithGemini(env.GEMINI_API_KEY, model, article));
+        results.push(await enrichWithLLM(apiKey, baseUrl, model, article));
       } catch (articleError) {
         console.error(`[enrich] ${article.sourceId} failed in fallback:`, articleError);
         results.push(null);

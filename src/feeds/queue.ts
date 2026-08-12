@@ -11,7 +11,7 @@ function retryDelay(message: QueueMessage) {
 }
 
 /**
- * One Gemini call per queue batch instead of one per article.
+ * One LLM call per queue batch instead of one per article.
  *
  * Order of business matters. Duplicates are dropped first, so they never reach
  * the model and never cost anything; whatever survives goes out as a single

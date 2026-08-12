@@ -4,7 +4,7 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { PRUNE_CRON } from './retention';
 
-// A Worker cannot read wrangler.jsonc at runtime, so the daily cron string is
+// A Worker cannot read wrangler.toml at runtime, so the daily cron string is
 // written twice: once as a trigger and once as PRUNE_CRON, which scheduled()
 // compares controller.cron against. Nothing fails loudly if they drift — the
 // sweep just stops recognising itself and runs a second full ingest instead.
@@ -12,22 +12,14 @@ import { PRUNE_CRON } from './retention';
 // exactly that for weeks, because scheduled() ignored the controller entirely.
 
 // cwd-relative: vitest's jsdom environment mangles import.meta.url schemes.
-const raw = readFileSync(resolve(process.cwd(), 'wrangler.jsonc'), 'utf8');
+const raw = readFileSync(resolve(process.cwd(), 'wrangler.toml'), 'utf8');
 
-/** wrangler.jsonc comments are all line-leading, and the file holds no URLs,
- *  so dropping those lines is enough to make it parseable. */
-function parseJsonc(text: string): { triggers?: { crons?: string[] } } {
-  return JSON.parse(
-    text
-      .split('\n')
-      .filter((line) => !line.trimStart().startsWith('//'))
-      .join('\n'),
-  );
-}
+// wrangler.toml is TOML, not JSON; the only field we need is the crons array
+// in the [triggers] section. A regex is lighter than pulling in a TOML parser.
+const cronsMatch = raw.match(/^crons\s*=\s*(\[[^\]]+\])/m);
+const crons: string[] = cronsMatch ? (JSON.parse(cronsMatch[1]) as string[]) : [];
 
 describe('cron wiring', () => {
-  const crons = parseJsonc(raw).triggers?.crons ?? [];
-
   it('declares exactly the two schedules the handler knows how to route', () => {
     expect(crons).toHaveLength(2);
   });

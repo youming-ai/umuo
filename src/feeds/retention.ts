@@ -14,7 +14,7 @@ export const PRUNE_CRON = '17 3 * * *';
 
 /** Articles are archived, never deleted. Deleting them would drop the
  *  canonical_url and fingerprint rows that stop the same story being ingested
- *  and re-enriched on the next tick — retention would pay for itself in Gemini
+ *  and re-enriched on the next tick — retention would pay for itself in LLM
  *  calls. `archived` simply drops out of the explore query's status filter. */
 export const ARTICLE_ARCHIVE_DAYS = 90;
 
