@@ -410,6 +410,23 @@ export default function ExploreView({
 
           {feed}
 
+          {/* First-load skeleton lives inside `feed`; this covers the append
+              path during infinite scroll and filter changes (items still
+              present, rootMargin fires well before the bottom button). */}
+          {loading && items.length > 0 && (
+            <div
+              className="columns-1 gap-3 p-3 md:columns-2 xl:columns-3 2xl:columns-4"
+              role="status"
+              aria-live="polite"
+            >
+              <span className="sr-only">Loading more stories</span>
+              {Array.from({ length: 4 }, (_, index) => (
+                // biome-ignore lint/suspicious/noArrayIndexKey: skeleton items have no identity
+                <div key={index} className="mb-3 h-56 animate-pulse rounded-card bg-overlay/5" />
+              ))}
+            </div>
+          )}
+
           {/* Auto-load covers scrolling; the button is the keyboard / no-IO path. */}
           <div ref={sentinelRef} className="flex justify-center py-6" aria-live="polite">
             {nextCursor !== null ? (
