@@ -10,18 +10,18 @@ The original ESPN scoreboard half (schedule/standings/stats/odds/match/team/play
 
 ```mermaid
 graph TD
-  Cron["cron */15"] --> Ingest[feeds/ingest: fetch 20 sources]
-  Ingest -->|drop stored fingerprints| Q[(INGEST_QUEUE)]
-  Q --> Consumer[feeds/queue: batch of 10]
-  Consumer -->|one call per batch| Gemini[Gemini Interactions API]
-  Consumer --> D1[(D1 umuo-content)]
+  Cron["cron */15"] --> Ingest[feeds/ingest: fetch, dedupe, enrich in chunks]
+  Ingest -->|one call per chunk| Gemini[B.AI chat completions]
+  Gemini --> D1[(D1 umuo-content)]
+  LegacyQ[(legacy INGEST_QUEUE)] --> Consumer[feeds/queue: batch of 10]
+  Consumer -->|one call per batch| Gemini
   Sweep["cron 17 3"] --> Retention[feeds/retention: prune + archive]
   Retention --> D1
 
   Home["/ and /:comp"] --> Explore[getExploreFeed] --> KV1[(KV CACHE)] --> D1
 ```
 
-`ingestAllSources` fans out over `FEED_SOURCES` (RSS/JSON incl. per-league ESPN news), normalises to `RawArticle`, drops anything whose fingerprint is already stored, and enqueues the rest. The consumer re-checks for duplicates, sends whatever survives as **one** Gemini interaction, then writes each article and its tags. Reads go through `getExploreFeed` / `getExploreFilters`, cached in KV.
+`ingestAllSources` fans out over `FEED_SOURCES` (RSS/JSON incl. per-league ESPN news), normalises to `RawArticle`, drops anything whose fingerprint is already stored, and enriches the survivors directly in sequential chunks of eight. Each completed chunk is written to D1 before the next chunk starts, so a long backlog keeps its progress if the scheduled invocation ends early. The queue consumer remains for legacy messages, re-checks duplicates, sends whatever survives as **one** B.AI interaction, then writes each article and its tags. New ticks do not enqueue messages because queue operations exhausted the free-tier quota at the prior ingestion volume. Reads go through `getExploreFeed` / `getExploreFilters`, cached in KV.
 
 ## Architecture notes
 
@@ -33,7 +33,7 @@ graph TD
 ## Key directories
 
 - `src/pages/` — `/` (news home), `/[comp]` (per-competition news hub), `api/[...route].ts` (dispatches to `worker/index.ts`), `sitemap.xml.ts`.
-- `src/feeds/` — the news pipeline. `sources.ts` (registry, incl. per-league ESPN news sources), `ingest.ts` (cron side), `rss.ts`, `queue.ts` (consumer), `gemini.ts` (model I/O), `enrich.ts` (dedupe + write), `retention.ts` (sweep + `PRUNE_CRON`). `newsFeed.ts` parses the ESPN league-news JSON into `NewsItem`.
+- `src/feeds/` — the news pipeline. `sources.ts` (registry, incl. per-league ESPN news sources), `ingest.ts` (cron-side fetch, dedupe, and chunked enrichment), `rss.ts`, `queue.ts` (legacy consumer), `llm.ts` (model I/O), `enrich.ts` (dedupe + write), `retention.ts` (sweep + `PRUNE_CRON`). `newsFeed.ts` parses the ESPN league-news JSON into `NewsItem`.
 - `src/data/api.ts` — KV SWR core (`runCached`/`json`) + the D1 explore queries and SSR composers.
 - `src/components/explore/` — `ExploreView` (rail, toolbar, masonry, infinite scroll), `ExploreCard`. `Logo`/`ThemeSwitcher`/`Footer` are shared chrome.
 - `migrations/` — D1 schema. Applied by `bun run deploy`, never automatically.
@@ -87,7 +87,7 @@ Each of these cost real debugging. They are not hypothetical.
 - **Explore cursors are keyset, not offsets** — `<published_at>:<id>`. The feed has rows inserted at the top every tick, so an offset slides the window under the reader. Type guards on `ExploreFeed.nextCursor` must say `string`; when one said `number`, every SSR page silently reported the feed exhausted.
 - **`PRUNE_CRON` is duplicated in `wrangler.jsonc`** because a Worker cannot read that file. `retention.cron.test.ts` holds them together. Anything that is not `PRUNE_CRON` is treated as an ingest tick, so a stray third schedule means an extra full fan-out.
 - **Never DELETE from `articles`.** Retention archives instead: dropping a row takes its `canonical_url` and `fingerprint` with it, and the next tick re-ingests and re-enriches the same story. Deletion costs Gemini calls.
-- **Dedupe before the model, not after.** `ingestAllSources` filters stored fingerprints before enqueueing and the consumer re-checks before calling Gemini. Both matter: without them a tick re-enqueues every article in every feed.
+- **Dedupe before the model, not after.** `ingestAllSources` filters stored fingerprints before direct enrichment and the legacy queue consumer re-checks before calling the model. Both matter: without them a tick would repeatedly pay to classify every article in every feed.
 - **Explore cache keys embed the query.** Free-text `q` bypasses KV entirely — it is user-controlled and unbounded, and caching it let anyone write KV keys without limit. Cursors are re-serialised from their parsed form for the same reason.
 - **Durable Objects break PR builds.** Workers Builds runs `wrangler versions upload` for preview branches, which cannot apply a DO migration. The queue consumer calls its functions directly for this reason.
 - **`wrangler dev --remote` does not support Queues** and returns 1042 on the scheduled endpoint. To trigger an ingest by hand, set a one-shot cron, deploy, let it fire, then remove it.
