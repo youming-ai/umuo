@@ -229,7 +229,7 @@ function normalizedExploreQuery(
 ): Required<Pick<ExploreQuery, 'limit'>> & Omit<ExploreQuery, 'limit'> {
   const comp =
     query.comp && Object.hasOwn(FOOTBALL_COMPETITIONS, query.comp) ? query.comp : undefined;
-  const limit = Number.isInteger(query.limit) ? Math.min(24, Math.max(1, query.limit ?? 12)) : 12;
+  const limit = Number.isInteger(query.limit) ? Math.min(24, Math.max(1, query.limit ?? 10)) : 10;
   return {
     comp,
     source: query.source?.trim().slice(0, 80) || undefined,
