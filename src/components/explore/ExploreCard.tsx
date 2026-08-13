@@ -72,7 +72,7 @@ export default function ExploreCard({
   const freshness = scoreValue(article.freshnessScore);
   return (
     <article
-      className="ds-signal mb-3 overflow-hidden break-inside-avoid rounded-card border border-line/40 bg-panel/70"
+      className="ds-signal contain-layout mb-3 overflow-hidden break-inside-avoid rounded-card border border-line/40 bg-panel/70"
       style={
         {
           '--signal': `${score}%`,
@@ -88,17 +88,21 @@ export default function ExploreCard({
 
       <a href={articlePath(article.id)} className="group block">
         {article.imageUrl && (
-          // Natural aspect, not cropped — the ragged card heights are what make
-          // the masonry read as a board.
-          <img
-            src={article.imageUrl}
-            alt=""
-            className="w-full"
-            loading="lazy"
-            onError={(event) => {
-              event.currentTarget.style.display = 'none';
-            }}
-          />
+          // Reserve 16:9 so the column doesn't shift when the image loads
+          // (the natural-height <img> was the largest CLS source for image
+          // cards). object-cover crops the image to fill; the ragged card
+          // heights still come from text length + presence of image.
+          <div className="aspect-video w-full overflow-hidden bg-overlay/5">
+            <img
+              src={article.imageUrl}
+              alt=""
+              className="h-full w-full object-cover"
+              loading="lazy"
+              onError={(event) => {
+                event.currentTarget.style.display = 'none';
+              }}
+            />
+          </div>
         )}
         <div className="p-3">
           <h2 className="font-display text-lead font-bold leading-lead text-chalk transition-colors duration-150 group-hover:text-pitch">
