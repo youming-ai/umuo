@@ -38,6 +38,8 @@ migrations_dir = "migrations"
 [[queues.producers]]
 binding = "INGEST_QUEUE"
 queue = "umuo-news-ingest"
+# Kept for compatibility with already-deployed environments; scheduled ingest
+# now enriches directly to avoid the free-tier per-message operation ceiling.
 
 [[queues.consumers]]
 queue = "umuo-news-ingest"

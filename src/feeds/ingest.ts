@@ -4,11 +4,16 @@ import { enrichBatch, storeEnrichedArticle } from './enrich';
 import { articleUrl, notifyIndexNow } from './indexnow';
 import { parseRss } from './rss';
 import { FEED_SOURCES } from './sources';
-import type { ArticleEnrichment, FeedSource, RawArticle } from './types';
+import type { FeedSource, RawArticle } from './types';
 
 // Lookups go out in chunks — a tick fetches ~700 articles today, and that grows
 // with every source added.
 const FINGERPRINT_LOOKUP_CHUNK = 90;
+
+// Keep each B.AI request below the 20-second timeout. Every chunk repeats the
+// classifier instructions, so this trades a little input-token overhead for
+// reliable completion on a cold backlog.
+const ENRICHMENT_BATCH_SIZE = 8;
 
 const RSS_HEADERS = {
   accept: 'application/rss+xml, application/atom+xml, application/json, text/xml, */*',
@@ -176,8 +181,8 @@ async function enabledSources(db: D1Database): Promise<FeedSource[]> {
   return FEED_SOURCES.filter((source) => enabled.has(source.id));
 }
 
-/** Drop fingerprints already in `articles` so a tick only enqueues new work.
- *  Best-effort: the queue consumer still re-checks before the model is called. */
+/** Drop fingerprints already in `articles` so a tick only processes new work.
+ *  Best-effort: the legacy queue consumer still re-checks before the model is called. */
 export async function knownFingerprints(
   db: D1Database,
   fingerprints: string[],
@@ -236,41 +241,34 @@ export async function ingestAllSources(env: Env, ctx: ExecutionContext): Promise
 
   let stored = 0;
   if (articles.length > 0) {
-    // Chunk the batch: B.AI enrichment costs ~0.7-1s/article (longer with real
-    // descriptions), so one giant call blows the 20s request timeout and drops
-    // results (50-article test returned 49). 8 per call stays well under it and
-    // keeps the per-article fallback useful.
-    const CHUNK = 8;
-    const enrichments: (ArticleEnrichment | null)[] = [];
-    try {
-      for (let i = 0; i < articles.length; i += CHUNK) {
-        enrichments.push(...(await enrichBatch(env, articles.slice(i, i + CHUNK))));
-      }
-    } catch (error) {
-      console.error('[ingest] enrichment failed for the whole batch:', error);
-      return {
-        sources: sources.length,
-        fetched: fetched.length,
-        skipped: fetched.length - articles.length,
-        stored: 0,
-        failed: results.map((result) => result.error).filter(Boolean),
-      };
-    }
-    const storedUrls: string[] = [];
-    for (const [index, article] of articles.entries()) {
-      const enrichment = enrichments[index];
-      if (!enrichment) continue;
+    for (let offset = 0; offset < articles.length; offset += ENRICHMENT_BATCH_SIZE) {
+      const chunk = articles.slice(offset, offset + ENRICHMENT_BATCH_SIZE);
+      let enrichments: Awaited<ReturnType<typeof enrichBatch>>;
       try {
-        const result = await storeEnrichedArticle(env, article, enrichment);
-        stored++;
-        if (result.status === 'stored') {
-          storedUrls.push(articleUrl(result.id));
-        }
+        enrichments = await enrichBatch(env, chunk);
       } catch (error) {
-        console.error(`[ingest] ${article.sourceId} store failed:`, error);
+        // Keep anything already stored from earlier chunks. The next tick will
+        // retry this chunk after its fingerprints remain absent from D1.
+        console.error(`[ingest] enrichment failed for chunk at ${offset}:`, error);
+        break;
       }
+
+      const storedUrls: string[] = [];
+      for (const [index, article] of chunk.entries()) {
+        const enrichment = enrichments[index];
+        if (!enrichment) continue;
+        try {
+          const result = await storeEnrichedArticle(env, article, enrichment);
+          stored++;
+          if (result.status === 'stored') {
+            storedUrls.push(articleUrl(result.id));
+          }
+        } catch (error) {
+          console.error(`[ingest] ${article.sourceId} store failed:`, error);
+        }
+      }
+      notifyIndexNow(storedUrls, ctx);
     }
-    notifyIndexNow(storedUrls, ctx);
   }
 
   return {
