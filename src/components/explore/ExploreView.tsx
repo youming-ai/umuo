@@ -3,6 +3,10 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { FOOTBALL_COMPETITIONS } from '../../competitions';
 import type { ExploreFeed, ExploreFilterOption, ExploreFilterSet } from '../../types';
 import Logo from '../Logo';
+
+// Multi-column masonry approximation. column-fill: balance evens the column
+// heights as items are appended; tailwind has no built-in for it.
+const MASONRY_CLASS = 'columns-1 gap-3 p-3 [column-fill:balance] md:columns-2 xl:columns-3 2xl:columns-4';
 import ThemeSwitcher from '../ThemeSwitcher';
 import ExploreCard from './ExploreCard';
 
@@ -261,7 +265,7 @@ export default function ExploreView({
 
   const feed =
     loading && items.length === 0 ? (
-      <div className="columns-1 gap-3 p-3 md:columns-2 xl:columns-3 2xl:columns-4" role="status">
+      <div className={MASONRY_CLASS} role="status">
         <span className="sr-only">Loading football news</span>
         {Array.from({ length: 8 }, (_, index) => (
           // biome-ignore lint/suspicious/noArrayIndexKey: skeleton items have no identity
@@ -283,7 +287,7 @@ export default function ExploreView({
       // (items 1..n down column 1); swap in an SSR round-robin split if
       // reading order ever has to be exact.
       <section
-        className="columns-1 gap-3 p-3 md:columns-2 xl:columns-3 2xl:columns-4"
+        className={MASONRY_CLASS}
         aria-label="Football news"
       >
         {items.map((article) => (
@@ -415,7 +419,7 @@ export default function ExploreView({
               present, rootMargin fires well before the bottom button). */}
           {loading && items.length > 0 && (
             <div
-              className="columns-1 gap-3 p-3 md:columns-2 xl:columns-3 2xl:columns-4"
+              className={MASONRY_CLASS}
               role="status"
               aria-live="polite"
             >
