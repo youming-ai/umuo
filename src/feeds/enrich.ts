@@ -107,9 +107,9 @@ export async function storeEnrichedArticle(
     env.DB.prepare(
       `INSERT INTO articles (
            id, source_id, canonical_url, fingerprint, title, description, ai_summary, ai_blurb,
-           image_url, published_at, fetched_at, sport, comp, article_type, is_football,
+           image_url, image_width, image_height, published_at, fetched_at, sport, comp, article_type, is_football,
            quality_score, freshness_score, status, created_at, updated_at
-         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'soccer', ?, ?, ?, ?, ?, ?, ?, ?)
+         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'soccer', ?, ?, ?, ?, ?, ?, ?, ?)
          ON CONFLICT DO NOTHING`,
     ).bind(
       articleId,
@@ -121,6 +121,8 @@ export async function storeEnrichedArticle(
       enrichment.summary,
       enrichment.blurb,
       article.imageUrl,
+      article.imageWidth,
+      article.imageHeight,
       article.publishedAt,
       article.fetchedAt,
       competition,

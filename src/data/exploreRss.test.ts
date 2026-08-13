@@ -38,6 +38,8 @@ function article(
     blurb: '',
     url: 'https://bbc.com/sport/article',
     imageUrl: '',
+    imageWidth: 0,
+    imageHeight: 0,
     sourceId: 'bbc-football',
     sourceName: 'BBC Sport Football',
     sourceDomain: 'bbc.com',

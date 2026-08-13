@@ -18,6 +18,8 @@ export interface ExploreArticle {
   blurb: string;
   url: string;
   imageUrl: string;
+  imageWidth: number; // 0 when the feed gave no dimensions
+  imageHeight: number;
   sourceId: string;
   sourceName: string;
   sourceDomain: string;
@@ -63,6 +65,8 @@ export interface NewsItem {
   published: string; // ISO
   byline: string;
   imageUrl: string; // '' when the headline has no image
+  imageWidth: number; // 0 when unknown
+  imageHeight: number; // 0 when unknown
   link: string; // external espn.com article URL (links.web.href)
   tags: NewsTag[];
 }

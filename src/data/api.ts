@@ -116,6 +116,8 @@ interface ExploreRow {
   ai_blurb: unknown;
   canonical_url: unknown;
   image_url: unknown;
+  image_width: unknown;
+  image_height: unknown;
   source_id: unknown;
   source_name: unknown;
   source_url: unknown;
@@ -186,6 +188,8 @@ function exploreArticle(row: ExploreRow): ExploreArticle {
     blurb: rowString(row.ai_blurb),
     url: rowString(row.canonical_url),
     imageUrl: rowString(row.image_url),
+    imageWidth: rowNumber(row.image_width),
+    imageHeight: rowNumber(row.image_height),
     sourceId: rowString(row.source_id),
     sourceName: rowString(row.source_name),
     // Story domain, not poll URL — feeds.bbci.co.uk → bbc.com.
@@ -274,7 +278,7 @@ async function queryExplore(query: ExploreQuery, env: Env): Promise<ExploreFeed>
   const statement = env.DB.prepare(
     `SELECT
          a.id, a.title, a.description, a.ai_summary, a.ai_blurb, a.canonical_url,
-         a.image_url, a.source_id, s.name AS source_name, s.url AS source_url,
+         a.image_url, a.image_width, a.image_height, a.source_id, s.name AS source_name, s.url AS source_url,
          a.published_at, a.comp, a.article_type, a.quality_score, a.freshness_score,
          COALESCE((SELECT json_group_array(at.tag) FROM article_tags at WHERE at.article_id = a.id), '[]') AS tags
        FROM articles a
@@ -437,7 +441,7 @@ export async function getArticle(
         const row = await env.DB.prepare(
           `SELECT
              a.id, a.title, a.description, a.ai_summary, a.ai_blurb, a.canonical_url,
-             a.image_url, a.source_id, s.name AS source_name, s.url AS source_url,
+             a.image_url, a.image_width, a.image_height, a.source_id, s.name AS source_name, s.url AS source_url,
              a.published_at, a.comp, a.article_type, a.quality_score, a.freshness_score,
              COALESCE((SELECT json_group_array(at.tag) FROM article_tags at WHERE at.article_id = a.id), '[]') AS tags
            FROM articles a

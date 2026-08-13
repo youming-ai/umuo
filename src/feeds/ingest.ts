@@ -106,6 +106,8 @@ async function readSource(
         description: item.description,
         url: item.link,
         imageUrl: item.imageUrl,
+        imageWidth: item.imageWidth,
+        imageHeight: item.imageHeight,
         publishedAt: Date.parse(item.published) || fetchedAt,
         fetchedAt,
       }),

@@ -48,6 +48,8 @@ function article(index: number): Omit<RawArticle, 'canonicalUrl' | 'fingerprint'
     description: `Description ${index}`,
     url: `https://example.com/story-${index}`,
     imageUrl: '',
+    imageWidth: 0,
+    imageHeight: 0,
     publishedAt: 1_700_000_000_000 + index,
     fetchedAt: 1_700_000_000_000 + index,
   };

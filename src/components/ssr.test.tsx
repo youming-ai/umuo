@@ -41,6 +41,8 @@ it('renders article cards server-side', () => {
             blurb: '',
             url: 'https://bbc.com/sport',
             imageUrl: '',
+            imageWidth: 0,
+            imageHeight: 0,
             sourceId: 'bbc',
             sourceName: 'BBC Sport',
             sourceDomain: 'bbc.com',
