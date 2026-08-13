@@ -51,7 +51,7 @@ function score(article: RawArticle, enrichment: ArticleEnrichment): number {
 }
 
 export function modelFor(env: Env): string {
-  return env.LLM_MODEL || 'glm-5.2';
+  return env.LLM_MODEL || 'deepseek-v4-flash';
 }
 
 /** Enrich a whole batch in one LLM call, falling back to per-article calls if
@@ -64,7 +64,7 @@ export async function enrichBatch(
   articles: RawArticle[],
 ): Promise<(ArticleEnrichment | null)[]> {
   const apiKey = env.LLM_API_KEY;
-  const baseUrl = env.LLM_BASE_URL || 'https://api.z.ai/api/coding/paas/v4';
+  const baseUrl = env.LLM_BASE_URL || 'https://api.b.ai/v1';
   const model = modelFor(env);
   if (articles.length === 1) {
     try {

@@ -27,8 +27,8 @@ const enrichment = {
   qualityScore: 88,
 };
 
-const BASE_URL = 'https://api.z.ai/api/coding/paas/v4';
-const MODEL = 'glm-5.2';
+const BASE_URL = 'https://api.b.ai/v1';
+const MODEL = 'deepseek-v4-flash';
 
 function openAIResponse(content: unknown): Response {
   return new Response(
