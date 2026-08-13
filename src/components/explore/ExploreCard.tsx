@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from 'react';
 import { articlePath } from '../../site';
 import type { ExploreArticle } from '../../types';
 
@@ -36,6 +37,17 @@ export default function ExploreCard({
   const score = scoreValue(article.qualityScore);
   const domain = article.sourceDomain || article.sourceName || 'football source';
   const description = article.summary || article.blurb || article.description;
+
+  // Engage the shimmer only when the image is genuinely still loading at
+  // hydration — cached / already-complete images stay visible and never flash.
+  const imgRef = useRef<HTMLImageElement>(null);
+  const [imgLoading, setImgLoading] = useState(false);
+  const [imgLoaded, setImgLoaded] = useState(false);
+  useEffect(() => {
+    const img = imgRef.current;
+    if (img && !img.complete) setImgLoading(true);
+  }, []);
+  const showShimmer = imgLoading && !imgLoaded;
 
   if (variant === 'list') {
     return (
@@ -93,7 +105,7 @@ export default function ExploreCard({
           // object-cover crops to fill; ragged card heights still come from
           // text length + presence of image.
           <div
-            className="aspect-video w-full overflow-hidden bg-overlay/5"
+            className={`aspect-video w-full overflow-hidden bg-overlay/5${showShimmer ? ' animate-pulse' : ''}`}
             style={
               article.imageWidth > 0 && article.imageHeight > 0
                 ? { aspectRatio: `${article.imageWidth} / ${article.imageHeight}` }
@@ -101,10 +113,13 @@ export default function ExploreCard({
             }
           >
             <img
+              ref={imgRef}
               src={article.imageUrl}
               alt=""
-              className="h-full w-full object-cover"
+              decoding="async"
+              className={`h-full w-full object-cover transition-opacity duration-300${showShimmer ? ' opacity-0' : ' opacity-100'}`}
               loading="lazy"
+              onLoad={() => setImgLoaded(true)}
               onError={(event) => {
                 event.currentTarget.style.display = 'none';
               }}
