@@ -1,5 +1,5 @@
 # Copy this file to .dev.vars (which is gitignored) and fill in real values.
 # Do not commit .dev.vars or real API keys.
 LLM_API_KEY=
-LLM_MODEL=glm-5.2
-LLM_BASE_URL=https://api.z.ai/api/coding/paas/v4
+LLM_MODEL=deepseek-v4-flash
+LLM_BASE_URL=https://api.b.ai/v1
