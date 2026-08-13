@@ -236,9 +236,16 @@ export async function ingestAllSources(env: Env, ctx: ExecutionContext): Promise
 
   let stored = 0;
   if (articles.length > 0) {
-    let enrichments: (ArticleEnrichment | null)[];
+    // Chunk the batch: B.AI enrichment costs ~0.7-1s/article (longer with real
+    // descriptions), so one giant call blows the 20s request timeout and drops
+    // results (50-article test returned 49). 8 per call stays well under it and
+    // keeps the per-article fallback useful.
+    const CHUNK = 8;
+    const enrichments: (ArticleEnrichment | null)[] = [];
     try {
-      enrichments = await enrichBatch(env, articles);
+      for (let i = 0; i < articles.length; i += CHUNK) {
+        enrichments.push(...(await enrichBatch(env, articles.slice(i, i + CHUNK))));
+      }
     } catch (error) {
       console.error('[ingest] enrichment failed for the whole batch:', error);
       return {
