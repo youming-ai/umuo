@@ -19,3 +19,11 @@ export const SITE_LANGUAGE = 'en';
 export function articlePath(id: string): string {
   return `/a/${id}`;
 }
+
+/** Route a source image through the Worker image proxy (/api/img) so it is
+ *  edge-resized (Cloudflare Image Resizing) to the display width instead of
+ *  shipping a multi-megapixel original. Same string on server and client. */
+export function imgProxyUrl(src: string, width = 800): string {
+  if (!src) return src;
+  return `/api/img?src=${encodeURIComponent(src)}&w=${width}`;
+}

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { articlePath } from '../../site';
+import { articlePath, imgProxyUrl } from '../../site';
 import type { ExploreArticle } from '../../types';
 
 /** UTC-only so the SSR string and the hydrated string always match. */
@@ -114,7 +114,7 @@ export default function ExploreCard({
           >
             <img
               ref={imgRef}
-              src={article.imageUrl}
+              src={imgProxyUrl(article.imageUrl)}
               alt=""
               decoding="async"
               className={`h-full w-full object-cover transition-opacity duration-300${showShimmer ? ' opacity-0' : ' opacity-100'}`}
