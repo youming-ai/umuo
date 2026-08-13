@@ -25,6 +25,8 @@ export interface RawArticle {
   url: string;
   canonicalUrl: string;
   imageUrl: string;
+  imageWidth: number; // 0 when unknown
+  imageHeight: number; // 0 when unknown
   publishedAt: number;
   fetchedAt: number;
   fingerprint: string;

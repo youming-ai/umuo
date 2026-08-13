@@ -29,21 +29,17 @@ function tagValue(block: string, names: string[]): string {
   return '';
 }
 
-function attributeValue(block: string, names: string[]): string {
-  for (const name of names) {
-    const match = block.match(
-      new RegExp(`<[^>]*${name}[^>]*\\b(?:url|href)=['"]([^'"]+)['"]`, 'i'),
-    );
-    if (match?.[1]) return decodeEntities(match[1]);
-  }
-  return '';
-}
-
-function imageValue(block: string): string {
-  const enclosure = block.match(/<enclosure\b[^>]*\burl=['"]([^'"]+)['"][^>]*\btype=['"]image\//i);
-  if (enclosure?.[1]) return decodeEntities(enclosure[1]);
-
-  return attributeValue(block, ['media:content', 'media:thumbnail', 'image']);
+function imageMeta(block: string): { url: string; width: number; height: number } {
+  // enclosure/media:content/media:thumbnail all carry the image URL on a
+  // url=/href= attribute; width/height are optional sibling attributes.
+  const tag =
+    block.match(/<enclosure\b[^>]*\burl=['"]([^'"]+)['"][^>]*\btype=['"]image\//i) ||
+    block.match(/<(?:media:content|media:thumbnail|image)\b[^>]*\b(?:url|href)=['"]([^'"]+)['"][^>]*/i);
+  const url = tag?.[1] ? decodeEntities(tag[1]) : '';
+  const rawAttrs = tag?.[0] ?? '';
+  const width = Number.parseInt(rawAttrs.match(/\bwidth=['"](\d+)['"]/i)?.[1] ?? '', 10);
+  const height = Number.parseInt(rawAttrs.match(/\bheight=['"](\d+)['"]/i)?.[1] ?? '', 10);
+  return { url, width: width > 0 ? width : 0, height: height > 0 ? height : 0 };
 }
 
 function linkValue(block: string): string {
@@ -72,6 +68,7 @@ export function parseRss(
       ).slice(0, 4000);
       const publishedRaw = tagValue(block, ['pubDate', 'published', 'updated', 'dc:date']);
       const publishedAt = Date.parse(publishedRaw) || fetchedAt;
+      const image = imageMeta(block);
       return {
         sourceId: source.id,
         sourceName: source.name,
@@ -80,7 +77,9 @@ export function parseRss(
         title,
         description,
         url,
-        imageUrl: imageValue(block),
+        imageUrl: image.url,
+        imageWidth: image.width,
+        imageHeight: image.height,
         publishedAt,
         fetchedAt,
       };

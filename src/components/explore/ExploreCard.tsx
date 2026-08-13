@@ -88,11 +88,18 @@ export default function ExploreCard({
 
       <a href={articlePath(article.id)} className="group block">
         {article.imageUrl && (
-          // Reserve 16:9 so the column doesn't shift when the image loads
-          // (the natural-height <img> was the largest CLS source for image
-          // cards). object-cover crops the image to fill; the ragged card
-          // heights still come from text length + presence of image.
-          <div className="aspect-video w-full overflow-hidden bg-overlay/5">
+          // Reserve aspect-ratio so the column doesn't shift when the image
+          // loads. Natural ratio when the feed gave width+height, else 16:9.
+          // object-cover crops to fill; ragged card heights still come from
+          // text length + presence of image.
+          <div
+            className="aspect-video w-full overflow-hidden bg-overlay/5"
+            style={
+              article.imageWidth > 0 && article.imageHeight > 0
+                ? { aspectRatio: `${article.imageWidth} / ${article.imageHeight}` }
+                : undefined
+            }
+          >
             <img
               src={article.imageUrl}
               alt=""

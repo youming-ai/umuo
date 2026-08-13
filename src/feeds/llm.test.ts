@@ -12,6 +12,8 @@ const article: RawArticle = {
   url: 'https://example.com/story',
   canonicalUrl: 'https://example.com/story',
   imageUrl: '',
+  imageWidth: 0,
+  imageHeight: 0,
   publishedAt: Date.parse('2026-08-05T10:00:00Z'),
   fetchedAt: Date.parse('2026-08-05T10:01:00Z'),
   fingerprint: 'abc123',

@@ -94,6 +94,8 @@ describe('parseNewsFeed', () => {
         published: '',
         byline: '',
         imageUrl: '',
+        imageWidth: 0,
+        imageHeight: 0,
         link: '',
         tags: [],
       },

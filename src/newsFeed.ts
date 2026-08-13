@@ -60,13 +60,18 @@ export function parseNewsFeed(json: unknown): NewsItem[] {
     const published = str(h.published);
     const fallbackId = link ? slugify(link) : headline ? slugify(`${headline}-${published}`) : '';
     const id = rawId || fallbackId;
+    const img = obj(arr(h.images)[0]);
+    const imageWidth = Number.parseInt(str(img.width), 10);
+    const imageHeight = Number.parseInt(str(img.height), 10);
     return {
       id,
       headline,
       description: str(h.description),
       published,
       byline: str(h.byline),
-      imageUrl: str(obj(arr(h.images)[0]).url),
+      imageUrl: str(img.url),
+      imageWidth: imageWidth > 0 ? imageWidth : 0,
+      imageHeight: imageHeight > 0 ? imageHeight : 0,
       link,
       tags: tagsFrom(h.categories),
     };
