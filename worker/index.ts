@@ -1,6 +1,7 @@
 /// <reference types="@cloudflare/workers-types" />
 
 import { type Env, exploreQueryFromUrl, serveExplore, serveExploreFilters } from '../src/data/api';
+import { reEnrichBatch } from '../src/feeds/enrich';
 
 // Hosts our feeds actually serve images from (derived from production D1).
 // The proxy refuses anything else so it can't be abused as an open resizer.
@@ -63,6 +64,28 @@ export default {
       if (url.pathname === '/api/img') {
         if (request.method !== 'GET') return new Response('Method not allowed', { status: 405 });
         return serveImageProxy(url);
+      }
+      if (url.pathname === '/api/re-enrich') {
+        // One-time/periodic backfill: re-score published articles with the
+        // current prompt so old confidence-flavoured quality_score rows get
+        // editorial scores + body-aware blurbs. Gated by the LLM key to keep it
+        // off the public surface. Processes one batch per call; a caller loops
+        // until `remaining` is 0.
+        if (request.method !== 'POST') return new Response('Method not allowed', { status: 405 });
+        const auth = request.headers.get('authorization') ?? '';
+        if (!env.LLM_API_KEY || auth !== `Bearer ${env.LLM_API_KEY}`) {
+          return new Response('Unauthorized', { status: 401 });
+        }
+        const limit = Math.min(64, Math.max(1, Number(url.searchParams.get('limit')) || 8));
+        try {
+          const report = await reEnrichBatch(env, limit);
+          return new Response(JSON.stringify(report), {
+            headers: { 'content-type': 'application/json; charset=utf-8' },
+          });
+        } catch (err) {
+          console.error('[worker] re-enrich failed:', err);
+          return new Response('{"error":"internal"}', { status: 500 });
+        }
       }
       if (url.pathname.startsWith('/api/')) return new Response('Not found', { status: 404 });
       return env.ASSETS.fetch(request); // static assets + SPA fallback
