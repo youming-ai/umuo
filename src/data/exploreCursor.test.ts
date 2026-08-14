@@ -3,18 +3,27 @@ import { describe, expect, it } from 'vitest';
 import { parseExploreCursor } from './api';
 
 describe('parseExploreCursor', () => {
-  it('splits a cursor into its published_at and id halves', () => {
-    expect(parseExploreCursor('1785991006396:abc123')).toEqual([1785991006396, 'abc123']);
+  it('splits a cursor into its quality, published_at, and id thirds', () => {
+    expect(parseExploreCursor('85:1785991006396:abc123')).toEqual([85, 1785991006396, 'abc123']);
   });
 
   it('keeps colons that belong to the id', () => {
-    // Article ids are SHA-256 hex today, but splitting on the first colon means
-    // an id that ever contains one still round-trips.
-    expect(parseExploreCursor('1700000000000:a:b:c')).toEqual([1700000000000, 'a:b:c']);
+    // Article ids are SHA-256 hex today, but splitting on the first two colons
+    // means an id that ever contains one still round-trips.
+    expect(parseExploreCursor('70:1700000000000:a:b:c')).toEqual([70, 1700000000000, 'a:b:c']);
   });
 
   it('returns null for anything unusable, so the caller falls back to page one', () => {
-    for (const bad of [undefined, '', 'nocolon', ':abc', '1785991006396:', 'abc:def']) {
+    for (const bad of [
+      undefined,
+      '',
+      'nocolon',
+      ':abc',
+      '1785991006396:abc123', // legacy 2-part cursor — must collapse, not misread
+      '85:1785991006396:',
+      '85::abc',
+      'abc:def:ghi',
+    ]) {
       expect(parseExploreCursor(bad), JSON.stringify(bad)).toBeNull();
     }
   });

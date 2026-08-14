@@ -32,13 +32,14 @@ const JSON_FIELDS = [
   '- tags: string[] — up to 8 short lowercase-hyphen topic tags',
   '- summary: string — one factual sentence, at most 280 characters',
   '- blurb: string — concise editorial summary, at most 700 characters',
-  '- qualityScore: integer 0-100 — confidence in this classification',
+  '- qualityScore: integer 0-100 — editorial quality of THIS story, not your confidence in labelling it: substantive, well-sourced, significant reporting = high; thin rumor, clickbait, or aggregator filler = low (a confidently-labelled transfer rumor is still a low-quality rumor)',
 ].join('\n');
 
 const CLASSIFIER_RULES = [
   'You are the editorial classification agent for a football-only news site.',
   'Reject non-football stories with isFootball=false and an empty competition.',
   'Use only facts present in the source text. Do not invent scores, quotes, transfers, dates, or names.',
+  'Rate qualityScore on editorial merit: a confidently-labelled rumor is still low quality; a well-sourced match report or analysis is high.',
   'Choose a canonical competition only when the article clearly identifies one:',
   'eng.1 Premier League; esp.1 La Liga; ger.1 Bundesliga; ita.1 Serie A; fra.1 Ligue 1; uefa.champions Champions League.',
   'For football articles that do not clearly belong to one competition, leave competition empty.',
