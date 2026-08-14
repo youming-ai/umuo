@@ -13,8 +13,6 @@ import ExploreCard from './ExploreCard';
 
 interface ExploreQueryState {
   comp: string;
-  source: string;
-  tag: string;
   q: string;
   /** Opaque page boundary from the API; '' means the first page. */
   cursor: string;
@@ -29,49 +27,34 @@ function queryKey(query: ExploreQueryState): string {
 function apiUrl(query: ExploreQueryState): string {
   const params = new URLSearchParams();
   if (query.comp) params.set('comp', query.comp);
-  if (query.source) params.set('source', query.source);
-  if (query.tag) params.set('tag', query.tag);
   if (query.q) params.set('q', query.q);
   if (query.cursor) params.set('cursor', query.cursor);
   params.set('limit', '24');
   return `/api/explore?${params}`;
 }
 
-/** One index row in the rail: label left, count right, active row filled. */
+/** One competition category link in the rail. */
 function FilterRow({
   label,
   count,
   active,
   href,
-  onClick,
 }: {
   label: string;
   count: number | null;
   active: boolean;
-  href?: string;
-  onClick?: () => void;
+  href: string;
 }) {
   const className = `flex w-full items-center gap-2 rounded-card-inset px-2 py-1 text-left ds-caption ${
     active
       ? 'bg-pitch/15 font-bold text-pitch'
       : 'text-chalkdim hover:bg-overlay/5 hover:text-chalk'
   }`;
-  const body = (
-    <>
+  return (
+    <a href={href} aria-current={active ? 'page' : undefined} className={className}>
       <span className="min-w-0 flex-1 truncate">{label}</span>
       {count !== null && <span className="shrink-0 tabular-nums opacity-70">{count}</span>}
-    </>
-  );
-  // A competition is a route, not a filter — sources and topics stay in-page
-  // state; competitions get a real link.
-  return href ? (
-    <a href={href} aria-current={active ? 'page' : undefined} className={className}>
-      {body}
     </a>
-  ) : (
-    <button type="button" onClick={onClick} aria-pressed={active} className={className}>
-      {body}
-    </button>
   );
 }
 
@@ -80,36 +63,27 @@ function FilterGroup({
   allLabel,
   options,
   value,
-  onChange,
   hrefFor,
 }: {
   title: string;
   allLabel: string;
   options: ExploreFilterOption[];
   value: string;
-  onChange?: (value: string) => void;
-  hrefFor?: (value: string) => string;
+  hrefFor: (value: string) => string;
 }) {
   if (options.length === 0) return null;
   const total = options.reduce((sum, option) => sum + option.count, 0);
   return (
     <div>
       <p className="px-2 pb-1 ds-micro uppercase tracking-caption text-chalkdim">{title}</p>
-      <FilterRow
-        label={allLabel}
-        count={total}
-        active={!value}
-        href={hrefFor?.('')}
-        onClick={() => onChange?.('')}
-      />
+      <FilterRow label={allLabel} count={total} active={!value} href={hrefFor('')} />
       {options.map((option) => (
         <FilterRow
           key={option.value}
           label={option.label}
           count={option.count}
           active={value === option.value}
-          href={hrefFor?.(option.value)}
-          onClick={() => onChange?.(option.value)}
+          href={hrefFor(option.value)}
         />
       ))}
     </div>
@@ -120,20 +94,20 @@ export default function ExploreView({
   initialData,
   initialFilters,
   initialComp = '',
+  initialSearch = '',
 }: {
   initialData: ExploreFeed;
   initialFilters: ExploreFilterSet;
   initialComp?: string;
+  initialSearch?: string;
 }) {
   const initialQuery: ExploreQueryState = {
     comp: initialComp,
-    source: '',
-    tag: '',
-    q: '',
+    q: initialSearch,
     cursor: '',
   };
   const [query, setQuery] = useState(initialQuery);
-  const [draftSearch, setDraftSearch] = useState('');
+  const [draftSearch, setDraftSearch] = useState(initialSearch);
   const [items, setItems] = useState(initialData.items);
   const [nextCursor, setNextCursor] = useState(initialData.nextCursor);
   const [loading, setLoading] = useState(false);

@@ -96,14 +96,17 @@ function formatCardDate(timestamp: number): string {
   const d = new Date(timestamp);
   return `${String(d.getUTCMonth() + 1).padStart(2, '0')}/${String(d.getUTCDate()).padStart(2, '0')}`;
 }
+
+const ogImageUrl = article.imageUrl
+  ? `${SITE_ORIGIN}${imgProxyUrl(article.imageUrl, 1200)}`
+  : undefined;
 ---
 <Layout
   title={`${article.title} — umuo`}
   description={summary}
   ogType="article"
-  image={article.imageUrl || undefined}
+  image={ogImageUrl}
   imageAlt={article.imageUrl ? article.title : undefined}
-  twitterCard={article.imageUrl ? 'summary_large_image' : 'summary'}
 >
   <script is:inline type="application/ld+json" set:html={JSON.stringify(jsonLd)} />
   <main class="mx-auto max-w-2xl px-4 py-6 sm:py-10">

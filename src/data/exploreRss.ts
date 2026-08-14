@@ -2,20 +2,12 @@
 // bindings — importable by both the API handler and the SSR pages.
 import { SITE_DESCRIPTION, SITE_NAME, SITE_ORIGIN, SITE_TITLE } from '../site';
 import type { ExploreArticle, ExploreFeed } from '../types';
+import { escapeXml } from '../utils/xml';
 
 // Bound to the `atom:` prefix; the only Atom element is <atom:link rel="self">.
 const ATOM_XMLNS = 'http://www.w3.org/2005/Atom';
 
 // Channel uses the origin; items use the article's `id` so deletes/sweeps
-// don't shift the guid.
-function escapeXml(value: string): string {
-  return value
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&apos;');
-}
 
 // RFC 822 with explicit `GMT` — some readers ignore <pubDate> quietly, and an
 // omit-zone date string fails to parse elsewhere.

@@ -1,5 +1,6 @@
 import type { GoogleNewsArticleData, SitemapData } from './data/api';
 import { SITE_NAME, SITE_ORIGIN, articlePath } from './site';
+import { escapeXml } from './utils/xml';
 
 export interface SitemapEntry {
   path: string;
@@ -42,15 +43,6 @@ export function renderSitemap(entries: SitemapEntry[]): string {
     )
     .join('\n');
   return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls}\n</urlset>\n`;
-}
-
-function escapeXml(value: string): string {
-  return value
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&apos;');
 }
 
 export function renderGoogleNewsSitemap(articles: GoogleNewsArticleData[]): string {

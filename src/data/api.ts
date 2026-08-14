@@ -572,37 +572,16 @@ export async function getRelatedArticles(
   }
 }
 
-async function queryExploreFilters(comp: string, env: Env): Promise<ExploreFilterSet> {
+async function queryExploreFilters(_comp: string, env: Env): Promise<ExploreFilterSet> {
   if (!env.DB) throw new Error('D1 binding is required');
-  // Source + topic counts are scoped to the page's competition; the
-  // competition list itself is global — every league must stay reachable.
-  const published = `a.status = 'published' AND a.is_football = 1 AND a.sport = 'soccer'`;
-  const scope = comp ? ' AND a.comp = ?' : '';
-  const scopeBinding = comp ? [comp] : [];
-  const [competitions, sources, tags] = await Promise.all([
-    env.DB.prepare(
-      `SELECT a.comp AS value, COUNT(*) AS count
-         FROM articles a
-         WHERE ${published} AND a.comp IS NOT NULL
-         GROUP BY a.comp ORDER BY count DESC`,
-    ).all<CountRow>(),
-    env.DB.prepare(
-      `SELECT a.source_id AS value, s.name AS label, COUNT(*) AS count
-         FROM articles a JOIN sources s ON s.id = a.source_id
-         WHERE ${published}${scope}
-         GROUP BY a.source_id ORDER BY count DESC`,
-    )
-      .bind(...scopeBinding)
-      .all<CountRow>(),
-    env.DB.prepare(
-      `SELECT t.tag AS value, COUNT(*) AS count
-         FROM article_tags t JOIN articles a ON a.id = t.article_id
-         WHERE ${published}${scope}
-         GROUP BY t.tag ORDER BY count DESC LIMIT 40`,
-    )
-      .bind(...scopeBinding)
-      .all<CountRow>(),
-  ]);
+  // Competition list is global — every league stays reachable.
+  const published = "a.status = 'published' AND a.is_football = 1 AND a.sport = 'soccer'";
+  const competitions = await env.DB.prepare(
+    `SELECT a.comp AS value, COUNT(*) AS count
+       FROM articles a
+       WHERE ${published} AND a.comp IS NOT NULL
+       GROUP BY a.comp ORDER BY count DESC`,
+  ).all<CountRow>();
 
   const competitionOptions: ExploreFilterOption[] = (competitions.results ?? [])
     .map((row: CountRow) => {
@@ -611,16 +590,8 @@ async function queryExploreFilters(comp: string, env: Env): Promise<ExploreFilte
       return competition ? { value, label: competition.label, count: rowNumber(row.count) } : null;
     })
     .filter((option: ExploreFilterOption | null): option is ExploreFilterOption => option !== null);
-  const sourceOptions = (sources.results ?? []).map((row: CountRow) => ({
-    value: rowString(row.value),
-    label: rowString(row.label) || rowString(row.value),
-    count: rowNumber(row.count),
-  }));
-  const tagOptions = (tags.results ?? []).map((row: CountRow) => {
-    const value = rowString(row.value);
-    return { value, label: value, count: rowNumber(row.count) };
-  });
-  return { competitions: competitionOptions, sources: sourceOptions, tags: tagOptions };
+
+  return { competitions: competitionOptions, sources: [], tags: [] };
 }
 
 export interface SitemapNewsHub {
