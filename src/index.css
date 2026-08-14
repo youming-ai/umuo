@@ -238,13 +238,6 @@
     width: var(--signal, 0%);
     background: rgb(var(--signal-accent, var(--c-pitch)));
   }
-
-  /* Freshness strip — the bottom edge of every grid card. The fill is the
-     child <span>, the track is the parent; we set the track here so cards
-     without a freshness value still show a low-contrast rail. */
-  .ds-fresh {
-    background: rgb(var(--c-line) / 0.4);
-  }
 }
 
 .no-scrollbar::-webkit-scrollbar {
