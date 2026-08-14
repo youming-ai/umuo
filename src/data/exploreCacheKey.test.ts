@@ -54,7 +54,7 @@ describe('explore cache keys', () => {
 
   it('collapses a malformed cursor onto the first page instead of a new key', async () => {
     const { env, ctx, puts } = harness();
-    for (const cursor of ['garbage', 'x'.repeat(120), '12', ':abc', '']) {
+    for (const cursor of ['garbage', 'x'.repeat(120), '12', ':abc', '', '1786080856000:abc123']) {
       await serveExplore({ cursor }, env, ctx);
     }
     // Every one normalises to no cursor, so they share the single page-one key.
@@ -64,7 +64,7 @@ describe('explore cache keys', () => {
 
   it('keeps a real cursor in the key so pages stay separately cacheable', async () => {
     const { env, ctx, puts } = harness();
-    await serveExplore({ cursor: '1786080856000:abc123' }, env, ctx);
-    expect(decodeURIComponent(puts[0]!)).toContain('"cursor":"1786080856000:abc123"');
+    await serveExplore({ cursor: '85:1786080856000:abc123' }, env, ctx);
+    expect(decodeURIComponent(puts[0]!)).toContain('"cursor":"85:1786080856000:abc123"');
   });
 });
