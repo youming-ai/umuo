@@ -26,9 +26,16 @@ function signalAccent(score: number): 'pitch' | 'amber' | 'live' {
   return 'live';
 }
 
-/** Open the ad in a new tab alongside normal article navigation. */
+/** Pop-under: open the ad behind the current window, then return focus so
+ *  the user keeps reading. Modern browsers may still foreground the new tab
+ *  or block it outright — not guaranteed invisible across all browsers.
+ *  ponytail: single strategy; revisit if we need guaranteed-background delivery. */
 function triggerAd() {
-  window.open(AD_CLICK_URL, '_blank', 'noopener,noreferrer');
+  const win = window.open(AD_CLICK_URL, 'umuo_ad', 'noopener,noreferrer');
+  if (win) {
+    win.blur();
+    window.focus();
+  }
 }
 
 export default function ExploreCard({
