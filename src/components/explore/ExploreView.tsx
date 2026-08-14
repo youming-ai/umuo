@@ -6,7 +6,8 @@ import Logo from '../Logo';
 
 // Multi-column masonry approximation. column-fill: balance evens the column
 // heights as items are appended; tailwind has no built-in for it.
-const MASONRY_CLASS = 'columns-1 gap-3 p-3 [column-fill:balance] md:columns-2 xl:columns-3 2xl:columns-4';
+const MASONRY_CLASS =
+  'columns-1 gap-3 p-3 [column-fill:balance] md:columns-2 xl:columns-3 2xl:columns-4';
 import ThemeSwitcher from '../ThemeSwitcher';
 import ExploreCard from './ExploreCard';
 
@@ -286,10 +287,7 @@ export default function ExploreView({
       // Native CSS multi-column, not a masonry lib. Fills column-major
       // (items 1..n down column 1); swap in an SSR round-robin split if
       // reading order ever has to be exact.
-      <section
-        className={MASONRY_CLASS}
-        aria-label="Football news"
-      >
+      <section className={MASONRY_CLASS} aria-label="Football news">
         {items.map((article) => (
           <ExploreCard key={article.id} article={article} />
         ))}
@@ -418,11 +416,7 @@ export default function ExploreView({
               path during infinite scroll and filter changes (items still
               present, rootMargin fires well before the bottom button). */}
           {loading && items.length > 0 && (
-            <div
-              className={MASONRY_CLASS}
-              role="status"
-              aria-live="polite"
-            >
+            <div className={MASONRY_CLASS} role="status" aria-live="polite">
               <span className="sr-only">Loading more stories</span>
               {Array.from({ length: 4 }, (_, index) => (
                 // biome-ignore lint/suspicious/noArrayIndexKey: skeleton items have no identity

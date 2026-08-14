@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { articlePath, imgProxyUrl, AD_CLICK_URL } from '../../site';
+import { articleDeck, articlePath, imgProxyUrl } from '../../site';
 import type { ExploreArticle } from '../../types';
 
 /** UTC-only so the SSR string and the hydrated string always match. */
@@ -26,18 +26,6 @@ function signalAccent(score: number): 'pitch' | 'amber' | 'live' {
   return 'live';
 }
 
-/** Pop-under: open the ad behind the current window, then return focus so
- *  the user keeps reading. Modern browsers may still foreground the new tab
- *  or block it outright — not guaranteed invisible across all browsers.
- *  ponytail: single strategy; revisit if we need guaranteed-background delivery. */
-function triggerAd() {
-  const win = window.open(AD_CLICK_URL, 'umuo_ad', 'noopener,noreferrer');
-  if (win) {
-    win.blur();
-    window.focus();
-  }
-}
-
 export default function ExploreCard({
   article,
   variant = 'grid',
@@ -48,7 +36,8 @@ export default function ExploreCard({
   const date = publishedDate(article.publishedAt);
   const score = scoreValue(article.qualityScore);
   const domain = article.sourceDomain || article.sourceName || 'football source';
-  const description = article.summary || article.blurb || article.description;
+  // Prefer short blurb on card stream; full summary is featured on detail page.
+  const description = articleDeck(article, 'short');
 
   // Engage the shimmer only when the image is genuinely still loading at
   // hydration — cached / already-complete images stay visible and never flash.
@@ -63,17 +52,13 @@ export default function ExploreCard({
 
   if (variant === 'list') {
     return (
-      <li>
-        <a
-          href={articlePath(article.id)}
-          onClick={triggerAd}
-          className="flex items-baseline gap-3 px-3 py-2 hover:bg-overlay/5"
-        >
+      <li className="group flex items-baseline gap-3 px-3 py-2 hover:bg-overlay/5">
+        <a href={articlePath(article.id)} className="flex min-w-0 flex-1 items-baseline gap-3">
           <span className="ds-caption hidden w-44 shrink-0 truncate text-pitch sm:block">
             <span aria-hidden="true">&gt;_ </span>
             {domain}
           </span>
-          <span className="min-w-0 flex-1 truncate font-display text-body text-chalk">
+          <span className="min-w-0 flex-1 truncate font-display text-body text-chalk transition-colors group-hover:text-pitch">
             {article.title}
           </span>
           <span className="ds-caption hidden shrink-0 uppercase tracking-data text-chalkdim lg:block">
@@ -89,6 +74,18 @@ export default function ExploreCard({
             AI signal {score} of 100, published {date}
           </span>
         </a>
+        {article.url && (
+          <a
+            href={article.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="ds-caption shrink-0 text-chalkdim transition-colors hover:text-pitch"
+            title={`Open original article on ${domain}`}
+            aria-label={`Open original article on ${domain}`}
+          >
+            ↗
+          </a>
+        )}
       </li>
     );
   }
@@ -104,12 +101,27 @@ export default function ExploreCard({
         } as React.CSSProperties
       }
     >
-      <div className="flex items-center gap-2 border-b border-line/40 px-3 py-1.5 ds-caption text-pitch">
-        <span aria-hidden="true">&gt;_</span>
-        <span className="truncate">{domain}</span>
+      <div className="flex items-center justify-between border-b border-line/40 px-3 py-1.5 ds-caption text-pitch">
+        <div className="flex min-w-0 items-center gap-2">
+          <span aria-hidden="true">&gt;_</span>
+          <span className="truncate">{domain}</span>
+        </div>
+        {article.url && (
+          <a
+            href={article.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1 text-chalkdim transition-colors hover:text-pitch"
+            title={`Open original article on ${domain}`}
+            aria-label={`Open original article on ${domain}`}
+          >
+            <span className="hidden text-[10px] tracking-tight sm:inline">source</span>
+            <span aria-hidden="true">↗</span>
+          </a>
+        )}
       </div>
 
-      <a href={articlePath(article.id)} onClick={triggerAd} className="group block">
+      <a href={articlePath(article.id)} className="group block">
         {article.imageUrl && (
           // Reserve aspect-ratio so the column doesn't shift when the image
           // loads. Natural ratio when the feed gave width+height, else 16:9.
@@ -142,7 +154,7 @@ export default function ExploreCard({
             {article.title}
           </h2>
           {description && (
-            <p className="mt-1.5 ds-body line-clamp-5 text-chalkdim">{description}</p>
+            <p className="mt-1.5 ds-body line-clamp-3 text-chalkdim">{description}</p>
           )}
 
           <p className="mt-3 ds-caption uppercase tracking-data text-pitch">

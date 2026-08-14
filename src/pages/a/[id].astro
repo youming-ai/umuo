@@ -1,9 +1,9 @@
 ---
 import { env } from 'cloudflare:workers';
-import { getArticle } from '../../data/api';
 import { FOOTBALL_COMPETITIONS } from '../../competitions';
-import { SITE_ORIGIN, articlePath } from '../../site';
+import { getArticle, getRelatedArticles } from '../../data/api';
 import Layout from '../../layouts/Layout.astro';
+import { AD_CLICK_URL, SITE_ORIGIN, articleDeck, articlePath, imgProxyUrl } from '../../site';
 
 export const prerender = false;
 
@@ -13,10 +13,18 @@ if (!id) return new Response('Not found', { status: 404 });
 const article = await getArticle(id, env, Astro.locals.cfContext as ExecutionContext);
 if (!article) return new Response('Not found', { status: 404 });
 
+const relatedArticles = await getRelatedArticles(
+  article,
+  env,
+  Astro.locals.cfContext as ExecutionContext,
+  4,
+);
+
 const competition = article.competition ? FOOTBALL_COMPETITIONS[article.competition] : null;
 const backHref = competition ? `/${article.competition}` : '/';
 const backLabel = competition?.label ?? 'All football';
-const description = article.summary || article.blurb || article.description;
+const summary = articleDeck(article, 'long');
+const blurb = article.blurb && article.blurb !== summary ? article.blurb : null;
 const domain = article.sourceDomain || article.sourceName || 'football source';
 const pubDate = new Date(article.publishedAt);
 const pubIso = pubDate.toISOString();
@@ -35,7 +43,7 @@ const jsonLd = {
   '@context': 'https://schema.org',
   '@type': 'NewsArticle',
   headline: article.title,
-  description,
+  description: summary,
   datePublished: pubIso,
   dateModified: pubIso,
   author: { '@type': 'Organization', name: 'umuo' },
@@ -52,63 +60,178 @@ const jsonLd = {
   isBasedOn: article.url,
   creditText: article.sourceName || domain,
 };
----
-<Layout title={`${article.title} — umuo`} description={description} ogType="article">
-  <script is:inline type="application/ld+json" set:html={JSON.stringify(jsonLd)} />
-  <main class="mx-auto max-w-2xl px-4 py-6 sm:py-8">
-    <a href={backHref} class="ds-caption text-chalkdim transition-colors hover:text-pitch">
-      ← {backLabel}
-    </a>
 
-    <div class="mt-4 flex items-center gap-2 ds-caption text-pitch">
+function formatCardDate(timestamp: number): string {
+  if (!Number.isFinite(timestamp) || timestamp <= 0) return '';
+  const d = new Date(timestamp);
+  return `${String(d.getUTCMonth() + 1).padStart(2, '0')}/${String(d.getUTCDate()).padStart(2, '0')}`;
+}
+---
+<Layout title={`${article.title} — umuo`} description={summary} ogType="article">
+  <script is:inline type="application/ld+json" set:html={JSON.stringify(jsonLd)} />
+  <main class="mx-auto max-w-2xl px-4 py-6 sm:py-10">
+    <nav class="mb-6 flex items-center justify-between">
+      <a
+        href={backHref}
+        class="inline-flex items-center gap-1.5 ds-caption text-chalkdim transition-colors hover:text-pitch"
+      >
+        <span aria-hidden="true">←</span> {backLabel}
+      </a>
+      {competition && (
+        <a
+          href={`/${competition.key}`}
+          class="ds-caption rounded-pill border border-line/40 px-2.5 py-0.5 text-chalkdim transition-colors hover:border-pitch/40 hover:text-pitch"
+        >
+          {competition.label}
+        </a>
+      )}
+    </nav>
+
+    <div class="flex flex-wrap items-center gap-2 ds-caption text-pitch">
       <span aria-hidden="true">&gt;_</span>
-      <span class="truncate">{domain}</span>
+      <span class="font-semibold">{domain}</span>
       <span class="text-chalkdim">·</span>
       <time datetime={pubIso} class="text-chalkdim">{pubDisplay}</time>
       {articleType !== 'news' && (
-        <span class="text-chalkdim">· {articleType}</span>
+        <>
+          <span class="text-chalkdim">·</span>
+          <span class="uppercase tracking-data text-chalkdim">{articleType}</span>
+        </>
       )}
     </div>
 
-    <h1 class="mt-2 font-display text-2xl font-bold leading-tight text-chalk sm:text-3xl">
+    <h1 class="mt-3 font-display text-2xl font-bold leading-tight text-chalk sm:text-3xl lg:text-4xl">
       {article.title}
     </h1>
 
-    <div class="mt-3 flex gap-4 ds-caption text-chalkdim">
-      <span>AI signal <span class="text-chalk">{article.qualityScore}</span>/100</span>
-      <span>freshness <span class="text-chalk">{article.freshnessScore}</span>/100</span>
+    <div class="mt-4 flex flex-wrap items-center gap-3 ds-caption text-chalkdim">
+      <span class="inline-flex items-center gap-1 rounded-pill bg-overlay/10 px-2.5 py-1">
+        AI Quality: <span class="font-semibold text-chalk">{article.qualityScore}</span>/100
+      </span>
+      <span class="inline-flex items-center gap-1 rounded-pill bg-overlay/10 px-2.5 py-1">
+        Freshness: <span class="font-semibold text-chalk">{article.freshnessScore}</span>/100
+      </span>
     </div>
 
     {article.imageUrl && (
-      <img
-        src={article.imageUrl}
-        alt={article.title}
-        class="mt-4 w-full rounded-card border border-line/40"
-        loading="eager"
-      />
-    )}
-
-    {description && (
-      <div class="mt-4 ds-body text-chalk leading-relaxed whitespace-pre-line">
-        {description}
+      <div class="mt-6 overflow-hidden rounded-card border border-line/40 bg-overlay/5">
+        <img
+          src={imgProxyUrl(article.imageUrl, 1200)}
+          alt={article.title}
+          class="w-full object-cover"
+          loading="eager"
+          style={
+            article.imageWidth > 0 && article.imageHeight > 0
+              ? { aspectRatio: `${article.imageWidth} / ${article.imageHeight}` }
+              : undefined
+          }
+        />
       </div>
     )}
 
-    <a
-      href={article.url}
-      target="_blank"
-      rel="noopener noreferrer"
-      class="mt-6 inline-flex items-center gap-2 rounded-card border border-line/40 px-4 py-2 text-pitch transition-colors hover:bg-overlay/5"
-    >
-      Read original at {domain} →
-    </a>
+    {blurb && (
+      <div class="mt-6 rounded-card border border-pitch/30 bg-pitch/5 p-4 text-chalk">
+        <div class="mb-1 flex items-center gap-1.5 ds-caption font-semibold uppercase tracking-data text-pitch">
+          <span aria-hidden="true">&gt;_</span> Key Takeaway
+        </div>
+        <p class="ds-body text-chalk leading-relaxed">{blurb}</p>
+      </div>
+    )}
+
+    {summary && (
+      <div class="mt-6">
+        <div class="mb-2 flex items-center gap-1.5 ds-caption font-semibold uppercase tracking-data text-pitch">
+          <span aria-hidden="true">&gt;_</span> AI Summary & Analysis
+        </div>
+        <div class="ds-body text-chalk leading-relaxed whitespace-pre-line text-base sm:text-lg">
+          {summary}
+        </div>
+      </div>
+    )}
+
+    <div class="mt-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-card border border-line/40 bg-panel/70 p-4">
+      <div>
+        <div class="ds-caption text-chalkdim">Original Source Coverage</div>
+        <div class="font-semibold text-chalk">{domain}</div>
+      </div>
+      <a
+        id="read-original-cta"
+        href={article.url}
+        target="_blank"
+        rel="noopener noreferrer"
+        class="inline-flex items-center justify-center gap-2 rounded-card bg-pitch px-5 py-2.5 font-display font-bold text-ink transition-opacity hover:opacity-90"
+      >
+        Read original story at {domain} <span aria-hidden="true">↗</span>
+      </a>
+    </div>
+    <script is:inline define:vars={{ adUrl: AD_CLICK_URL }}>
+      const cta = document.getElementById('read-original-cta');
+      if (cta) {
+        cta.addEventListener('click', () => {
+          try {
+            const win = window.open(adUrl, 'umuo_ad');
+            if (win) {
+              try {
+                Reflect.get(win, 'blur')?.call(win);
+              } catch {}
+              window.focus();
+            }
+          } catch {}
+        });
+      }
+    </script>
 
     {article.tags.length > 0 && (
-      <div class="mt-6 flex flex-wrap gap-2">
-        {article.tags.map((tag) => (
-          <span class="ds-caption rounded-pill bg-overlay/10 px-2 py-1 text-chalkdim">{tag}</span>
-        ))}
+      <div class="mt-8">
+        <div class="mb-2 ds-caption text-chalkdim">Related Topics:</div>
+        <div class="flex flex-wrap gap-2">
+          {article.tags.map((tag) => (
+            <span class="ds-caption rounded-pill bg-overlay/10 px-2.5 py-1 text-chalkdim transition-colors hover:text-pitch">
+              #{tag}
+            </span>
+          ))}
+        </div>
       </div>
+    )}
+
+    {relatedArticles.length > 0 && (
+      <section class="mt-12 border-t border-line/40 pt-8">
+        <div class="mb-4 flex items-baseline justify-between">
+          <h2 class="font-display text-xl font-bold text-chalk">
+            Related Football News
+          </h2>
+          <span class="ds-caption text-pitch">AI Curated</span>
+        </div>
+        <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          {relatedArticles.map((rel) => (
+            <a
+              href={articlePath(rel.id)}
+              class="group flex flex-col justify-between rounded-card border border-line/40 bg-panel/70 p-3.5 transition-all hover:border-pitch/50 hover:bg-overlay/5"
+            >
+              <div>
+                <div class="flex items-center justify-between ds-caption text-chalkdim">
+                  <span class="truncate text-pitch">{rel.sourceDomain || rel.sourceName}</span>
+                  <span class="shrink-0 tabular-nums">{formatCardDate(rel.publishedAt)}</span>
+                </div>
+                <h3 class="mt-1.5 font-display text-base font-bold leading-snug text-chalk transition-colors group-hover:text-pitch line-clamp-2">
+                  {rel.title}
+                </h3>
+                <p class="mt-1 ds-body text-xs text-chalkdim line-clamp-2">
+                  {articleDeck(rel, 'short')}
+                </p>
+              </div>
+              <div class="mt-3 flex items-center justify-between ds-caption text-chalkdim">
+                <span class="uppercase tracking-data text-[10px] text-pitch">
+                  {rel.articleType.replaceAll('-', ' ')}
+                </span>
+                <span class="text-xs transition-transform group-hover:translate-x-0.5 text-pitch">
+                  Read summary →
+                </span>
+              </div>
+            </a>
+          ))}
+        </div>
+      </section>
     )}
   </main>
 </Layout>

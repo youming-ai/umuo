@@ -13,7 +13,7 @@ export const SITE_DESCRIPTION =
 export const SITE_LOCALE = 'en_US';
 export const SITE_LANGUAGE = 'en';
 
-// Ad redirect URL — opened in a new tab whenever a news card is clicked.
+// Ad redirect URL — opened as pop-under on the detail page's original story action.
 // ponytail: single hardcoded ad endpoint; move to a registry/rotation if we
 // ever run more than one network.
 export const AD_CLICK_URL =
@@ -32,4 +32,17 @@ export function articlePath(id: string): string {
 export function imgProxyUrl(src: string, width = 800): string {
   if (!src) return src;
   return `/api/img?src=${encodeURIComponent(src)}&w=${width}`;
+}
+
+/** Single source of truth for article description fallback policies:
+ *  - 'short': blurb-first for card stream & previews (concise teaser)
+ *  - 'long': summary-first for article detail page & RSS (in-depth analysis) */
+export function articleDeck(
+  article: { summary?: string; blurb?: string; description?: string },
+  mode: 'short' | 'long' = 'short',
+): string {
+  if (mode === 'short') {
+    return article.blurb || article.summary || article.description || '';
+  }
+  return article.summary || article.blurb || article.description || '';
 }
