@@ -38,20 +38,15 @@
   --c-on-scrim: 255 255 255;
   --c-on-accent: 10 14 12;
 
-  /* Radius. Liquid Glass geometry: floating forms become rounder as their
-     visual weight grows. Cards (the most common content container) sit one
-     step below panels/heroes so dense feeds don't look like a field of
-     oversized bubbles. `card-inset` nests cleanly inside `card`; change
-     `card` to retune both at once. `micro` is for tiny inline thumbnails.
-     `control` is for buttons/chips/tabs. `pill` stays fully rounded for
-     capsules. */
-  --r-micro: 3px;
-  --r-card-inset: 8px;
-  --r-card: 16px;
-  --r-control: 14px;
-  --r-panel: 24px;
-  --r-hero: 28px;
-  --r-pill: 9999px;
+  /* Radius — none. The whole UI is now square; revisit per-surface if a
+     single component ever wants to round again. */
+  --r-micro: 0;
+  --r-card-inset: 0;
+  --r-card: 0;
+  --r-control: 0;
+  --r-panel: 0;
+  --r-hero: 0;
+  --r-pill: 0;
 
   /* Spacing — compact page rhythm */
   --space-page-x: 0.75rem;
