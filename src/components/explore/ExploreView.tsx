@@ -241,13 +241,6 @@ export default function ExploreView({
   const rail: ReactNode = (
     <div className="space-y-4">
       <FilterGroup
-        title="Sources"
-        allLabel="All sources"
-        options={initialFilters.sources}
-        value={query.source}
-        onChange={(value) => changeFilter('source', value)}
-      />
-      <FilterGroup
         title="Competitions"
         allLabel="All football"
         options={initialFilters.competitions}
@@ -257,7 +250,7 @@ export default function ExploreView({
       <FilterGroup
         title="Topics"
         allLabel="All topics"
-        options={initialFilters.tags.slice(0, 16)}
+        options={initialFilters.tags.slice(0, 20)}
         value={query.tag}
         onChange={(value) => changeFilter('tag', value)}
       />

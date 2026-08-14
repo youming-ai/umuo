@@ -14,8 +14,8 @@ describe('feed sources', () => {
 
   it('scopes every competition feed to a real competition key', () => {
     const scoped = FEED_SOURCES.filter((source) => source.comp);
-    // 6 Guardian + 2 BBC + AS + 6 ESPN
-    expect(scoped.length).toBe(15);
+    // 7 Guardian + 4 BBC + AS + 14 ESPN
+    expect(scoped.length).toBe(26);
     for (const source of scoped) {
       expect(Object.keys(FOOTBALL_COMPETITIONS), source.id).toContain(source.comp);
     }

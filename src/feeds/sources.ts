@@ -60,11 +60,14 @@ const GUARDIAN_COMP_SLUGS: Record<string, string> = {
   'ger.1': 'bundesligafootball',
   'fra.1': 'ligue1football',
   'uefa.champions': 'championsleague',
+  'eng.fa': 'fa-cup',
 };
 
 const BBC_COMP_SLUGS: Record<string, string> = {
   'eng.1': 'premier-league',
   'uefa.champions': 'champions-league',
+  'uefa.europa': 'europa-league',
+  'eng.fa': 'fa-cup',
 };
 
 function compSources(
