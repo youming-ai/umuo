@@ -21,8 +21,6 @@ interface ExploreQueryState {
 }
 
 type ViewMode = 'grid' | 'list';
-/** `comp` is not here: it comes from the route, not from in-page state. */
-type FilterField = 'source' | 'tag';
 
 function queryKey(query: ExploreQueryState): string {
   return JSON.stringify(query);
@@ -145,7 +143,6 @@ export default function ExploreView({
   const sentinelRef = useRef<HTMLDivElement>(null);
   const key = useMemo(() => queryKey(query), [query]);
 
-  const isFiltered = Boolean(query.source || query.tag || query.q);
   // Competition pages carry a scope label; the global home is implicit in the wordmark.
   const scopeLabel = initialComp ? (FOOTBALL_COMPETITIONS[initialComp]?.label ?? initialComp) : '';
 
@@ -182,10 +179,6 @@ export default function ExploreView({
     setQuery((previous) => ({ ...previous, q: draftSearch.trim(), cursor: '' }));
   }
 
-  function changeFilter(field: FilterField, value: string) {
-    setQuery((previous) => ({ ...previous, [field]: value, cursor: '' }));
-  }
-
   function clearFilters() {
     setDraftSearch('');
     setQuery({ ...initialQuery });
@@ -210,23 +203,8 @@ export default function ExploreView({
     return () => observer.disconnect();
   }, [nextCursor, loading]);
 
-  // User-driven facets only (comp is the route itself).
+  // User-driven active search facet.
   const activeFacets: { key: string; label: string; onClear: () => void }[] = [];
-  if (query.source) {
-    const sourceOption = initialFilters.sources.find((option) => option.value === query.source);
-    activeFacets.push({
-      key: `source:${query.source}`,
-      label: sourceOption?.label ?? query.source,
-      onClear: () => changeFilter('source', ''),
-    });
-  }
-  if (query.tag) {
-    activeFacets.push({
-      key: `tag:${query.tag}`,
-      label: query.tag,
-      onClear: () => changeFilter('tag', ''),
-    });
-  }
   if (query.q) {
     activeFacets.push({
       key: `q:${query.q}`,
@@ -239,20 +217,13 @@ export default function ExploreView({
   }
 
   const rail: ReactNode = (
-    <div className="space-y-4">
+    <div>
       <FilterGroup
         title="Competitions"
         allLabel="All football"
         options={initialFilters.competitions}
         value={initialComp}
         hrefFor={(value) => (value ? `/${value}` : '/')}
-      />
-      <FilterGroup
-        title="Topics"
-        allLabel="All topics"
-        options={initialFilters.tags.slice(0, 20)}
-        value={query.tag}
-        onChange={(value) => changeFilter('tag', value)}
       />
     </div>
   );
@@ -396,7 +367,7 @@ export default function ExploreView({
           {/* <details> is the native disclosure — no state, no outside-click handler. */}
           <details className="border-b border-line/40 lg:hidden">
             <summary className="cursor-pointer list-none px-3 py-2 ds-caption uppercase tracking-caption text-chalkdim [&::-webkit-details-marker]:hidden">
-              Filters {isFiltered ? '· on' : ''}
+              Competitions {initialComp ? `· ${scopeLabel}` : ''}
             </summary>
             <div className="p-2">{rail}</div>
           </details>
