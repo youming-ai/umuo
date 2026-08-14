@@ -81,7 +81,6 @@ export default function ExploreCard({
   }
 
   const accent = signalAccent(score);
-  const freshness = scoreValue(article.freshnessScore);
   return (
     <article
       className="ds-signal contain-layout mb-3 overflow-hidden break-inside-avoid rounded-card border border-line/40 bg-panel/70"
@@ -89,7 +88,6 @@ export default function ExploreCard({
         {
           '--signal': `${score}%`,
           '--signal-accent': `var(--c-${accent})`,
-          '--fresh': `${freshness}%`,
         } as React.CSSProperties
       }
     >
@@ -145,22 +143,11 @@ export default function ExploreCard({
             <span className="truncate">{article.sourceName || domain}</span>
             <span className="ml-auto shrink-0 tabular-nums">{date}</span>
             <span className="sr-only">
-              AI signal {score} of 100, freshness {freshness}, published {date}
+              AI signal {score} of 100, published {date}
             </span>
           </p>
         </div>
       </a>
-
-      {/* Bottom freshness strip — synced to the same accent as the top signal. */}
-      <span aria-hidden="true" className="block h-0.5 w-full ds-fresh">
-        <span
-          className="block h-full"
-          style={{
-            width: `${freshness}%`,
-            backgroundColor: `rgb(var(--c-${accent}))`,
-          }}
-        />
-      </span>
     </article>
   );
 }
