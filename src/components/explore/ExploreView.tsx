@@ -13,16 +13,12 @@ import ExploreCard from './ExploreCard';
 
 interface ExploreQueryState {
   comp: string;
-  source: string;
-  tag: string;
   q: string;
   /** Opaque page boundary from the API; '' means the first page. */
   cursor: string;
 }
 
 type ViewMode = 'grid' | 'list';
-/** `comp` is not here: it comes from the route, not from in-page state. */
-type FilterField = 'source' | 'tag';
 
 function queryKey(query: ExploreQueryState): string {
   return JSON.stringify(query);
@@ -31,49 +27,34 @@ function queryKey(query: ExploreQueryState): string {
 function apiUrl(query: ExploreQueryState): string {
   const params = new URLSearchParams();
   if (query.comp) params.set('comp', query.comp);
-  if (query.source) params.set('source', query.source);
-  if (query.tag) params.set('tag', query.tag);
   if (query.q) params.set('q', query.q);
   if (query.cursor) params.set('cursor', query.cursor);
   params.set('limit', '24');
   return `/api/explore?${params}`;
 }
 
-/** One index row in the rail: label left, count right, active row filled. */
+/** One competition category link in the rail. */
 function FilterRow({
   label,
   count,
   active,
   href,
-  onClick,
 }: {
   label: string;
   count: number | null;
   active: boolean;
-  href?: string;
-  onClick?: () => void;
+  href: string;
 }) {
   const className = `flex w-full items-center gap-2 rounded-card-inset px-2 py-1 text-left ds-caption ${
     active
       ? 'bg-pitch/15 font-bold text-pitch'
       : 'text-chalkdim hover:bg-overlay/5 hover:text-chalk'
   }`;
-  const body = (
-    <>
+  return (
+    <a href={href} aria-current={active ? 'page' : undefined} className={className}>
       <span className="min-w-0 flex-1 truncate">{label}</span>
       {count !== null && <span className="shrink-0 tabular-nums opacity-70">{count}</span>}
-    </>
-  );
-  // A competition is a route, not a filter — sources and topics stay in-page
-  // state; competitions get a real link.
-  return href ? (
-    <a href={href} aria-current={active ? 'page' : undefined} className={className}>
-      {body}
     </a>
-  ) : (
-    <button type="button" onClick={onClick} aria-pressed={active} className={className}>
-      {body}
-    </button>
   );
 }
 
@@ -82,36 +63,27 @@ function FilterGroup({
   allLabel,
   options,
   value,
-  onChange,
   hrefFor,
 }: {
   title: string;
   allLabel: string;
   options: ExploreFilterOption[];
   value: string;
-  onChange?: (value: string) => void;
-  hrefFor?: (value: string) => string;
+  hrefFor: (value: string) => string;
 }) {
   if (options.length === 0) return null;
   const total = options.reduce((sum, option) => sum + option.count, 0);
   return (
     <div>
       <p className="px-2 pb-1 ds-micro uppercase tracking-caption text-chalkdim">{title}</p>
-      <FilterRow
-        label={allLabel}
-        count={total}
-        active={!value}
-        href={hrefFor?.('')}
-        onClick={() => onChange?.('')}
-      />
+      <FilterRow label={allLabel} count={total} active={!value} href={hrefFor('')} />
       {options.map((option) => (
         <FilterRow
           key={option.value}
           label={option.label}
           count={option.count}
           active={value === option.value}
-          href={hrefFor?.(option.value)}
-          onClick={() => onChange?.(option.value)}
+          href={hrefFor(option.value)}
         />
       ))}
     </div>
@@ -122,20 +94,20 @@ export default function ExploreView({
   initialData,
   initialFilters,
   initialComp = '',
+  initialSearch = '',
 }: {
   initialData: ExploreFeed;
   initialFilters: ExploreFilterSet;
   initialComp?: string;
+  initialSearch?: string;
 }) {
   const initialQuery: ExploreQueryState = {
     comp: initialComp,
-    source: '',
-    tag: '',
-    q: '',
+    q: initialSearch,
     cursor: '',
   };
   const [query, setQuery] = useState(initialQuery);
-  const [draftSearch, setDraftSearch] = useState('');
+  const [draftSearch, setDraftSearch] = useState(initialSearch);
   const [items, setItems] = useState(initialData.items);
   const [nextCursor, setNextCursor] = useState(initialData.nextCursor);
   const [loading, setLoading] = useState(false);
@@ -145,7 +117,6 @@ export default function ExploreView({
   const sentinelRef = useRef<HTMLDivElement>(null);
   const key = useMemo(() => queryKey(query), [query]);
 
-  const isFiltered = Boolean(query.source || query.tag || query.q);
   // Competition pages carry a scope label; the global home is implicit in the wordmark.
   const scopeLabel = initialComp ? (FOOTBALL_COMPETITIONS[initialComp]?.label ?? initialComp) : '';
 
@@ -182,10 +153,6 @@ export default function ExploreView({
     setQuery((previous) => ({ ...previous, q: draftSearch.trim(), cursor: '' }));
   }
 
-  function changeFilter(field: FilterField, value: string) {
-    setQuery((previous) => ({ ...previous, [field]: value, cursor: '' }));
-  }
-
   function clearFilters() {
     setDraftSearch('');
     setQuery({ ...initialQuery });
@@ -210,23 +177,8 @@ export default function ExploreView({
     return () => observer.disconnect();
   }, [nextCursor, loading]);
 
-  // User-driven facets only (comp is the route itself).
+  // User-driven active search facet.
   const activeFacets: { key: string; label: string; onClear: () => void }[] = [];
-  if (query.source) {
-    const sourceOption = initialFilters.sources.find((option) => option.value === query.source);
-    activeFacets.push({
-      key: `source:${query.source}`,
-      label: sourceOption?.label ?? query.source,
-      onClear: () => changeFilter('source', ''),
-    });
-  }
-  if (query.tag) {
-    activeFacets.push({
-      key: `tag:${query.tag}`,
-      label: query.tag,
-      onClear: () => changeFilter('tag', ''),
-    });
-  }
   if (query.q) {
     activeFacets.push({
       key: `q:${query.q}`,
@@ -239,27 +191,13 @@ export default function ExploreView({
   }
 
   const rail: ReactNode = (
-    <div className="space-y-4">
-      <FilterGroup
-        title="Sources"
-        allLabel="All sources"
-        options={initialFilters.sources}
-        value={query.source}
-        onChange={(value) => changeFilter('source', value)}
-      />
+    <div>
       <FilterGroup
         title="Competitions"
         allLabel="All football"
         options={initialFilters.competitions}
         value={initialComp}
         hrefFor={(value) => (value ? `/${value}` : '/')}
-      />
-      <FilterGroup
-        title="Topics"
-        allLabel="All topics"
-        options={initialFilters.tags.slice(0, 16)}
-        value={query.tag}
-        onChange={(value) => changeFilter('tag', value)}
       />
     </div>
   );
@@ -403,7 +341,7 @@ export default function ExploreView({
           {/* <details> is the native disclosure — no state, no outside-click handler. */}
           <details className="border-b border-line/40 lg:hidden">
             <summary className="cursor-pointer list-none px-3 py-2 ds-caption uppercase tracking-caption text-chalkdim [&::-webkit-details-marker]:hidden">
-              Filters {isFiltered ? '· on' : ''}
+              Competitions {initialComp ? `· ${scopeLabel}` : ''}
             </summary>
             <div className="p-2">{rail}</div>
           </details>

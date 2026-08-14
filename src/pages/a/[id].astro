@@ -37,37 +37,77 @@ const pubDisplay = pubDate.toLocaleDateString('en-US', {
 const articleType = article.articleType.replaceAll('-', ' ');
 const selfUrl = `${SITE_ORIGIN}${articlePath(article.id)}`;
 
-// NewsArticle structured data. The AI summary is the page's own content; the
-// original source is attributed via `isBasedOn` + the visible outbound link.
-const jsonLd = {
-  '@context': 'https://schema.org',
-  '@type': 'NewsArticle',
-  headline: article.title,
-  description: summary,
-  datePublished: pubIso,
-  dateModified: pubIso,
-  author: { '@type': 'Organization', name: 'umuo' },
-  publisher: {
-    '@type': 'Organization',
-    name: 'umuo',
-    url: SITE_ORIGIN,
+const breadcrumbItems = [
+  {
+    '@type': 'ListItem',
+    position: 1,
+    name: 'Home',
+    item: SITE_ORIGIN,
   },
-  mainEntityOfPage: { '@type': 'WebPage', '@id': selfUrl },
-  url: selfUrl,
-  articleSection: competition?.label ?? 'Football',
-  ...(article.tags.length > 0 ? { keywords: article.tags.join(', ') } : {}),
-  ...(article.imageUrl ? { image: article.imageUrl } : {}),
-  isBasedOn: article.url,
-  creditText: article.sourceName || domain,
-};
+];
+if (competition) {
+  breadcrumbItems.push({
+    '@type': 'ListItem',
+    position: 2,
+    name: competition.label,
+    item: `${SITE_ORIGIN}/${competition.key}`,
+  });
+}
+breadcrumbItems.push({
+  '@type': 'ListItem',
+  position: breadcrumbItems.length + 1,
+  name: article.title,
+  item: selfUrl,
+});
+
+// NewsArticle & BreadcrumbList structured data. The AI summary is the page's own content;
+// the original source is attributed via `isBasedOn` + the visible outbound link.
+const jsonLd = [
+  {
+    '@context': 'https://schema.org',
+    '@type': 'NewsArticle',
+    headline: article.title,
+    description: summary,
+    datePublished: pubIso,
+    dateModified: pubIso,
+    author: { '@type': 'Organization', name: 'umuo' },
+    publisher: {
+      '@type': 'Organization',
+      name: 'umuo',
+      url: SITE_ORIGIN,
+    },
+    mainEntityOfPage: { '@type': 'WebPage', '@id': selfUrl },
+    url: selfUrl,
+    articleSection: competition?.label ?? 'Football',
+    ...(article.tags.length > 0 ? { keywords: article.tags.join(', ') } : {}),
+    ...(article.imageUrl ? { image: article.imageUrl } : {}),
+    isBasedOn: article.url,
+    creditText: article.sourceName || domain,
+  },
+  {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: breadcrumbItems,
+  },
+];
 
 function formatCardDate(timestamp: number): string {
   if (!Number.isFinite(timestamp) || timestamp <= 0) return '';
   const d = new Date(timestamp);
   return `${String(d.getUTCMonth() + 1).padStart(2, '0')}/${String(d.getUTCDate()).padStart(2, '0')}`;
 }
+
+const ogImageUrl = article.imageUrl
+  ? `${SITE_ORIGIN}${imgProxyUrl(article.imageUrl, 1200)}`
+  : undefined;
 ---
-<Layout title={`${article.title} — umuo`} description={summary} ogType="article">
+<Layout
+  title={`${article.title} — umuo`}
+  description={summary}
+  ogType="article"
+  image={ogImageUrl}
+  imageAlt={article.imageUrl ? article.title : undefined}
+>
   <script is:inline type="application/ld+json" set:html={JSON.stringify(jsonLd)} />
   <main class="mx-auto max-w-2xl px-4 py-6 sm:py-10">
     <nav class="mb-6 flex items-center justify-between">

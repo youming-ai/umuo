@@ -2,17 +2,41 @@
 import { env } from 'cloudflare:workers';
 import ExploreView from '../components/explore/ExploreView';
 import { getExploreFeed, getExploreFilters } from '../data/api';
-import { SITE_TITLE } from '../site';
+import { SITE_DESCRIPTION, SITE_NAME, SITE_ORIGIN, SITE_TITLE } from '../site';
 import Layout from '../layouts/Layout.astro';
 
+const initialSearch = Astro.url.searchParams.get('q')?.trim() ?? '';
 const ctx = Astro.locals.cfContext;
 const [initialData, initialFilters] = await Promise.all([
-  getExploreFeed({}, env, ctx),
+  getExploreFeed(initialSearch ? { q: initialSearch } : {}, env, ctx),
   getExploreFilters('', env, ctx),
 ]);
+const websiteJsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'WebSite',
+  name: SITE_NAME,
+  alternateName: 'umuo football news',
+  url: SITE_ORIGIN,
+  description: SITE_DESCRIPTION,
+  potentialAction: {
+    '@type': 'SearchAction',
+    target: {
+      '@type': 'EntryPoint',
+      urlTemplate: `${SITE_ORIGIN}/?q={search_term_string}`,
+    },
+    'query-input': 'required name=search_term_string',
+  },
+};
 ---
 <Layout title={SITE_TITLE}>
+  <script is:inline type="application/ld+json" set:html={JSON.stringify(websiteJsonLd)} />
   <main>
-    <ExploreView initialData={initialData} initialFilters={initialFilters} client:load />
+    <h1 class="sr-only">umuo — AI-Curated Football News Desk</h1>
+    <ExploreView
+      initialData={initialData}
+      initialFilters={initialFilters}
+      initialSearch={initialSearch}
+      client:load
+    />
   </main>
 </Layout>

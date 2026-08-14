@@ -3,7 +3,7 @@ import { env } from 'cloudflare:workers';
 import { FOOTBALL_COMPETITIONS } from '../../competitions';
 import ExploreView from '../../components/explore/ExploreView';
 import { getExploreFeed, getExploreFilters } from '../../data/api';
-import { SITE_NAME } from '../../site';
+import { SITE_NAME, SITE_ORIGIN } from '../../site';
 import Layout from '../../layouts/Layout.astro';
 
 const { comp } = Astro.params;
@@ -19,12 +19,49 @@ const [initialData, initialFilters] = await Promise.all([
 // Both the <head> autodiscovery link and the strip's "+ feed" CTA point at
 // this league's feed.
 const feedPath = `/${comp}/rss.xml`;
+const compUrl = `${SITE_ORIGIN}/${comp}`;
+const description = `Latest ${competition.label} football news, transfer updates, and match analysis curated by AI.`;
+
+const jsonLd = [
+  {
+    '@context': 'https://schema.org',
+    '@type': 'CollectionPage',
+    name: `${competition.label} Football News`,
+    description,
+    url: compUrl,
+    isPartOf: {
+      '@type': 'WebSite',
+      name: SITE_NAME,
+      url: SITE_ORIGIN,
+    },
+  },
+  {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      {
+        '@type': 'ListItem',
+        position: 1,
+        name: 'Home',
+        item: SITE_ORIGIN,
+      },
+      {
+        '@type': 'ListItem',
+        position: 2,
+        name: competition.label,
+        item: compUrl,
+      },
+    ],
+  },
+];
 ---
 <Layout
   title={`${SITE_NAME} — ${competition.label} football news`}
+  description={description}
   feedPath={feedPath}
   feedTitle={`${SITE_NAME} — ${competition.label} football news`}
 >
+  <script is:inline type="application/ld+json" set:html={JSON.stringify(jsonLd)} />
   <main>
     <ExploreView
       initialData={initialData}
