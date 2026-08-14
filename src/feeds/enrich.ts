@@ -109,7 +109,7 @@ export async function storeEnrichedArticle(
            id, source_id, canonical_url, fingerprint, title, description, ai_summary, ai_blurb,
            image_url, image_width, image_height, published_at, fetched_at, sport, comp, article_type, is_football,
            quality_score, freshness_score, status, created_at, updated_at
-         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'soccer', ?, ?, ?, ?, ?, ?, ?, ?)
+         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'soccer', ?, ?, ?, ?, ?, ?, ?, ?)
          ON CONFLICT DO NOTHING`,
     ).bind(
       articleId,
