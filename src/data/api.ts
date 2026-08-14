@@ -695,6 +695,58 @@ export async function getSitemapNews(env: Env, ctx: ExecutionContext): Promise<S
   }
 }
 
+export interface GoogleNewsArticleData {
+  id: string;
+  title: string;
+  publishedAt: string;
+}
+
+/** Published articles from the last 48 hours for Google News sitemap (/sitemap-news.xml).
+ *  Cached in KV for 30 minutes (fresh 1800s, keep 7200s). */
+export async function getGoogleNewsSitemapArticles(
+  env: Env,
+  ctx: ExecutionContext,
+  now = Date.now(),
+): Promise<GoogleNewsArticleData[]> {
+  try {
+    const response = await runCached(
+      'sitemap:google-news',
+      async () => {
+        if (!env.DB) throw new Error('D1 binding is required');
+        const cutoff = now - 172_800_000; // 48h in ms
+        const rows = await env.DB.prepare(
+          `SELECT id, title, published_at
+             FROM articles
+            WHERE status = 'published' AND is_football = 1 AND sport = 'soccer'
+              AND published_at >= ?
+            ORDER BY published_at DESC
+            LIMIT 1000`,
+        )
+          .bind(cutoff)
+          .all<{ id: unknown; title: unknown; published_at: unknown }>();
+        return JSON.stringify(rows.results ?? []);
+      },
+      1800,
+      7200,
+      env,
+      ctx,
+    );
+    if (!response.ok) return [];
+    const raw = (await response.json()) as { id: unknown; title: unknown; published_at: unknown }[];
+    if (!Array.isArray(raw)) return [];
+    return raw
+      .map((row) => ({
+        id: rowString(row.id),
+        title: rowString(row.title),
+        publishedAt: new Date(rowNumber(row.published_at)).toISOString(),
+      }))
+      .filter((article) => article.id && article.title);
+  } catch (error) {
+    console.error('[data] google news sitemap lookup failed:', error);
+    return [];
+  }
+}
+
 export async function serveExploreFilters(
   comp: string,
   env: Env,

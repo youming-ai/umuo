@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import type { SitemapData } from './data/api';
-import { renderSitemap, sitemapEntries } from './sitemap';
+import { renderGoogleNewsSitemap, renderSitemap, sitemapEntries } from './sitemap';
 import { SITE_ORIGIN } from './site';
 
 // Mirrors what production actually holds: six football hubs with content, and
@@ -98,6 +98,31 @@ describe('renderSitemap', () => {
 
   it('writes article URLs with lastmod', () => {
     expect(xml).toContain(`<loc>${SITE_ORIGIN}/a/aaa111</loc>\n    <lastmod>`);
+  });
+});
+
+describe('renderGoogleNewsSitemap', () => {
+  const newsArticles = [
+    {
+      id: 'news-1',
+      title: 'Arsenal & Chelsea deal "confirmed"',
+      publishedAt: '2026-08-14T08:00:00.000Z',
+    },
+  ];
+
+  it('renders valid XML with news namespace and publication data', () => {
+    const xml = renderGoogleNewsSitemap(newsArticles);
+    expect(xml).toContain('xmlns:news="http://www.google.com/schemas/sitemap-news/0.9"');
+    expect(xml).toContain(`<loc>${SITE_ORIGIN}/a/news-1</loc>`);
+    expect(xml).toContain('<news:name>umuo</news:name>');
+    expect(xml).toContain('<news:language>en</news:language>');
+    expect(xml).toContain(
+      '<news:publication_date>2026-08-14T08:00:00.000Z</news:publication_date>',
+    );
+    expect(xml).toContain(
+      '<news:title>Arsenal &amp; Chelsea deal &quot;confirmed&quot;</news:title>',
+    );
+    expect(xml.trimEnd().endsWith('</urlset>')).toBe(true);
   });
 });
 

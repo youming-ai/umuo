@@ -19,6 +19,11 @@ interface Props {
   feedTitle?: string;
   /** Open Graph object type. `article` on /a/{id} detail pages. */
   ogType?: 'website' | 'article';
+  /** Featured image URL for OpenGraph and Twitter cards. */
+  image?: string;
+  imageAlt?: string;
+  /** Twitter card display mode. */
+  twitterCard?: 'summary' | 'summary_large_image';
 }
 
 const {
@@ -27,6 +32,9 @@ const {
   feedPath = '/rss.xml',
   feedTitle = SITE_TITLE,
   ogType = 'website',
+  image,
+  imageAlt,
+  twitterCard = image ? 'summary_large_image' : 'summary',
 } = Astro.props;
 
 // Strip a trailing slash from the path so canonical/og:url match the actual page.
@@ -58,9 +66,13 @@ const canonicalUrl = `${SITE_ORIGIN}${canonicalPath}`;
     <meta property="og:description" content={description} />
     <meta property="og:url" content={canonicalUrl} />
     <meta property="og:locale" content={SITE_LOCALE} />
-    <meta name="twitter:card" content="summary" />
+    {image && <meta property="og:image" content={image} />}
+    {image && imageAlt && <meta property="og:image:alt" content={imageAlt} />}
+    <meta name="twitter:card" content={twitterCard} />
     <meta name="twitter:title" content={title} />
     <meta name="twitter:description" content={description} />
+    {image && <meta name="twitter:image" content={image} />}
+    {image && imageAlt && <meta name="twitter:image:alt" content={imageAlt} />}
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <!-- Loaded weights: Saira Condensed 600/700, Hanken Grotesk 400.
