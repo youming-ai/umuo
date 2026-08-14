@@ -208,6 +208,13 @@ function exploreArticle(row: ExploreRow): ExploreArticle {
  *  carry the same three keys the ORDER BY uses — a cursor keyed only on
  *  (published_at, id) would skip or repeat rows once quality leads the sort.
  *  Offset would slide under rows inserted at the top every ingest tick. */
+
+// Live freshness, computed at query time from published_at rather than the
+// frozen insert-time snapshot in the column (which read ~100 for every card).
+// Same formula as enrich.freshnessScore; 259200 = 72h in seconds.
+const LIVE_FRESHNESS =
+  "MAX(0, MIN(100, ROUND(100.0 - (CAST(strftime('%s','now') AS REAL) - a.published_at / 1000.0) / 259200.0 * 100.0))) AS freshness_score";
+
 export function parseExploreCursor(value: string | undefined): [number, number, string] | null {
   if (!value) return null;
   const first = value.indexOf(':');
@@ -288,7 +295,7 @@ async function queryExplore(query: ExploreQuery, env: Env): Promise<ExploreFeed>
     `SELECT
          a.id, a.title, a.description, a.ai_summary, a.ai_blurb, a.canonical_url,
          a.image_url, a.image_width, a.image_height, a.source_id, s.name AS source_name, s.url AS source_url,
-         a.published_at, a.comp, a.article_type, a.quality_score, a.freshness_score,
+         a.published_at, a.comp, a.article_type, a.quality_score, ${LIVE_FRESHNESS},
          COALESCE((SELECT json_group_array(at.tag) FROM article_tags at WHERE at.article_id = a.id), '[]') AS tags
        FROM articles a
        JOIN sources s ON s.id = a.source_id
@@ -451,7 +458,7 @@ export async function getArticle(
           `SELECT
              a.id, a.title, a.description, a.ai_summary, a.ai_blurb, a.canonical_url,
              a.image_url, a.image_width, a.image_height, a.source_id, s.name AS source_name, s.url AS source_url,
-             a.published_at, a.comp, a.article_type, a.quality_score, a.freshness_score,
+             a.published_at, a.comp, a.article_type, a.quality_score, ${LIVE_FRESHNESS},
              COALESCE((SELECT json_group_array(at.tag) FROM article_tags at WHERE at.article_id = a.id), '[]') AS tags
            FROM articles a
            JOIN sources s ON s.id = a.source_id
