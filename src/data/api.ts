@@ -122,6 +122,7 @@ interface ExploreRow {
   source_name: unknown;
   source_url: unknown;
   published_at: unknown;
+  day_bucket: unknown;
   comp: unknown;
   article_type: unknown;
   quality_score: unknown;
@@ -203,11 +204,13 @@ function exploreArticle(row: ExploreRow): ExploreArticle {
   };
 }
 
-/** Keyset cursor `<quality_score>:<published_at>:<id>`. The feed sorts by
- *  editorial quality first (the AI's job), then recency, so the cursor must
- *  carry the same three keys the ORDER BY uses — a cursor keyed only on
- *  (published_at, id) would skip or repeat rows once quality leads the sort.
- *  Offset would slide under rows inserted at the top every ingest tick. */
+/** Keyset cursor `<day>:<quality>:<published_at>:<id>`. The feed sorts by
+ *  recency at day granularity first (newest day wins — a news desk must not
+ *  pin a 75-day-old story above today's), then editorial quality within the
+ *  day, then exact time, then id. Every key is immutable (the day bucket is
+ *  floor(published_at / 86400000), not a now-relative window), so the keyset
+ *  stays stable under the daily ingest inserts. Offset would slide under rows
+ *  inserted at the top every ingest tick. */
 
 // Live freshness, computed at query time from published_at rather than the
 // frozen insert-time snapshot the column used to hold. Single source of truth
@@ -216,26 +219,37 @@ function exploreArticle(row: ExploreRow): ExploreArticle {
 const LIVE_FRESHNESS =
   "MAX(0, MIN(100, ROUND(100.0 - (CAST(strftime('%s','now') AS REAL) - a.published_at / 1000.0) / 259200.0 * 100.0))) AS freshness_score";
 
-export function parseExploreCursor(value: string | undefined): [number, number, string] | null {
+export function parseExploreCursor(
+  value: string | undefined,
+): [number, number, number, string] | null {
   if (!value) return null;
   const first = value.indexOf(':');
   if (first <= 0) return null;
   const second = value.indexOf(':', first + 1);
   if (second <= first + 1) return null;
-  const qualityScore = Number(value.slice(0, first));
-  const publishedAt = Number(value.slice(first + 1, second));
-  const id = value.slice(second + 1);
-  if (!Number.isFinite(qualityScore) || !Number.isFinite(publishedAt) || !id) return null;
-  return [qualityScore, publishedAt, id];
+  const third = value.indexOf(':', second + 1);
+  if (third <= second + 1) return null;
+  const day = Number(value.slice(0, first));
+  const qualityScore = Number(value.slice(first + 1, second));
+  const publishedAt = Number(value.slice(second + 1, third));
+  const id = value.slice(third + 1);
+  if (
+    !Number.isFinite(day) ||
+    !Number.isFinite(qualityScore) ||
+    !Number.isFinite(publishedAt) ||
+    !id
+  )
+    return null;
+  return [day, qualityScore, publishedAt, id];
 }
 
 function exploreCursorFor(row: ExploreRow): string {
-  return `${rowNumber(row.quality_score)}:${rowNumber(row.published_at)}:${rowString(row.id)}`;
+  return `${rowNumber(row.day_bucket)}:${rowNumber(row.quality_score)}:${rowNumber(row.published_at)}:${rowString(row.id)}`;
 }
 
 function canonicalCursor(value: string | undefined): string | undefined {
-  const parsed = parseExploreCursor(value?.slice(0, 140));
-  return parsed ? `${parsed[0]}:${parsed[1]}:${parsed[2]}` : undefined;
+  const parsed = parseExploreCursor(value?.slice(0, 160));
+  return parsed ? `${parsed[0]}:${parsed[1]}:${parsed[2]}:${parsed[3]}` : undefined;
 }
 
 function normalizedExploreQuery(
@@ -281,27 +295,31 @@ async function queryExplore(query: ExploreQuery, env: Env): Promise<ExploreFeed>
     where.push('(a.title LIKE ? OR a.ai_summary LIKE ? OR a.ai_blurb LIKE ?)');
     bindings.push(search, search, search);
   }
-  // Strictly after the last row delivered, in the same (quality_score,
-  // published_at, id) order the query sorts by.
+  // Strictly after the last row delivered, in the same (day, quality,
+  // published_at, id) order the query sorts by. Day bucket is immutable
+  // (floor(published_at / 86400000)), so the keyset stays stable.
   const cursor = parseExploreCursor(normalized.cursor);
   if (cursor) {
-    const [cq, cp, ci] = cursor;
+    const [cd, cq, cp, ci] = cursor;
     where.push(
-      '(a.quality_score < ? OR (a.quality_score = ? AND a.published_at < ?) OR (a.quality_score = ? AND a.published_at = ? AND a.id < ?))',
+      '(a.published_at / 86400000 < ?' +
+        ' OR (a.published_at / 86400000 = ? AND a.quality_score < ?)' +
+        ' OR (a.published_at / 86400000 = ? AND a.quality_score = ? AND a.published_at < ?)' +
+        ' OR (a.published_at / 86400000 = ? AND a.quality_score = ? AND a.published_at = ? AND a.id < ?))',
     );
-    bindings.push(cq, cq, cp, cq, cp, ci);
+    bindings.push(cd, cd, cq, cd, cq, cp, cd, cq, cp, ci);
   }
 
   const statement = env.DB.prepare(
     `SELECT
          a.id, a.title, a.description, a.ai_summary, a.ai_blurb, a.canonical_url,
          a.image_url, a.image_width, a.image_height, a.source_id, s.name AS source_name, s.url AS source_url,
-         a.published_at, a.comp, a.article_type, a.quality_score, ${LIVE_FRESHNESS},
+         a.published_at, (a.published_at / 86400000) AS day_bucket, a.comp, a.article_type, a.quality_score, ${LIVE_FRESHNESS},
          COALESCE((SELECT json_group_array(at.tag) FROM article_tags at WHERE at.article_id = a.id), '[]') AS tags
        FROM articles a
        JOIN sources s ON s.id = a.source_id
        WHERE ${where.join(' AND ')}
-       ORDER BY a.quality_score DESC, a.published_at DESC, a.id DESC
+       ORDER BY day_bucket DESC, a.quality_score DESC, a.published_at DESC, a.id DESC
        LIMIT ?`,
   ).bind(...bindings, normalized.limit + 1);
   const result = await statement.all<ExploreRow>();
