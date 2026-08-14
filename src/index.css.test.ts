@@ -13,6 +13,7 @@ const tokens = JSON.parse(
   readFileSync(resolve(process.cwd(), 'design-tokens/tokens.json'), 'utf8'),
 ) as {
   color: Record<string, { $value: { dark?: string; light?: string } }>;
+  radius: Record<string, { $value: string }>;
 };
 
 // tokens.json uses semantic names; index.css uses --c-* vars. This is the
@@ -72,6 +73,19 @@ describe('design tokens', () => {
         const lightValue = light[cssName] ?? dark[cssName];
         expect(lightValue?.toLowerCase(), `${name} light`).toBe(token.$value.light.toLowerCase());
       }
+    }
+  });
+
+  it('keeps every tokens.json radius in sync with index.css --r-*', () => {
+    // Radius lives in both tokens.json and src/index.css --r-*. The color sync
+    // test above exists because the palette drifted once; radius has the same
+    // drift risk and no other guard, so this mirrors it. Values are dimensions
+    // ("0px", "16px"); compare numerically so "0" and "0px" both read as 0.
+    const toPx = (v: string) => Number.parseFloat(v.replace(/px/i, '').trim());
+    for (const [name, token] of Object.entries(tokens.radius)) {
+      const match = css.match(new RegExp(`--r-${name}:s*([^;]+);`));
+      expect(match, `--r-${name} present in index.css`).not.toBeNull();
+      expect(toPx(match![1])).toBe(toPx(token.$value));
     }
   });
 });
