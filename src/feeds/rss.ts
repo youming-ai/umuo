@@ -34,7 +34,9 @@ function imageMeta(block: string): { url: string; width: number; height: number 
   // url=/href= attribute; width/height are optional sibling attributes.
   const tag =
     block.match(/<enclosure\b[^>]*\burl=['"]([^'"]+)['"][^>]*\btype=['"]image\//i) ||
-    block.match(/<(?:media:content|media:thumbnail|image)\b[^>]*\b(?:url|href)=['"]([^'"]+)['"][^>]*/i);
+    block.match(
+      /<(?:media:content|media:thumbnail|image)\b[^>]*\b(?:url|href)=['"]([^'"]+)['"][^>]*/i,
+    );
   const url = tag?.[1] ? decodeEntities(tag[1]) : '';
   const rawAttrs = tag?.[0] ?? '';
   const width = Number.parseInt(rawAttrs.match(/\bwidth=['"](\d+)['"]/i)?.[1] ?? '', 10);
@@ -66,6 +68,12 @@ export function parseRss(
       const description = stripHtml(
         tagValue(block, ['description', 'content:encoded', 'summary', 'content']),
       ).slice(0, 4000);
+      // Prefer the full-text syndication fields for the model's body, but keep
+      // `description` (teaser) stable so fingerprints don't shift and re-ingest
+      // everything. Many feeds put the whole story in content:encoded.
+      const body = stripHtml(
+        tagValue(block, ['content:encoded', 'content', 'description', 'summary']),
+      ).slice(0, 8000);
       const publishedRaw = tagValue(block, ['pubDate', 'published', 'updated', 'dc:date']);
       const publishedAt = Date.parse(publishedRaw) || fetchedAt;
       const image = imageMeta(block);
@@ -76,6 +84,7 @@ export function parseRss(
         comp: source.comp ?? null,
         title,
         description,
+        body,
         url,
         imageUrl: image.url,
         imageWidth: image.width,

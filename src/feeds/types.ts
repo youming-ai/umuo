@@ -22,6 +22,10 @@ export interface RawArticle {
   comp: string | null;
   title: string;
   description: string;
+  /** Full article text when the feed syndicates it (content:encoded) or when
+   *  ingest fetched the page body. Empty for teaser-only feeds that weren't
+   *  fetched. The LLM prompt prefers this over `description`. */
+  body?: string;
   url: string;
   canonicalUrl: string;
   imageUrl: string;
