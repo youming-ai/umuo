@@ -14,11 +14,6 @@ function canonicalCompetition(value: string, fallback: string | null): string | 
   return fallback && Object.hasOwn(FOOTBALL_COMPETITIONS, fallback) ? fallback : null;
 }
 
-function freshnessScore(publishedAt: number, now = Date.now()): number {
-  const ageHours = Math.max(0, now - publishedAt) / (60 * 60 * 1000);
-  return Math.max(0, Math.min(100, Math.round(100 - (ageHours / 72) * 100)));
-}
-
 /** One spelling per topic: lowercase, whitespace collapsed to a single hyphen. */
 export function normalizeTag(value: string): string {
   return value
@@ -109,8 +104,8 @@ export async function storeEnrichedArticle(
       `INSERT INTO articles (
            id, source_id, canonical_url, fingerprint, title, description, ai_summary, ai_blurb,
            image_url, image_width, image_height, published_at, fetched_at, sport, comp, article_type, is_football,
-           quality_score, freshness_score, status, created_at, updated_at
-         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'soccer', ?, ?, ?, ?, ?, ?, ?, ?)
+           quality_score, status, created_at, updated_at
+         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'soccer', ?, ?, ?, ?, ?, ?, ?)
          ON CONFLICT DO NOTHING`,
     ).bind(
       articleId,
@@ -130,7 +125,6 @@ export async function storeEnrichedArticle(
       enrichment.articleType,
       isFootball ? 1 : 0,
       score(article, enrichment),
-      freshnessScore(article.publishedAt, now),
       status,
       now,
       now,

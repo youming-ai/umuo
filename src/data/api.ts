@@ -210,8 +210,9 @@ function exploreArticle(row: ExploreRow): ExploreArticle {
  *  Offset would slide under rows inserted at the top every ingest tick. */
 
 // Live freshness, computed at query time from published_at rather than the
-// frozen insert-time snapshot in the column (which read ~100 for every card).
-// Same formula as enrich.freshnessScore; 259200 = 72h in seconds.
+// frozen insert-time snapshot the column used to hold. Single source of truth
+// for the freshness formula; 259200 = 72h in seconds. The stored freshness_score
+// column is no longer written (defaults to 0) and ignored for display.
 const LIVE_FRESHNESS =
   "MAX(0, MIN(100, ROUND(100.0 - (CAST(strftime('%s','now') AS REAL) - a.published_at / 1000.0) / 259200.0 * 100.0))) AS freshness_score";
 
