@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { fillBody } from './ingest';
+import { fillBody } from './readable';
 import type { RawArticle } from './types';
 
 function article(overrides: Partial<RawArticle> = {}): RawArticle {

@@ -208,4 +208,33 @@ describe('fetch routing', () => {
     const res = await worker.fetch(new Request('https://x/api/explore/rss'), env, mockCtx());
     expect(res.status).toBe(404);
   });
+
+  it('rejects GET on the re-enrich backfill endpoint', async () => {
+    const env = mockEnv(null);
+    const res = await worker.fetch(new Request('https://x/api/re-enrich'), env, mockCtx());
+    expect(res.status).toBe(405);
+  });
+
+  it('rejects the re-enrich endpoint without the LLM key', async () => {
+    const env = mockEnv(null);
+    const res = await worker.fetch(
+      new Request('https://x/api/re-enrich', { method: 'POST' }),
+      env,
+      mockCtx(),
+    );
+    expect(res.status).toBe(401);
+  });
+
+  it('rejects the re-enrich endpoint with the wrong bearer token', async () => {
+    const env = { ...mockEnv(null), LLM_API_KEY: 'secret' } as Env;
+    const res = await worker.fetch(
+      new Request('https://x/api/re-enrich', {
+        method: 'POST',
+        headers: { authorization: 'Bearer nope' },
+      }),
+      env,
+      mockCtx(),
+    );
+    expect(res.status).toBe(401);
+  });
 });

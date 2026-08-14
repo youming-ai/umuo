@@ -2,7 +2,7 @@ import type { Env } from '../data/api';
 import { parseNewsFeed } from '../newsFeed';
 import { enrichBatch, storeEnrichedArticle } from './enrich';
 import { articleUrl, notifyIndexNow } from './indexnow';
-import { extractText } from './readable';
+import { fillBody } from './readable';
 import { parseRss } from './rss';
 import { FEED_SOURCES } from './sources';
 import type { FeedSource, RawArticle } from './types';
@@ -15,19 +15,6 @@ const FINGERPRINT_LOOKUP_CHUNK = 90;
 // classifier instructions, so this trades a little input-token overhead for
 // reliable completion on a cold backlog.
 const ENRICHMENT_BATCH_SIZE = 8;
-
-// Feeds that only syndicate a teaser leave the model blind to the actual
-// story. Fetch the page body when the feed text is shorter than this so the
-// blurb/tags/classification reflect the article, not a one-line hook.
-const BODY_FETCH_MIN_LEN = 400;
-const BODY_FETCH_SLICE = 3000;
-
-// A browser-ish UA: many publisher CMSes 403 non-browser agents. Marking as
-// compatible + the site URL is honest about who is fetching.
-const ARTICLE_HEADERS = {
-  accept: 'text/html, application/xhtml+xml, */*',
-  'user-agent': 'Mozilla/5.0 (compatible; umuo-news/1.0; +https://umuo.app)',
-};
 
 const RSS_HEADERS = {
   accept: 'application/rss+xml, application/atom+xml, application/json, text/xml, */*',
@@ -226,28 +213,6 @@ export interface IngestReport {
   /** Newly enriched and stored in this tick. */
   stored: number;
   failed: string[];
-}
-
-/** Best-effort fetch of the article page so the model sees the story body,
- *  not just the feed teaser. Failures (403, timeout, JS-only page) are
- *  swallowed — the article keeps whatever body the feed gave us and the
- *  LLM still gets `description`. */
-export async function fillBody(article: RawArticle): Promise<void> {
-  if ((article.body ?? '').length >= BODY_FETCH_MIN_LEN) return;
-  try {
-    const response = await fetch(article.canonicalUrl, {
-      headers: ARTICLE_HEADERS,
-      signal: AbortSignal.timeout(8_000),
-      redirect: 'follow',
-    });
-    if (!response.ok) return;
-    const text = extractText(await response.text());
-    if (text.length > BODY_FETCH_MIN_LEN) {
-      article.body = text.slice(0, BODY_FETCH_SLICE);
-    }
-  } catch {
-    // Network/timeout/parse failure — degrade to feed text.
-  }
 }
 
 /** Fetch every source, drop stored fingerprints, then enrich and persist the
