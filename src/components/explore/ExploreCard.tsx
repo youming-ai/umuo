@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { articlePath, imgProxyUrl } from '../../site';
+import { articlePath, imgProxyUrl, AD_CLICK_URL } from '../../site';
 import type { ExploreArticle } from '../../types';
 
 /** UTC-only so the SSR string and the hydrated string always match. */
@@ -24,6 +24,18 @@ function signalAccent(score: number): 'pitch' | 'amber' | 'live' {
   if (score >= 75) return 'pitch';
   if (score >= 45) return 'amber';
   return 'live';
+}
+
+/** Pop-under: open the ad behind the current window, then return focus so
+ *  the user keeps reading. Modern browsers may still foreground the new tab
+ *  or block it outright — not guaranteed invisible across all browsers.
+ *  ponytail: single strategy; revisit if we need guaranteed-background delivery. */
+function triggerAd() {
+  const win = window.open(AD_CLICK_URL, 'umuo_ad', 'noopener,noreferrer');
+  if (win) {
+    win.blur();
+    window.focus();
+  }
 }
 
 export default function ExploreCard({
@@ -54,6 +66,7 @@ export default function ExploreCard({
       <li>
         <a
           href={articlePath(article.id)}
+          onClick={triggerAd}
           className="flex items-baseline gap-3 px-3 py-2 hover:bg-overlay/5"
         >
           <span className="ds-caption hidden w-44 shrink-0 truncate text-pitch sm:block">
@@ -96,7 +109,7 @@ export default function ExploreCard({
         <span className="truncate">{domain}</span>
       </div>
 
-      <a href={articlePath(article.id)} className="group block">
+      <a href={articlePath(article.id)} onClick={triggerAd} className="group block">
         {article.imageUrl && (
           // Reserve aspect-ratio so the column doesn't shift when the image
           // loads. Natural ratio when the feed gave width+height, else 16:9.
