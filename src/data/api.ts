@@ -320,6 +320,7 @@ async function queryExplore(query: ExploreQuery, env: Env): Promise<ExploreFeed>
 
   const statement = env.DB.prepare(
     `SELECT ${EXPLORE_ARTICLE_COLUMNS}
+       FROM articles a
        JOIN sources s ON s.id = a.source_id
        WHERE ${where.join(' AND ')}
        ORDER BY day_bucket DESC, a.quality_score DESC, a.published_at DESC, a.id DESC
@@ -478,6 +479,7 @@ export async function getArticle(
         if (!env.DB) throw new Error('D1 binding is required');
         const row = await env.DB.prepare(
           `SELECT ${EXPLORE_ARTICLE_COLUMNS}
+           FROM articles a
            JOIN sources s ON s.id = a.source_id
            WHERE a.id = ? AND a.status = 'published' AND a.is_football = 1 AND a.sport = 'soccer'`,
         )
@@ -544,6 +546,7 @@ export async function getRelatedArticles(
 
         const rows = await env.DB.prepare(
           `SELECT ${EXPLORE_ARTICLE_COLUMNS}
+           FROM articles a
            JOIN sources s ON s.id = a.source_id
            WHERE ${conditions.join(' AND ')}
            ORDER BY a.published_at DESC

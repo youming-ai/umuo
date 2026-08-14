@@ -124,6 +124,7 @@ describe('getRelatedArticles', () => {
     const related = await getRelatedArticles(sampleArticle, env, ctx, 3);
 
     expect(env.CACHE.get).toHaveBeenCalledWith('related:art-1:3', 'json');
+    expect(capturedSql).toContain('FROM articles a');
     expect(capturedSql).toContain('a.id != ?');
     expect(capturedSql).toContain('a.comp = ?');
     expect(capturedSql).toContain('filter_tags.tag IN (?, ?)');

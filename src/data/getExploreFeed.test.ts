@@ -46,4 +46,36 @@ describe('getExploreFeed', () => {
     const feed = await getExploreFeed({}, envReturning({ items: [], nextCursor: 12 }), ctx);
     expect(feed.nextCursor).toBeNull();
   });
+
+  it('generates valid SQL containing FROM articles a on cache miss with competition', async () => {
+    let capturedSql = '';
+    let capturedBindings: unknown[] = [];
+
+    const env = {
+      CACHE: {
+        get: vi.fn().mockResolvedValue(null),
+        put: vi.fn(),
+      },
+      DB: {
+        prepare: vi.fn().mockImplementation((sql: string) => {
+          capturedSql = sql;
+          return {
+            bind: vi.fn().mockImplementation((...bindings: unknown[]) => {
+              capturedBindings = bindings;
+              return {
+                all: vi.fn().mockResolvedValue({ results: [] }),
+              };
+            }),
+          };
+        }),
+      },
+    } as unknown as Env;
+
+    const feed = await getExploreFeed({ comp: 'ita.1' }, env, ctx);
+    expect(feed.items).toEqual([]);
+    expect(capturedSql).toContain('FROM articles a');
+    expect(capturedSql).toContain('JOIN sources s ON s.id = a.source_id');
+    expect(capturedSql).toContain('a.comp = ?');
+    expect(capturedBindings).toContain('ita.1');
+  });
 });
