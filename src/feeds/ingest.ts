@@ -10,7 +10,7 @@ import type { FeedSource, RawArticle } from './types';
 // with every source added.
 const FINGERPRINT_LOOKUP_CHUNK = 90;
 
-// Keep each B.AI request below the 20-second timeout. Every chunk repeats the
+// Keep each B.AI request below the request timeout in llm.ts. Every chunk repeats the
 // classifier instructions, so this trades a little input-token overhead for
 // reliable completion on a cold backlog.
 const ENRICHMENT_BATCH_SIZE = 8;
