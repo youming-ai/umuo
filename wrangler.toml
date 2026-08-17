@@ -64,3 +64,4 @@ crons = ["*/15 * * * *", "17 3 * * *"]
 
 [vars]
 LLM_BASE_URL = "https://api.b.ai/v1"
+LLM_MODEL = "gpt-5.6-luna"
