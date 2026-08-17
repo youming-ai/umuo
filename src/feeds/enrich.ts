@@ -25,9 +25,14 @@ export function normalizeTag(value: string): string {
 }
 
 /** Cross-source dedup key: lowercase with every non-alphanumeric stripped, so
- *  "Haaland double!" and "Haaland double" from different outlets collide. */
+ *  "Haaland double!" and "Haaland double" from different outlets collide.
+ *  A headline with no Latin letters at all (CJK, Cyrillic, …) must not
+ *  collapse to '' — the first one stored would make knownTitles treat every
+ *  later non-English story as already ingested. Fall back to the lowercased
+ *  original, which still collides only with an identical headline. */
 export function normalizeTitle(value: string): string {
-  return value.toLowerCase().replace(/[^a-z0-9]+/g, '');
+  const normalized = value.toLowerCase().replace(/[^a-z0-9]+/g, '');
+  return normalized || value.toLowerCase();
 }
 
 /** Blended editorial score below which an article is stored as `filtered`
