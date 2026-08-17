@@ -237,4 +237,22 @@ describe('fetch routing', () => {
     );
     expect(res.status).toBe(401);
   });
+
+  it('resizes images through the proxy at quality 85 with a 1600px cap', async () => {
+    const env = mockEnv(null);
+    fetchMock.mockResolvedValueOnce(
+      new Response('image-bytes', {
+        status: 200,
+        headers: { 'content-type': 'image/jpeg' },
+      }),
+    );
+    const res = await worker.fetch(
+      new Request('https://x/api/img?src=https%3A%2F%2Fichef.bbci.co.uk%2Fimg.jpg&w=2000'),
+      env,
+      mockCtx(),
+    );
+    expect(res.status).toBe(200);
+    const call = fetchMock.mock.calls.find((c) => String(c[0]).includes('bbci.co.uk'));
+    expect(call?.[1]).toMatchObject({ cf: { image: { width: 1600, quality: 85 } } });
+  });
 });

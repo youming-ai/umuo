@@ -33,10 +33,10 @@ async function serveImageProxy(url: URL): Promise<Response> {
   if (!src || !/^https:\/\//i.test(src) || !imgHostAllowed(src)) {
     return new Response('Not found', { status: 404 });
   }
-  const width = Math.min(1200, Math.max(64, Number(url.searchParams.get('w')) || 800));
+  const width = Math.min(1600, Math.max(64, Number(url.searchParams.get('w')) || 800));
   try {
     const upstream = await fetch(new URL(src), {
-      cf: { image: { width, quality: 78 } },
+      cf: { image: { width, quality: 85 } },
     });
     if (!upstream.ok || !upstream.body) return new Response('Not found', { status: 404 });
     const headers = new Headers(upstream.headers);
