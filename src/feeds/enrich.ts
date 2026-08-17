@@ -47,7 +47,7 @@ function score(article: RawArticle, enrichment: ArticleEnrichment): number {
 }
 
 export function modelFor(env: Env): string {
-  return env.LLM_MODEL || 'deepseek-v4-flash';
+  return env.LLM_MODEL || 'gpt-5.6-luna';
 }
 
 /** Enrich a whole batch in one LLM call, falling back to per-article calls if
