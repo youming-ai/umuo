@@ -5,6 +5,9 @@ import type { ArticleEnrichment, FeedSource, RawArticle } from './types';
 
 const enrichBatch = vi.hoisted(() => vi.fn());
 const storeEnrichedArticle = vi.hoisted(() => vi.fn());
+const normalizeTitle = vi.hoisted(
+  () => (title: string) => title.toLowerCase().replace(/[^a-z0-9]+/g, ''),
+);
 const parseRss = vi.hoisted(() => vi.fn());
 const articleUrl = vi.hoisted(() => vi.fn((id: string) => `https://umuo.app/a/${id}`));
 const notifyIndexNow = vi.hoisted(() => vi.fn());
@@ -20,7 +23,7 @@ const source = vi.hoisted(
   }),
 );
 
-vi.mock('./enrich', () => ({ enrichBatch, storeEnrichedArticle }));
+vi.mock('./enrich', () => ({ enrichBatch, storeEnrichedArticle, normalizeTitle }));
 vi.mock('./rss', () => ({ parseRss }));
 vi.mock('./sources', () => ({ FEED_SOURCES: [source] }));
 vi.mock('./indexnow', () => ({ articleUrl, notifyIndexNow }));
@@ -118,5 +121,22 @@ describe('ingestAllSources enrichment batches', () => {
     expect(enrichBatch).toHaveBeenCalledTimes(2);
     expect(storeEnrichedArticle).toHaveBeenCalledTimes(8);
     expect(report.stored).toBe(8);
+  });
+
+  it('drops cross-source duplicates that share a normalized title', async () => {
+    parseRss.mockImplementation(() => {
+      const items = Array.from({ length: 17 }, (_, index) => article(index));
+      // Two items whose titles differ only in punctuation/casing — the same
+      // story syndicated across outlets, which the fingerprint (hostname is
+      // part of it) would not catch.
+      items[0] = { ...items[0], title: 'Haaland double!' };
+      items[1] = { ...items[1], title: 'Haaland double' };
+      return items;
+    });
+
+    const report = await ingestAllSources(env(), context());
+
+    expect(storeEnrichedArticle).toHaveBeenCalledTimes(16);
+    expect(report.stored).toBe(16);
   });
 });

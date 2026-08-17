@@ -1,6 +1,6 @@
 import type { Env } from '../data/api';
 import { parseNewsFeed } from '../newsFeed';
-import { enrichBatch, storeEnrichedArticle } from './enrich';
+import { enrichBatch, normalizeTitle, storeEnrichedArticle } from './enrich';
 import { articleUrl, notifyIndexNow } from './indexnow';
 import { fillBody } from './readable';
 import { parseRss } from './rss';
@@ -205,6 +205,24 @@ export async function knownFingerprints(
   return known;
 }
 
+/** Drop normalized titles already stored so a story re-surfacing from a new
+ *  outlet isn't re-enriched. Mirrors knownFingerprints; existing rows with a
+ *  NULL title_norm never match, so only post-migration articles participate. */
+async function knownTitles(db: D1Database, titles: string[]): Promise<Set<string>> {
+  const known = new Set<string>();
+  for (let offset = 0; offset < titles.length; offset += FINGERPRINT_LOOKUP_CHUNK) {
+    const chunk = titles.slice(offset, offset + FINGERPRINT_LOOKUP_CHUNK);
+    const result = await db
+      .prepare(
+        `SELECT title_norm FROM articles WHERE title_norm IN (${chunk.map(() => '?').join(',')})`,
+      )
+      .bind(...chunk)
+      .all<{ title_norm: string }>();
+    for (const row of result.results ?? []) known.add(row.title_norm);
+  }
+  return known;
+}
+
 export interface IngestReport {
   sources: number;
   fetched: number;
@@ -241,7 +259,24 @@ export async function ingestAllSources(env: Env, ctx: ExecutionContext): Promise
     env.DB,
     fetched.map((article) => article.fingerprint),
   );
-  const articles = fetched.filter((article) => !known.has(article.fingerprint));
+  let articles = fetched.filter((article) => !known.has(article.fingerprint));
+
+  // Cross-source dedup: the same story syndicated across outlets has a
+  // different fingerprint (hostname is part of it), so drop by normalized
+  // title. First occurrence wins — FEED_SOURCES order puts high-authority
+  // outlets first — and anything already stored is skipped.
+  const seenTitles = new Set<string>();
+  articles = articles.filter((article) => {
+    const key = normalizeTitle(article.title);
+    if (seenTitles.has(key)) return false;
+    seenTitles.add(key);
+    return true;
+  });
+  const storedTitles = await knownTitles(
+    env.DB,
+    articles.map((article) => normalizeTitle(article.title)),
+  );
+  articles = articles.filter((article) => !storedTitles.has(normalizeTitle(article.title)));
 
   let stored = 0;
   if (articles.length > 0) {

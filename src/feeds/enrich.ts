@@ -24,6 +24,16 @@ export function normalizeTag(value: string): string {
     .replace(/^-|-$/g, '');
 }
 
+/** Cross-source dedup key: lowercase with every non-alphanumeric stripped, so
+ *  "Haaland double!" and "Haaland double" from different outlets collide. */
+export function normalizeTitle(value: string): string {
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, '');
+}
+
+/** Blended editorial score below which an article is stored as `filtered`
+ *  (hidden from the board) even when it is football. */
+export const MIN_QUALITY_SCORE = 60;
+
 export type ArticleProcessStatus = 'stored' | 'filtered' | 'skipped';
 
 export interface ArticleProcessResult {
@@ -96,16 +106,17 @@ export async function storeEnrichedArticle(
   const now = Date.now();
   const competition = canonicalCompetition(enrichment.competition, article.comp);
   const isFootball = enrichment.isFootball;
-  const status = isFootball ? 'published' : 'filtered';
+  const qualityScore = score(article, enrichment);
+  const status = isFootball && qualityScore >= MIN_QUALITY_SCORE ? 'published' : 'filtered';
   const articleId = article.fingerprint;
 
   await env.DB.batch([
     env.DB.prepare(
       `INSERT INTO articles (
-           id, source_id, canonical_url, fingerprint, title, description, ai_summary, ai_blurb,
+           id, source_id, canonical_url, fingerprint, title, title_norm, description, ai_summary, ai_blurb,
            image_url, image_width, image_height, published_at, fetched_at, sport, comp, article_type, is_football,
            quality_score, status, created_at, updated_at
-         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'soccer', ?, ?, ?, ?, ?, ?, ?)
+         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'soccer', ?, ?, ?, ?, ?, ?, ?)
          ON CONFLICT DO NOTHING`,
     ).bind(
       articleId,
@@ -113,6 +124,7 @@ export async function storeEnrichedArticle(
       article.canonicalUrl,
       article.fingerprint,
       article.title,
+      normalizeTitle(article.title),
       article.description,
       enrichment.summary,
       enrichment.blurb,
@@ -124,7 +136,7 @@ export async function storeEnrichedArticle(
       competition,
       enrichment.articleType,
       isFootball ? 1 : 0,
-      score(article, enrichment),
+      qualityScore,
       status,
       now,
       now,
@@ -137,7 +149,10 @@ export async function storeEnrichedArticle(
     ),
   ]);
 
-  return { id: articleId, status: isFootball ? 'stored' : 'filtered' };
+  return {
+    id: articleId,
+    status: isFootball && qualityScore >= MIN_QUALITY_SCORE ? 'stored' : 'filtered',
+  };
 }
 
 // --- Re-enrichment of existing rows ---
@@ -211,7 +226,8 @@ async function reEnrichArticle(
   const now = Date.now();
   const competition = canonicalCompetition(enrichment.competition, article.comp);
   const isFootball = enrichment.isFootball;
-  const status = isFootball ? 'published' : 'filtered';
+  const qualityScore = score(article, enrichment);
+  const status = isFootball && qualityScore >= MIN_QUALITY_SCORE ? 'published' : 'filtered';
   const tags = [...new Set(enrichment.tags.map(normalizeTag).filter(Boolean))];
   await env.DB.batch([
     env.DB.prepare(
@@ -225,7 +241,7 @@ async function reEnrichArticle(
       competition,
       enrichment.articleType,
       isFootball ? 1 : 0,
-      score(article, enrichment),
+      qualityScore,
       status,
       now,
       article.fingerprint,
