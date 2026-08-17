@@ -41,7 +41,11 @@ const inflight = new Map<string, Promise<CachedResult>>();
 // `keep`  = how long KV retains it (≥ fresh) so a stale copy covers an outage.
 // produce may return null to signal "not found" — the miss is served 404 and
 // never cached, so a caller keyed by user-controlled input (e.g. article ids)
-// can't be turned into an unbounded KV write amplifier.
+// can't be turned into an unbounded KV write amplifier. The mirror side is
+// that a fixed nonexistent id now hits D1 on every request (no negative
+// cache) — the same trade serveExplore already makes for free-text search.
+// Legacy entries cached as "null" before this change still serve HIT/STALE
+// with 200 until they age out within `keep`; callers re-parse defensively.
 async function runCached(
   cacheKey: string,
   produce: () => Promise<string | null>,
