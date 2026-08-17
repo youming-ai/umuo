@@ -40,5 +40,5 @@ export const FOOTBALL_COMPETITIONS: Record<string, Competition> = {
 const ESPN = 'https://site.api.espn.com/apis';
 
 export function buildUrl(c: Competition): string {
-  return `${ESPN}/site/v2/sports/${c.sport}/${c.league}/news?limit=50`;
+  return `${ESPN}/site/v2/sports/${c.sport}/${c.league}/news?limit=100`;
 }
