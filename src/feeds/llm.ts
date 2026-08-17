@@ -128,7 +128,7 @@ async function requestLLM(
       messages: [{ role: 'user', content: input }],
       response_format: { type: 'json_object' },
     }),
-    // deepseek-v4-flash is a reasoning model: a chunk of 8 measured 27s end to
+    // gpt-5.6-luna is a reasoning model: a chunk of 8 measured 27s end to
     // end, so the old 20s ceiling aborted every batch before it could answer.
     signal: AbortSignal.timeout(60_000 + attempt * 15_000),
   });
