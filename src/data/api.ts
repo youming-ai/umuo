@@ -39,9 +39,12 @@ const inflight = new Map<string, Promise<CachedResult>>();
 
 // `fresh` = seconds a cached copy serves without revalidating.
 // `keep`  = how long KV retains it (≥ fresh) so a stale copy covers an outage.
+// produce may return null to signal "not found" — the miss is served 404 and
+// never cached, so a caller keyed by user-controlled input (e.g. article ids)
+// can't be turned into an unbounded KV write amplifier.
 async function runCached(
   cacheKey: string,
-  produce: () => Promise<string>,
+  produce: () => Promise<string | null>,
   fresh: number,
   keep: number,
   env: Env,
@@ -70,6 +73,7 @@ async function runCached(
   const promise = (async (): Promise<CachedResult> => {
     try {
       const body = await produce();
+      if (body === null) return { body: '{"error":"not found"}', status: 404, cache: 'MISS' };
       const producedAt = Date.now();
       ctx.waitUntil(
         env.CACHE.put(cacheKey, JSON.stringify({ body, at: producedAt } satisfies Entry), {
@@ -104,8 +108,6 @@ export interface ExploreQuery {
 
 const EMPTY_EXPLORE_FILTERS: ExploreFilterSet = {
   competitions: [],
-  sources: [],
-  tags: [],
 };
 
 interface ExploreRow {
@@ -438,6 +440,9 @@ export async function serveExploreRss(
     headers: {
       'content-type': 'application/rss+xml; charset=utf-8',
       'x-cache': xCache,
+      // Deliberately longer than the KV fresh window (60s): feed readers poll
+      // every 30–60 minutes, so a 5-minute edge cache saves origin hits
+      // without any reader-visible staleness.
       'cache-control': 'public, max-age=300',
     },
   });
@@ -485,7 +490,7 @@ export async function getArticle(
         )
           .bind(id)
           .first<ExploreRow>();
-        return JSON.stringify(row);
+        return row ? JSON.stringify(row) : null;
       },
       300,
       3600,
@@ -591,7 +596,7 @@ async function queryExploreFilters(_comp: string, env: Env): Promise<ExploreFilt
     })
     .filter((option: ExploreFilterOption | null): option is ExploreFilterOption => option !== null);
 
-  return { competitions: competitionOptions, sources: [], tags: [] };
+  return { competitions: competitionOptions };
 }
 
 export interface SitemapNewsHub {
@@ -747,8 +752,6 @@ export async function getExploreFilters(
     const filters = parsed as Partial<ExploreFilterSet>;
     return {
       competitions: Array.isArray(filters.competitions) ? filters.competitions : [],
-      sources: Array.isArray(filters.sources) ? filters.sources : [],
-      tags: Array.isArray(filters.tags) ? filters.tags : [],
     };
   } catch {
     return EMPTY_EXPLORE_FILTERS;

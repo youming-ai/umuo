@@ -15,7 +15,7 @@ it('renders the Explore shell server-side without touching browser globals', () 
   const html = renderToString(
     <ExploreView
       initialData={{ items: [], nextCursor: null }}
-      initialFilters={{ competitions: [], sources: [], tags: [] }}
+      initialFilters={{ competitions: [] }}
     />,
   );
   expect(html).toContain('⚽');
@@ -56,7 +56,7 @@ it('renders article cards server-side', () => {
         ],
         nextCursor: null,
       }}
-      initialFilters={{ competitions: [], sources: [], tags: [] }}
+      initialFilters={{ competitions: [] }}
     />,
   );
   expect(html).toContain('Arsenal beat Chelsea');

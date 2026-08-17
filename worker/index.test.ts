@@ -185,7 +185,7 @@ describe('fetch routing', () => {
       mockCtx(),
     );
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ competitions: [], sources: [], tags: [] });
+    expect(await res.json()).toEqual({ competitions: [] });
   });
 
   it('404s on an unknown /api/ path', async () => {
@@ -236,6 +236,43 @@ describe('fetch routing', () => {
       mockCtx(),
     );
     expect(res.status).toBe(401);
+  });
+
+  it('rejects a host that only pretends to be a CDN via a bare-name suffix', async () => {
+    // Regression: the allowlist's only unprefixed entry
+    // (`espnmedia-cdn.akamaized.net`) matched `xespnmedia-cdn.akamaized.net`
+    // via endsWith, so the proxy would fetch any attacker-named lookalike.
+    // (Subdomain forms like evil.espncdn.com are legitimate — they are
+    // syntactically identical to ichef.bbci.co.uk, and nobody can register
+    // a subdomain of a publisher CDN.)
+    const env = mockEnv(null);
+    for (const spoof of [
+      'https://xespnmedia-cdn.akamaized.net/x.jpg',
+      'https://notespncdn.com/x.jpg',
+      'https://bbci.co.uk.evil.com/x.jpg',
+    ]) {
+      const res = await worker.fetch(
+        new Request(`https://x/api/img?src=${encodeURIComponent(spoof)}&w=400`),
+        env,
+        mockCtx(),
+      );
+      expect(res.status).toBe(404);
+    }
+    // The 404 must come from the allowlist, not from an upstream fetch error.
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('still allows the exact espnmedia CDN host', async () => {
+    const env = mockEnv(null);
+    fetchMock.mockResolvedValueOnce(new Response('image-bytes', { status: 200 }));
+    const res = await worker.fetch(
+      new Request(
+        `https://x/api/img?src=${encodeURIComponent('https://espnmedia-cdn.akamaized.net/img.jpg')}&w=400`,
+      ),
+      env,
+      mockCtx(),
+    );
+    expect(res.status).toBe(200);
   });
 
   it('resizes images through the proxy at quality 85 with a 1600px cap', async () => {

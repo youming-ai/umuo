@@ -45,8 +45,6 @@ export interface ExploreFilterOption {
 
 export interface ExploreFilterSet {
   competitions: ExploreFilterOption[];
-  sources: ExploreFilterOption[];
-  tags: ExploreFilterOption[];
 }
 
 // --- ESPN league news feed (ingest source) ---
