@@ -30,6 +30,14 @@ describe('normalizeTitle', () => {
     expect(normalizeTitle('Haaland double')).toBe('haalanddouble');
     expect(normalizeTitle('  Haaland   DOUBLE  ')).toBe('haalanddouble');
   });
+
+  it('never collapses a non-Latin headline to an empty dedup key', () => {
+    // Regression: /[^a-z0-9]+/g stripped every non-ASCII headline to '', so
+    // the first one stored made knownTitles treat every later non-English
+    // story as already ingested and skip it forever.
+    expect(normalizeTitle('梅西加盟迈阿密国际')).toBe('梅西加盟迈阿密国际');
+    expect(normalizeTitle('Вингер подписал контракт')).toBe('вингер подписал контракт');
+  });
 });
 
 const ARTICLE = {

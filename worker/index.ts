@@ -5,6 +5,9 @@ import { reEnrichBatch } from '../src/feeds/enrich';
 
 // Hosts our feeds actually serve images from (derived from production D1).
 // The proxy refuses anything else so it can't be abused as an open resizer.
+// Every entry carries the leading dot so `endsWith` can only match a real
+// subdomain — a bare `akamaized.net`-style suffix would also match
+// `xespnmedia-cdn.akamaized.net`.
 const IMG_HOST_SUFFIXES = [
   '.bbci.co.uk', // BBC (ichef.bbci.co.uk)
   '.guim.co.uk', // Guardian
@@ -13,13 +16,13 @@ const IMG_HOST_SUFFIXES = [
   '.independent.co.uk',
   '.365dm.com', // Sky (e0/e1/e2.365dm.com)
   '.espncdn.com', // ESPN
-  'espnmedia-cdn.akamaized.net',
+  '.espnmedia-cdn.akamaized.net',
 ];
 
 function imgHostAllowed(src: string): boolean {
   try {
     const host = new URL(src).hostname.toLowerCase();
-    return IMG_HOST_SUFFIXES.some((s) => host === s || host.endsWith(s));
+    return IMG_HOST_SUFFIXES.some((s) => host === s.slice(1) || host.endsWith(s));
   } catch {
     return false;
   }
