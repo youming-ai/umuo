@@ -31,7 +31,17 @@ export function articlePath(id: string): string {
  *  shipping a multi-megapixel original. Same string on server and client. */
 export function imgProxyUrl(src: string, width = 1200): string {
   if (!src) return src;
-  return `/api/img?src=${encodeURIComponent(src)}&w=${width}`;
+  return `/api/img?src=${encodeURIComponent(upgradeSourceUrl(src))}&w=${width}`;
+}
+
+/** Feed images are often low-res thumbnails — BBC serves 240px. Rewrite known
+ *  low-res URL patterns to a sharper size before proxying. The proxy never
+ *  upscales, so a small source stays small; this is the only lever. */
+function upgradeSourceUrl(src: string): string {
+  return src.replace(
+    'ichef.bbci.co.uk/ace/standard/240/',
+    'ichef.bbci.co.uk/ace/standard/1024/',
+  );
 }
 
 /** Single source of truth for article description fallback policies:
