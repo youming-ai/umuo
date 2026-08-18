@@ -1,7 +1,7 @@
 # umuo — AI football news
 
 An AI-curated football news desk. A Cloudflare cron pulls 31 RSS/JSON feed
-sources every 15 minutes, a B.AI chat-completions agent (`gpt-5.6-luna`)
+sources every 15 minutes, a B.AI chat-completions agent (`deepseek-v4-flash`)
 classifies and summarises each new article into D1, and an Astro SSR app
 renders that corpus as a full-bleed masonry board with a source /
 competition / topic index.

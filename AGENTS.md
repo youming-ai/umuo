@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-**umuo** (`https://umuo.app`) is an AI-curated football news desk. A Cloudflare cron pulls 31 RSS/JSON feed sources every 15 minutes, a B.AI chat-completions agent (OpenAI-compatible, model `gpt-5.6-luna`) classifies and summarises each new article into D1, and an Astro SSR app renders that corpus as a full-bleed masonry board with a source / competition / topic index.
+**umuo** (`https://umuo.app`) is an AI-curated football news desk. A Cloudflare cron pulls 31 RSS/JSON feed sources every 15 minutes, a B.AI chat-completions agent (OpenAI-compatible, model `deepseek-v4-flash`) classifies and summarises each new article into D1, and an Astro SSR app renders that corpus as a full-bleed masonry board with a source / competition / topic index.
 
 The original ESPN scoreboard half (schedule/standings/stats/odds/match/team/player pages) was removed in 2026 — the product is now pure news ingestion + AI processing, and nothing else reads ESPN's public APIs. ESPN survives only as one of the feed sources.
 
@@ -87,7 +87,7 @@ Bun locally, `workerd` in production.
 |D1|`DB` → `umuo-content`, primary region **APAC** (cannot be moved without recreating)|
 |Queue|`INGEST_QUEUE` → `umuo-news-ingest`, batch 10, `max_retries = 5`, no DLQ (failed messages dropped after 5 retries; per-article fallback in `queue.ts` + 15-minute re-ingest cover it)|
 |Crons|`*/15 * * * *` ingest, `17 3 * * *` retention sweep|
-|Vars|`LLM_BASE_URL = https://api.b.ai/v1`, `LLM_MODEL = gpt-5.6-luna` (plaintext `[vars]`)|
+|Vars|`LLM_BASE_URL = https://api.b.ai/v1`, `LLM_MODEL = deepseek-v4-flash` (plaintext `[vars]`)|
 |Secret|`LLM_API_KEY` (`wrangler secret put`) — the only real secret|
 
 ## Testing & QA

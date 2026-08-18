@@ -30,7 +30,7 @@ const enrichment = {
 };
 
 const BASE_URL = 'https://api.b.ai/v1';
-const MODEL = 'gpt-5.6-luna';
+const MODEL = 'deepseek-v4-flash';
 
 function openAIResponse(content: unknown): Response {
   return new Response(

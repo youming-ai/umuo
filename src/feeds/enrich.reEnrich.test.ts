@@ -78,7 +78,7 @@ function makeEnv(): { env: Env; stmts: string[] } {
     DB: db,
     LLM_API_KEY: 'secret',
     LLM_BASE_URL: 'https://api.b.ai/v1',
-    LLM_MODEL: 'gpt-5.6-luna',
+    LLM_MODEL: 'deepseek-v4-flash',
   } as unknown as Env;
   return { env, stmts };
 }
