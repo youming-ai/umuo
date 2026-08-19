@@ -347,8 +347,8 @@ export function exploreQueryFromUrl(url: URL): ExploreQuery {
   const limit = limitValue === null ? Number.NaN : Number(limitValue);
   return {
     comp: url.searchParams.get('comp') ?? undefined,
-    source: url.searchParams.get('source') ?? undefined,
-    tag: url.searchParams.get('tag') ?? undefined,
+    // `source` and `tag` are deliberately not read: the rail dropped them, and
+    // as free-form request input they only served to widen the KV key space.
     q: url.searchParams.get('q') ?? undefined,
     cursor: url.searchParams.get('cursor') ?? undefined,
     limit: Number.isFinite(limit) ? limit : undefined,
@@ -362,9 +362,13 @@ export async function serveExplore(
 ): Promise<Response> {
   const normalized = normalizedExploreQuery(query);
 
-  // Free-text search bypasses KV — `q` is user-controlled, so caching it lets
-  // an unauthenticated caller write unlimited KV entries.
-  if (normalized.q) {
+  // Free-text search and deep pages bypass KV — both `q` and `cursor` are
+  // user-controlled, so caching them lets an unauthenticated caller write
+  // unlimited KV entries. Re-serialising the cursor is not enough: the id is
+  // taken verbatim and the three numbers only have to be finite, so the key
+  // space is unbounded either way. Page one — nearly all the traffic — still
+  // caches, and later pages of an infinite scroll rarely hit a warm entry.
+  if (normalized.q || normalized.cursor) {
     try {
       return json(JSON.stringify(await queryExplore(normalized, env)), 200, 'MISS');
     } catch (error) {
@@ -373,9 +377,8 @@ export async function serveExplore(
     }
   }
 
-  // Everything reaching KV is drawn from a bounded set: comp is checked against
-  // FOOTBALL_COMPETITIONS, cursor against real row boundaries, limit is clamped.
-  // source and tag stay user-supplied and bounded only by the 1h TTL.
+  // What is left is bounded: comp is checked against FOOTBALL_COMPETITIONS and
+  // limit is clamped. `source`/`tag` are no longer read from the request.
   const key = `explore:${encodeURIComponent(JSON.stringify(normalized))}`;
   return runCached(
     key,
