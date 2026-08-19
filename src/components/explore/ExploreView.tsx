@@ -233,23 +233,23 @@ export default function ExploreView({
     );
 
   return (
-    <div>
+    <div className="desk-shell">
       <div className="sticky top-0 z-30 flex flex-wrap items-center gap-x-3 gap-y-1.5 border-b border-line/40 bg-night/95 px-3 py-1.5 backdrop-blur-md lg:h-[var(--h-bar)] lg:flex-nowrap lg:py-0">
         <div className="flex min-w-0 items-center gap-3">
           <Logo />
           {scopeLabel && (
             <>
               <span className="h-4 w-px bg-line/40" aria-hidden="true" />
-              <h1 className="ds-caption truncate uppercase tracking-caption font-bold text-chalk">
+              <span className="ds-caption truncate uppercase tracking-caption font-bold text-chalk">
                 {scopeLabel}
-              </h1>
+              </span>
             </>
           )}
         </div>
 
         <form
           onSubmit={submitSearch}
-          className="relative flex min-w-0 flex-1 sm:max-w-md lg:mx-auto lg:max-w-xl"
+          className="relative flex min-w-0 flex-1 sm:max-w-md lg:ml-8 lg:mr-auto lg:max-w-sm"
         >
           <label className="sr-only" htmlFor="explore-search">
             Search football news

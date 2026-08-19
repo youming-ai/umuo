@@ -13,19 +13,17 @@
 
 :root,
 [data-theme='dark'] {
-  /* Surfaces — near-black green ground, so the pitch accent is the only thing
-     with chroma. One accent, one ground: the original palette. */
-  --c-bg: 10 14 12;
-  --c-surface: 26 34 30;
-  --c-surface2: 40 52 46;
-  --c-line: 48 64 56;
-  --c-text: 242 247 244;
-  --c-muted: 138 150 144;
+  /* Ink ground with a restrained pitch green signal. */
+  --c-bg: 15 17 16;
+  --c-surface: 27 30 28;
+  --c-surface2: 36 40 37;
+  --c-line: 53 59 54;
+  --c-text: 238 241 237;
+  --c-muted: 151 157 151;
 
-  /* Semantic */
-  --c-pitch: 46 213 115;
-  --c-live: 255 69 58;
-  --c-amber: 251 191 36;
+  --c-pitch: 100 210 130;
+  --c-live: 228 92 80;
+  --c-amber: 220 171 65;
 
   /* Elevation overlays (replaces ad-hoc white/black alpha) */
   --c-overlay: 255 255 255;
@@ -233,6 +231,23 @@
     width: var(--signal, 0%);
     background: rgb(var(--signal-accent, var(--c-pitch)));
   }
+}
+
+/* ── Ink desk shell ───────────────────────────────────────────────────────── */
+body {
+  background-image:
+    linear-gradient(rgb(var(--c-line) / 0.16) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(var(--c-line) / 0.16) 1px, transparent 1px);
+  background-size: 72px 72px;
+}
+
+.desk-shell {
+  min-height: 100vh;
+  overflow: clip;
+}
+
+@media (max-width: 800px) {
+  body { background-size: 40px 40px; }
 }
 
 .no-scrollbar::-webkit-scrollbar {
