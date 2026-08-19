@@ -42,10 +42,26 @@ async function serveImageProxy(url: URL): Promise<Response> {
       cf: { image: { width, quality: 85 } },
     });
     if (!upstream.ok || !upstream.body) return new Response('Not found', { status: 404 });
-    const headers = new Headers(upstream.headers);
-    headers.set('Cache-Control', 'public, max-age=31536000, immutable');
-    headers.set('CDN-Cache-Control', 'public, max-age=31536000');
-    return new Response(upstream.body, { status: 200, headers });
+    // Build the headers rather than copying upstream's: this response is served
+    // from our own origin, so echoing an upstream Set-Cookie would set it on
+    // umuo.app, and echoing a non-image content-type would let a CDN render
+    // markup here. `fetch` still follows redirects, but the content-type gate
+    // is what actually contains the damage if one lands off the allowlist.
+    // SVG is excluded on purpose: it is an honest `image/*` type that executes
+    // script when navigated to directly, so nosniff does not help.
+    const type = upstream.headers.get('content-type') ?? '';
+    if (!type.startsWith('image/') || type.startsWith('image/svg')) {
+      return new Response('Not found', { status: 404 });
+    }
+    return new Response(upstream.body, {
+      status: 200,
+      headers: {
+        'content-type': type,
+        'cache-control': 'public, max-age=31536000, immutable',
+        'cdn-cache-control': 'public, max-age=31536000',
+        'x-content-type-options': 'nosniff',
+      },
+    });
   } catch (err) {
     console.error('[img] proxy failed for', src, err);
     return new Response('Not found', { status: 404 });

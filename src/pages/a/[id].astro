@@ -108,7 +108,14 @@ const ogImageUrl = article.imageUrl
   image={ogImageUrl}
   imageAlt={article.imageUrl ? article.title : undefined}
 >
-  <script is:inline type="application/ld+json" set:html={JSON.stringify(jsonLd)} />
+  {/* set:html is raw and JSON.stringify does not escape `<`, so a headline
+      carrying `</script>` (rss.ts decodes &lt; back to <) would break out of
+      this element. Escaping the one character that can close the tag is enough. */}
+  <script
+    is:inline
+    type="application/ld+json"
+    set:html={JSON.stringify(jsonLd).replace(/</g, '\\u003c')}
+  />
   <main class="mx-auto max-w-2xl px-4 py-6 sm:py-10">
     <nav class="mb-6 flex items-center justify-between">
       <a
@@ -204,21 +211,14 @@ const ogImageUrl = article.imageUrl
         Read original story at {domain} <span aria-hidden="true">↗</span>
       </a>
     </div>
+    {/* `noopener` is non-negotiable: without it the ad network holds a live
+        window.opener on this tab and can navigate it anywhere. That also makes
+        window.open return null, so pop-under (blur the ad, refocus us) is not
+        available — the ad opens as a foreground tab instead. */}
     <script is:inline define:vars={{ adUrl: AD_CLICK_URL }}>
-      const cta = document.getElementById('read-original-cta');
-      if (cta) {
-        cta.addEventListener('click', () => {
-          try {
-            const win = window.open(adUrl, 'umuo_ad');
-            if (win) {
-              try {
-                Reflect.get(win, 'blur')?.call(win);
-              } catch {}
-              window.focus();
-            }
-          } catch {}
-        });
-      }
+      document
+        .getElementById('read-original-cta')
+        ?.addEventListener('click', () => window.open(adUrl, '_blank', 'noopener'));
     </script>
 
     {article.tags.length > 0 && (
