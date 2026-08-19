@@ -11,6 +11,15 @@ describe('canonicalizeUrl', () => {
   it('returns non-URL input without throwing', () => {
     expect(canonicalizeUrl('not a url')).toBe('not a url');
   });
+
+  it('drops any scheme that is not http(s)', () => {
+    // `new URL('javascript:alert(1)')` parses, and the result is rendered as an
+    // href on the cards and the detail-page CTA. An empty string here makes
+    // normalizeArticles skip the article entirely.
+    expect(canonicalizeUrl('javascript:alert(1)')).toBe('');
+    expect(canonicalizeUrl('data:text/html,<script>alert(1)</script>')).toBe('');
+    expect(canonicalizeUrl('http://example.com/story')).toBe('http://example.com/story');
+  });
 });
 
 describe('knownFingerprints', () => {

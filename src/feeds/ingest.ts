@@ -32,6 +32,10 @@ const API_JSON_HEADERS = {
 export function canonicalizeUrl(value: string): string {
   try {
     const url = new URL(value);
+    // `new URL('javascript:alert(1)')` parses fine. The result is rendered as
+    // an href on the card and the detail-page CTA, so anything but http(s) is
+    // dropped here — the caller already skips articles with an empty url.
+    if (url.protocol !== 'https:' && url.protocol !== 'http:') return '';
     url.hash = '';
     url.hostname = url.hostname.toLowerCase();
     if (url.pathname.length > 1) url.pathname = url.pathname.replace(/\/+$/, '');
