@@ -8,7 +8,6 @@ import Logo from '../Logo';
 // heights as items are appended; tailwind has no built-in for it.
 const MASONRY_CLASS =
   'columns-1 gap-3 p-3 [column-fill:balance] md:columns-2 xl:columns-3 2xl:columns-4';
-import ThemeSwitcher from '../ThemeSwitcher';
 import ExploreCard from './ExploreCard';
 
 interface ExploreQueryState {
@@ -299,8 +298,6 @@ export default function ExploreView({
               List
             </button>
           </fieldset>
-
-          <ThemeSwitcher />
         </div>
       </div>
 

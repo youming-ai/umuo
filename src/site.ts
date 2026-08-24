@@ -20,28 +20,14 @@ export const AD_CLICK_URL =
   'https://conductivebreeds.com/idx9adfk?key=2b7f1e2f290269d8b20a6fcb0a4b3d00';
 
 /** Path prefix for AI-generated article summary pages. Single source of truth
- *  so the route, the sitemap, the card links, and the IndexNow pinger stay in
- *  sync. */
+ *  so the route, the sitemap, and the card links stay in sync. */
 export function articlePath(id: string): string {
   return `/a/${id}`;
 }
 
-/** Route a source image through the Worker image proxy (/api/img) so it is
- *  edge-resized (Cloudflare Image Resizing) to the display width instead of
- *  shipping a multi-megapixel original. Same string on server and client. */
-export function imgProxyUrl(src: string, width = 1200): string {
+export function imgProxyUrl(src: string): string {
   if (!src) return src;
-  return `/api/img?src=${encodeURIComponent(upgradeSourceUrl(src))}&w=${width}`;
-}
-
-/** Feed images are often low-res thumbnails — BBC serves 240px. Rewrite known
- *  low-res URL patterns to a sharper size before proxying. The proxy never
- *  upscales, so a small source stays small; this is the only lever. */
-function upgradeSourceUrl(src: string): string {
-  return src.replace(
-    'ichef.bbci.co.uk/ace/standard/240/',
-    'ichef.bbci.co.uk/ace/standard/1024/',
-  );
+  return src.replace('ichef.bbci.co.uk/ace/standard/240/', 'ichef.bbci.co.uk/ace/standard/1024/');
 }
 
 /** Single source of truth for article description fallback policies:

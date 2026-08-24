@@ -35,21 +35,6 @@ database_name = "umuo-content"
 database_id = "3d229c09-2965-4dbd-a17d-b4e43b15c86d"
 migrations_dir = "migrations"
 
-[[queues.producers]]
-binding = "INGEST_QUEUE"
-queue = "umuo-news-ingest"
-# Kept for compatibility with already-deployed environments; scheduled ingest
-# now enriches directly to avoid the free-tier per-message operation ceiling.
-
-[[queues.consumers]]
-queue = "umuo-news-ingest"
-max_batch_size = 10
-max_batch_timeout = 5
-max_retries = 5
-# No dead_letter_queue: a DLQ with no consumer is an invisible bin (see
-# queue.ts — per-article fallback + 15-minute re-ingest already cover the
-# cases a DLQ would have caught).
-
 # No durable_objects/migrations here on purpose: the queue consumer calls
 # processArticle directly. A pending DO migration cannot be applied by
 # `wrangler versions upload`, which is what Workers Builds runs for preview

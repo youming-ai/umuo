@@ -1,10 +1,10 @@
 import type { Env } from '../data/api';
 import { parseNewsFeed } from '../newsFeed';
 import { enrichBatch, normalizeTitle, storeEnrichedArticle } from './enrich';
-import { articleUrl, notifyIndexNow } from './indexnow';
 import { fillBody } from './readable';
 import { parseRss } from './rss';
 import { FEED_SOURCES } from './sources';
+import { sleep } from '../utils/coerce';
 import type { FeedSource, RawArticle } from './types';
 
 // Lookups go out in chunks — a tick fetches ~700 articles today, and that grows
@@ -68,19 +68,13 @@ export async function fingerprintFor(
 async function fetchWithRetry(url: string, headers: Record<string, string>): Promise<Response> {
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
-      const response = await fetch(url, {
-        headers,
-        signal: AbortSignal.timeout(10_000),
-      });
-      if (response.ok) return response;
-      if (response.status < 500 && response.status !== 429) {
-        return response;
-      }
-      if (attempt === 2) return response;
-    } catch (error) {
-      if (attempt === 2) throw error;
+      const r = await fetch(url, { headers, signal: AbortSignal.timeout(10_000) });
+      if (r.ok || (r.status < 500 && r.status !== 429)) return r;
+      if (attempt === 2) return r;
+    } catch (e) {
+      if (attempt === 2) throw e;
     }
-    await new Promise((resolve) => setTimeout(resolve, 500 * (attempt + 1)));
+    await sleep(500 * (attempt + 1));
   }
   throw new Error('feed fetch failed');
 }
@@ -189,8 +183,7 @@ async function enabledSources(db: D1Database): Promise<FeedSource[]> {
   return FEED_SOURCES.filter((source) => enabled.has(source.id));
 }
 
-/** Drop fingerprints already in `articles` so a tick only processes new work.
- *  Best-effort: the legacy queue consumer still re-checks before the model is called. */
+/** Drop fingerprints already in `articles` so a tick only processes new work. */
 export async function knownFingerprints(
   db: D1Database,
   fingerprints: string[],
@@ -240,7 +233,7 @@ export interface IngestReport {
 /** Fetch every source, drop stored fingerprints, then enrich and persist the
  *  survivors in one scheduled handler pass. A failed article is not stored,
  *  so the next tick re-fetches and re-enriches it. */
-export async function ingestAllSources(env: Env, ctx: ExecutionContext): Promise<IngestReport> {
+export async function ingestAllSources(env: Env, _ctx?: ExecutionContext): Promise<IngestReport> {
   if (!env.DB) throw new Error('D1 binding is required');
   await ensureSources(env.DB);
   const sources = await enabledSources(env.DB);
@@ -299,21 +292,16 @@ export async function ingestAllSources(env: Env, ctx: ExecutionContext): Promise
         break;
       }
 
-      const storedUrls: string[] = [];
       for (const [index, article] of chunk.entries()) {
         const enrichment = enrichments[index];
         if (!enrichment) continue;
         try {
-          const result = await storeEnrichedArticle(env, article, enrichment);
+          await storeEnrichedArticle(env, article, enrichment);
           stored++;
-          if (result.status === 'stored') {
-            storedUrls.push(articleUrl(result.id));
-          }
         } catch (error) {
           console.error(`[ingest] ${article.sourceId} store failed:`, error);
         }
       }
-      notifyIndexNow(storedUrls, ctx);
     }
   }
 

@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import { sleep } from '../utils/coerce';
 import type { ArticleEnrichment, RawArticle } from './types';
 
 const ARTICLE_TYPES = [
@@ -12,17 +12,47 @@ const ARTICLE_TYPES = [
   'video',
 ] as const;
 
-const enrichmentSchema = z.object({
-  isFootball: z.boolean(),
-  competition: z.string().max(80),
-  articleType: z.enum(ARTICLE_TYPES),
-  tags: z.array(z.string().min(1).max(60)).max(8),
-  summary: z.string().min(1).max(280),
-  blurb: z.string().min(1).max(700),
-  qualityScore: z.number().int().min(0).max(100),
-});
+function isObject(v: unknown): v is Record<string, unknown> {
+  return typeof v === 'object' && v !== null && !Array.isArray(v);
+}
 
-const batchSchema = z.object({ results: z.array(enrichmentSchema) });
+function parseEnrichment(v: unknown): ArticleEnrichment {
+  if (!isObject(v)) throw new Error('invalid enrichment');
+  const { isFootball, competition, articleType, tags, summary, blurb, qualityScore } = v;
+  if (typeof isFootball !== 'boolean') throw new Error('invalid isFootball');
+  if (typeof competition !== 'string' || competition.length > 80)
+    throw new Error('invalid competition');
+  if (
+    typeof articleType !== 'string' ||
+    !(ARTICLE_TYPES as readonly string[]).includes(articleType)
+  )
+    throw new Error('invalid articleType');
+  if (
+    !Array.isArray(tags) ||
+    tags.length > 8 ||
+    tags.some((t) => typeof t !== 'string' || t.length < 1 || t.length > 60)
+  )
+    throw new Error('invalid tags');
+  if (typeof summary !== 'string' || summary.length < 1 || summary.length > 280)
+    throw new Error('invalid summary');
+  if (typeof blurb !== 'string' || blurb.length < 1 || blurb.length > 700)
+    throw new Error('invalid blurb');
+  if (
+    typeof qualityScore !== 'number' ||
+    !Number.isInteger(qualityScore) ||
+    qualityScore < 0 ||
+    qualityScore > 100
+  )
+    throw new Error('invalid qualityScore');
+  return v as unknown as ArticleEnrichment;
+}
+
+function parseBatch(v: unknown): ArticleEnrichment[] {
+  if (!isObject(v) || !Array.isArray((v as Record<string, unknown>).results))
+    throw new Error('invalid batch');
+  const results = (v as { results: unknown[] }).results;
+  return results.map(parseEnrichment);
+}
 
 const JSON_FIELDS = [
   'Respond as a JSON object with exactly these fields:',
@@ -109,7 +139,7 @@ function promptForBatch(articles: RawArticle[]): string {
 
 /** One OpenAI-compatible /chat/completions call. baseUrl is configurable
  *  (env LLM_BASE_URL) so the same code works against any compatible endpoint.
- *  response_format json_object + Zod guarantee valid JSON. */
+ *  response_format json_object + manual validation guarantee valid JSON. */
 async function requestLLM(
   apiKey: string,
   baseUrl: string,
@@ -134,8 +164,8 @@ async function requestLLM(
   });
 }
 
-/** 3 attempts, backoff 500 × (attempt + 1), retries only on 5xx/429/throw.
- *  4xx is permanent and throws immediately. */
+/** 3 attempts, backoff 500 × (attempt + 1). Every failure — HTTP error status
+ *  or invalid payload — retries; the last attempt's error propagates. */
 async function callWithRetry<T>(
   request: (attempt: number) => Promise<Response>,
   parse: (text: string) => T,
@@ -145,22 +175,14 @@ async function callWithRetry<T>(
     try {
       const response = await request(attempt);
       if (response.ok) {
-        const data = (await response.json()) as {
-          choices?: { message?: { content?: string } }[];
-        };
-        const text = data.choices?.[0]?.message?.content ?? '';
-        return parse(text);
+        const data = (await response.json()) as { choices?: { message?: { content?: string } }[] };
+        return parse(data.choices?.[0]?.message?.content ?? '');
       }
-      if (response.status < 500 && response.status !== 429) {
-        throw new Error(`${failLabel} failed with ${response.status}`);
-      }
-      if (attempt === 2) throw new Error(`${failLabel} failed with ${response.status}`);
+      throw new Error(`${failLabel} failed with ${response.status}`);
     } catch (error) {
       if (attempt === 2) throw error;
     }
-    const { promise, resolve } = Promise.withResolvers<void>();
-    setTimeout(resolve, 500 * (attempt + 1));
-    await promise;
+    await sleep(500 * (attempt + 1));
   }
   throw new Error(`${failLabel} failed`);
 }
@@ -174,7 +196,7 @@ export async function enrichWithLLM(
   if (!apiKey) throw new Error('LLM_API_KEY is not configured');
   return callWithRetry(
     (attempt) => requestLLM(apiKey, baseUrl, model, promptFor(article), attempt),
-    (text) => enrichmentSchema.parse(JSON.parse(text) as unknown),
+    (text) => parseEnrichment(JSON.parse(text) as unknown),
     'LLM request',
   );
 }
@@ -192,7 +214,7 @@ export async function enrichBatchWithLLM(
   return callWithRetry(
     (attempt) => requestLLM(apiKey, baseUrl, model, promptForBatch(articles), attempt),
     (text) => {
-      const { results } = batchSchema.parse(JSON.parse(text) as unknown);
+      const results = parseBatch(JSON.parse(text) as unknown);
       if (results.length !== articles.length) {
         throw new Error(`LLM returned ${results.length} results for ${articles.length} articles`);
       }

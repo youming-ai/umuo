@@ -1,6 +1,6 @@
 import type { GoogleNewsArticleData, SitemapData } from './data/api';
 import { SITE_NAME, SITE_ORIGIN, articlePath } from './site';
-import { escapeXml } from './utils/xml';
+import { escapeXml } from './utils/coerce';
 
 export interface SitemapEntry {
   path: string;

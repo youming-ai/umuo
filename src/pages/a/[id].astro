@@ -97,9 +97,7 @@ function formatCardDate(timestamp: number): string {
   return `${String(d.getUTCMonth() + 1).padStart(2, '0')}/${String(d.getUTCDate()).padStart(2, '0')}`;
 }
 
-const ogImageUrl = article.imageUrl
-  ? `${SITE_ORIGIN}${imgProxyUrl(article.imageUrl, 1200)}`
-  : undefined;
+const ogImageUrl = article.imageUrl ? `${SITE_ORIGIN}${imgProxyUrl(article.imageUrl)}` : undefined;
 ---
 <Layout
   title={`${article.title} — umuo`}
@@ -163,7 +161,7 @@ const ogImageUrl = article.imageUrl
     {article.imageUrl && (
       <div class="mt-6 overflow-hidden rounded-card border border-line/40 bg-overlay/5">
         <img
-          src={imgProxyUrl(article.imageUrl, 1200)}
+          src={imgProxyUrl(article.imageUrl)}
           alt={article.title}
           class="w-full object-cover"
           loading="eager"

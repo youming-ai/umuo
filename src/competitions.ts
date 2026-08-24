@@ -36,9 +36,3 @@ export const FOOTBALL_COMPETITIONS: Record<string, Competition> = {
   'usa.1': league('usa.1', 'MLS'),
   'ksa.1': league('ksa.1', 'Saudi Pro League'),
 };
-
-const ESPN = 'https://site.api.espn.com/apis';
-
-export function buildUrl(c: Competition): string {
-  return `${ESPN}/site/v2/sports/${c.sport}/${c.league}/news?limit=100`;
-}

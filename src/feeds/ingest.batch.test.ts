@@ -9,8 +9,7 @@ const normalizeTitle = vi.hoisted(
   () => (title: string) => title.toLowerCase().replace(/[^a-z0-9]+/g, ''),
 );
 const parseRss = vi.hoisted(() => vi.fn());
-const articleUrl = vi.hoisted(() => vi.fn((id: string) => `https://umuo.app/a/${id}`));
-const notifyIndexNow = vi.hoisted(() => vi.fn());
+
 const source = vi.hoisted(
   (): FeedSource => ({
     id: 'test-feed',
@@ -26,7 +25,6 @@ const source = vi.hoisted(
 vi.mock('./enrich', () => ({ enrichBatch, storeEnrichedArticle, normalizeTitle }));
 vi.mock('./rss', () => ({ parseRss }));
 vi.mock('./sources', () => ({ FEED_SOURCES: [source] }));
-vi.mock('./indexnow', () => ({ articleUrl, notifyIndexNow }));
 vi.mock('../newsFeed', () => ({ parseNewsFeed: vi.fn() }));
 
 import { ingestAllSources } from './ingest';
@@ -108,7 +106,6 @@ describe('ingestAllSources enrichment batches', () => {
     expect(enrichBatch.mock.calls.map((call) => call[1].length)).toEqual([8, 8, 1]);
     expect(storeEnrichedArticle).toHaveBeenCalledTimes(17);
     expect(report.stored).toBe(17);
-    expect(notifyIndexNow).toHaveBeenCalledTimes(3);
   });
 
   it('keeps earlier chunk writes when a later enrichment call fails', async () => {
