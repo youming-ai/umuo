@@ -209,133 +209,21 @@ describe('fetch routing', () => {
     expect(res.status).toBe(404);
   });
 
-  it('rejects GET on the re-enrich backfill endpoint', async () => {
+  it('404s on the removed re-enrich endpoint', async () => {
     const env = mockEnv(null);
     const res = await worker.fetch(new Request('https://x/api/re-enrich'), env, mockCtx());
-    expect(res.status).toBe(405);
+    expect(res.status).toBe(404);
   });
 
-  it('rejects the re-enrich endpoint without the LLM key', async () => {
+  it('404s on the removed image proxy', async () => {
     const env = mockEnv(null);
-    const res = await worker.fetch(
-      new Request('https://x/api/re-enrich', { method: 'POST' }),
-      env,
-      mockCtx(),
-    );
-    expect(res.status).toBe(401);
-  });
-
-  it('rejects the re-enrich endpoint with the wrong bearer token', async () => {
-    const env = { ...mockEnv(null), LLM_API_KEY: 'secret' } as Env;
-    const res = await worker.fetch(
-      new Request('https://x/api/re-enrich', {
-        method: 'POST',
-        headers: { authorization: 'Bearer nope' },
-      }),
-      env,
-      mockCtx(),
-    );
-    expect(res.status).toBe(401);
-  });
-
-  it('rejects a host that only pretends to be a CDN via a bare-name suffix', async () => {
-    // Regression: the allowlist's only unprefixed entry
-    // (`espnmedia-cdn.akamaized.net`) matched `xespnmedia-cdn.akamaized.net`
-    // via endsWith, so the proxy would fetch any attacker-named lookalike.
-    // (Subdomain forms like evil.espncdn.com are legitimate — they are
-    // syntactically identical to ichef.bbci.co.uk, and nobody can register
-    // a subdomain of a publisher CDN.)
-    const env = mockEnv(null);
-    for (const spoof of [
-      'https://xespnmedia-cdn.akamaized.net/x.jpg',
-      'https://notespncdn.com/x.jpg',
-      'https://bbci.co.uk.evil.com/x.jpg',
-    ]) {
-      const res = await worker.fetch(
-        new Request(`https://x/api/img?src=${encodeURIComponent(spoof)}&w=400`),
-        env,
-        mockCtx(),
-      );
-      expect(res.status).toBe(404);
-    }
-    // The 404 must come from the allowlist, not from an upstream fetch error.
-    expect(fetchMock).not.toHaveBeenCalled();
-  });
-
-  it('still allows the exact espnmedia CDN host', async () => {
-    const env = mockEnv(null);
-    fetchMock.mockResolvedValueOnce(
-      new Response('image-bytes', { status: 200, headers: { 'content-type': 'image/jpeg' } }),
-    );
     const res = await worker.fetch(
       new Request(
-        `https://x/api/img?src=${encodeURIComponent('https://espnmedia-cdn.akamaized.net/img.jpg')}&w=400`,
+        `https://x/api/img?src=${encodeURIComponent('https://ichef.bbci.co.uk/img.jpg')}&w=400`,
       ),
       env,
       mockCtx(),
     );
-    expect(res.status).toBe(200);
-  });
-
-  it('refuses to proxy anything that can render markup from our origin', async () => {
-    // The proxy serves from umuo.app, so an allowlisted CDN returning markup
-    // would be same-origin HTML. SVG is in this list on purpose: it is an
-    // honest image/* type that executes script when navigated to directly, so
-    // nosniff does not cover it. All eight allowlisted CDNs were checked
-    // against production and every one serves image/jpeg or image/png.
-    for (const type of ['text/html', 'image/svg+xml', 'application/octet-stream', '']) {
-      const env = mockEnv(null);
-      fetchMock.mockResolvedValueOnce(
-        new Response('<script>alert(1)</script>', {
-          status: 200,
-          headers: type
-            ? { 'content-type': type, 'set-cookie': 'sid=1' }
-            : { 'set-cookie': 'sid=1' },
-        }),
-      );
-      const res = await worker.fetch(
-        new Request('https://x/api/img?src=https%3A%2F%2Fichef.bbci.co.uk%2Fx.jpg&w=400'),
-        env,
-        mockCtx(),
-      );
-      expect(res.status, type || '(no content-type)').toBe(404);
-      expect(res.headers.get('set-cookie')).toBeNull();
-    }
-  });
-
-  it('does not forward an upstream Set-Cookie on the success path either', async () => {
-    const env = mockEnv(null);
-    fetchMock.mockResolvedValueOnce(
-      new Response('image-bytes', {
-        status: 200,
-        headers: { 'content-type': 'image/jpeg', 'set-cookie': 'sid=1' },
-      }),
-    );
-    const res = await worker.fetch(
-      new Request('https://x/api/img?src=https%3A%2F%2Fichef.bbci.co.uk%2Fx.jpg&w=400'),
-      env,
-      mockCtx(),
-    );
-    expect(res.status).toBe(200);
-    expect(res.headers.get('set-cookie')).toBeNull();
-    expect(res.headers.get('x-content-type-options')).toBe('nosniff');
-  });
-
-  it('resizes images through the proxy at quality 85 with a 1600px cap', async () => {
-    const env = mockEnv(null);
-    fetchMock.mockResolvedValueOnce(
-      new Response('image-bytes', {
-        status: 200,
-        headers: { 'content-type': 'image/jpeg' },
-      }),
-    );
-    const res = await worker.fetch(
-      new Request('https://x/api/img?src=https%3A%2F%2Fichef.bbci.co.uk%2Fimg.jpg&w=2000'),
-      env,
-      mockCtx(),
-    );
-    expect(res.status).toBe(200);
-    const call = fetchMock.mock.calls.find((c) => String(c[0]).includes('bbci.co.uk'));
-    expect(call?.[1]).toMatchObject({ cf: { image: { width: 1600, quality: 85 } } });
+    expect(res.status).toBe(404);
   });
 });
