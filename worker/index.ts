@@ -1,72 +1,6 @@
 /// <reference types="@cloudflare/workers-types" />
 
 import { type Env, exploreQueryFromUrl, serveExplore, serveExploreFilters } from '../src/data/api';
-import { reEnrichBatch } from '../src/feeds/enrich';
-
-// Hosts our feeds actually serve images from (derived from production D1).
-// The proxy refuses anything else so it can't be abused as an open resizer.
-// Every entry carries the leading dot so `endsWith` can only match a real
-// subdomain — a bare `akamaized.net`-style suffix would also match
-// `xespnmedia-cdn.akamaized.net`.
-const IMG_HOST_SUFFIXES = [
-  '.bbci.co.uk', // BBC (ichef.bbci.co.uk)
-  '.guim.co.uk', // Guardian
-  '.minutemediacdn.com', // 90min
-  '.epimg.net', // AS
-  '.independent.co.uk',
-  '.365dm.com', // Sky (e0/e1/e2.365dm.com)
-  '.espncdn.com', // ESPN
-  '.espnmedia-cdn.akamaized.net',
-];
-
-function imgHostAllowed(src: string): boolean {
-  try {
-    const host = new URL(src).hostname.toLowerCase();
-    return IMG_HOST_SUFFIXES.some((s) => host === s.slice(1) || host.endsWith(s));
-  } catch {
-    return false;
-  }
-}
-
-/** Edge-resize a source image to the display width via Cloudflare Image
- *  Resizing (cf.image). Falls through to a plain fetch if Resizing isn't
- *  enabled on the zone — still correct, just no bandwidth win. */
-async function serveImageProxy(url: URL): Promise<Response> {
-  const src = url.searchParams.get('src');
-  if (!src || !/^https:\/\//i.test(src) || !imgHostAllowed(src)) {
-    return new Response('Not found', { status: 404 });
-  }
-  const width = Math.min(1600, Math.max(64, Number(url.searchParams.get('w')) || 800));
-  try {
-    const upstream = await fetch(new URL(src), {
-      cf: { image: { width, quality: 85 } },
-    });
-    if (!upstream.ok || !upstream.body) return new Response('Not found', { status: 404 });
-    // Build the headers rather than copying upstream's: this response is served
-    // from our own origin, so echoing an upstream Set-Cookie would set it on
-    // umuo.app, and echoing a non-image content-type would let a CDN render
-    // markup here. `fetch` still follows redirects, but the content-type gate
-    // is what actually contains the damage if one lands off the allowlist.
-    // SVG is excluded on purpose: it is an honest `image/*` type that executes
-    // script when navigated to directly, so nosniff does not help.
-    const type = upstream.headers.get('content-type') ?? '';
-    if (!type.startsWith('image/') || type.startsWith('image/svg')) {
-      return new Response('Not found', { status: 404 });
-    }
-    return new Response(upstream.body, {
-      status: 200,
-      headers: {
-        'content-type': type,
-        'cache-control': 'public, max-age=31536000, immutable',
-        'cdn-cache-control': 'public, max-age=31536000',
-        'x-content-type-options': 'nosniff',
-      },
-    });
-  } catch (err) {
-    console.error('[img] proxy failed for', src, err);
-    return new Response('Not found', { status: 404 });
-  }
-}
 
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
@@ -80,32 +14,7 @@ export default {
         if (request.method !== 'GET') return new Response('Method not allowed', { status: 405 });
         return serveExploreFilters(url.searchParams.get('comp') ?? '', env, ctx);
       }
-      if (url.pathname === '/api/img') {
-        if (request.method !== 'GET') return new Response('Method not allowed', { status: 405 });
-        return serveImageProxy(url);
-      }
-      if (url.pathname === '/api/re-enrich') {
-        // One-time/periodic backfill: re-score published articles with the
-        // current prompt so old confidence-flavoured quality_score rows get
-        // editorial scores + body-aware blurbs. Gated by the LLM key to keep it
-        // off the public surface. Processes one batch per call; a caller loops
-        // until `remaining` is 0.
-        if (request.method !== 'POST') return new Response('Method not allowed', { status: 405 });
-        const auth = request.headers.get('authorization') ?? '';
-        if (!env.LLM_API_KEY || auth !== `Bearer ${env.LLM_API_KEY}`) {
-          return new Response('Unauthorized', { status: 401 });
-        }
-        const limit = Math.min(64, Math.max(1, Number(url.searchParams.get('limit')) || 8));
-        try {
-          const report = await reEnrichBatch(env, limit);
-          return new Response(JSON.stringify(report), {
-            headers: { 'content-type': 'application/json; charset=utf-8' },
-          });
-        } catch (err) {
-          console.error('[worker] re-enrich failed:', err);
-          return new Response('{"error":"internal"}', { status: 500 });
-        }
-      }
+
       if (url.pathname.startsWith('/api/')) return new Response('Not found', { status: 404 });
       return env.ASSETS.fetch(request); // static assets + SPA fallback
     } catch (err) {
