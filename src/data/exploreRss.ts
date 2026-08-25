@@ -45,7 +45,8 @@ function renderItem(article: ExploreArticle): string {
   if (description) parts.push(`      <description>${escapeXml(description)}</description>`);
   // <author> is specified as an email address; the publisher's domain is all
   // we can honestly put in it.
-  parts.push(`      <author>noreply@${escapeXml(article.sourceDomain || 'umuo.app')}</author>`);
+  const fallbackHost = (() => { try { return new URL(SITE_ORIGIN).hostname; } catch { return 'example.com'; } })();
+  parts.push(`      <author>noreply@${escapeXml(article.sourceDomain || fallbackHost)}</author>`);
   for (const category of categoriesFor(article)) {
     parts.push(`      <category>${escapeXml(category)}</category>`);
   }

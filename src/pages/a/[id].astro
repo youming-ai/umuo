@@ -3,7 +3,7 @@ import { env } from 'cloudflare:workers';
 import { FOOTBALL_COMPETITIONS } from '../../competitions';
 import { getArticle, getRelatedArticles } from '../../data/api';
 import Layout from '../../layouts/Layout.astro';
-import { SITE_ORIGIN, articleDeck, articlePath, imgProxyUrl } from '../../site';
+import { SITE_NAME, SITE_ORIGIN, articleDeck, articlePath, imgProxyUrl } from '../../site';
 
 export const prerender = false;
 
@@ -70,10 +70,10 @@ const jsonLd = [
     description: summary,
     datePublished: pubIso,
     dateModified: pubIso,
-    author: { '@type': 'Organization', name: 'umuo' },
+    author: { '@type': 'Organization', name: SITE_NAME },
     publisher: {
       '@type': 'Organization',
-      name: 'umuo',
+      name: SITE_NAME,
       url: SITE_ORIGIN,
     },
     mainEntityOfPage: { '@type': 'WebPage', '@id': selfUrl },
@@ -100,7 +100,7 @@ function formatCardDate(timestamp: number): string {
 const ogImageUrl = article.imageUrl ? `${SITE_ORIGIN}${imgProxyUrl(article.imageUrl)}` : undefined;
 ---
 <Layout
-  title={`${article.title} — umuo`}
+  title={`${article.title} — ${SITE_NAME}`}
   description={summary}
   ogType="article"
   image={ogImageUrl}

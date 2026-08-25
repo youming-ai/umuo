@@ -1,6 +1,8 @@
 import { FOOTBALL_COMPETITIONS } from '../competitions';
 import type { FeedSource } from './types';
 
+// TODO(template): replace with your sources. FEED_SOURCES is the single
+// registry consumed by ingest; keep id stable (used as D1 source_id).
 const FOOTBALL_RSS_SOURCES: FeedSource[] = [
   {
     id: 'bbc-football',

@@ -2,7 +2,7 @@
 import { describe, expect, it } from 'vitest';
 import type { SitemapData } from './data/api';
 import { renderGoogleNewsSitemap, renderSitemap, sitemapEntries } from './sitemap';
-import { SITE_ORIGIN } from './site';
+import { SITE_NAME, SITE_ORIGIN } from './site';
 
 // Mirrors what production actually holds: six football hubs with content, and
 // no nba hub, because the desk is football-only.
@@ -114,7 +114,7 @@ describe('renderGoogleNewsSitemap', () => {
     const xml = renderGoogleNewsSitemap(newsArticles);
     expect(xml).toContain('xmlns:news="http://www.google.com/schemas/sitemap-news/0.9"');
     expect(xml).toContain(`<loc>${SITE_ORIGIN}/a/news-1</loc>`);
-    expect(xml).toContain('<news:name>umuo</news:name>');
+    expect(xml).toContain(`<news:name>${SITE_NAME}</news:name>`);
     expect(xml).toContain('<news:language>en</news:language>');
     expect(xml).toContain(
       '<news:publication_date>2026-08-14T08:00:00.000Z</news:publication_date>',
@@ -128,10 +128,8 @@ describe('renderGoogleNewsSitemap', () => {
 
 describe('canonical origin', () => {
   it('points at a host that actually serves the site', () => {
-    // Every <loc>, canonical tag and og:url derives from this one constant. It
-    // read cup.umuo.app for months, which is NXDOMAIN, so search engines were
-    // told the canonical copy of every page lived somewhere unreachable.
-    expect(SITE_ORIGIN).toBe('https://umuo.app');
+    // Every <loc>, canonical tag and og:url derives from this one constant.
+    expect(SITE_ORIGIN).toBe('https://example.com');
     expect(SITE_ORIGIN.startsWith('https://')).toBe(true);
     expect(SITE_ORIGIN.endsWith('/')).toBe(false);
   });

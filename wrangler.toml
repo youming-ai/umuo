@@ -1,5 +1,6 @@
-# Static SPA + a Worker that edge-caches the upstream data APIs in KV.
-name = "umuo"
+# Template: AI-curated news desk on Cloudflare Workers + D1 + KV.
+# 1) bun install  2) cp .dev.vars.example .dev.vars  3) wrangler kv namespace create CACHE && wrangler d1 create <db>  4) fill ids below  5) bun run deploy
+name = "news-desk-template"
 compatibility_date = "2026-07-17"
 compatibility_flags = ["nodejs_compat"]
 main = "./worker/entrypoint.ts"
@@ -25,14 +26,15 @@ binding = "ASSETS"
 
 [[kv_namespaces]]
 binding = "CACHE"
-id = "b5d6927aea7345efaddf56bcc2878e89"
+# TODO(template): create with `wrangler kv namespace create CACHE` and paste id
+id = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
 
 [[d1_databases]]
 binding = "DB"
-database_name = "umuo-content"
-# Required for remote deploys — database_name alone does not resolve.
-# Primary region is APAC; D1 cannot be moved without recreating it.
-database_id = "3d229c09-2965-4dbd-a17d-b4e43b15c86d"
+database_name = "news-desk-content"
+# TODO(template): create with `wrangler d1 create news-desk-content` and paste id
+# Primary region defaults to where you create it; D1 cannot be moved without recreating.
+database_id = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
 migrations_dir = "migrations"
 
 # No durable_objects/migrations here on purpose: the queue consumer calls

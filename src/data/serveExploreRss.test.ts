@@ -4,6 +4,7 @@
 // exploreRss.test.ts covers the XML; this covers the wrapper — in particular
 // the failure path, where the wrong header turns a 502 into a poisoned feed.
 import { describe, expect, it, vi } from 'vitest';
+import { SITE_ORIGIN } from '../site';
 import type { Env } from './api';
 import { serveExploreRss } from './api';
 
@@ -42,13 +43,7 @@ function mockEnv(options: { failing?: boolean } = {}): { env: Env; bindings: unk
 describe('serveExploreRss', () => {
   it('serves a rendered feed as application/rss+xml', async () => {
     const { env } = mockEnv();
-    const res = await serveExploreRss(
-      {},
-      'https://umuo.app/rss.xml',
-      'https://umuo.app',
-      env,
-      mockCtx(),
-    );
+    const res = await serveExploreRss({}, `${SITE_ORIGIN}/rss.xml`, SITE_ORIGIN, env, mockCtx());
     expect(res.status).toBe(200);
     expect(res.headers.get('content-type')).toBe('application/rss+xml; charset=utf-8');
     expect(await res.text()).toContain('<rss version="2.0"');
@@ -59,13 +54,7 @@ describe('serveExploreRss', () => {
   // every subscriber a parse error pinned in their HTTP cache for 5 minutes.
   it('passes a cold-cache upstream failure through untouched, never as a feed', async () => {
     const { env } = mockEnv({ failing: true });
-    const res = await serveExploreRss(
-      {},
-      'https://umuo.app/rss.xml',
-      'https://umuo.app',
-      env,
-      mockCtx(),
-    );
+    const res = await serveExploreRss({}, `${SITE_ORIGIN}/rss.xml`, SITE_ORIGIN, env, mockCtx());
     expect(res.status).toBe(502);
     expect(res.headers.get('content-type')).toBe('application/json; charset=utf-8');
     expect(res.headers.get('cache-control')).toBeNull();
@@ -76,7 +65,7 @@ describe('serveExploreRss', () => {
   // it the request silently shrinks, so pin the number the query actually asks for.
   it('asks the query layer for a full 24-item page', async () => {
     const { env, bindings } = mockEnv();
-    await serveExploreRss({}, 'https://umuo.app/rss.xml', 'https://umuo.app', env, mockCtx());
+    await serveExploreRss({}, `${SITE_ORIGIN}/rss.xml`, SITE_ORIGIN, env, mockCtx());
     // The explore query binds LIMIT last; it over-fetches by one to detect a
     // next page, so the feed page size shows up as 24 or 25.
     const limits = bindings.flat().filter((value): value is number => typeof value === 'number');
@@ -85,15 +74,9 @@ describe('serveExploreRss', () => {
 
   it('scopes the channel link to the competition it was given', async () => {
     const { env } = mockEnv();
-    const res = await serveExploreRss(
-      { comp: 'eng.1' },
-      'https://umuo.app/eng.1/rss.xml',
-      'https://umuo.app',
-      env,
-      mockCtx(),
-    );
+    const res = await serveExploreRss({ comp: 'eng.1' }, `${SITE_ORIGIN}/eng.1/rss.xml`, SITE_ORIGIN, env, mockCtx());
     const xml = await res.text();
-    expect(xml).toContain('<link>https://umuo.app/eng.1</link>');
+    expect(xml).toContain(`<link>${SITE_ORIGIN}/eng.1</link>`);
     expect(xml).toContain('Premier League');
   });
 });
