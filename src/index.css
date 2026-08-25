@@ -14,16 +14,16 @@
 :root,
 [data-theme='dark'] {
   /* Ink ground with a restrained pitch green signal. */
-  --c-bg: 15 17 16;
-  --c-surface: 27 30 28;
-  --c-surface2: 36 40 37;
-  --c-line: 53 59 54;
-  --c-text: 238 241 237;
-  --c-muted: 151 157 151;
+  --c-bg: 10 14 12;
+  --c-surface: 26 34 30;
+  --c-surface2: 40 52 46;
+  --c-line: 48 64 56;
+  --c-text: 242 247 244;
+  --c-muted: 138 150 144;
 
-  --c-pitch: 100 210 130;
-  --c-live: 228 92 80;
-  --c-amber: 220 171 65;
+  --c-pitch: 46 213 115;
+  --c-live: 255 69 58;
+  --c-amber: 251 191 36;
 
   /* Elevation overlays (replaces ad-hoc white/black alpha) */
   --c-overlay: 255 255 255;

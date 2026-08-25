@@ -2,7 +2,7 @@
 // bindings — importable by both the API handler and the SSR pages.
 import { SITE_DESCRIPTION, SITE_NAME, SITE_ORIGIN, SITE_TITLE } from '../site';
 import type { ExploreArticle, ExploreFeed } from '../types';
-import { escapeXml } from '../utils/xml';
+import { escapeXml } from '../utils/coerce';
 
 // Bound to the `atom:` prefix; the only Atom element is <atom:link rel="self">.
 const ATOM_XMLNS = 'http://www.w3.org/2005/Atom';

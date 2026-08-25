@@ -1,3 +1,4 @@
+import { decodeEntities } from '../utils/coerce';
 import type { RawArticle } from './types';
 
 /** Crude HTML → plain text for feeding the enrichment model.
@@ -11,29 +12,15 @@ import type { RawArticle } from './types';
  * JS-rendered bodies. Ceiling is summaries with stray nav text. Upgrade path:
  * linkedom + @mozilla/readability if summaries visibly degrade. */
 export function extractText(html: string): string {
-  return html
-    .replace(
-      /<(script|style|nav|footer|header|aside|noscript|head|title|iframe|svg)\b[^>]*>[\s\S]*?<\/\1>/gi,
-      ' ',
-    )
-    .replace(/<!--[\s\S]*?-->/g, ' ')
-    .replace(/<[^>]+>/g, ' ')
-    .replace(/&#(\d+);/g, (_match, code: string) => String.fromCodePoint(Number(code)))
-    .replace(/&#x([\da-f]+);/gi, (_match, code: string) =>
-      String.fromCodePoint(Number.parseInt(code, 16)),
-    )
-    .replace(/&quot;/g, '"')
-    .replace(/&apos;/g, "'")
-    .replace(/&nbsp;/g, ' ')
-    .replace(/&ndash;/g, '\u2013')
-    .replace(/&mdash;/g, '\u2014')
-    .replace(/&[lr]dquo;/g, '"')
-    .replace(/&[lr]squo;/g, "'")
-    .replace(/&hellip;/g, '\u2026')
-    .replace(/&middot;/g, '\u00b7')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&amp;/g, '&')
+  return decodeEntities(
+    html
+      .replace(
+        /<(script|style|nav|footer|header|aside|noscript|head|title|iframe|svg)\b[^>]*>[\s\S]*?<\/\1>/gi,
+        ' ',
+      )
+      .replace(/<!--[\s\S]*?-->/g, ' ')
+      .replace(/<[^>]+>/g, ' '),
+  )
     .replace(/\s+/g, ' ')
     .trim();
 }

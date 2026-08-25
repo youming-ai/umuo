@@ -2,12 +2,10 @@
 
 import { handle } from '@astrojs/cloudflare/handler';
 import { ingestAllSources } from '../src/feeds/ingest';
-import { processNewsQueue } from '../src/feeds/queue';
 import { PRUNE_CRON, pruneOldRecords } from '../src/feeds/retention';
-import type { RawArticle } from '../src/feeds/types';
 import type { Env } from '../src/data/api';
 
-const entrypoint: ExportedHandler<Env, RawArticle> = {
+const entrypoint: ExportedHandler<Env> = {
   fetch(request, env, ctx) {
     return handle(request, env, ctx);
   },
@@ -27,10 +25,6 @@ const entrypoint: ExportedHandler<Env, RawArticle> = {
         report.failed.join(', '),
       );
     }
-  },
-
-  async queue(batch, env, ctx) {
-    await processNewsQueue(batch, env, ctx);
   },
 };
 

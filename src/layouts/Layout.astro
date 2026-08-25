@@ -44,7 +44,7 @@ const canonicalPath =
 const canonicalUrl = `${SITE_ORIGIN}${canonicalPath}`;
 ---
 <!doctype html>
-<html lang={SITE_LANGUAGE}>
+<html lang={SITE_LANGUAGE} data-theme="dark">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -86,34 +86,6 @@ const canonicalUrl = `${SITE_ORIGIN}${canonicalPath}`;
     </script>
   </head>
   <body class="min-h-screen">
-    <script is:inline>
-      // Read theme before paint so the first frame already carries the right chrome.
-      (() => {
-        try {
-          const t = localStorage.getItem('theme');
-          const theme = t === 'light' ? 'light' : 'dark';
-          document.documentElement.dataset.theme = theme;
-        } catch (_e) {
-          document.documentElement.dataset.theme = 'dark';
-        }
-
-        const syncThemeColor = () => {
-          const channels = getComputedStyle(document.documentElement)
-            .getPropertyValue('--c-bg')
-            .trim();
-          if (channels) {
-            document
-              .querySelector('meta[name="theme-color"]')
-              ?.setAttribute('content', `rgb(${channels})`);
-          }
-        };
-        syncThemeColor();
-        new MutationObserver(syncThemeColor).observe(document.documentElement, {
-          attributes: true,
-          attributeFilter: ['data-theme'],
-        });
-      })();
-    </script>
     <div class="relative z-10 flex flex-col min-h-screen">
       <div class="flex-1 w-full">
         <slot />

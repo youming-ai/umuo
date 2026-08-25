@@ -1,6 +1,5 @@
-/// <reference types="@cloudflare/workers-types" />
-
 import { FOOTBALL_COMPETITIONS } from '../competitions';
+import { num } from '../utils/coerce';
 import type {
   ExploreArticle,
   ExploreArticleType,
@@ -8,96 +7,11 @@ import type {
   ExploreFilterOption,
   ExploreFilterSet,
 } from '../types';
+import { type Env, json, runCached } from './cache';
 import { renderExploreRss } from './exploreRss';
 
-export type Env = Cloudflare.Env;
-
-interface Entry {
-  body: string;
-  at: number;
-}
-
-type CacheState = 'HIT' | 'MISS' | 'REVALIDATED' | 'STALE';
-
-interface CachedResult {
-  body: string;
-  status: number;
-  cache: CacheState;
-}
-
-export function json(body: string, status: number, cache: CacheState): Response {
-  return new Response(body, {
-    status,
-    headers: { 'content-type': 'application/json; charset=utf-8', 'x-cache': cache },
-  });
-}
-
-// Coalesce concurrent identical requests: each caller builds its OWN Response
-// from the shared {body, status, cache} payload, because `Response#body` is a
-// one-shot stream.
-const inflight = new Map<string, Promise<CachedResult>>();
-
-// `fresh` = seconds a cached copy serves without revalidating.
-// `keep`  = how long KV retains it (≥ fresh) so a stale copy covers an outage.
-// produce may return null to signal "not found" — the miss is served 404 and
-// never cached, so a caller keyed by user-controlled input (e.g. article ids)
-// can't be turned into an unbounded KV write amplifier. The mirror side is
-// that a fixed nonexistent id now hits D1 on every request (no negative
-// cache) — the same trade serveExplore already makes for free-text search.
-// Legacy entries cached as "null" before this change still serve HIT/STALE
-// with 200 until they age out within `keep`; callers re-parse defensively.
-async function runCached(
-  cacheKey: string,
-  produce: () => Promise<string | null>,
-  fresh: number,
-  keep: number,
-  env: Env,
-  ctx: ExecutionContext,
-): Promise<Response> {
-  let stored: Entry | null = null;
-  try {
-    stored = await env.CACHE.get<Entry>(cacheKey, 'json');
-  } catch (err) {
-    // KV hiccup — treat as miss; the produce path below still owns serve-stale.
-    console.error(`[data] KV get failed for ${cacheKey}:`, err);
-  }
-  const now = Date.now();
-
-  if (stored && now - stored.at < fresh * 1000) {
-    return json(stored.body, 200, 'HIT');
-  }
-
-  // Coalesce: if an identical request is already in-flight, piggyback on it.
-  const pending = inflight.get(cacheKey);
-  if (pending) {
-    const result = await pending;
-    return json(result.body, result.status, result.cache);
-  }
-
-  const promise = (async (): Promise<CachedResult> => {
-    try {
-      const body = await produce();
-      if (body === null) return { body: '{"error":"not found"}', status: 404, cache: 'MISS' };
-      const producedAt = Date.now();
-      ctx.waitUntil(
-        env.CACHE.put(cacheKey, JSON.stringify({ body, at: producedAt } satisfies Entry), {
-          expirationTtl: keep,
-        }),
-      );
-      return { body, status: 200, cache: stored ? 'REVALIDATED' : 'MISS' };
-    } catch (err) {
-      console.error(`[data] produce failed for ${cacheKey}:`, err);
-      if (stored) return { body: stored.body, status: 200, cache: 'STALE' };
-      return { body: '{"error":"upstream unavailable"}', status: 502, cache: 'MISS' };
-    } finally {
-      inflight.delete(cacheKey);
-    }
-  })();
-
-  inflight.set(cacheKey, promise);
-  const result = await promise;
-  return json(result.body, result.status, result.cache);
-}
+export type { Env };
+export { json, runCached };
 
 // --- AI-curated football Explore feed (D1) ---
 
@@ -142,13 +56,8 @@ interface CountRow {
   count: unknown;
 }
 
-function rowString(value: unknown): string {
-  return typeof value === 'string' ? value : '';
-}
-
-function rowNumber(value: unknown): number {
-  return typeof value === 'number' && Number.isFinite(value) ? value : Number(value) || 0;
-}
+const rowString = (v: unknown): string => (typeof v === 'string' ? v : '');
+const rowNumber = num;
 
 function exploreArticleType(value: unknown): ExploreArticleType {
   const allowed: ExploreArticleType[] = [

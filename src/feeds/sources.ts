@@ -1,4 +1,4 @@
-import { buildUrl, FOOTBALL_COMPETITIONS } from '../competitions';
+import { FOOTBALL_COMPETITIONS } from '../competitions';
 import type { FeedSource } from './types';
 
 const FOOTBALL_RSS_SOURCES: FeedSource[] = [
@@ -128,7 +128,7 @@ const ESPN_SOURCES: FeedSource[] = Object.values(FOOTBALL_COMPETITIONS).map((com
   id: `espn-${competition.key}`,
   kind: 'api-json',
   name: `ESPN ${competition.label}`,
-  url: buildUrl(competition),
+  url: `https://site.api.espn.com/apis/site/v2/sports/${competition.sport}/${competition.league}/news?limit=100`,
   sport: 'soccer',
   comp: competition.key,
   authorityScore: 86,

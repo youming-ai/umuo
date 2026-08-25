@@ -3,7 +3,7 @@
 // so coerce with obj()/arr()/str() rather than trusting shapes.
 import type { NewsItem, NewsTag } from './types';
 import { arr, obj, str } from './utils/coerce';
-import { slugify } from './utils/helpers';
+import { slugify } from './utils/coerce';
 
 function getLeagueHref(c: Record<string, unknown>): string {
   const viaLeague = str(obj(obj(obj(obj(c.league).links).web).leagues).href);

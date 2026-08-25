@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { slugify } from './helpers';
+import { slugify } from './coerce';
 
 describe('slugify', () => {
   it('should convert mixed case and spaces to kebab-case', () => {

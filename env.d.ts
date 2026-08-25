@@ -10,7 +10,6 @@ declare namespace Cloudflare {
   interface Env {
     CACHE: KVNamespace;
     DB: D1Database;
-    INGEST_QUEUE: Queue;
     LLM_MODEL: string;
     LLM_BASE_URL: string;
     LLM_API_KEY: string;
