@@ -1,0 +1,30 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "shadowing-learning",
+  "main": "worker/index.ts",
+  "compatibility_date": "2025-07-13",
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 1,
+    "logs": {
+      "enabled": true,
+      "head_sampling_rate": 1,
+      "invocation_logs": true,
+    },
+    "traces": {
+      "enabled": true,
+      "head_sampling_rate": 1,
+    },
+  },
+  // Rate limiting is OPTIONAL. The Worker runs fine without a KV namespace
+  // (rate-limit middleware no-ops when RATE_LIMIT_KV is unbound). To enable
+  // rate limiting, create a namespace and re-add the binding below:
+  //   bunx wrangler kv namespace create RATE_LIMIT_KV
+  //   "kv_namespaces": [{ "binding": "RATE_LIMIT_KV", "id": "<returned id>" }]
+  "assets": {
+    "directory": "dist",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+  },
+}
