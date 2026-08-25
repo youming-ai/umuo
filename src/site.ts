@@ -1,23 +1,18 @@
 // Canonical production origin. Single source of truth for absolute URLs
 // (canonical/og tags, sitemap <loc>). Pure string — compiles under both
-// tsconfigs.
-export const SITE_ORIGIN = 'https://umuo.app';
+// tsconfigs. TODO(template): replace with your domain.
+export const SITE_ORIGIN = 'https://example.com';
 
 // Brand-facing copy. Single source of truth: the layout <title>/description
 // defaults and the RSS channel description import from here, so a rebrand
 // or positioning change edits one file, not three.
-export const SITE_NAME = 'umuo';
-export const SITE_TITLE = 'umuo — AI football news';
+// TODO(template): replace with your brand.
+export const SITE_NAME = 'News Desk';
+export const SITE_TITLE = 'News Desk — AI-curated news';
 export const SITE_DESCRIPTION =
-  'AI-curated football news from trusted sources, organized by competition and topic.';
+  'AI-curated news from trusted sources, organized by topic and source.';
 export const SITE_LOCALE = 'en_US';
 export const SITE_LANGUAGE = 'en';
-
-// Ad redirect URL — opened as pop-under on the detail page's original story action.
-// ponytail: single hardcoded ad endpoint; move to a registry/rotation if we
-// ever run more than one network.
-export const AD_CLICK_URL =
-  'https://conductivebreeds.com/idx9adfk?key=2b7f1e2f290269d8b20a6fcb0a4b3d00';
 
 /** Path prefix for AI-generated article summary pages. Single source of truth
  *  so the route, the sitemap, and the card links stay in sync. */

@@ -3,6 +3,7 @@
 // milliseconds. If the JSON shape ExploreArticle carries ever changes,
 // renderExploreRss is the most likely place to feel it first.
 import { describe, expect, it } from 'vitest';
+import { SITE_DESCRIPTION, SITE_NAME, SITE_ORIGIN, SITE_TITLE } from '../site';
 import { renderExploreRss } from './exploreRss';
 import type { ExploreFeed } from '../types';
 
@@ -58,15 +59,15 @@ describe('renderExploreRss', () => {
     const xml = renderExploreRss({ items: [], nextCursor: null }, 'All football');
     expect(xml.startsWith('<?xml version="1.0" encoding="UTF-8"?>')).toBe(true);
     expect(xml).toContain('<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">');
-    expect(xml).toContain('<title>umuo \u2014 AI football news</title>');
-    expect(xml).toContain('<description>AI-curated football news');
+    expect(xml).toContain(`<title>${SITE_TITLE}</title>`);
+    expect(xml).toContain(`<description>${SITE_DESCRIPTION}`);
     expect(xml).toContain('<language>en-us</language>');
-    expect(xml).toContain('<generator>umuo</generator>');
+    expect(xml).toContain(`<generator>${SITE_NAME}</generator>`);
   });
 
   it('scopes the channel title to a competition when one is provided', () => {
     const xml = renderExploreRss({ items: [], nextCursor: null }, 'Premier League');
-    expect(xml).toContain('<title>umuo \u2014 Premier League football news</title>');
+    expect(xml).toContain(`<title>${SITE_NAME} \u2014 Premier League football news</title>`);
   });
 
   it('emits one <item> per article with stable guid, RFC 822 date, and categories', () => {
@@ -169,14 +170,14 @@ describe('renderExploreRss', () => {
 
   it('points the channel link to a per-competition hub when one is supplied', () => {
     const xml = renderExploreRss({ items: [], nextCursor: null }, 'Premier League', {
-      channelLink: 'https://umuo.app/eng.1',
+      channelLink: `${SITE_ORIGIN}/eng.1`,
     });
-    expect(xml).toContain('<link>https://umuo.app/eng.1</link>');
-    expect(xml).not.toContain('<link>https://umuo.app/</link>');
+    expect(xml).toContain(`<link>${SITE_ORIGIN}/eng.1</link>`);
+    expect(xml).not.toContain(`<link>${SITE_ORIGIN}/</link>`);
   });
 
   it('falls back to the global origin when no channel link is supplied', () => {
     const xml = renderExploreRss({ items: [], nextCursor: null }, 'All football');
-    expect(xml).toContain('<link>https://umuo.app/</link>');
+    expect(xml).toContain(`<link>${SITE_ORIGIN}/</link>`);
   });
 });

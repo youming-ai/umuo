@@ -1,5 +1,6 @@
-// Football-only product. The ESPN league-news feed is the only ESPN surface
-// that still runs.
+// Template: competition registry. Replace with your taxonomy — keys become
+// URL segments (e.g. /<key>) and feed filter values.
+// Example below is football; keep or replace entirely.
 export type Sport = 'soccer';
 
 export interface Competition {

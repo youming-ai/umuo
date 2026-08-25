@@ -52,7 +52,6 @@ const canonicalUrl = `${SITE_ORIGIN}${canonicalPath}`;
     <title>{title}</title>
     <meta name="description" content={description} />
     <meta name="robots" content="index, follow" />
-    <meta name="yandex-verification" content="89049dae4e3baef2" />
     <link rel="canonical" href={canonicalUrl} />
     <link
       rel="alternate"
@@ -77,13 +76,7 @@ const canonicalUrl = `${SITE_ORIGIN}${canonicalPath}`;
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <!-- Archivo carries the desk headlines; Inter keeps prose readable; JetBrains Mono labels live state and source metadata. -->
     <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;800;900&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
-    <script is:inline>
-      (function(c,l,a,r,i,t,y){
-        c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
-        t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
-        y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
-      })(window, document, "clarity", "script", "y11ve9ayn3");
-    </script>
+    <!-- TODO(template): add your analytics (e.g. Clarity/Plausible) here -->
   </head>
   <body class="min-h-screen">
     <div class="relative z-10 flex flex-col min-h-screen">

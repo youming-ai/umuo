@@ -18,7 +18,7 @@ const ENRICHMENT_BATCH_SIZE = 8;
 
 const RSS_HEADERS = {
   accept: 'application/rss+xml, application/atom+xml, application/json, text/xml, */*',
-  'user-agent': 'umuo-football-news/1.0 (+https://umuo.app)',
+  'user-agent': 'news-desk/1.0 (+https://example.com)',
 };
 
 // ESPN's WAF allow-lists client agents by name (curl/*, python-requests/*,

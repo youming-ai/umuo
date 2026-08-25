@@ -5,6 +5,7 @@
 // environment on purpose: `document` is undefined here, exactly like workerd.
 import { renderToString } from 'react-dom/server';
 import { expect, it } from 'vitest';
+import { SITE_NAME } from '../site';
 import ExploreView from './explore/ExploreView';
 
 it('renders the Explore shell server-side without touching browser globals', () => {
@@ -15,7 +16,7 @@ it('renders the Explore shell server-side without touching browser globals', () 
     />,
   );
   expect(html).toContain('⚽');
-  expect(html).toContain('umu');
+  expect(html).toContain(SITE_NAME);
   expect(html).toContain('Search stories');
 });
 
