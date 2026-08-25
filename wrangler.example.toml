@@ -1,5 +1,7 @@
+# Example: copy to wrangler.toml and fill ids
+# See README.md Quick start
 # Static SPA + a Worker that edge-caches the upstream data APIs in KV.
-name = "umuo"
+name = "news-desk-template"
 compatibility_date = "2026-07-17"
 compatibility_flags = ["nodejs_compat"]
 main = "./worker/entrypoint.ts"
@@ -25,14 +27,14 @@ binding = "ASSETS"
 
 [[kv_namespaces]]
 binding = "CACHE"
-id = "b5d6927aea7345efaddf56bcc2878e89"
+id = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"  # TODO: wrangler kv namespace create CACHE
 
 [[d1_databases]]
 binding = "DB"
-database_name = "umuo-content"
+database_name = "news-desk-content"
 # Required for remote deploys — database_name alone does not resolve.
 # Primary region is APAC; D1 cannot be moved without recreating it.
-database_id = "3d229c09-2965-4dbd-a17d-b4e43b15c86d"
+database_id = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"  # TODO: wrangler d1 create news-desk-content
 migrations_dir = "migrations"
 
 # No durable_objects/migrations here on purpose: the queue consumer calls
