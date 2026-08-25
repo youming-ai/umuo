@@ -13,12 +13,6 @@ export const SITE_DESCRIPTION =
 export const SITE_LOCALE = 'en_US';
 export const SITE_LANGUAGE = 'en';
 
-// Ad redirect URL — opened as pop-under on the detail page's original story action.
-// ponytail: single hardcoded ad endpoint; move to a registry/rotation if we
-// ever run more than one network.
-export const AD_CLICK_URL =
-  'https://conductivebreeds.com/idx9adfk?key=2b7f1e2f290269d8b20a6fcb0a4b3d00';
-
 /** Path prefix for AI-generated article summary pages. Single source of truth
  *  so the route, the sitemap, and the card links stay in sync. */
 export function articlePath(id: string): string {

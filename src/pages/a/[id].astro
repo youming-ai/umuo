@@ -3,7 +3,7 @@ import { env } from 'cloudflare:workers';
 import { FOOTBALL_COMPETITIONS } from '../../competitions';
 import { getArticle, getRelatedArticles } from '../../data/api';
 import Layout from '../../layouts/Layout.astro';
-import { AD_CLICK_URL, SITE_ORIGIN, articleDeck, articlePath, imgProxyUrl } from '../../site';
+import { SITE_ORIGIN, articleDeck, articlePath, imgProxyUrl } from '../../site';
 
 export const prerender = false;
 
@@ -200,7 +200,6 @@ const ogImageUrl = article.imageUrl ? `${SITE_ORIGIN}${imgProxyUrl(article.image
         <div class="font-semibold text-chalk">{domain}</div>
       </div>
       <a
-        id="read-original-cta"
         href={article.url}
         target="_blank"
         rel="noopener noreferrer"
@@ -209,15 +208,6 @@ const ogImageUrl = article.imageUrl ? `${SITE_ORIGIN}${imgProxyUrl(article.image
         Read original story at {domain} <span aria-hidden="true">↗</span>
       </a>
     </div>
-    {/* `noopener` is non-negotiable: without it the ad network holds a live
-        window.opener on this tab and can navigate it anywhere. That also makes
-        window.open return null, so pop-under (blur the ad, refocus us) is not
-        available — the ad opens as a foreground tab instead. */}
-    <script is:inline define:vars={{ adUrl: AD_CLICK_URL }}>
-      document
-        .getElementById('read-original-cta')
-        ?.addEventListener('click', () => window.open(adUrl, '_blank', 'noopener'));
-    </script>
 
     {article.tags.length > 0 && (
       <div class="mt-8">
