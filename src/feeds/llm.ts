@@ -1,16 +1,7 @@
 import { sleep } from '../utils/coerce';
 import type { ArticleEnrichment, RawArticle } from './types';
 
-const ARTICLE_TYPES = [
-  'news',
-  'analysis',
-  'rumor',
-  'interview',
-  'match-report',
-  'transfer',
-  'injury',
-  'video',
-] as const;
+const ARTICLE_TYPES = ['news', 'review', 'deal', 'leak', 'analysis', 'guide', 'video'] as const;
 
 function isObject(v: unknown): v is Record<string, unknown> {
   return typeof v === 'object' && v !== null && !Array.isArray(v);
@@ -18,10 +9,9 @@ function isObject(v: unknown): v is Record<string, unknown> {
 
 function parseEnrichment(v: unknown): ArticleEnrichment {
   if (!isObject(v)) throw new Error('invalid enrichment');
-  const { isFootball, competition, articleType, tags, summary, blurb, qualityScore } = v;
-  if (typeof isFootball !== 'boolean') throw new Error('invalid isFootball');
-  if (typeof competition !== 'string' || competition.length > 80)
-    throw new Error('invalid competition');
+  const { isOnTopic, category, articleType, tags, summary, blurb, qualityScore } = v;
+  if (typeof isOnTopic !== 'boolean') throw new Error('invalid isOnTopic');
+  if (typeof category !== 'string' || category.length > 40) throw new Error('invalid category');
   if (
     typeof articleType !== 'string' ||
     !(ARTICLE_TYPES as readonly string[]).includes(articleType)
@@ -56,48 +46,57 @@ function parseBatch(v: unknown): ArticleEnrichment[] {
 
 const JSON_FIELDS = [
   'Respond as a JSON object with exactly these fields:',
-  '- isFootball: boolean — true only for football/soccer stories',
-  '- competition: string — "eng.1", "esp.1", "ger.1", "ita.1", "fra.1", "uefa.champions", or ""',
+  '- isOnTopic: boolean — true only for PC hardware and peripherals stories',
+  '- category: string — "keyboards", "mice", "audio", "gear", "gpu", "cpu", "memory", "storage", "monitor", "cooling", or ""',
   `- articleType: string — one of: ${ARTICLE_TYPES.join(', ')}`,
-  '- tags: string[] — up to 8 short lowercase-hyphen topic tags, preferring the controlled vocabulary; entity names allowed',
+  '- tags: string[] — up to 8 short lowercase-hyphen topic tags, preferring the controlled vocabulary; brand/product names allowed',
   '- summary: string — one factual sentence, at most 280 characters',
   '- blurb: string — concise editorial summary, at most 700 characters',
-  '- qualityScore: integer 0-100 — editorial quality of THIS story, not your confidence in labelling it: substantive, well-sourced, significant reporting = high; thin rumor, clickbait, or aggregator filler = low (a confidently-labelled transfer rumor is still a low-quality rumor)',
+  '- qualityScore: integer 0-100 — editorial quality of THIS story, not your confidence in labelling it: substantive, well-sourced, significant reporting = high; thin rumor, clickbait, or aggregator filler = low (a confidently-labelled leak is still a low-quality leak)',
 ].join('\n');
 
 const CONTROLLED_TAGS = [
-  'transfers',
-  'injuries',
-  'match-report',
-  'match-preview',
-  'tactics',
-  'analysis',
-  'contract',
-  'financial',
-  'disciplinary',
-  'international',
-  'youth',
-  'womens',
-  'awards',
-  'retirement',
-  'loan',
-  'rumor',
-  'scouting',
+  'keyboards',
+  'keycaps',
+  'switches',
+  'mice',
+  'mousepads',
+  'headsets',
+  'earbuds',
+  'controllers',
+  'gpu',
+  'cpu',
+  'motherboard',
+  'ram',
+  'ssd',
+  'nas',
+  'monitor',
+  'oled',
+  'psu',
+  'cooling',
+  'overclocking',
+  'benchmarks',
+  'deals',
+  'leak',
+  'diy',
+  'wireless',
 ] as const;
 
 const CLASSIFIER_RULES = [
-  'You are the editorial classification agent for a football-only news site.',
-  'Reject non-football stories with isFootball=false and an empty competition. American "football" (NFL/gridiron) is NOT football here.',
-  'Use only facts present in the source text. Do not invent scores, quotes, transfers, dates, or names.',
-  'Rate qualityScore on editorial merit: a confidently-labelled rumor is still low quality; a well-sourced match report or analysis is high.',
-  'Choose a canonical competition only when the article clearly identifies one:',
-  'eng.1 Premier League; esp.1 La Liga; ger.1 Bundesliga; ita.1 Serie A; fra.1 Ligue 1; uefa.champions Champions League.',
-  'For football articles that do not clearly belong to one competition, leave competition empty.',
-  `Tags: prefer the controlled vocabulary [${CONTROLLED_TAGS.join(', ')}]. You may also add proper-noun entity tags (player/club/manager names, e.g. "haaland", "real-madrid"). Do not invent topical tags outside that list — pick the closest controlled tag instead.`,
+  'You are the editorial classification agent for a PC hardware and peripherals news site.',
+  'isOnTopic=true only for computer hardware and peripherals: keyboards, keycaps and switches; mice and mousepads; audio gear (headsets, earbuds, speakers, microphones); other desk gear (controllers, webcams, desks, chairs); GPUs, CPUs, motherboards, RAM, storage drives; monitors; cases, power supplies and cooling. Phones, tablets, smartwatches, game consoles, games, and pure-software or AI-policy stories are NOT on-topic.',
+  'Reject off-topic stories with isOnTopic=false and an empty category.',
+  'Use only facts present in the source text. Do not invent specs, prices, release dates, or product names.',
+  'Rate qualityScore on editorial merit: a confidently-labelled leak is still low quality; a hands-on review with measured results or a well-sourced component announcement is high.',
+  'Choose a canonical category only when the article is clearly about one:',
+  'keyboards Keyboards; mice Mice; audio Headphones & Audio; gear Other Peripherals; gpu Graphics Cards; cpu CPUs & Motherboards; memory RAM; storage SSDs & Drives; monitor Monitors; cooling Cases, PSUs & Cooling.',
+  'For cross-category hardware stories (laptops, full PC builds, industry/business news, roundups spanning many parts), leave category empty.',
+  `Tags: prefer the controlled vocabulary [${CONTROLLED_TAGS.join(', ')}]. You may also add proper-noun entity tags (brand/product names, e.g. "nvidia", "wooting", "rtx-5090"). Do not invent topical tags outside that list — pick the closest controlled tag instead.`,
   'Examples:',
-  '- "Haaland double sees City past Arsenal 3-1" with a match body → isFootball=true, comp=eng.1, articleType=match-report, tags=[match-report, haaland, man-city], qualityScore~85.',
-  '- "Mbappe reportedly eyeing Real Madrid exit" sourced only to a tabloid → isFootball=true, comp=esp.1, articleType=rumor, tags=[transfers, rumor, mbappe, real-madrid], qualityScore~30.',
-  '- "NFL: Mahomes leads Chiefs comeback" → isFootball=false, competition="".',
+  '- "Keychron Q1 Max review: refined, thocky, and finally wireless" with measured results → isOnTopic=true, category=keyboards, articleType=review, tags=[keyboards, wireless, keychron], qualityScore~85.',
+  '- "RTX 5080 Super pictured with 24GB" sourced only to a leaker → isOnTopic=true, category=gpu, articleType=leak, tags=[gpu, leak, nvidia], qualityScore~35.',
+  '- "RX 7800 XT drops to $459 at Newegg" → isOnTopic=true, category=gpu, articleType=deal, tags=[deals, gpu, amd], qualityScore~70.',
+  '- "iPhone 18 rumor roundup: what to expect" → isOnTopic=false, category="".',
 ];
 
 function articleText(article: RawArticle): string {
@@ -110,7 +109,7 @@ function articleText(article: RawArticle): string {
 function articleBlock(article: RawArticle): string[] {
   return [
     `Source: ${article.sourceName}`,
-    `Known source competition: ${article.comp ?? 'unknown'}`,
+    `Known source category: ${article.category ?? 'unknown'}`,
     `Title: ${article.title}`,
     `Text: ${articleText(article)}`,
     `URL: ${article.url}`,

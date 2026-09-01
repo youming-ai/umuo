@@ -1,30 +1,22 @@
 import { describe, expect, it } from 'vitest';
-import { slugify } from './coerce';
+import { decodeEntities, escapeXml, num } from './coerce';
 
-describe('slugify', () => {
-  it('should convert mixed case and spaces to kebab-case', () => {
-    expect(slugify('Colombia vs. Congo DR')).toBe('colombia-vs-congo-dr');
-    expect(slugify('Atlanta Braves vs. San Diego Padres')).toBe(
-      'atlanta-braves-vs-san-diego-padres',
-    );
+describe('num', () => {
+  it('passes finite numbers through and coerces numeric strings', () => {
+    expect(num(3)).toBe(3);
+    expect(num('3')).toBe(3);
+    expect(num(Number.NaN)).toBe(0);
   });
+});
 
-  it('should handle special characters', () => {
-    expect(slugify('France 3 Nord Pas-de-Calais HD')).toBe('france-3-nord-pas-de-calais-hd');
-    expect(slugify('H@ll0 W0rld!')).toBe('hll0-w0rld');
+describe('decodeEntities', () => {
+  it('decodes numeric and named entities', () => {
+    expect(decodeEntities('&amp; &lt; &mdash; &#8217;')).toBe('& < — ’');
   });
+});
 
-  it('should handle leading/trailing spaces and multiple dashes', () => {
-    expect(slugify('  Hello   World  ')).toBe('hello-world');
-  });
-
-  it("strips accented letters via NFD normalization (Côte d'Ivoire, São Paulo)", () => {
-    expect(slugify("Côte d'Ivoire")).toBe('cote-divoire');
-    expect(slugify('São Paulo')).toBe('sao-paulo');
-    expect(slugify('Ñoño FC')).toBe('nono-fc');
-  });
-
-  it('returns empty string for empty input', () => {
-    expect(slugify('')).toBe('');
+describe('escapeXml', () => {
+  it('escapes XML special characters', () => {
+    expect(escapeXml('a<b>&"\'')).toBe('a&lt;b&gt;&amp;&quot;&apos;');
   });
 });

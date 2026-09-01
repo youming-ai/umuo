@@ -16,7 +16,6 @@ const source = vi.hoisted(
     kind: 'rss',
     name: 'Test feed',
     url: 'https://example.com/feed.xml',
-    sport: 'soccer',
     authorityScore: 90,
     defaultEnabled: true,
   }),
@@ -25,17 +24,16 @@ const source = vi.hoisted(
 vi.mock('./enrich', () => ({ enrichBatch, storeEnrichedArticle, normalizeTitle }));
 vi.mock('./rss', () => ({ parseRss }));
 vi.mock('./sources', () => ({ FEED_SOURCES: [source] }));
-vi.mock('../newsFeed', () => ({ parseNewsFeed: vi.fn() }));
 
 import { ingestAllSources } from './ingest';
 
 const enrichment: ArticleEnrichment = {
-  isFootball: true,
-  competition: 'eng.1',
+  isOnTopic: true,
+  category: 'gpu',
   articleType: 'news',
   tags: [],
-  summary: 'A factual football summary.',
-  blurb: 'A concise football blurb.',
+  summary: 'A factual hardware summary.',
+  blurb: 'A concise hardware blurb.',
   qualityScore: 90,
 };
 
@@ -44,7 +42,7 @@ function article(index: number): Omit<RawArticle, 'canonicalUrl' | 'fingerprint'
     sourceId: source.id,
     sourceName: source.name,
     sourceAuthority: source.authorityScore,
-    comp: null,
+    category: null,
     title: `Story ${index}`,
     description: `Description ${index}`,
     url: `https://example.com/story-${index}`,
@@ -126,8 +124,8 @@ describe('ingestAllSources enrichment batches', () => {
       // Two items whose titles differ only in punctuation/casing — the same
       // story syndicated across outlets, which the fingerprint (hostname is
       // part of it) would not catch.
-      items[0] = { ...items[0], title: 'Haaland double!' };
-      items[1] = { ...items[1], title: 'Haaland double' };
+      items[0] = { ...items[0], title: 'RTX 5080 double!' };
+      items[1] = { ...items[1], title: 'RTX 5080 double' };
       return items;
     });
 

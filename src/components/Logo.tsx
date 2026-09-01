@@ -10,7 +10,7 @@ export default function Logo({ compact = false }: { compact?: boolean }) {
       className={`inline-flex items-center gap-2 ${textSize} font-display font-bold tracking-display text-chalkdim leading-none`}
     >
       <span aria-hidden="true" className={emojiSize}>
-        ⚽
+        ⌨️
       </span>
       <span>{SITE_NAME}</span>
     </a>

@@ -4,7 +4,14 @@
   "version": "0.1.0",
   "description": "AI-curated news desk template — Cloudflare Workers + D1 + KV + Astro",
   "repository": "github:youming-ai/umuo",
-  "keywords": ["cloudflare", "astro", "news", "ai", "rss", "template"],
+  "keywords": [
+    "cloudflare",
+    "astro",
+    "news",
+    "ai",
+    "rss",
+    "template"
+  ],
   "type": "module",
   "packageManager": "bun@1.4.0",
   "scripts": {

@@ -1,16 +1,16 @@
-import { FOOTBALL_COMPETITIONS } from '../competitions';
+import { CATEGORIES } from '../categories';
 import type { Env } from '../data/api';
 import { enrichBatchWithLLM, enrichWithLLM } from './llm';
 import type { ArticleEnrichment, RawArticle } from './types';
 
-function canonicalCompetition(value: string, fallback: string | null): string | null {
+function canonicalCategory(value: string, fallback: string | null): string | null {
   const candidate = value.trim().toLowerCase();
-  if (Object.hasOwn(FOOTBALL_COMPETITIONS, candidate)) return candidate;
-  const byLabel = Object.values(FOOTBALL_COMPETITIONS).find(
-    (competition) => competition.label.toLowerCase() === candidate,
+  if (Object.hasOwn(CATEGORIES, candidate)) return candidate;
+  const byLabel = Object.values(CATEGORIES).find(
+    (category) => category.label.toLowerCase() === candidate,
   );
   if (byLabel) return byLabel.key;
-  return fallback && Object.hasOwn(FOOTBALL_COMPETITIONS, fallback) ? fallback : null;
+  return fallback && Object.hasOwn(CATEGORIES, fallback) ? fallback : null;
 }
 
 /** One spelling per topic: lowercase, whitespace collapsed to a single hyphen. */
@@ -24,7 +24,7 @@ export function normalizeTag(value: string): string {
 }
 
 /** Cross-source dedup key: lowercase with every non-alphanumeric stripped, so
- *  "Haaland double!" and "Haaland double" from different outlets collide.
+ *  "RTX 5080 review!" and "RTX 5080 review" from different outlets collide.
  *  A headline with no Latin letters at all (CJK, Cyrillic, …) must not
  *  collapse to '' — the first one stored would make knownTitles treat every
  *  later non-English story as already ingested. Fall back to the lowercased
@@ -35,7 +35,7 @@ export function normalizeTitle(value: string): string {
 }
 
 /** Blended editorial score below which an article is stored as `filtered`
- *  (hidden from the board) even when it is football. */
+ *  (hidden from the board) even when it is on-topic. */
 export const MIN_QUALITY_SCORE = 60;
 
 export type ArticleProcessStatus = 'stored' | 'filtered' | 'skipped';
@@ -108,19 +108,19 @@ export async function storeEnrichedArticle(
   enrichment: ArticleEnrichment,
 ): Promise<ArticleProcessResult> {
   const now = Date.now();
-  const competition = canonicalCompetition(enrichment.competition, article.comp);
-  const isFootball = enrichment.isFootball;
+  const category = canonicalCategory(enrichment.category, article.category);
+  const isOnTopic = enrichment.isOnTopic;
   const qualityScore = score(article, enrichment);
-  const status = isFootball && qualityScore >= MIN_QUALITY_SCORE ? 'published' : 'filtered';
+  const status = isOnTopic && qualityScore >= MIN_QUALITY_SCORE ? 'published' : 'filtered';
   const articleId = article.fingerprint;
 
   await env.DB.batch([
     env.DB.prepare(
       `INSERT INTO articles (
            id, source_id, canonical_url, fingerprint, title, title_norm, description, ai_summary, ai_blurb,
-           image_url, image_width, image_height, published_at, fetched_at, sport, comp, article_type, is_football,
+           image_url, image_width, image_height, published_at, fetched_at, category, article_type, is_on_topic,
            quality_score, status, created_at, updated_at
-         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'soccer', ?, ?, ?, ?, ?, ?, ?)
+         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
          ON CONFLICT DO NOTHING`,
     ).bind(
       articleId,
@@ -137,9 +137,9 @@ export async function storeEnrichedArticle(
       article.imageHeight,
       article.publishedAt,
       article.fetchedAt,
-      competition,
+      category,
       enrichment.articleType,
-      isFootball ? 1 : 0,
+      isOnTopic ? 1 : 0,
       qualityScore,
       status,
       now,
@@ -155,6 +155,6 @@ export async function storeEnrichedArticle(
 
   return {
     id: articleId,
-    status: isFootball && qualityScore >= MIN_QUALITY_SCORE ? 'stored' : 'filtered',
+    status: isOnTopic && qualityScore >= MIN_QUALITY_SCORE ? 'stored' : 'filtered',
   };
 }

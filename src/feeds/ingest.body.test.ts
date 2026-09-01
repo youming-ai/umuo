@@ -7,7 +7,7 @@ function article(overrides: Partial<RawArticle> = {}): RawArticle {
     sourceId: 's',
     sourceName: 'S',
     sourceAuthority: 80,
-    comp: null,
+    category: null,
     title: 't',
     description: 'short teaser',
     url: 'https://example.com/a',
@@ -36,7 +36,7 @@ describe('fillBody', () => {
     const fetchMock = vi.fn().mockResolvedValue(
       new Response(
         '<html><head><title>t</title></head><body><article><p>' +
-          'Haaland scored twice as City won. '.repeat(20) +
+          'The new GPU beat its predecessor in every benchmark. '.repeat(20) +
           '</p></article></body></html>',
         {
           headers: { 'content-type': 'text/html' },
@@ -47,7 +47,7 @@ describe('fillBody', () => {
     const a = article({ body: '' });
     await fillBody(a);
     expect(fetchMock).toHaveBeenCalledTimes(1);
-    expect(a.body).toContain('Haaland scored twice');
+    expect(a.body).toContain('The new GPU beat its predecessor');
   });
 
   it('leaves the body untouched on a non-OK response', async () => {

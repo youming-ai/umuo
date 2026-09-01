@@ -18,23 +18,23 @@ const ctx = { waitUntil: vi.fn(), passThroughOnException: vi.fn() } as unknown a
 
 const sampleArticle: ExploreArticle = {
   id: 'art-1',
-  title: 'Arsenal sign striker',
-  description: 'Big transfer news',
-  summary: 'Arsenal has completed the signing.',
-  blurb: 'Arsenal sign striker.',
+  title: 'Keychron launches Q1 Max',
+  description: 'New keyboard launch',
+  summary: 'Keychron has launched the Q1 Max.',
+  blurb: 'Keychron launches Q1 Max.',
   url: 'https://example.com/art-1',
   imageUrl: 'https://example.com/img.jpg',
   imageWidth: 800,
   imageHeight: 600,
-  sourceId: 'bbc',
-  sourceName: 'BBC Sport',
-  sourceDomain: 'bbc.com',
+  sourceId: 'toms-hardware',
+  sourceName: "Tom's Hardware",
+  sourceDomain: 'tomshardware.com',
   publishedAt: 1700000000000,
-  competition: 'eng.1',
+  category: 'keyboards',
   articleType: 'news',
   qualityScore: 85,
   freshnessScore: 90,
-  tags: ['arsenal', 'transfer'],
+  tags: ['keychron', 'keyboards'],
 };
 
 afterEach(() => vi.restoreAllMocks());
@@ -44,23 +44,23 @@ describe('getRelatedArticles', () => {
     const rawRows = [
       {
         id: 'art-2',
-        title: 'Chelsea eye defender',
-        description: 'Chelsea transfer news',
-        ai_summary: 'Chelsea in talks with defender.',
-        ai_blurb: 'Chelsea eye defender.',
+        title: 'Ducky courts enthusiasts',
+        description: 'Ducky keyboard news',
+        ai_summary: 'Ducky in talks about a new board.',
+        ai_blurb: 'Ducky courts enthusiasts.',
         canonical_url: 'https://example.com/art-2',
         image_url: '',
         image_width: 0,
         image_height: 0,
-        source_id: 'guardian',
-        source_name: 'The Guardian',
-        source_url: 'https://theguardian.com',
+        source_id: 'kitguru',
+        source_name: 'KitGuru',
+        source_url: 'https://kitguru.net',
         published_at: 1700000001000,
-        comp: 'eng.1',
+        category: 'keyboards',
         article_type: 'news',
         quality_score: 80,
         freshness_score: 88,
-        tags: JSON.stringify(['chelsea', 'transfer']),
+        tags: JSON.stringify(['ducky', 'keyboards']),
       },
     ];
 
@@ -69,12 +69,12 @@ describe('getRelatedArticles', () => {
 
     expect(related).toHaveLength(1);
     expect(related[0]?.id).toBe('art-2');
-    expect(related[0]?.title).toBe('Chelsea eye defender');
-    expect(related[0]?.tags).toEqual(['chelsea', 'transfer']);
+    expect(related[0]?.title).toBe('Ducky courts enthusiasts');
+    expect(related[0]?.tags).toEqual(['ducky', 'keyboards']);
     expect(env.CACHE.get).toHaveBeenCalledWith('related:art-1:4', 'json');
   });
 
-  it('builds parameterised D1 query on cache miss with competition and tags', async () => {
+  it('builds parameterised D1 query on cache miss with category and tags', async () => {
     let capturedSql = '';
     let capturedBindings: unknown[] = [];
 
@@ -94,23 +94,23 @@ describe('getRelatedArticles', () => {
                   results: [
                     {
                       id: 'art-3',
-                      title: 'Spurs update',
-                      description: 'Spurs news',
-                      ai_summary: 'Spurs summary',
-                      ai_blurb: 'Spurs blurb',
+                      title: 'Logitech update',
+                      description: 'Logitech mouse news',
+                      ai_summary: 'Logitech summary',
+                      ai_blurb: 'Logitech blurb',
                       canonical_url: 'https://example.com/art-3',
                       image_url: '',
                       image_width: 0,
                       image_height: 0,
-                      source_id: 'sky',
-                      source_name: 'Sky Sports',
-                      source_url: 'https://skysports.com',
+                      source_id: 'kitguru',
+                      source_name: 'KitGuru',
+                      source_url: 'https://kitguru.net',
                       published_at: 1700000002000,
-                      comp: 'eng.1',
+                      category: 'mice',
                       article_type: 'news',
                       quality_score: 82,
                       freshness_score: 85,
-                      tags: '["spurs"]',
+                      tags: '["logitech"]',
                     },
                   ],
                 }),
@@ -126,9 +126,9 @@ describe('getRelatedArticles', () => {
     expect(env.CACHE.get).toHaveBeenCalledWith('related:art-1:3', 'json');
     expect(capturedSql).toContain('FROM articles a');
     expect(capturedSql).toContain('a.id != ?');
-    expect(capturedSql).toContain('a.comp = ?');
+    expect(capturedSql).toContain('a.category = ?');
     expect(capturedSql).toContain('filter_tags.tag IN (?, ?)');
-    expect(capturedBindings).toEqual(['art-1', 'eng.1', 'arsenal', 'transfer', 3]);
+    expect(capturedBindings).toEqual(['art-1', 'keyboards', 'keychron', 'keyboards', 3]);
     expect(related).toHaveLength(1);
     expect(related[0]?.id).toBe('art-3');
   });

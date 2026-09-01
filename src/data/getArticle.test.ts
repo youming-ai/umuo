@@ -32,7 +32,7 @@ describe('getArticle', () => {
     const put = vi.fn();
     const row = {
       id: 'a'.repeat(64),
-      title: 'Haaland double',
+      title: 'RTX 5080 review',
       description: 'teaser',
       ai_summary: 'summary',
       ai_blurb: 'blurb',
@@ -40,14 +40,14 @@ describe('getArticle', () => {
       image_url: '',
       image_width: 0,
       image_height: 0,
-      source_id: 'bbc',
-      source_name: 'BBC Sport',
-      source_url: 'https://feeds.bbci.co.uk',
+      source_id: 'toms-hardware',
+      source_name: "Tom's Hardware",
+      source_url: 'https://tomshardware.com',
       published_at: 1_780_000_000_000,
-      comp: 'eng.1',
-      article_type: 'match-report',
+      category: 'gpu',
+      article_type: 'review',
       quality_score: 85,
-      tags: '["match-report"]',
+      tags: '["gpu"]',
     };
     const env = {
       CACHE: { get: vi.fn().mockResolvedValue(null), put },

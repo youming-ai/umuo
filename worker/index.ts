@@ -12,7 +12,7 @@ export default {
       }
       if (url.pathname === '/api/explore/filters') {
         if (request.method !== 'GET') return new Response('Method not allowed', { status: 405 });
-        return serveExploreFilters(url.searchParams.get('comp') ?? '', env, ctx);
+        return serveExploreFilters(url.searchParams.get('category') ?? '', env, ctx);
       }
 
       if (url.pathname.startsWith('/api/')) return new Response('Not found', { status: 404 });

@@ -1,16 +1,16 @@
 // Canonical production origin. Single source of truth for absolute URLs
 // (canonical/og tags, sitemap <loc>). Pure string — compiles under both
 // tsconfigs. TODO(template): replace with your domain.
-export const SITE_ORIGIN = 'https://example.com';
+export const SITE_ORIGIN = 'https://umuo.app';
 
 // Brand-facing copy. Single source of truth: the layout <title>/description
 // defaults and the RSS channel description import from here, so a rebrand
 // or positioning change edits one file, not three.
 // TODO(template): replace with your brand.
 export const SITE_NAME = 'News Desk';
-export const SITE_TITLE = 'News Desk — AI-curated news';
+export const SITE_TITLE = 'News Desk — AI-curated hardware news';
 export const SITE_DESCRIPTION =
-  'AI-curated news from trusted sources, organized by topic and source.';
+  'AI-curated PC hardware and peripherals news from trusted sources, organized by category and source.';
 export const SITE_LOCALE = 'en_US';
 export const SITE_LANGUAGE = 'en';
 
@@ -18,11 +18,6 @@ export const SITE_LANGUAGE = 'en';
  *  so the route, the sitemap, and the card links stay in sync. */
 export function articlePath(id: string): string {
   return `/a/${id}`;
-}
-
-export function imgProxyUrl(src: string): string {
-  if (!src) return src;
-  return src.replace('ichef.bbci.co.uk/ace/standard/240/', 'ichef.bbci.co.uk/ace/standard/1024/');
 }
 
 /** Single source of truth for article description fallback policies:

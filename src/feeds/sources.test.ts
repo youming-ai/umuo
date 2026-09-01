@@ -1,4 +1,4 @@
-import { FOOTBALL_COMPETITIONS } from '../competitions';
+import { CATEGORIES } from '../categories';
 import { describe, expect, it } from 'vitest';
 import { FEED_SOURCES, FEED_SOURCE_BY_ID } from './sources';
 
@@ -12,12 +12,17 @@ describe('feed sources', () => {
     }
   });
 
-  it('scopes every competition feed to a real competition key', () => {
-    const scoped = FEED_SOURCES.filter((source) => source.comp);
-    // 7 Guardian + 4 BBC + AS + 14 ESPN
-    expect(scoped.length).toBe(26);
+  it('scopes every vertical feed to a real category key', () => {
+    const scoped = FEED_SOURCES.filter((source) => source.category);
+    // TFT Central + Keyboard Newswire + KBD.news + r/MechanicalKeyboards + r/MouseReview
+    expect(scoped.length).toBe(5);
     for (const source of scoped) {
-      expect(Object.keys(FOOTBALL_COMPETITIONS), source.id).toContain(source.comp);
+      expect(Object.keys(CATEGORIES), source.id).toContain(source.category);
     }
+  });
+
+  it('keeps the registry self-check honest: no duplicate ids', () => {
+    const ids = new Set(FEED_SOURCES.map((source) => source.id));
+    expect(ids.size).toBe(FEED_SOURCES.length);
   });
 });

@@ -3,12 +3,12 @@ import { enrichWithLLM } from './llm';
 import type { RawArticle } from './types';
 
 const article: RawArticle = {
-  sourceId: 'bbc-football',
-  sourceName: 'BBC Sport Football',
+  sourceId: 'toms-hardware',
+  sourceName: "Tom's Hardware",
   sourceAuthority: 92,
-  comp: 'eng.1',
-  title: 'A football story',
-  description: 'A factual football report.',
+  category: 'gpu',
+  title: 'A hardware story',
+  description: 'A factual hardware report.',
   url: 'https://example.com/story',
   canonicalUrl: 'https://example.com/story',
   imageUrl: '',
@@ -20,12 +20,12 @@ const article: RawArticle = {
 };
 
 const enrichment = {
-  isFootball: true,
-  competition: 'eng.1',
+  isOnTopic: true,
+  category: 'gpu',
   articleType: 'news',
-  tags: ['premier-league'],
-  summary: 'A factual football summary.',
-  blurb: 'A concise football blurb.',
+  tags: ['gpu'],
+  summary: 'A factual hardware summary.',
+  blurb: 'A concise hardware blurb.',
   qualityScore: 88,
 };
 
@@ -67,7 +67,7 @@ describe('enrichWithLLM', () => {
     expect(body.response_format).toEqual({ type: 'json_object' });
     expect(body.model).toBe(MODEL);
     expect(body.messages).toEqual([
-      { role: 'user', content: expect.stringContaining('football-only news site') },
+      { role: 'user', content: expect.stringContaining('PC hardware and peripherals news site') },
     ]);
   });
 

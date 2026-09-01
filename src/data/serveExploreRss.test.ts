@@ -72,11 +72,17 @@ describe('serveExploreRss', () => {
     expect(limits.some((value) => value === 24 || value === 25)).toBe(true);
   });
 
-  it('scopes the channel link to the competition it was given', async () => {
+  it('scopes the channel link to the category it was given', async () => {
     const { env } = mockEnv();
-    const res = await serveExploreRss({ comp: 'eng.1' }, `${SITE_ORIGIN}/eng.1/rss.xml`, SITE_ORIGIN, env, mockCtx());
+    const res = await serveExploreRss(
+      { category: 'gpu' },
+      `${SITE_ORIGIN}/gpu/rss.xml`,
+      SITE_ORIGIN,
+      env,
+      mockCtx(),
+    );
     const xml = await res.text();
-    expect(xml).toContain(`<link>${SITE_ORIGIN}/eng.1</link>`);
-    expect(xml).toContain('Premier League');
+    expect(xml).toContain(`<link>${SITE_ORIGIN}/gpu</link>`);
+    expect(xml).toContain('GPUs');
   });
 });

@@ -1,17 +1,32 @@
 import { describe, expect, it } from 'vitest';
-import { imgProxyUrl } from './site';
+import { articleDeck } from './site';
 
-describe('imgProxyUrl', () => {
-  it('upgrades BBC 240px thumbnails to 1024px', () => {
-    const src =
-      'https://ichef.bbci.co.uk/ace/standard/240/cpsprodpb/c48a/live/32146830-9a52-11f1-bc7b-a36e7e7ea706.jpg';
-    expect(imgProxyUrl(src)).toBe(
-      'https://ichef.bbci.co.uk/ace/standard/1024/cpsprodpb/c48a/live/32146830-9a52-11f1-bc7b-a36e7e7ea706.jpg',
-    );
+describe('articleDeck', () => {
+  const article = {
+    summary: 'summary-first copy',
+    blurb: 'blurb-first copy',
+    description: 'publisher teaser',
+  };
+
+  it('prefers the blurb in short mode (card stream teaser)', () => {
+    expect(articleDeck(article, 'short')).toBe('blurb-first copy');
   });
 
-  it('leaves other sources untouched', () => {
-    const src = 'https://static.independent.co.uk/2026/08/17/15/foo.jpg?width=1200';
-    expect(imgProxyUrl(src)).toBe(src);
+  it('prefers the summary in long mode (detail page & RSS)', () => {
+    expect(articleDeck(article, 'long')).toBe('summary-first copy');
+  });
+
+  it('falls all the way through to the publisher description', () => {
+    expect(articleDeck({ summary: '', blurb: '', description: 'teaser' }, 'short')).toBe('teaser');
+    expect(articleDeck({ summary: '', blurb: '', description: 'teaser' }, 'long')).toBe('teaser');
+  });
+
+  it('returns an empty string when nothing is set', () => {
+    expect(articleDeck({}, 'short')).toBe('');
+    expect(articleDeck({}, 'long')).toBe('');
+  });
+
+  it('defaults to short mode', () => {
+    expect(articleDeck(article)).toBe('blurb-first copy');
   });
 });

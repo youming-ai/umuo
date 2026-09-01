@@ -8,9 +8,9 @@ export interface SitemapEntry {
 }
 
 /** Every stable, crawlable path:
- *  - `/` plus one hub per competition with published articles (date = newest article)
+ *  - `/` plus one hub per category with published articles (date = newest article)
  *  - `/a/{id}` for each published article — gives each AI summary a crawlable URL
- *  - `/rss.xml` and `/<comp>/rss.xml` — no `lastmod`; a feed is always fresh
+ *  - `/rss.xml` and `/<category>/rss.xml` — no `lastmod`; a feed is always fresh
  */
 export function sitemapEntries(data: SitemapData): SitemapEntry[] {
   const newest = data.hubs.map((hub) => hub.lastmod).sort();
@@ -20,8 +20,8 @@ export function sitemapEntries(data: SitemapData): SitemapEntry[] {
   ];
 
   for (const hub of data.hubs) {
-    entries.push({ path: `/${hub.comp}`, lastmod: hub.lastmod });
-    entries.push({ path: `/${hub.comp}/rss.xml` });
+    entries.push({ path: `/${hub.category}`, lastmod: hub.lastmod });
+    entries.push({ path: `/${hub.category}/rss.xml` });
   }
 
   for (const article of data.articles) {

@@ -35,7 +35,7 @@ const BODY_FETCH_SLICE = 3000;
 // compatible + the site URL is honest about who is fetching.
 const ARTICLE_HEADERS = {
   accept: 'text/html, application/xhtml+xml, */*',
-  'user-agent': 'Mozilla/5.0 (compatible; news-desk/1.0; +https://example.com)',
+  'user-agent': 'Mozilla/5.0 (compatible; news-desk/1.0; +https://umuo.app)',
 };
 
 /** Best-effort fetch of the article page so the model sees the story body,

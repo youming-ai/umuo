@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { articleDeck, articlePath, imgProxyUrl } from '../../site';
+import { articleDeck, articlePath } from '../../site';
 import type { ExploreArticle } from '../../types';
 
 /** UTC-only so the SSR string and the hydrated string always match. */
@@ -35,7 +35,7 @@ export default function ExploreCard({
 }) {
   const date = publishedDate(article.publishedAt);
   const score = scoreValue(article.qualityScore);
-  const domain = article.sourceDomain || article.sourceName || 'football source';
+  const domain = article.sourceDomain || article.sourceName || 'hardware source';
   // Prefer short blurb on card stream; full summary is featured on detail page.
   const description = articleDeck(article, 'short');
 
@@ -137,7 +137,7 @@ export default function ExploreCard({
           >
             <img
               ref={imgRef}
-              src={imgProxyUrl(article.imageUrl)}
+              src={article.imageUrl}
               alt=""
               decoding="async"
               className={`h-full w-full object-cover transition-opacity duration-300${showShimmer ? ' opacity-0' : ' opacity-100'}`}
@@ -159,7 +159,7 @@ export default function ExploreCard({
 
           <p className="mt-3 ds-caption uppercase tracking-data text-pitch">
             {typeLabel(article.articleType)}
-            {article.competition && <span className="text-chalkdim"> / {article.competition}</span>}
+            {article.category && <span className="text-chalkdim"> / {article.category}</span>}
             {article.tags.length > 0 && (
               <span className="text-chalkdim"> · {article.tags.slice(0, 3).join(', ')}</span>
             )}

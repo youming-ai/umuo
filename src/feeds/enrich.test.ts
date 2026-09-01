@@ -7,15 +7,15 @@ import type { ArticleEnrichment, RawArticle } from './types';
 describe('normalizeTag', () => {
   it('collapses the spellings that split one topic into two facets', () => {
     // The exact pair that showed up twice in the rail after the first ingest.
-    expect(normalizeTag('Premier League')).toBe('premier-league');
-    expect(normalizeTag('premier-league')).toBe('premier-league');
-    expect(normalizeTag('La Liga')).toBe('la-liga');
+    expect(normalizeTag('Mechanical Keyboards')).toBe('mechanical-keyboards');
+    expect(normalizeTag('mechanical-keyboards')).toBe('mechanical-keyboards');
+    expect(normalizeTag('Solid State Drive')).toBe('solid-state-drive');
   });
 
   it('normalises padding, casing and repeated separators', () => {
-    expect(normalizeTag('  Champions   League  ')).toBe('champions-league');
-    expect(normalizeTag('MAN--UTD')).toBe('man-utd');
-    expect(normalizeTag('-transfers-')).toBe('transfers');
+    expect(normalizeTag('  Mechanical   Keyboard  ')).toBe('mechanical-keyboard');
+    expect(normalizeTag('RTX--5080')).toBe('rtx-5080');
+    expect(normalizeTag('-deals-')).toBe('deals');
   });
 
   it('returns an empty string for whitespace-only tags so they can be dropped', () => {
@@ -26,26 +26,26 @@ describe('normalizeTag', () => {
 
 describe('normalizeTitle', () => {
   it('collides punctuation, casing and padding variants of the same headline', () => {
-    expect(normalizeTitle('Haaland double!')).toBe('haalanddouble');
-    expect(normalizeTitle('Haaland double')).toBe('haalanddouble');
-    expect(normalizeTitle('  Haaland   DOUBLE  ')).toBe('haalanddouble');
+    expect(normalizeTitle('RTX 5080 review!')).toBe('rtx5080review');
+    expect(normalizeTitle('RTX 5080 review')).toBe('rtx5080review');
+    expect(normalizeTitle('  RTX   5080  REVIEW  ')).toBe('rtx5080review');
   });
 
   it('never collapses a non-Latin headline to an empty dedup key', () => {
     // Regression: /[^a-z0-9]+/g stripped every non-ASCII headline to '', so
     // the first one stored made knownTitles treat every later non-English
     // story as already ingested and skip it forever.
-    expect(normalizeTitle('梅西加盟迈阿密国际')).toBe('梅西加盟迈阿密国际');
-    expect(normalizeTitle('Вингер подписал контракт')).toBe('вингер подписал контракт');
+    expect(normalizeTitle('机械键盘评测')).toBe('机械键盘评测');
+    expect(normalizeTitle('Обзор видеокарты')).toBe('обзор видеокарты');
   });
 });
 
 const ARTICLE = {
-  sourceId: 'bbc',
-  sourceName: 'BBC Sport',
+  sourceId: 'toms-hardware',
+  sourceName: "Tom's Hardware",
   sourceAuthority: 92,
-  comp: 'eng.1',
-  title: 'Haaland double sees City past Arsenal',
+  category: 'gpu',
+  title: 'RTX 5080 review sees strong uplift',
   description: 'teaser',
   body: '',
   url: 'https://example.com/story',
@@ -58,12 +58,12 @@ const ARTICLE = {
   fingerprint: 'fp-1',
 } as RawArticle;
 
-function enrichment(qualityScore: number, isFootball = true): ArticleEnrichment {
+function enrichment(qualityScore: number, isOnTopic = true): ArticleEnrichment {
   return {
-    isFootball,
-    competition: 'eng.1',
-    articleType: 'match-report',
-    tags: ['match-report'],
+    isOnTopic,
+    category: 'gpu',
+    articleType: 'review',
+    tags: ['gpu'],
     summary: 'summary',
     blurb: 'blurb',
     qualityScore,
@@ -90,21 +90,21 @@ describe('storeEnrichedArticle', () => {
   // The gate is on the blended score (qualityScore × 0.7 + sourceAuthority ×
   // 0.3). With sourceAuthority 92: qualityScore 47 → 61 (published), 45 → 59
   // (filtered), straddling MIN_QUALITY_SCORE = 60.
-  it('stores football at or above the quality threshold as published', async () => {
+  it('stores on-topic stories at or above the quality threshold as published', async () => {
     const { env, bound } = makeStoreEnv();
     await storeEnrichedArticle(env, ARTICLE, enrichment(47));
     expect(bound[0][17]).toBe(61); // quality_score
     expect(bound[0][18]).toBe('published'); // status
   });
 
-  it('filters football below the quality threshold', async () => {
+  it('filters on-topic stories below the quality threshold', async () => {
     const { env, bound } = makeStoreEnv();
     await storeEnrichedArticle(env, ARTICLE, enrichment(45));
     expect(bound[0][17]).toBe(59); // quality_score
     expect(bound[0][18]).toBe('filtered');
   });
 
-  it('filters non-football regardless of score', async () => {
+  it('filters off-topic stories regardless of score', async () => {
     const { env, bound } = makeStoreEnv();
     await storeEnrichedArticle(env, ARTICLE, enrichment(85, false));
     expect(bound[0][18]).toBe('filtered');
@@ -114,5 +114,11 @@ describe('storeEnrichedArticle', () => {
     const { env, bound } = makeStoreEnv();
     await storeEnrichedArticle(env, ARTICLE, enrichment(85));
     expect(bound[0][5]).toBe(normalizeTitle(ARTICLE.title));
+  });
+
+  it('binds the canonical category, falling back to the source preset', async () => {
+    const { env, bound } = makeStoreEnv();
+    await storeEnrichedArticle(env, ARTICLE, enrichment(85));
+    expect(bound[0][14]).toBe('gpu'); // category
   });
 });

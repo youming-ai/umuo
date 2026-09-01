@@ -1,9 +1,9 @@
-import { FOOTBALL_COMPETITIONS } from '../competitions';
+import { CATEGORIES } from '../categories';
 import { type Env, runCached } from './cache';
 import { type CountRow, rowNumber, rowString } from './explore';
 
 export interface SitemapNewsHub {
-  comp: string;
+  category: string;
   /** Newest published article in that hub, as an ISO 8601 instant. */
   lastmod: string;
 }
@@ -18,7 +18,7 @@ export interface SitemapData {
   articles: SitemapArticle[];
 }
 
-/** Competition hubs + individual articles for the sitemap, derived from D1.
+/** Category hubs + individual articles for the sitemap, derived from D1.
  *  Article URLs at `/a/{id}` give each AI summary its own crawlable page.
  *  Degrades to empty arrays — a sitemap missing entries is survivable; a 500
  *  on /sitemap.xml is not. */
@@ -31,16 +31,16 @@ export async function getSitemapNews(env: Env, ctx: ExecutionContext): Promise<S
         if (!env.DB) throw new Error('D1 binding is required');
         const [hubs, articles] = await env.DB.batch([
           env.DB.prepare(
-            `SELECT comp AS value, MAX(published_at) AS count
+            `SELECT category AS value, MAX(published_at) AS count
                FROM articles
-              WHERE status = 'published' AND is_football = 1 AND sport = 'soccer'
-                AND comp IS NOT NULL
-              GROUP BY comp`,
+              WHERE status = 'published' AND is_on_topic = 1
+                AND category IS NOT NULL
+              GROUP BY category`,
           ),
           env.DB.prepare(
             `SELECT id, published_at
                FROM articles
-              WHERE status = 'published' AND is_football = 1 AND sport = 'soccer'
+              WHERE status = 'published' AND is_on_topic = 1
               ORDER BY published_at DESC
               LIMIT 50000`,
           ),
@@ -58,9 +58,9 @@ export async function getSitemapNews(env: Env, ctx: ExecutionContext): Promise<S
       articles: { id: unknown; published_at: unknown }[];
     };
     const hubs: SitemapNewsHub[] = raw.hubs
-      .map((row) => ({ comp: rowString(row.value), newest: rowNumber(row.count) }))
-      .filter((row) => Object.hasOwn(FOOTBALL_COMPETITIONS, row.comp) && row.newest > 0)
-      .map((row) => ({ comp: row.comp, lastmod: new Date(row.newest).toISOString() }));
+      .map((row) => ({ category: rowString(row.value), newest: rowNumber(row.count) }))
+      .filter((row) => Object.hasOwn(CATEGORIES, row.category) && row.newest > 0)
+      .map((row) => ({ category: row.category, lastmod: new Date(row.newest).toISOString() }));
     const articles: SitemapArticle[] = raw.articles
       .map((row) => ({
         id: rowString(row.id),
@@ -96,7 +96,7 @@ export async function getGoogleNewsSitemapArticles(
         const rows = await env.DB.prepare(
           `SELECT id, title, published_at
              FROM articles
-            WHERE status = 'published' AND is_football = 1 AND sport = 'soccer'
+            WHERE status = 'published' AND is_on_topic = 1
               AND published_at >= ?
             ORDER BY published_at DESC
             LIMIT 1000`,
@@ -125,4 +125,3 @@ export async function getGoogleNewsSitemapArticles(
     return [];
   }
 }
-

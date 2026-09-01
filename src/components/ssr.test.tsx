@@ -12,10 +12,10 @@ it('renders the Explore shell server-side without touching browser globals', () 
   const html = renderToString(
     <ExploreView
       initialData={{ items: [], nextCursor: null }}
-      initialFilters={{ competitions: [] }}
+      initialFilters={{ categories: [] }}
     />,
   );
-  expect(html).toContain('⚽');
+  expect(html).toContain('⌨️');
   expect(html).toContain(SITE_NAME);
   expect(html).toContain('Search stories');
 });
@@ -27,31 +27,31 @@ it('renders article cards server-side', () => {
         items: [
           {
             id: '1',
-            title: 'Arsenal beat Chelsea',
+            title: 'New flagship GPU beats its predecessor',
             description: '',
-            summary: 'A late winner at the Emirates.',
+            summary: 'The new flagship GPU wins every benchmark.',
             blurb: '',
-            url: 'https://bbc.com/sport',
+            url: 'https://tomshardware.com/pc-components',
             imageUrl: '',
             imageWidth: 0,
             imageHeight: 0,
-            sourceId: 'bbc',
-            sourceName: 'BBC Sport',
-            sourceDomain: 'bbc.com',
+            sourceId: 'toms-hardware',
+            sourceName: "Tom's Hardware",
+            sourceDomain: 'tomshardware.com',
             publishedAt: 1786080856000,
-            competition: 'eng.1',
-            articleType: 'match-report',
-            tags: ['premier-league'],
+            category: 'gpu',
+            articleType: 'review',
+            tags: ['gpu'],
             qualityScore: 82,
             freshnessScore: 60,
           },
         ],
         nextCursor: null,
       }}
-      initialFilters={{ competitions: [] }}
+      initialFilters={{ categories: [] }}
     />,
   );
-  expect(html).toContain('Arsenal beat Chelsea');
-  expect(html).toContain('bbc.com');
-  expect(html).toContain('match report');
+  expect(html).toContain('New flagship GPU beats its predecessor');
+  expect(html).toContain('tomshardware.com');
+  expect(html).toContain('review');
 });

@@ -1,4 +1,4 @@
-import { FOOTBALL_COMPETITIONS } from '../competitions';
+import { CATEGORIES } from '../categories';
 import { num } from '../utils/coerce';
 import type {
   ExploreArticle,
@@ -10,10 +10,10 @@ import type {
 import { type Env, json, runCached } from './cache';
 import { renderExploreRss } from './exploreRss';
 
-// --- AI-curated football Explore feed (D1) ---
+// --- AI-curated hardware Explore feed (D1) ---
 
 export interface ExploreQuery {
-  comp?: string;
+  category?: string;
   source?: string;
   tag?: string;
   q?: string;
@@ -22,7 +22,7 @@ export interface ExploreQuery {
 }
 
 const EMPTY_EXPLORE_FILTERS: ExploreFilterSet = {
-  competitions: [],
+  categories: [],
 };
 
 export interface ExploreRow {
@@ -40,7 +40,7 @@ export interface ExploreRow {
   source_url: unknown;
   published_at: unknown;
   day_bucket: unknown;
-  comp: unknown;
+  category: unknown;
   article_type: unknown;
   quality_score: unknown;
   freshness_score: unknown;
@@ -59,12 +59,11 @@ export const rowNumber = num;
 function exploreArticleType(value: unknown): ExploreArticleType {
   const allowed: ExploreArticleType[] = [
     'news',
+    'review',
+    'deal',
+    'leak',
     'analysis',
-    'rumor',
-    'interview',
-    'match-report',
-    'transfer',
-    'injury',
+    'guide',
     'video',
   ];
   const candidate = rowString(value) as ExploreArticleType;
@@ -105,10 +104,10 @@ export function exploreArticle(row: ExploreRow): ExploreArticle {
     imageHeight: rowNumber(row.image_height),
     sourceId: rowString(row.source_id),
     sourceName: rowString(row.source_name),
-    // Story domain, not poll URL — feeds.bbci.co.uk → bbc.com.
+    // Story domain, not feed URL — feeds.bbci.co.uk → bbc.com.
     sourceDomain: sourceDomain(row.canonical_url),
     publishedAt: rowNumber(row.published_at),
-    competition: rowString(row.comp) || null,
+    category: rowString(row.category) || null,
     articleType: exploreArticleType(row.article_type),
     tags: rowTags(row.tags),
     qualityScore: rowNumber(row.quality_score),
@@ -136,7 +135,7 @@ const LIVE_FRESHNESS =
 export const EXPLORE_ARTICLE_COLUMNS =
   'a.id, a.title, a.description, a.ai_summary, a.ai_blurb, a.canonical_url, ' +
   'a.image_url, a.image_width, a.image_height, a.source_id, s.name AS source_name, s.url AS source_url, ' +
-  'a.published_at, (a.published_at / 86400000) AS day_bucket, a.comp, a.article_type, a.quality_score, ' +
+  'a.published_at, (a.published_at / 86400000) AS day_bucket, a.category, a.article_type, a.quality_score, ' +
   `${LIVE_FRESHNESS}, ` +
   "COALESCE((SELECT json_group_array(at.tag) FROM article_tags at WHERE at.article_id = a.id), '[]') AS tags";
 export function parseExploreCursor(
@@ -175,11 +174,11 @@ function canonicalCursor(value: string | undefined): string | undefined {
 function normalizedExploreQuery(
   query: ExploreQuery,
 ): Required<Pick<ExploreQuery, 'limit'>> & Omit<ExploreQuery, 'limit'> {
-  const comp =
-    query.comp && Object.hasOwn(FOOTBALL_COMPETITIONS, query.comp) ? query.comp : undefined;
+  const category =
+    query.category && Object.hasOwn(CATEGORIES, query.category) ? query.category : undefined;
   const limit = Number.isInteger(query.limit) ? Math.min(24, Math.max(1, query.limit ?? 10)) : 10;
   return {
-    comp,
+    category,
     source: query.source?.trim().slice(0, 80) || undefined,
     tag: query.tag?.trim().toLowerCase().slice(0, 80) || undefined,
     q: query.q?.trim().slice(0, 100) || undefined,
@@ -193,12 +192,12 @@ function normalizedExploreQuery(
 async function queryExplore(query: ExploreQuery, env: Env): Promise<ExploreFeed> {
   if (!env.DB) throw new Error('D1 binding is required');
   const normalized = normalizedExploreQuery(query);
-  const where = ["a.status = 'published'", 'a.is_football = 1', "a.sport = 'soccer'"];
+  const where = ["a.status = 'published'", 'a.is_on_topic = 1'];
   const bindings: unknown[] = [];
 
-  if (normalized.comp) {
-    where.push('a.comp = ?');
-    bindings.push(normalized.comp);
+  if (normalized.category) {
+    where.push('a.category = ?');
+    bindings.push(normalized.category);
   }
   if (normalized.source) {
     where.push('a.source_id = ?');
@@ -252,7 +251,7 @@ export function exploreQueryFromUrl(url: URL): ExploreQuery {
   const limitValue = url.searchParams.get('limit');
   const limit = limitValue === null ? Number.NaN : Number(limitValue);
   return {
-    comp: url.searchParams.get('comp') ?? undefined,
+    category: url.searchParams.get('category') ?? undefined,
     // `source` and `tag` are deliberately not read: the rail dropped them, and
     // as free-form request input they only served to widen the KV key space.
     q: url.searchParams.get('q') ?? undefined,
@@ -283,7 +282,7 @@ export async function serveExplore(
     }
   }
 
-  // What is left is bounded: comp is checked against FOOTBALL_COMPETITIONS and
+  // What is left is bounded: category is checked against CATEGORIES and
   // limit is clamped. `source`/`tag` are no longer read from the request.
   const key = `explore:${encodeURIComponent(JSON.stringify(normalized))}`;
   return runCached(
@@ -300,7 +299,7 @@ export async function serveExplore(
 const RSS_ITEM_LIMIT = 24;
 
 /** RSS 2.0 surface for the Explore feed. Drops `q` (transient) and `cursor`
- *  (subscribers take the head, not paginate); keeps comp/source/tag for
+ *  (subscribers take the head, not paginate); keeps category/source/tag for
  *  bookmarks. Honours the same SWR freshness/cache as the JSON endpoint. */
 export async function serveExploreRss(
   query: ExploreQuery,
@@ -318,12 +317,12 @@ export async function serveExploreRss(
     limit: RSS_ITEM_LIMIT,
   });
 
-  const scopeLabel = normalized.comp
-    ? (FOOTBALL_COMPETITIONS[normalized.comp]?.label ?? normalized.comp)
-    : 'All football';
-  // Per-comp feeds link to /<comp> so a reader clicking through lands on the
-  // matching hub rather than the global home.
-  const channelLink = normalized.comp ? `${origin}/${normalized.comp}` : `${origin}/`;
+  const scopeLabel = normalized.category
+    ? (CATEGORIES[normalized.category]?.label ?? normalized.category)
+    : 'All hardware';
+  // Per-category feeds link to /<category> so a reader clicking through lands
+  // on the matching hub rather than the global home.
+  const channelLink = normalized.category ? `${origin}/${normalized.category}` : `${origin}/`;
 
   const key = `explore:rss:${encodeURIComponent(JSON.stringify(normalized))}`;
   const cached = await runCached(
@@ -383,36 +382,36 @@ export async function getExploreFeed(
   }
 }
 
-/** One published article for the `/a/{id}` detail page. Cached so a crawler
- *  burst of detail-page hits doesn't fan out to D1. */
-async function queryExploreFilters(_comp: string, env: Env): Promise<ExploreFilterSet> {
+/** Category options for the rail, derived from D1. Cached so a crawler burst
+ *  doesn't fan out to D1. */
+async function queryExploreFilters(_category: string, env: Env): Promise<ExploreFilterSet> {
   if (!env.DB) throw new Error('D1 binding is required');
-  // Competition list is global — every league stays reachable.
-  const published = "a.status = 'published' AND a.is_football = 1 AND a.sport = 'soccer'";
-  const competitions = await env.DB.prepare(
-    `SELECT a.comp AS value, COUNT(*) AS count
+  // Category list is global — every hub stays reachable.
+  const published = "a.status = 'published' AND a.is_on_topic = 1";
+  const categories = await env.DB.prepare(
+    `SELECT a.category AS value, COUNT(*) AS count
        FROM articles a
-       WHERE ${published} AND a.comp IS NOT NULL
-       GROUP BY a.comp ORDER BY count DESC`,
+       WHERE ${published} AND a.category IS NOT NULL
+       GROUP BY a.category ORDER BY count DESC`,
   ).all<CountRow>();
 
-  const competitionOptions: ExploreFilterOption[] = (competitions.results ?? [])
+  const categoryOptions: ExploreFilterOption[] = (categories.results ?? [])
     .map((row: CountRow) => {
       const value = rowString(row.value);
-      const competition = FOOTBALL_COMPETITIONS[value];
-      return competition ? { value, label: competition.label, count: rowNumber(row.count) } : null;
+      const match = CATEGORIES[value];
+      return match ? { value, label: match.label, count: rowNumber(row.count) } : null;
     })
     .filter((option: ExploreFilterOption | null): option is ExploreFilterOption => option !== null);
 
-  return { competitions: competitionOptions };
+  return { categories: categoryOptions };
 }
 
 export async function serveExploreFilters(
-  comp: string,
+  category: string,
   env: Env,
   ctx: ExecutionContext,
 ): Promise<Response> {
-  const scoped = Object.hasOwn(FOOTBALL_COMPETITIONS, comp) ? comp : '';
+  const scoped = Object.hasOwn(CATEGORIES, category) ? category : '';
   return runCached(
     `explore:filters:${scoped}`,
     async () => JSON.stringify(await queryExploreFilters(scoped, env)),
@@ -424,18 +423,18 @@ export async function serveExploreFilters(
 }
 
 export async function getExploreFilters(
-  comp: string,
+  category: string,
   env: Env,
   ctx: ExecutionContext,
 ): Promise<ExploreFilterSet> {
   try {
-    const response = await serveExploreFilters(comp, env, ctx);
+    const response = await serveExploreFilters(category, env, ctx);
     if (!response.ok) return EMPTY_EXPLORE_FILTERS;
     const parsed: unknown = await response.json();
     if (!parsed || typeof parsed !== 'object') return EMPTY_EXPLORE_FILTERS;
     const filters = parsed as Partial<ExploreFilterSet>;
     return {
-      competitions: Array.isArray(filters.competitions) ? filters.competitions : [],
+      categories: Array.isArray(filters.categories) ? filters.categories : [],
     };
   } catch {
     return EMPTY_EXPLORE_FILTERS;

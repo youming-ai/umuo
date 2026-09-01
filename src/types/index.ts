@@ -1,13 +1,12 @@
-// --- AI-curated football news (D1 content layer) ---
+// --- AI-curated PC hardware & peripherals news (D1 content layer) ---
 
 export type ExploreArticleType =
   | 'news'
+  | 'review'
+  | 'deal'
+  | 'leak'
   | 'analysis'
-  | 'rumor'
-  | 'interview'
-  | 'match-report'
-  | 'transfer'
-  | 'injury'
+  | 'guide'
   | 'video';
 
 export interface ExploreArticle {
@@ -24,7 +23,8 @@ export interface ExploreArticle {
   sourceName: string;
   sourceDomain: string;
   publishedAt: number;
-  competition: string | null;
+  /** Canonical category key from src/categories.ts, null when unattributed. */
+  category: string | null;
   articleType: ExploreArticleType;
   tags: string[];
   qualityScore: number;
@@ -44,27 +44,5 @@ export interface ExploreFilterOption {
 }
 
 export interface ExploreFilterSet {
-  competitions: ExploreFilterOption[];
-}
-
-// --- ESPN league news feed (ingest source) ---
-
-export interface NewsTag {
-  kind: 'team' | 'athlete' | 'league';
-  label: string;
-  team?: string;
-  leagueSlug?: string;
-}
-
-export interface NewsItem {
-  id: string;
-  headline: string;
-  description: string;
-  published: string; // ISO
-  byline: string;
-  imageUrl: string; // '' when the headline has no image
-  imageWidth: number; // 0 when unknown
-  imageHeight: number; // 0 when unknown
-  link: string; // external espn.com article URL (links.web.href)
-  tags: NewsTag[];
+  categories: ExploreFilterOption[];
 }

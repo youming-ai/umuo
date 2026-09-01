@@ -1,6 +1,6 @@
 import type { FormEvent, ReactNode } from 'react';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { FOOTBALL_COMPETITIONS } from '../../competitions';
+import { CATEGORIES } from '../../categories';
 import type { ExploreFeed, ExploreFilterOption, ExploreFilterSet } from '../../types';
 import Logo from '../Logo';
 
@@ -11,7 +11,7 @@ const MASONRY_CLASS =
 import ExploreCard from './ExploreCard';
 
 interface ExploreQueryState {
-  comp: string;
+  category: string;
   q: string;
   /** Opaque page boundary from the API; '' means the first page. */
   cursor: string;
@@ -25,14 +25,14 @@ function queryKey(query: ExploreQueryState): string {
 
 function apiUrl(query: ExploreQueryState): string {
   const params = new URLSearchParams();
-  if (query.comp) params.set('comp', query.comp);
+  if (query.category) params.set('category', query.category);
   if (query.q) params.set('q', query.q);
   if (query.cursor) params.set('cursor', query.cursor);
   params.set('limit', '24');
   return `/api/explore?${params}`;
 }
 
-/** One competition category link in the rail. */
+/** One category link in the rail. */
 function FilterRow({
   label,
   count,
@@ -92,16 +92,16 @@ function FilterGroup({
 export default function ExploreView({
   initialData,
   initialFilters,
-  initialComp = '',
+  initialCategory = '',
   initialSearch = '',
 }: {
   initialData: ExploreFeed;
   initialFilters: ExploreFilterSet;
-  initialComp?: string;
+  initialCategory?: string;
   initialSearch?: string;
 }) {
   const initialQuery: ExploreQueryState = {
-    comp: initialComp,
+    category: initialCategory,
     q: initialSearch,
     cursor: '',
   };
@@ -116,8 +116,8 @@ export default function ExploreView({
   const sentinelRef = useRef<HTMLDivElement>(null);
   const key = useMemo(() => queryKey(query), [query]);
 
-  // Competition pages carry a scope label; the global home is implicit in the wordmark.
-  const scopeLabel = initialComp ? (FOOTBALL_COMPETITIONS[initialComp]?.label ?? initialComp) : '';
+  // Category pages carry a scope label; the global home is implicit in the wordmark.
+  const scopeLabel = initialCategory ? (CATEGORIES[initialCategory]?.label ?? initialCategory) : '';
 
   useEffect(() => {
     if (initialKey.current === key) {
@@ -192,10 +192,10 @@ export default function ExploreView({
   const rail: ReactNode = (
     <div>
       <FilterGroup
-        title="Competitions"
-        allLabel="All football"
-        options={initialFilters.competitions}
-        value={initialComp}
+        title="Categories"
+        allLabel="All hardware"
+        options={initialFilters.categories}
+        value={initialCategory}
         hrefFor={(value) => (value ? `/${value}` : '/')}
       />
     </div>
@@ -204,7 +204,7 @@ export default function ExploreView({
   const feed =
     loading && items.length === 0 ? (
       <div className={MASONRY_CLASS} role="status">
-        <span className="sr-only">Loading football news</span>
+        <span className="sr-only">Loading hardware news</span>
         {Array.from({ length: 8 }, (_, index) => (
           // biome-ignore lint/suspicious/noArrayIndexKey: skeleton items have no identity
           <div key={index} className="mb-3 h-56 animate-pulse rounded-card bg-overlay/5" />
@@ -215,7 +215,7 @@ export default function ExploreView({
         No stories match these filters. Clear one to widen the desk.
       </p>
     ) : viewMode === 'list' ? (
-      <ol className="divide-y divide-line/30 border-b border-line/30" aria-label="Football news">
+      <ol className="divide-y divide-line/30 border-b border-line/30" aria-label="Hardware news">
         {items.map((article) => (
           <ExploreCard key={article.id} article={article} variant="list" />
         ))}
@@ -224,7 +224,7 @@ export default function ExploreView({
       // Native CSS multi-column, not a masonry lib. Fills column-major
       // (items 1..n down column 1); swap in an SSR round-robin split if
       // reading order ever has to be exact.
-      <section className={MASONRY_CLASS} aria-label="Football news">
+      <section className={MASONRY_CLASS} aria-label="Hardware news">
         {items.map((article) => (
           <ExploreCard key={article.id} article={article} />
         ))}
@@ -251,7 +251,7 @@ export default function ExploreView({
           className="relative flex min-w-0 flex-1 sm:max-w-md lg:ml-8 lg:mr-auto lg:max-w-sm"
         >
           <label className="sr-only" htmlFor="explore-search">
-            Search football news
+            Search hardware news
           </label>
           <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-chalkdim">
             <svg
@@ -338,7 +338,7 @@ export default function ExploreView({
           {/* <details> is the native disclosure — no state, no outside-click handler. */}
           <details className="border-b border-line/40 lg:hidden">
             <summary className="cursor-pointer list-none px-3 py-2 ds-caption uppercase tracking-caption text-chalkdim [&::-webkit-details-marker]:hidden">
-              Competitions {initialComp ? `· ${scopeLabel}` : ''}
+              Categories {initialCategory ? `· ${scopeLabel}` : ''}
             </summary>
             <div className="p-2">{rail}</div>
           </details>

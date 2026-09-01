@@ -18,16 +18,8 @@ function article(
     sourceName: string;
     sourceDomain: string;
     publishedAt: number;
-    competition: string | null;
-    articleType:
-      | 'news'
-      | 'analysis'
-      | 'rumor'
-      | 'interview'
-      | 'match-report'
-      | 'transfer'
-      | 'injury'
-      | 'video';
+    category: string | null;
+    articleType: 'news' | 'review' | 'deal' | 'leak' | 'analysis' | 'guide' | 'video';
     tags: string[];
   }>,
 ): ExploreFeed['items'][number] {
@@ -37,17 +29,17 @@ function article(
     description: '',
     summary: '',
     blurb: '',
-    url: 'https://bbc.com/sport/article',
+    url: 'https://tomshardware.com/pc-components/article',
     imageUrl: '',
     imageWidth: 0,
     imageHeight: 0,
-    sourceId: 'bbc-football',
-    sourceName: 'BBC Sport Football',
-    sourceDomain: 'bbc.com',
+    sourceId: 'toms-hardware',
+    sourceName: "Tom's Hardware",
+    sourceDomain: 'tomshardware.com',
     publishedAt: 1735689600000, // 2025-01-01T00:00:00Z (a fixed instant so the test is stable)
-    competition: 'eng.1',
-    articleType: 'match-report',
-    tags: ['premier-league'],
+    category: 'gpu',
+    articleType: 'review',
+    tags: ['gpu'],
     qualityScore: 80,
     freshnessScore: 70,
     ...overrides,
@@ -56,7 +48,7 @@ function article(
 
 describe('renderExploreRss', () => {
   it('starts with an XML declaration line, then the rss root', () => {
-    const xml = renderExploreRss({ items: [], nextCursor: null }, 'All football');
+    const xml = renderExploreRss({ items: [], nextCursor: null }, 'All hardware');
     expect(xml.startsWith('<?xml version="1.0" encoding="UTF-8"?>')).toBe(true);
     expect(xml).toContain('<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">');
     expect(xml).toContain(`<title>${SITE_TITLE}</title>`);
@@ -65,9 +57,9 @@ describe('renderExploreRss', () => {
     expect(xml).toContain(`<generator>${SITE_NAME}</generator>`);
   });
 
-  it('scopes the channel title to a competition when one is provided', () => {
-    const xml = renderExploreRss({ items: [], nextCursor: null }, 'Premier League');
-    expect(xml).toContain(`<title>${SITE_NAME} \u2014 Premier League football news</title>`);
+  it('scopes the channel title to a category when one is provided', () => {
+    const xml = renderExploreRss({ items: [], nextCursor: null }, 'GPUs');
+    expect(xml).toContain(`<title>${SITE_NAME} \u2014 GPUs news</title>`);
   });
 
   it('emits one <item> per article with stable guid, RFC 822 date, and categories', () => {
@@ -76,26 +68,26 @@ describe('renderExploreRss', () => {
         items: [
           article({
             id: 'stable-fingerprint',
-            title: 'A late winner at the Emirates',
-            summary: 'A late winner at the Emirates.',
-            sourceDomain: 'bbc.com',
+            title: 'A new flagship GPU breaks cover',
+            summary: 'A new flagship GPU breaks cover.',
+            sourceDomain: 'tomshardware.com',
           }),
         ],
         nextCursor: null,
       },
-      'All football',
+      'All hardware',
     );
     expect(xml).toContain('<item>');
-    expect(xml).toContain('<title>A late winner at the Emirates</title>');
+    expect(xml).toContain('<title>A new flagship GPU breaks cover</title>');
     expect(xml).toContain('<guid isPermaLink="false">stable-fingerprint</guid>');
     // RFC 822: month + day + year + time + GMT
     expect(xml).toMatch(
       /<pubDate>[A-Z][a-z]{2}, \d{2} [A-Z][a-z]{2} \d{4} \d{2}:\d{2}:\d{2} GMT<\/pubDate>/,
     );
-    expect(xml).toContain('<category>competition:eng.1</category>');
-    expect(xml).toContain('<category>type:match-report</category>');
-    expect(xml).toContain('<category>source:bbc.com</category>');
-    expect(xml).toContain('<category>tag:premier-league</category>');
+    expect(xml).toContain('<category>category:gpu</category>');
+    expect(xml).toContain('<category>type:review</category>');
+    expect(xml).toContain('<category>source:tomshardware.com</category>');
+    expect(xml).toContain('<category>tag:gpu</category>');
   });
 
   it('escapes XML special characters in title, blurb, and tag', () => {
@@ -103,20 +95,20 @@ describe('renderExploreRss', () => {
       {
         items: [
           article({
-            title: 'Arsenal "win" <3> & forget the rest',
+            title: 'Nvidia "wins" <3> & forgets the rest',
             summary: 'They said "lucky" & left.',
             tags: ['quotes & brackets'],
           }),
         ],
         nextCursor: null,
       },
-      'All football',
+      'All hardware',
     );
-    expect(xml).toContain('Arsenal &quot;win&quot; &lt;3&gt; &amp; forget the rest');
+    expect(xml).toContain('Nvidia &quot;wins&quot; &lt;3&gt; &amp; forgets the rest');
     expect(xml).toContain('They said &quot;lucky&quot; &amp; left.');
     expect(xml).toContain('tag:quotes &amp; brackets');
     // The original characters must not survive into XML as raw bytes.
-    expect(xml).not.toContain('"win"');
+    expect(xml).not.toContain('"wins"');
     expect(xml).not.toContain('<3>');
   });
 
@@ -131,7 +123,7 @@ describe('renderExploreRss', () => {
 
     const fromBlurb = renderExploreRss(
       { items: [article({ summary: '', blurb: 'from blurb' })], nextCursor: null },
-      'All football',
+      'All hardware',
     );
     expect(itemsOnly(fromBlurb)).toContain('<description>from blurb</description>');
 
@@ -140,13 +132,13 @@ describe('renderExploreRss', () => {
         items: [article({ summary: '', blurb: '', description: 'publisher copy' })],
         nextCursor: null,
       },
-      'All football',
+      'All hardware',
     );
     expect(itemsOnly(fromDescription)).toContain('<description>publisher copy</description>');
 
     const empty = renderExploreRss(
       { items: [article({ summary: '', blurb: '', description: '' })], nextCursor: null },
-      'All football',
+      'All hardware',
     );
     expect(itemsOnly(empty)).not.toContain('<description>');
   });
@@ -156,28 +148,28 @@ describe('renderExploreRss', () => {
   // here would have been dead code the moment the clamp sat below it.
   it('renders every item it is handed', () => {
     const items = Array.from({ length: 120 }, (_, i) => article({ id: `id-${i}` }));
-    const xml = renderExploreRss({ items, nextCursor: null }, 'All football');
+    const xml = renderExploreRss({ items, nextCursor: null }, 'All hardware');
     expect(xml.match(/<item>/g)).toHaveLength(120);
     expect(xml).toContain('<guid isPermaLink="false">id-119</guid>');
   });
 
   it('renders an Atom self link when given one', () => {
-    const xml = renderExploreRss({ items: [], nextCursor: null }, 'All football', {
+    const xml = renderExploreRss({ items: [], nextCursor: null }, 'All hardware', {
       includeAtomSelfLink: '/rss.xml',
     });
     expect(xml).toContain('<atom:link href="/rss.xml" rel="self" type="application/rss+xml" />');
   });
 
-  it('points the channel link to a per-competition hub when one is supplied', () => {
-    const xml = renderExploreRss({ items: [], nextCursor: null }, 'Premier League', {
-      channelLink: `${SITE_ORIGIN}/eng.1`,
+  it('points the channel link to a per-category hub when one is supplied', () => {
+    const xml = renderExploreRss({ items: [], nextCursor: null }, 'GPUs', {
+      channelLink: `${SITE_ORIGIN}/gpu`,
     });
-    expect(xml).toContain(`<link>${SITE_ORIGIN}/eng.1</link>`);
+    expect(xml).toContain(`<link>${SITE_ORIGIN}/gpu</link>`);
     expect(xml).not.toContain(`<link>${SITE_ORIGIN}/</link>`);
   });
 
   it('falls back to the global origin when no channel link is supplied', () => {
-    const xml = renderExploreRss({ items: [], nextCursor: null }, 'All football');
+    const xml = renderExploreRss({ items: [], nextCursor: null }, 'All hardware');
     expect(xml).toContain(`<link>${SITE_ORIGIN}/</link>`);
   });
 });

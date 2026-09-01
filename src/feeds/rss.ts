@@ -68,7 +68,7 @@ export function parseRss(
         sourceId: source.id,
         sourceName: source.name,
         sourceAuthority: source.authorityScore,
-        comp: source.comp ?? null,
+        category: source.category ?? null,
         title,
         description,
         body,

@@ -1,146 +1,150 @@
-import { FOOTBALL_COMPETITIONS } from '../competitions';
+import { CATEGORIES } from '../categories';
 import type { FeedSource } from './types';
 
-// TODO(template): replace with your sources. FEED_SOURCES is the single
-// registry consumed by ingest; keep id stable (used as D1 source_id).
-const FOOTBALL_RSS_SOURCES: FeedSource[] = [
+// FEED_SOURCES is the single registry consumed by ingest; keep id stable (used
+// as D1 source_id). Every URL here was probe-verified (200 + RSS/Atom body).
+const HARDWARE_RSS_SOURCES: FeedSource[] = [
+  // --- Broad PC hardware desks ---
   {
-    id: 'bbc-football',
+    id: 'toms-hardware',
     kind: 'rss',
-    name: 'BBC Sport Football',
-    url: 'https://feeds.bbci.co.uk/sport/football/rss.xml',
-    sport: 'soccer',
+    name: "Tom's Hardware",
+    url: 'https://www.tomshardware.com/feeds.xml',
     authorityScore: 92,
     defaultEnabled: true,
   },
   {
-    id: 'guardian-football',
+    id: 'techpowerup-news',
     kind: 'rss',
-    name: 'The Guardian Football',
-    url: 'https://www.theguardian.com/football/rss',
-    sport: 'soccer',
-    authorityScore: 88,
-    defaultEnabled: true,
-  },
-  {
-    id: 'sky-football',
-    kind: 'rss',
-    name: 'Sky Sports Football',
-    url: 'https://www.skysports.com/rss/11095',
-    sport: 'soccer',
+    name: 'TechPowerUp News',
+    url: 'https://www.techpowerup.com/rss/news',
     authorityScore: 90,
     defaultEnabled: true,
   },
   {
-    id: 'independent-football',
+    id: 'techpowerup-reviews',
     kind: 'rss',
-    name: 'The Independent Football',
-    url: 'https://www.independent.co.uk/sport/football/rss',
-    sport: 'soccer',
+    name: 'TechPowerUp Reviews',
+    url: 'https://www.techpowerup.com/rss/reviews',
+    authorityScore: 88,
+    defaultEnabled: true,
+  },
+  {
+    id: 'ars-gadgets',
+    kind: 'rss',
+    name: 'Ars Technica Gadgets',
+    url: 'https://arstechnica.com/gadgets/feed/',
+    authorityScore: 88,
+    defaultEnabled: true,
+  },
+  {
+    id: 'verge-tech',
+    kind: 'rss',
+    name: 'The Verge Tech',
+    url: 'https://www.theverge.com/rss/index.xml',
+    authorityScore: 85,
+    defaultEnabled: true,
+  },
+  {
+    id: 'guru3d',
+    kind: 'rss',
+    name: 'Guru3D',
+    url: 'https://www.guru3d.com/rss.xml',
+    authorityScore: 85,
+    defaultEnabled: true,
+  },
+  {
+    id: 'kitguru',
+    kind: 'rss',
+    name: 'KitGuru',
+    url: 'https://www.kitguru.net/feed/',
+    authorityScore: 85,
+    defaultEnabled: true,
+  },
+  {
+    id: 'hexus',
+    kind: 'rss',
+    name: 'Hexus',
+    url: 'https://www.hexus.net/rss/',
+    authorityScore: 82,
+    defaultEnabled: true,
+  },
+  {
+    id: 'wccftech',
+    kind: 'rss',
+    name: 'Wccftech',
+    url: 'https://wccftech.com/feed/',
+    authorityScore: 78,
+    defaultEnabled: true,
+  },
+  // --- Category-vertical sources: the publisher has already told us which
+  // category a story belongs to, so `category` is attributed without waiting
+  // on AI enrichment.
+  {
+    id: 'tftcentral',
+    kind: 'rss',
+    name: 'TFT Central',
+    url: 'https://tftcentral.co.uk/feed',
+    category: 'monitor',
     authorityScore: 80,
     defaultEnabled: true,
   },
   {
-    id: '90min-football',
+    id: 'keyboard-newswire',
     kind: 'rss',
-    name: '90min',
-    url: 'https://www.90min.com/posts.rss',
-    sport: 'soccer',
+    name: 'Keyboard Newswire',
+    url: 'https://keyboard-newswire.com/feed',
+    category: 'keyboards',
+    authorityScore: 72,
+    defaultEnabled: true,
+  },
+  {
+    id: 'kbd-news',
+    kind: 'rss',
+    name: "Keyboard Builders' Digest",
+    url: 'https://kbd.news/rss.xml',
+    category: 'keyboards',
     authorityScore: 70,
     defaultEnabled: true,
   },
-];
-
-// Competition-scoped feeds. The publisher has already told us which league a
-// story belongs to, so `comp` is attributed without waiting on AI enrichment.
-// Slugs are each publisher's own (eng.1 → premierleague at the Guardian,
-// premier-league at the BBC) and don't derive from our comp keys.
-const GUARDIAN_COMP_SLUGS: Record<string, string> = {
-  'eng.1': 'premierleague',
-  'esp.1': 'laligafootball',
-  'ita.1': 'serieafootball',
-  'ger.1': 'bundesligafootball',
-  'fra.1': 'ligue1football',
-  'uefa.champions': 'championsleague',
-  'eng.fa': 'fa-cup',
-};
-
-const BBC_COMP_SLUGS: Record<string, string> = {
-  'eng.1': 'premier-league',
-  'uefa.champions': 'champions-league',
-  'uefa.europa': 'europa-league',
-  'eng.fa': 'fa-cup',
-};
-
-function compSources(
-  prefix: string,
-  publisher: string,
-  authorityScore: number,
-  slugs: Record<string, string>,
-  urlFor: (slug: string) => string,
-): FeedSource[] {
-  return Object.entries(slugs).flatMap(([comp, slug]) => {
-    const competition = FOOTBALL_COMPETITIONS[comp];
-    if (!competition) return [];
-    return [
-      {
-        id: `${prefix}-${comp}`,
-        kind: 'rss' as const,
-        name: `${publisher} ${competition.label}`,
-        url: urlFor(slug),
-        sport: 'soccer' as const,
-        comp,
-        authorityScore,
-        defaultEnabled: true,
-      },
-    ];
-  });
-}
-
-const COMP_RSS_SOURCES: FeedSource[] = [
-  ...compSources(
-    'guardian',
-    'The Guardian',
-    88,
-    GUARDIAN_COMP_SLUGS,
-    (slug) => `https://www.theguardian.com/football/${slug}/rss`,
-  ),
-  ...compSources(
-    'bbc',
-    'BBC Sport',
-    92,
-    BBC_COMP_SLUGS,
-    (slug) => `https://feeds.bbci.co.uk/sport/football/${slug}/rss.xml`,
-  ),
+  // --- Community desks (Reddit Atom). High volume, mixed quality — the LLM
+  // quality gate does the editorial work.
   {
-    id: 'as-esp.1',
+    id: 'r-mechanicalkeyboards',
     kind: 'rss',
-    name: 'AS English La Liga',
-    url: 'https://en.as.com/rss/futbol/primera.xml',
-    sport: 'soccer',
-    comp: 'esp.1',
-    authorityScore: 78,
+    name: 'r/MechanicalKeyboards',
+    url: 'https://www.reddit.com/r/MechanicalKeyboards/.rss',
+    category: 'keyboards',
+    authorityScore: 60,
+    defaultEnabled: true,
+  },
+  {
+    id: 'r-mousereview',
+    kind: 'rss',
+    name: 'r/MouseReview',
+    url: 'https://www.reddit.com/r/MouseReview/.rss',
+    category: 'mice',
+    authorityScore: 60,
+    defaultEnabled: true,
+  },
+  {
+    id: 'r-hardware',
+    kind: 'rss',
+    name: 'r/hardware',
+    url: 'https://www.reddit.com/r/hardware/.rss',
+    authorityScore: 65,
     defaultEnabled: true,
   },
 ];
 
-// ESPN remains useful for league-scoped coverage; the per-league news feed is
-// football-only even where the rest of the surface isn't.
-const ESPN_SOURCES: FeedSource[] = Object.values(FOOTBALL_COMPETITIONS).map((competition) => ({
-  id: `espn-${competition.key}`,
-  kind: 'api-json',
-  name: `ESPN ${competition.label}`,
-  url: `https://site.api.espn.com/apis/site/v2/sports/${competition.sport}/${competition.league}/news?limit=100`,
-  sport: 'soccer',
-  comp: competition.key,
-  authorityScore: 86,
-  defaultEnabled: true,
-}));
+// Registry self-check: preset categories must exist in the registry, otherwise
+// a typo silently misfiles every story from that source.
+for (const source of HARDWARE_RSS_SOURCES) {
+  if (source.category && !Object.hasOwn(CATEGORIES, source.category)) {
+    throw new Error(`source ${source.id} declares unknown category ${source.category}`);
+  }
+}
 
-export const FEED_SOURCES = [
-  ...FOOTBALL_RSS_SOURCES,
-  ...COMP_RSS_SOURCES,
-  ...ESPN_SOURCES,
-] satisfies FeedSource[];
+export const FEED_SOURCES = [...HARDWARE_RSS_SOURCES] satisfies FeedSource[];
 
 export const FEED_SOURCE_BY_ID = new Map(FEED_SOURCES.map((source) => [source.id, source]));

@@ -1,9 +1,9 @@
 ---
 import { env } from 'cloudflare:workers';
-import { FOOTBALL_COMPETITIONS } from '../../competitions';
+import { CATEGORIES } from '../../categories';
 import { getArticle, getRelatedArticles } from '../../data/api';
 import Layout from '../../layouts/Layout.astro';
-import { SITE_NAME, SITE_ORIGIN, articleDeck, articlePath, imgProxyUrl } from '../../site';
+import { SITE_NAME, SITE_ORIGIN, articleDeck, articlePath } from '../../site';
 
 export const prerender = false;
 
@@ -20,12 +20,12 @@ const relatedArticles = await getRelatedArticles(
   4,
 );
 
-const competition = article.competition ? FOOTBALL_COMPETITIONS[article.competition] : null;
-const backHref = competition ? `/${article.competition}` : '/';
-const backLabel = competition?.label ?? 'All football';
+const category = article.category ? CATEGORIES[article.category] : null;
+const backHref = category ? `/${article.category}` : '/';
+const backLabel = category?.label ?? 'All hardware';
 const summary = articleDeck(article, 'long');
 const blurb = article.blurb && article.blurb !== summary ? article.blurb : null;
-const domain = article.sourceDomain || article.sourceName || 'football source';
+const domain = article.sourceDomain || article.sourceName || 'hardware source';
 const pubDate = new Date(article.publishedAt);
 const pubIso = pubDate.toISOString();
 const pubDisplay = pubDate.toLocaleDateString('en-US', {
@@ -45,12 +45,12 @@ const breadcrumbItems = [
     item: SITE_ORIGIN,
   },
 ];
-if (competition) {
+if (category) {
   breadcrumbItems.push({
     '@type': 'ListItem',
     position: 2,
-    name: competition.label,
-    item: `${SITE_ORIGIN}/${competition.key}`,
+    name: category.label,
+    item: `${SITE_ORIGIN}/${category.key}`,
   });
 }
 breadcrumbItems.push({
@@ -78,7 +78,7 @@ const jsonLd = [
     },
     mainEntityOfPage: { '@type': 'WebPage', '@id': selfUrl },
     url: selfUrl,
-    articleSection: competition?.label ?? 'Football',
+    articleSection: category?.label ?? 'Hardware',
     ...(article.tags.length > 0 ? { keywords: article.tags.join(', ') } : {}),
     ...(article.imageUrl ? { image: article.imageUrl } : {}),
     isBasedOn: article.url,
@@ -97,7 +97,7 @@ function formatCardDate(timestamp: number): string {
   return `${String(d.getUTCMonth() + 1).padStart(2, '0')}/${String(d.getUTCDate()).padStart(2, '0')}`;
 }
 
-const ogImageUrl = article.imageUrl ? `${SITE_ORIGIN}${imgProxyUrl(article.imageUrl)}` : undefined;
+const ogImageUrl = article.imageUrl ?? undefined;
 ---
 <Layout
   title={`${article.title} — ${SITE_NAME}`}
@@ -122,12 +122,12 @@ const ogImageUrl = article.imageUrl ? `${SITE_ORIGIN}${imgProxyUrl(article.image
       >
         <span aria-hidden="true">←</span> {backLabel}
       </a>
-      {competition && (
+      {category && (
         <a
-          href={`/${competition.key}`}
+          href={`/${category.key}`}
           class="ds-caption rounded-pill border border-line/40 px-2.5 py-0.5 text-chalkdim transition-colors hover:border-pitch/40 hover:text-pitch"
         >
-          {competition.label}
+          {category.label}
         </a>
       )}
     </nav>
@@ -161,7 +161,7 @@ const ogImageUrl = article.imageUrl ? `${SITE_ORIGIN}${imgProxyUrl(article.image
     {article.imageUrl && (
       <div class="mt-6 overflow-hidden rounded-card border border-line/40 bg-overlay/5">
         <img
-          src={imgProxyUrl(article.imageUrl)}
+          src={article.imageUrl}
           alt={article.title}
           class="w-full object-cover"
           loading="eager"
@@ -226,7 +226,7 @@ const ogImageUrl = article.imageUrl ? `${SITE_ORIGIN}${imgProxyUrl(article.image
       <section class="mt-12 border-t border-line/40 pt-8">
         <div class="mb-4 flex items-baseline justify-between">
           <h2 class="font-display text-xl font-bold text-chalk">
-            Related Football News
+            Related Hardware News
           </h2>
           <span class="ds-caption text-pitch">AI Curated</span>
         </div>

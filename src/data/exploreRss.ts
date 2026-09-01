@@ -18,7 +18,7 @@ function rfc822(timestamp: number): string {
 
 function categoriesFor(article: ExploreArticle): string[] {
   const categories: string[] = [];
-  if (article.competition) categories.push(`competition:${article.competition}`);
+  if (article.category) categories.push(`category:${article.category}`);
   if (article.articleType) categories.push(`type:${article.articleType}`);
   if (article.sourceDomain) categories.push(`source:${article.sourceDomain}`);
   for (const tag of article.tags.slice(0, 8)) categories.push(`tag:${tag}`);
@@ -45,7 +45,13 @@ function renderItem(article: ExploreArticle): string {
   if (description) parts.push(`      <description>${escapeXml(description)}</description>`);
   // <author> is specified as an email address; the publisher's domain is all
   // we can honestly put in it.
-  const fallbackHost = (() => { try { return new URL(SITE_ORIGIN).hostname; } catch { return 'example.com'; } })();
+  const fallbackHost = (() => {
+    try {
+      return new URL(SITE_ORIGIN).hostname;
+    } catch {
+      return 'example.com';
+    }
+  })();
   parts.push(`      <author>noreply@${escapeXml(article.sourceDomain || fallbackHost)}</author>`);
   for (const category of categoriesFor(article)) {
     parts.push(`      <category>${escapeXml(category)}</category>`);
@@ -54,15 +60,17 @@ function renderItem(article: ExploreArticle): string {
   return parts.join('\n');
 }
 
-/** Render an `ExploreFeed` as an RSS 2.0 document. `channelLink` lets the
- *  per-competition feed jump a reader into the matching hub. */
+/** Render an `ExploreFeed` as an RSS 2.0 document. `scopeLabel` is 'All
+ *  hardware' for the global feed, a category label for a hub feed.
+ *  `channelLink` lets the per-category feed jump a reader into the matching
+ *  hub. */
 export function renderExploreRss(
   feed: ExploreFeed,
   scopeLabel: string,
   options: { includeAtomSelfLink?: string; channelLink?: string } = {},
 ): string {
   const channelTitle =
-    scopeLabel === 'All football' ? SITE_TITLE : `${SITE_NAME} — ${scopeLabel} football news`;
+    scopeLabel === 'All hardware' ? SITE_TITLE : `${SITE_NAME} — ${scopeLabel} news`;
   const channelLink = options.channelLink ?? `${SITE_ORIGIN}/`;
   const channelDescription = SITE_DESCRIPTION;
   const published = new Date().toUTCString();

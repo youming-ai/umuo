@@ -1,22 +1,22 @@
 import type { APIRoute } from 'astro';
 import { env } from 'cloudflare:workers';
-import { FOOTBALL_COMPETITIONS } from '../../competitions';
+import { CATEGORIES } from '../../categories';
 import { serveExploreRss } from '../../data/api';
 
 export const prerender = false;
 
-// Per-competition RSS feed at /<comp>/rss.xml. `comp` is validated against
+// Per-category RSS feed at /<category>/rss.xml. `category` is validated against
 // the registry so an attacker can't pin arbitrary KV keys via /anything/rss.xml.
 export const GET: APIRoute = ({ params, request, locals }) => {
-  const comp = params.comp;
-  if (typeof comp !== 'string' || !Object.hasOwn(FOOTBALL_COMPETITIONS, comp)) {
+  const category = params.category;
+  if (typeof category !== 'string' || !Object.hasOwn(CATEGORIES, category)) {
     return new Response('Not found', { status: 404 });
   }
   const url = new URL(request.url);
   const origin = `${url.protocol}//${url.host}`;
   return serveExploreRss(
-    { comp },
-    `${origin}/${comp}/rss.xml`,
+    { category },
+    `${origin}/${category}/rss.xml`,
     origin,
     env,
     locals.cfContext as ExecutionContext,

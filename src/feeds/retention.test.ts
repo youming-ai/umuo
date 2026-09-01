@@ -41,8 +41,9 @@ describe('pruneOldRecords', () => {
   it('archives both published and filtered articles', async () => {
     const { env, sql } = fakeEnv();
     await pruneOldRecords(env, NOW);
-    // filtered stories (non-football/off-topic) must age out too — before this
-    // they accumulated indefinitely because only 'published' was swept.
+    // filtered stories (off-topic/thin hardware items) must age out too —
+    // before this they accumulated indefinitely because only 'published' was
+    // swept.
     expect(sql[0]).toContain("'published'");
     expect(sql[0]).toContain("'filtered'");
   });

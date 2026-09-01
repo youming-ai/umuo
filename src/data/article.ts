@@ -1,4 +1,4 @@
-import { FOOTBALL_COMPETITIONS } from '../competitions';
+import { CATEGORIES } from '../categories';
 import type { ExploreArticle } from '../types';
 import { type Env, runCached } from './cache';
 import { EXPLORE_ARTICLE_COLUMNS, type ExploreRow, exploreArticle } from './explore';
@@ -17,7 +17,7 @@ export async function getArticle(
           `SELECT ${EXPLORE_ARTICLE_COLUMNS}
            FROM articles a
            JOIN sources s ON s.id = a.source_id
-           WHERE a.id = ? AND a.status = 'published' AND a.is_football = 1 AND a.sport = 'soccer'`,
+           WHERE a.id = ? AND a.status = 'published' AND a.is_on_topic = 1`,
         )
           .bind(id)
           .first<ExploreRow>();
@@ -38,7 +38,7 @@ export async function getArticle(
 }
 
 /** Fetch related published articles for the `/a/{id}` detail page.
- *  Matches articles sharing the competition or tags, excluding current article.
+ *  Matches articles sharing the category or tags, excluding current article.
  *  Cached in KV for 5 minutes. */
 export async function getRelatedArticles(
   article: ExploreArticle,
@@ -52,18 +52,13 @@ export async function getRelatedArticles(
       `related:${article.id}:${clampedLimit}`,
       async () => {
         if (!env.DB) throw new Error('D1 binding is required');
-        const conditions: string[] = [
-          'a.id != ?',
-          "a.status = 'published'",
-          'a.is_football = 1',
-          "a.sport = 'soccer'",
-        ];
+        const conditions: string[] = ['a.id != ?', "a.status = 'published'", 'a.is_on_topic = 1'];
         const bindings: unknown[] = [article.id];
 
         const matchConditions: string[] = [];
-        if (article.competition && Object.hasOwn(FOOTBALL_COMPETITIONS, article.competition)) {
-          matchConditions.push('a.comp = ?');
-          bindings.push(article.competition);
+        if (article.category && Object.hasOwn(CATEGORIES, article.category)) {
+          matchConditions.push('a.category = ?');
+          bindings.push(article.category);
         }
         const relevantTags = article.tags.filter(Boolean).slice(0, 5);
         if (relevantTags.length > 0) {
@@ -107,4 +102,3 @@ export async function getRelatedArticles(
     return [];
   }
 }
-

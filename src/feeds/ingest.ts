@@ -1,5 +1,4 @@
 import type { Env } from '../data/api';
-import { parseNewsFeed } from '../newsFeed';
 import { enrichBatch, normalizeTitle, storeEnrichedArticle } from './enrich';
 import { fillBody } from './readable';
 import { parseRss } from './rss';
@@ -18,15 +17,7 @@ const ENRICHMENT_BATCH_SIZE = 8;
 
 const RSS_HEADERS = {
   accept: 'application/rss+xml, application/atom+xml, application/json, text/xml, */*',
-  'user-agent': 'news-desk/1.0 (+https://example.com)',
-};
-
-// ESPN's WAF allow-lists client agents by name (curl/*, python-requests/*,
-// Go-http-client/*) and 403s everything else. Keep this in sync with any
-// other ESPN call site.
-const API_JSON_HEADERS = {
-  accept: 'application/json, text/plain, */*',
-  'user-agent': 'curl/8.7.1',
+  'user-agent': 'news-desk/1.0 (+https://umuo.app)',
 };
 
 export function canonicalizeUrl(value: string): string {
@@ -83,36 +74,9 @@ async function readSource(
   source: FeedSource,
   fetchedAt: number,
 ): Promise<Omit<RawArticle, 'canonicalUrl' | 'fingerprint'>[]> {
-  const response = await fetchWithRetry(
-    source.url,
-    source.kind === 'rss' ? RSS_HEADERS : API_JSON_HEADERS,
-  );
+  const response = await fetchWithRetry(source.url, RSS_HEADERS);
   if (!response.ok) throw new Error(`${source.name} returned ${response.status}`);
-
-  if (source.kind === 'rss') {
-    return parseRss(await response.text(), source, fetchedAt);
-  }
-
-  const parsed = parseNewsFeed(await response.json());
-  return parsed
-    .map(
-      (item): Omit<RawArticle, 'canonicalUrl' | 'fingerprint'> => ({
-        sourceId: source.id,
-        sourceName: source.name,
-        sourceAuthority: source.authorityScore,
-        comp: source.comp ?? null,
-        title: item.headline,
-        description: item.description,
-        body: '',
-        url: item.link,
-        imageUrl: item.imageUrl,
-        imageWidth: item.imageWidth,
-        imageHeight: item.imageHeight,
-        publishedAt: Date.parse(item.published) || fetchedAt,
-        fetchedAt,
-      }),
-    )
-    .filter((article) => article.title.length > 0 && article.url.length > 0);
+  return parseRss(await response.text(), source, fetchedAt);
 }
 
 async function normalizeArticles(
@@ -146,14 +110,13 @@ async function ensureSources(db: D1Database): Promise<void> {
       db
         .prepare(
           `INSERT INTO sources (
-             id, kind, name, url, sport, comp, authority_score, enabled, created_at, updated_at
-           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+             id, kind, name, url, category, authority_score, enabled, created_at, updated_at
+           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
            ON CONFLICT(id) DO UPDATE SET
              kind = excluded.kind,
              name = excluded.name,
              url = excluded.url,
-             sport = excluded.sport,
-             comp = excluded.comp,
+             category = excluded.category,
              authority_score = excluded.authority_score,
              updated_at = excluded.updated_at`,
         )
@@ -162,8 +125,7 @@ async function ensureSources(db: D1Database): Promise<void> {
           source.kind,
           source.name,
           source.url,
-          source.sport,
-          source.comp ?? null,
+          source.category ?? null,
           source.authorityScore,
           source.defaultEnabled ? 1 : 0,
           now,
