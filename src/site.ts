@@ -7,8 +7,8 @@ export const SITE_ORIGIN = 'https://umuo.app';
 // defaults and the RSS channel description import from here, so a rebrand
 // or positioning change edits one file, not three.
 // TODO(template): replace with your brand.
-export const SITE_NAME = 'News Desk';
-export const SITE_TITLE = 'News Desk — AI-curated hardware news';
+export const SITE_NAME = 'umuo';
+export const SITE_TITLE = 'umuo — AI-curated hardware news';
 export const SITE_DESCRIPTION =
   'AI-curated PC hardware and peripherals news from trusted sources, organized by category and source.';
 export const SITE_LOCALE = 'en_US';
