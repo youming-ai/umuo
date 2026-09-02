@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { CATEGORIES } from '../../categories';
 import type { ExploreFeed, ExploreFilterOption, ExploreFilterSet } from '../../types';
 import Logo from '../Logo';
+import ThemeSwitcher from '../ThemeSwitcher';
 
 // Multi-column masonry approximation. column-fill: balance evens the column
 // heights as items are appended; tailwind has no built-in for it.
@@ -116,7 +117,8 @@ export default function ExploreView({
   const sentinelRef = useRef<HTMLDivElement>(null);
   const key = useMemo(() => queryKey(query), [query]);
 
-  // Category pages carry a scope label; the global home is implicit in the wordmark.
+  // Category pages carry a scope label for the mobile disclosure; the header
+  // bar itself stays a four-element strip: logo, search, layout, theme.
   const scopeLabel = initialCategory ? (CATEGORIES[initialCategory]?.label ?? initialCategory) : '';
 
   useEffect(() => {
@@ -234,17 +236,7 @@ export default function ExploreView({
   return (
     <div className="desk-shell">
       <div className="sticky top-0 z-30 flex flex-wrap items-center gap-x-3 gap-y-1.5 border-b border-line/40 bg-night/95 px-3 py-1.5 backdrop-blur-md lg:h-[var(--h-bar)] lg:flex-nowrap lg:py-0">
-        <div className="flex min-w-0 items-center gap-3">
-          <Logo />
-          {scopeLabel && (
-            <>
-              <span className="h-4 w-px bg-line/40" aria-hidden="true" />
-              <span className="ds-caption truncate uppercase tracking-caption font-bold text-chalk">
-                {scopeLabel}
-              </span>
-            </>
-          )}
-        </div>
+        <Logo />
 
         <form
           onSubmit={submitSearch}
@@ -298,6 +290,8 @@ export default function ExploreView({
               List
             </button>
           </fieldset>
+
+          <ThemeSwitcher />
         </div>
       </div>
 

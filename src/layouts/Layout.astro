@@ -77,6 +77,34 @@ const canonicalUrl = `${SITE_ORIGIN}${canonicalPath}`;
     <!-- Archivo carries the desk headlines; Inter keeps prose readable; JetBrains Mono labels live state and source metadata. -->
     <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;800;900&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
     <!-- TODO(template): add your analytics (e.g. Clarity/Plausible) here -->
+    <!-- Read the stored theme before first paint so the first frame already
+        carries the right chrome; keep meta theme-color in sync with --c-bg so
+        the mobile browser chrome follows the switch. -->
+    <script is:inline>
+      (() => {
+        try {
+          const stored = localStorage.getItem('theme');
+          document.documentElement.dataset.theme = stored === 'light' ? 'light' : 'dark';
+        } catch {
+          document.documentElement.dataset.theme = 'dark';
+        }
+        const syncThemeColor = () => {
+          const channels = getComputedStyle(document.documentElement)
+            .getPropertyValue('--c-bg')
+            .trim();
+          if (channels) {
+            document
+              .querySelector('meta[name="theme-color"]')
+              ?.setAttribute('content', `rgb(${channels})`);
+          }
+        };
+        syncThemeColor();
+        new MutationObserver(syncThemeColor).observe(document.documentElement, {
+          attributes: true,
+          attributeFilter: ['data-theme'],
+        });
+      })();
+    </script>
   </head>
   <body class="min-h-screen">
     <div class="relative z-10 flex flex-col min-h-screen">

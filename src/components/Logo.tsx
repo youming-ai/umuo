@@ -1,18 +1,17 @@
 import { SITE_NAME } from '../site';
 
+// Icon-only wordmark: the site name was dropped from the header, so the brand
+// lives in a visually-hidden span (real text, not aria-label — Biome a11y
+// prefers link content over aria).
 export default function Logo({ compact = false }: { compact?: boolean }) {
-  const textSize = compact ? 'text-base' : 'text-xl';
   const emojiSize = compact ? 'text-lg' : 'text-2xl';
   return (
     <a
       href="/"
-      aria-label={`${SITE_NAME} home`}
-      className={`inline-flex items-center gap-2 ${textSize} font-display font-bold tracking-display text-chalkdim leading-none`}
+      className={`inline-flex items-center rounded-pill leading-none ${emojiSize} ds-press`}
     >
-      <span aria-hidden="true" className={emojiSize}>
-        ⌨️
-      </span>
-      <span>{SITE_NAME}</span>
+      <span aria-hidden="true">⌨️</span>
+      <span className="sr-only">{SITE_NAME} home</span>
     </a>
   );
 }
