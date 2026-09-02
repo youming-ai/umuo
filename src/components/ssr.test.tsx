@@ -16,8 +16,11 @@ it('renders the Explore shell server-side without touching browser globals', () 
     />,
   );
   expect(html).toContain('⌨️');
-  expect(html).toContain(SITE_NAME);
+  expect(html).toContain(SITE_NAME); // carried by the logo's sr-only span
   expect(html).toContain('Search stories');
+  // The theme switcher SSRs as an icon-less button; localStorage stays
+  // unread at render time so the hydration pass always agrees.
+  expect(html).toContain('aria-label="Theme"');
 });
 
 it('renders article cards server-side', () => {
