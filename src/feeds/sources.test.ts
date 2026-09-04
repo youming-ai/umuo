@@ -14,8 +14,9 @@ describe('feed sources', () => {
 
   it('scopes every vertical feed to a real category key', () => {
     const scoped = FEED_SOURCES.filter((source) => source.category);
-    // TFT Central + Keyboard Newswire + KBD.news + r/MechanicalKeyboards + r/MouseReview
-    expect(scoped.length).toBe(5);
+    // TFT Central + Keyboard Newswire + KBD.news + r/MechanicalKeyboards +
+    // r/MouseReview + the four AI desks (OpenAI, DeepMind, Google AI, HF)
+    expect(scoped.length).toBe(9);
     for (const source of scoped) {
       expect(Object.keys(CATEGORIES), source.id).toContain(source.category);
     }

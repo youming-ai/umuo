@@ -67,8 +67,22 @@ describe('enrichWithLLM', () => {
     expect(body.response_format).toEqual({ type: 'json_object' });
     expect(body.model).toBe(MODEL);
     expect(body.messages).toEqual([
-      { role: 'user', content: expect.stringContaining('PC hardware and peripherals news site') },
+      { role: 'user', content: expect.stringContaining('technology news site') },
     ]);
+  });
+
+  it('prompts the widened tech scope, not the old hardware-only gate', async () => {
+    // Pins the classifier contract: phones and AI are on-topic categories,
+    // with a worked on-topic example the model can anchor on. If these fail
+    // after a prompt edit, the desk has narrowed again without meaning to.
+    const fetchMock = vi.fn().mockResolvedValue(openAIResponse(enrichment));
+    vi.stubGlobal('fetch', fetchMock);
+    await enrichWithLLM('secret', BASE_URL, MODEL, article);
+
+    const prompt = JSON.parse(fetchMock.mock.calls[0][1].body as string).messages[0].content;
+    expect(prompt).toContain('category=phones');
+    expect(prompt).toContain('category=ai');
+    expect(prompt).not.toContain('iPhone 18 rumor roundup: what to expect" → isOnTopic=false');
   });
 
   it('throws on missing API key', async () => {

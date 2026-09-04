@@ -1,6 +1,6 @@
 // RSS 2.0 renderer for the Explore feed. Pure: no DOM, no D1, no Worker
 // bindings — importable by both the API handler and the SSR pages.
-import { SITE_DESCRIPTION, SITE_NAME, SITE_ORIGIN, SITE_TITLE } from '../site';
+import { GLOBAL_FEED_LABEL, SITE_DESCRIPTION, SITE_NAME, SITE_ORIGIN, SITE_TITLE } from '../site';
 import type { ExploreArticle, ExploreFeed } from '../types';
 import { escapeXml } from '../utils/coerce';
 
@@ -61,7 +61,7 @@ function renderItem(article: ExploreArticle): string {
 }
 
 /** Render an `ExploreFeed` as an RSS 2.0 document. `scopeLabel` is 'All
- *  hardware' for the global feed, a category label for a hub feed.
+ *  tech' for the global feed, a category label for a hub feed.
  *  `channelLink` lets the per-category feed jump a reader into the matching
  *  hub. */
 export function renderExploreRss(
@@ -70,7 +70,7 @@ export function renderExploreRss(
   options: { includeAtomSelfLink?: string; channelLink?: string } = {},
 ): string {
   const channelTitle =
-    scopeLabel === 'All hardware' ? SITE_TITLE : `${SITE_NAME} — ${scopeLabel} news`;
+    scopeLabel === GLOBAL_FEED_LABEL ? SITE_TITLE : `${SITE_NAME} — ${scopeLabel} news`;
   const channelLink = options.channelLink ?? `${SITE_ORIGIN}/`;
   const channelDescription = SITE_DESCRIPTION;
   const published = new Date().toUTCString();

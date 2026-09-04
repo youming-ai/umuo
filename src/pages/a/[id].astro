@@ -3,7 +3,7 @@ import { env } from 'cloudflare:workers';
 import { CATEGORIES } from '../../categories';
 import { getArticle, getRelatedArticles } from '../../data/api';
 import Layout from '../../layouts/Layout.astro';
-import { SITE_NAME, SITE_ORIGIN, articleDeck, articlePath } from '../../site';
+import { GLOBAL_FEED_LABEL, SITE_NAME, SITE_ORIGIN, articleDeck, articlePath } from '../../site';
 
 export const prerender = false;
 
@@ -22,10 +22,10 @@ const relatedArticles = await getRelatedArticles(
 
 const category = article.category ? CATEGORIES[article.category] : null;
 const backHref = category ? `/${article.category}` : '/';
-const backLabel = category?.label ?? 'All hardware';
+const backLabel = category?.label ?? GLOBAL_FEED_LABEL;
 const summary = articleDeck(article, 'long');
 const blurb = article.blurb && article.blurb !== summary ? article.blurb : null;
-const domain = article.sourceDomain || article.sourceName || 'hardware source';
+const domain = article.sourceDomain || article.sourceName || 'tech source';
 const pubDate = new Date(article.publishedAt);
 const pubIso = pubDate.toISOString();
 const pubDisplay = pubDate.toLocaleDateString('en-US', {
@@ -78,7 +78,7 @@ const jsonLd = [
     },
     mainEntityOfPage: { '@type': 'WebPage', '@id': selfUrl },
     url: selfUrl,
-    articleSection: category?.label ?? 'Hardware',
+    articleSection: category?.label ?? 'Tech',
     ...(article.tags.length > 0 ? { keywords: article.tags.join(', ') } : {}),
     ...(article.imageUrl ? { image: article.imageUrl } : {}),
     isBasedOn: article.url,
@@ -226,7 +226,7 @@ const ogImageUrl = article.imageUrl ?? undefined;
       <section class="mt-12 border-t border-line/40 pt-8">
         <div class="mb-4 flex items-baseline justify-between">
           <h2 class="font-display text-xl font-bold text-chalk">
-            Related Hardware News
+            Related Tech News
           </h2>
           <span class="ds-caption text-pitch">AI Curated</span>
         </div>

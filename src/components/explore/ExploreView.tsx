@@ -1,6 +1,7 @@
 import type { FormEvent, ReactNode } from 'react';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { CATEGORIES } from '../../categories';
+import { CATEGORIES, CATEGORY_GROUPS } from '../../categories';
+import { GLOBAL_FEED_LABEL } from '../../site';
 import type { ExploreFeed, ExploreFilterOption, ExploreFilterSet } from '../../types';
 import Logo from '../Logo';
 import ThemeSwitcher from '../ThemeSwitcher';
@@ -58,33 +59,44 @@ function FilterRow({
   );
 }
 
-function FilterGroup({
-  title,
-  allLabel,
+/** Category rail: one All row, then the registry's group sections in display
+ *  order. Registry joins are static on both server and client, so SSR and
+ *  hydration render identically. */
+function CategoryRail({
   options,
   value,
   hrefFor,
 }: {
-  title: string;
-  allLabel: string;
   options: ExploreFilterOption[];
   value: string;
   hrefFor: (value: string) => string;
 }) {
-  if (options.length === 0) return null;
   const total = options.reduce((sum, option) => sum + option.count, 0);
+  const groups = CATEGORY_GROUPS.map((group) => ({
+    ...group,
+    options: options.filter((option) => CATEGORIES[option.value]?.group === group.key),
+  })).filter((group) => group.options.length > 0);
   return (
     <div>
-      <p className="px-2 pb-1 ds-micro uppercase tracking-caption text-chalkdim">{title}</p>
-      <FilterRow label={allLabel} count={total} active={!value} href={hrefFor('')} />
-      {options.map((option) => (
-        <FilterRow
-          key={option.value}
-          label={option.label}
-          count={option.count}
-          active={value === option.value}
-          href={hrefFor(option.value)}
-        />
+      <div>
+        <p className="px-2 pb-1 ds-micro uppercase tracking-caption text-chalkdim">Topics</p>
+        <FilterRow label={GLOBAL_FEED_LABEL} count={total} active={!value} href={hrefFor('')} />
+      </div>
+      {groups.map((group) => (
+        <div key={group.key}>
+          <p className="px-2 pt-3 pb-1 ds-micro uppercase tracking-caption text-chalkdim">
+            {group.label}
+          </p>
+          {group.options.map((option) => (
+            <FilterRow
+              key={option.value}
+              label={option.label}
+              count={option.count}
+              active={value === option.value}
+              href={hrefFor(option.value)}
+            />
+          ))}
+        </div>
       ))}
     </div>
   );
@@ -192,21 +204,17 @@ export default function ExploreView({
   }
 
   const rail: ReactNode = (
-    <div>
-      <FilterGroup
-        title="Categories"
-        allLabel="All hardware"
-        options={initialFilters.categories}
-        value={initialCategory}
-        hrefFor={(value) => (value ? `/${value}` : '/')}
-      />
-    </div>
+    <CategoryRail
+      options={initialFilters.categories}
+      value={initialCategory}
+      hrefFor={(value) => (value ? `/${value}` : '/')}
+    />
   );
 
   const feed =
     loading && items.length === 0 ? (
       <div className={MASONRY_CLASS} role="status">
-        <span className="sr-only">Loading hardware news</span>
+        <span className="sr-only">Loading tech news</span>
         {Array.from({ length: 8 }, (_, index) => (
           // biome-ignore lint/suspicious/noArrayIndexKey: skeleton items have no identity
           <div key={index} className="mb-3 h-56 animate-pulse rounded-card bg-overlay/5" />
@@ -217,7 +225,7 @@ export default function ExploreView({
         No stories match these filters. Clear one to widen the desk.
       </p>
     ) : viewMode === 'list' ? (
-      <ol className="divide-y divide-line/30 border-b border-line/30" aria-label="Hardware news">
+      <ol className="divide-y divide-line/30 border-b border-line/30" aria-label="Tech news">
         {items.map((article) => (
           <ExploreCard key={article.id} article={article} variant="list" />
         ))}
@@ -226,7 +234,7 @@ export default function ExploreView({
       // Native CSS multi-column, not a masonry lib. Fills column-major
       // (items 1..n down column 1); swap in an SSR round-robin split if
       // reading order ever has to be exact.
-      <section className={MASONRY_CLASS} aria-label="Hardware news">
+      <section className={MASONRY_CLASS} aria-label="Tech news">
         {items.map((article) => (
           <ExploreCard key={article.id} article={article} />
         ))}
@@ -243,7 +251,7 @@ export default function ExploreView({
           className="relative flex min-w-0 flex-1 sm:max-w-md lg:ml-8 lg:mr-auto lg:max-w-sm"
         >
           <label className="sr-only" htmlFor="explore-search">
-            Search hardware news
+            Search tech news
           </label>
           <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-chalkdim">
             <svg
