@@ -35,6 +35,17 @@ function apiUrl(query: ExploreQueryState): string {
 }
 
 /** One category link in the rail. */
+function SkeletonCards({ count }: { count: number }) {
+  return (
+    <>
+      {Array.from({ length: count }, (_, index) => (
+        // biome-ignore lint/suspicious/noArrayIndexKey: skeleton items have no identity
+        <div key={index} className="mb-3 h-56 animate-pulse rounded-card bg-overlay/5" />
+      ))}
+    </>
+  );
+}
+
 function FilterRow({
   label,
   count,
@@ -215,10 +226,7 @@ export default function ExploreView({
     loading && items.length === 0 ? (
       <div className={MASONRY_CLASS} role="status">
         <span className="sr-only">Loading tech news</span>
-        {Array.from({ length: 8 }, (_, index) => (
-          // biome-ignore lint/suspicious/noArrayIndexKey: skeleton items have no identity
-          <div key={index} className="mb-3 h-56 animate-pulse rounded-card bg-overlay/5" />
-        ))}
+        <SkeletonCards count={8} />
       </div>
     ) : items.length === 0 ? (
       <p className="p-16 text-center ds-body text-chalkdim">
@@ -355,10 +363,7 @@ export default function ExploreView({
           {loading && items.length > 0 && (
             <div className={MASONRY_CLASS} role="status" aria-live="polite">
               <span className="sr-only">Loading more stories</span>
-              {Array.from({ length: 4 }, (_, index) => (
-                // biome-ignore lint/suspicious/noArrayIndexKey: skeleton items have no identity
-                <div key={index} className="mb-3 h-56 animate-pulse rounded-card bg-overlay/5" />
-              ))}
+              <SkeletonCards count={4} />
             </div>
           )}
 
