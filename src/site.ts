@@ -8,9 +8,14 @@ export const SITE_ORIGIN = 'https://umuo.app';
 // or positioning change edits one file, not three.
 // TODO(template): replace with your brand.
 export const SITE_NAME = 'umuo';
-export const SITE_TITLE = 'umuo — AI-curated hardware news';
+export const SITE_TITLE = 'umuo — AI-curated tech news';
 export const SITE_DESCRIPTION =
-  'AI-curated PC hardware and peripherals news from trusted sources, organized by category and source.';
+  'AI-curated technology news — AI, consumer electronics, and PC hardware — from trusted sources, organized by category and source.';
+
+/** Scope label for the global (uncategorised) feed: the rail's All row, the
+ *  RSS channel-title marker, and the article page's back link. Single source
+ *  of truth so the marker comparison in exploreRss.ts can't drift. */
+export const GLOBAL_FEED_LABEL = 'All tech';
 export const SITE_LOCALE = 'en_US';
 export const SITE_LANGUAGE = 'en';
 

@@ -5,13 +5,13 @@
 [![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/youming-ai/umuo)
 [![Bun](https://img.shields.io/badge/bun-%3E%3D1.4-black)](https://bun.sh) [![Astro](https://img.shields.io/badge/Astro-7.x-ff5d01)](https://astro.build) [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](./LICENSE)
 
-*No ads, no tracking. The bundled config is a PC hardware & peripherals desk — the taxonomy in `src/categories.ts` and the sources in `src/feeds/sources.ts` are yours to replace.*
+*No ads, no tracking. The bundled config is a technology desk (AI, consumer electronics, PC hardware & peripherals) — the taxonomy in `src/categories.ts` and the sources in `src/feeds/sources.ts` are yours to replace.*
 
 ---
 
 ## Features
 
-- **15-min cron ingest** — fans out over any RSS/Atom sources, de-duplicates by fingerprint + normalized title, enriches in LLM chunks of 8
+- **15-min cron ingest** — fans out over 20 RSS/Atom sources, de-duplicates by fingerprint + normalized title, enriches in LLM chunks of 8
 - **LLM agnostic** — any OpenAI-compatible `chat/completions` endpoint (`deepseek-v4-flash` by default, `LLM_BASE_URL`/`LLM_MODEL` configurable)
 - **KV SWR cache** — `runCached` with stale-while-revalidate, request coalescing, bounded keys (free-text `q` bypasses KV)
 - **Masonry board** — native CSS multi-column, infinite scroll, per-category `/[category]` hubs

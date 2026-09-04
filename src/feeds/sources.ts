@@ -2,9 +2,10 @@ import { CATEGORIES } from '../categories';
 import type { FeedSource } from './types';
 
 // FEED_SOURCES is the single registry consumed by ingest; keep id stable (used
-// as D1 source_id). Every URL here was probe-verified (200 + RSS/Atom body).
-const HARDWARE_RSS_SOURCES: FeedSource[] = [
-  // --- Broad PC hardware desks ---
+// as D1 source_id). Every URL here was probe-verified (200 + RSS/Atom body)
+// with the exact RSS_HEADERS UA.
+const FEED_SOURCE_DEFS: FeedSource[] = [
+  // --- Broad tech desks (mixed verticals: AI, phones, laptops, hardware) ---
   {
     id: 'toms-hardware',
     kind: 'rss',
@@ -77,6 +78,54 @@ const HARDWARE_RSS_SOURCES: FeedSource[] = [
     authorityScore: 78,
     defaultEnabled: true,
   },
+  // --- AI desks: publisher-declared category=ai, so the vertical is
+  // attributed without waiting on AI enrichment. Anthropic publishes no RSS;
+  // VentureBeat's AI feed 429s our UA, so both stay out. ---
+  {
+    id: 'openai-news',
+    kind: 'rss',
+    name: 'OpenAI News',
+    url: 'https://openai.com/news/rss.xml',
+    category: 'ai',
+    authorityScore: 90,
+    defaultEnabled: true,
+  },
+  {
+    id: 'deepmind-blog',
+    kind: 'rss',
+    name: 'Google DeepMind Blog',
+    url: 'https://deepmind.google/blog/rss.xml',
+    category: 'ai',
+    authorityScore: 88,
+    defaultEnabled: true,
+  },
+  {
+    id: 'google-ai-blog',
+    kind: 'rss',
+    name: 'Google AI Blog',
+    url: 'https://blog.google/technology/ai/rss/',
+    category: 'ai',
+    authorityScore: 85,
+    defaultEnabled: true,
+  },
+  {
+    id: 'huggingface-blog',
+    kind: 'rss',
+    name: 'Hugging Face Blog',
+    url: 'https://huggingface.co/blog/feed.xml',
+    category: 'ai',
+    authorityScore: 80,
+    defaultEnabled: true,
+  },
+  // --- Mainstream tech desk ---
+  {
+    id: 'techcrunch',
+    kind: 'rss',
+    name: 'TechCrunch',
+    url: 'https://techcrunch.com/feed/',
+    authorityScore: 85,
+    defaultEnabled: true,
+  },
   // --- Category-vertical sources: the publisher has already told us which
   // category a story belongs to, so `category` is attributed without waiting
   // on AI enrichment.
@@ -139,12 +188,12 @@ const HARDWARE_RSS_SOURCES: FeedSource[] = [
 
 // Registry self-check: preset categories must exist in the registry, otherwise
 // a typo silently misfiles every story from that source.
-for (const source of HARDWARE_RSS_SOURCES) {
+for (const source of FEED_SOURCE_DEFS) {
   if (source.category && !Object.hasOwn(CATEGORIES, source.category)) {
     throw new Error(`source ${source.id} declares unknown category ${source.category}`);
   }
 }
 
-export const FEED_SOURCES = [...HARDWARE_RSS_SOURCES] satisfies FeedSource[];
+export const FEED_SOURCES = [...FEED_SOURCE_DEFS] satisfies FeedSource[];
 
 export const FEED_SOURCE_BY_ID = new Map(FEED_SOURCES.map((source) => [source.id, source]));

@@ -35,7 +35,7 @@ export default function ExploreCard({
 }) {
   const date = publishedDate(article.publishedAt);
   const score = scoreValue(article.qualityScore);
-  const domain = article.sourceDomain || article.sourceName || 'hardware source';
+  const domain = article.sourceDomain || article.sourceName || 'tech source';
   // Prefer short blurb on card stream; full summary is featured on detail page.
   const description = articleDeck(article, 'short');
 

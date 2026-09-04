@@ -2,9 +2,9 @@
 
 ## Project Overview
 
-**umuo** is an AI-curated PC hardware & peripherals news desk. A Cloudflare cron pulls 15 RSS/Atom feed sources every 15 minutes, a B.AI chat-completions agent (OpenAI-compatible, model `deepseek-v4-flash`) classifies and summarises each new article into D1, and an Astro SSR app renders that corpus as a full-bleed masonry board with a source / category / topic index.
+**umuo** is an AI-curated technology news desk (AI, consumer electronics, PC hardware & peripherals). A Cloudflare cron pulls 20 RSS/Atom feed sources every 15 minutes, a B.AI chat-completions agent (OpenAI-compatible, model `deepseek-v4-flash`) classifies and summarises each new article into D1, and an Astro SSR app renders that corpus as a full-bleed masonry board with a source / category / topic index.
 
-2026 pivot: the original football desk was replaced with a keyboard/mouse/peripherals/PC-hardware desk. The ESPN scoreboard and league-news JSON half is gone entirely; ingestion is RSS/Atom-only.
+2026 pivots: the original football desk was replaced with a PC-hardware desk, which then widened to the full tech desk (the ESPN scoreboard, league-news JSON, and BBC image rewriter are gone entirely; ingestion is RSS/Atom-only).
 
 ## Architecture & Data Flow
 
@@ -19,15 +19,15 @@ graph TD
   Home["/ and /:category"] --> Explore[getExploreFeed] --> KV1[(KV CACHE)] --> D1
 ```
 
-`ingestAllSources` fans out over `FEED_SOURCES` (15 verified RSS/Atom sources: 9 broad hardware desks + 5 category-verticals with publisher-declared `category` + 1 Reddit community feed, 2 of the verticals being keyboard/mouse subreddits), normalises to `RawArticle`, drops anything whose fingerprint or normalized title is already stored, and enriches the survivors directly in sequential chunks of eight. Each completed chunk is written to D1 before the next chunk starts, so a long backlog keeps its progress if the scheduled invocation ends early. Reads go through `getExploreFeed` / `getExploreFilters`, cached in KV.
+`ingestAllSources` fans out over `FEED_SOURCES` (20 verified RSS/Atom sources: 9 broad tech desks + 4 AI publisher blogs + TechCrunch + 3 category-verticals with publisher-declared `category` + 3 Reddit community feeds, 2 of the verticals being keyboard/mouse subreddits), normalises to `RawArticle`, drops anything whose fingerprint or normalized title is already stored, and enriches the survivors directly in sequential chunks of eight. Each completed chunk is written to D1 before the next chunk starts, so a long backlog keeps its progress if the scheduled invocation ends early. Reads go through `getExploreFeed` / `getExploreFilters`, cached in KV.
 
 ## Key Directories
 
 - `src/pages/` — `/` (news home), `/[category]` (per-category hub), `/a/[id]` (article detail), `api/[...route].ts` (delegates to `worker/index.ts`), `rss.xml.ts` + `[category]/rss.xml.ts` (RSS 2.0), `sitemap.xml.ts`, `sitemap-news.xml.ts`.
 - `src/feeds/` — the news pipeline. `sources.ts` (registry, with publisher-declared category presets), `ingest.ts` (cron-side fetch, dedupe, chunked enrichment), `rss.ts` (regex RSS/Atom parse), `llm.ts` (model I/O + validation), `enrich.ts` (dedupe + write), `retention.ts` (sweep + `PRUNE_CRON`), `readable.ts` (HTML→text body extraction), `types.ts`.
-- `src/categories.ts` — the 10-category registry (peripherals: keyboards/mice/audio/gear; hardware: gpu/cpu/memory/storage/monitor/cooling).
+- `src/categories.ts` — the 14-category registry in four groups (`CATEGORY_GROUPS`: ai; consumer: phones/tablets/laptops; hardware: gpu/cpu/memory/storage/monitor/cooling; peripherals: keyboards/mice/audio/gear).
 - `src/data/api.ts` — KV SWR core (`runCached`/`json`) facade + the D1 explore queries and SSR composers (implementation split across `cache.ts`, `explore.ts`, `article.ts`, `sitemapData.ts`).
-- `src/components/explore/` — `ExploreView` (rail, toolbar, masonry, infinite scroll), `ExploreCard`. `Logo`/`Footer` are shared chrome.
+- `src/components/explore/` — `ExploreView` (grouped category rail, toolbar, masonry, infinite scroll), `ExploreCard`. `Logo`/`Footer` are shared chrome.
 - `migrations/` — D1 schema (0001–0009). Applied by `bun run deploy`, never automatically.
 - `worker/entrypoint.ts` — `fetch` (Astro), `scheduled` (cron). `worker/index.ts` is the `/api/*` dispatcher (explore endpoints + ASSETS passthrough).
 - `design-tokens/` — W3C design-tokens JSON; `src/index.css` and `tailwind.config.js` map to it.
@@ -50,18 +50,18 @@ Bun locally, `workerd` in production.
 - **SSR, no client router.** Every view is an independent document. Navigation is `<a href>`; there is no history API. Anything an island renders must be identical on the server and at hydration — dates are formatted UTC-only.
 - **KV SWR core** (`runCached`): fresh window → `HIT`, in-flight coalescing via a module-level `Map`, upstream failure serves stored stale data as `STALE` or 502. Emits `x-cache`. D1 queries (explore feed, filters, sitemaps) go through it; free-text search bypasses KV.
 - **Degrade, don't crash**: SSR composers return empty arrays on failure; the explore island swallows `AbortError` and keeps the last good state. Pages never query D1 directly — they go through `src/data/api.ts` getters.
-- **Registries are the source of truth.** `src/categories.ts` (10 hardware categories), `src/feeds/sources.ts` (feeds, with optional publisher-declared `category`), `src/site.ts` (canonical origin for canonical/og/sitemap). Adding a category is registry-only. `sources.ts` throws at import time if a source declares an unknown category.
+- **Registries are the source of truth.** `src/categories.ts` (14 categories in four groups), `src/feeds/sources.ts` (feeds, with optional publisher-declared `category`), `src/site.ts` (canonical origin for canonical/og/sitemap). Adding a category is registry-only. `sources.ts` throws at import time if a source declares an unknown category.
 - **Cancellation**: `ExploreView`'s fetch binds an `AbortController`; the effect aborts on unmount and key change.
 - **Copy is English**; Chinese comments explaining non-obvious logic are kept when editing around them.
 - **Commits** carry `Co-Authored-By: Claude <noreply@anthropic.com>`.
 
 ## Important Files
 
-- `src/categories.ts` — `CATEGORIES: Record<string, Category>` (10 keys: keyboards, mice, audio, gear, gpu, cpu, memory, storage, monitor, cooling). **The single validation gate** for category values — routes, facet filtering, KV-key safety, and enrichment fallback all check against it.
+- `src/categories.ts` — `CATEGORIES: Record<string, Category>` (14 keys: ai, phones, tablets, laptops, keyboards, mice, audio, gear, gpu, cpu, memory, storage, monitor, cooling; each carries a `group` the explore rail renders by). **The single validation gate** for category values — routes, facet filtering, KV-key safety, and enrichment fallback all check against it.
 - `src/site.ts` — `SITE_ORIGIN`, `articlePath(id)` → `/a/{id}`, `articleDeck(article, 'short'|'long')`. The image-proxy helper was removed with the football desk; cards render feed images directly and hide broken ones.
 - `src/data/api.ts` — `runCached`, `serveExplore`, `serveExploreRss`, `getExploreFeed`/`getExploreFilters`/`getArticle`/`getRelatedArticles`, sitemap composers. `EXPLORE_ARTICLE_COLUMNS` is the single shared projection.
 - `src/feeds/ingest.ts` — `ingestAllSources(env, ctx)`, `canonicalizeUrl`, `fingerprintFor`, `fetchWithRetry`, `RSS_HEADERS`.
-- `src/feeds/llm.ts` — `enrichWithLLM`/`enrichBatchWithLLM`, `CLASSIFIER_RULES` editorial prompt, `CONTROLLED_TAGS` (24 hardware tags).
+- `src/feeds/llm.ts` — `enrichWithLLM`/`enrichBatchWithLLM`, `CLASSIFIER_RULES` editorial prompt, `CONTROLLED_TAGS` (35 tags spanning AI, consumer electronics and hardware).
 - `src/feeds/enrich.ts` — `enrichBatch`, `storeEnrichedArticle`, `canonicalCategory`, `normalizeTag`, `MIN_QUALITY_SCORE`.
 - `src/feeds/retention.ts` — `PRUNE_CRON = '17 3 * * *'`, `ARTICLE_ARCHIVE_DAYS = 90`.
 - `worker/entrypoint.ts` / `worker/index.ts` — see Key Directories.
@@ -99,15 +99,15 @@ Patterns:
 - Module mocking via `vi.hoisted` + `vi.mock` before importing the module under test (see `ingest.batch.test.ts`).
 - **Binding tests** pin duplicated constants to their on-disk copy: `retention.cron.test.ts` (wrangler.toml `crons` ↔ `PRUNE_CRON`), `index.css.test.ts` (design-tokens ↔ `index.css`). File-reading tests use `resolve(process.cwd(), …)` — jsdom mangles `import.meta.url`.
 
-**A passing suite is not evidence code runs.** Modules have kept green suites long after nothing imported them. When you delete a module, delete its tests, then walk imports from every route, `middleware.ts` and `worker/entrypoint.ts` to see what else is orphaned. (Done for the football removal: `newsFeed.ts`, its JSON contract, the `obj/arr/str/slugify` ESPN coercers and the BBC image rewriter all went together.)
+**A passing suite is not evidence code runs.** Modules have kept green suites long after nothing imported them. When you delete a module, delete its tests, then walk imports from every route and `worker/entrypoint.ts` to see what else is orphaned. (Done for the football removal: `newsFeed.ts`, its JSON contract, the `obj/arr/str/slugify` ESPN coercers and the BBC image rewriter all went together.)
 
 ## Gotchas
 
 Each of these cost real debugging. They are not hypothetical.
 
-- **Some hardware publishers WAF non-browser agents.** Guru3D's `/rss/` path, VideoCardz and Overclock3D serve Cloudflare challenges to `curl`-style UAs — the verified URLs live in `sources.ts` (e.g. Guru3D works at `/rss.xml`, not `/rss/`). If a source goes dry, re-probe its URL with the exact `RSS_HEADERS` UA before assuming the pipeline is broken; Reddit returns transient 429s that `fetchWithRetry` absorbs.
-- **Publisher-declared categories are presets, not law.** `source.category` pre-fills attribution, but `canonicalCategory` lets the LLM override it; the model may also return `''` for cross-category stories (laptops, full builds, industry news). Never assume a source's articles all share its preset.
-- **`is_on_topic` gates everything.** Off-topic stories (phones, consoles, games, pure-software/AI news) are stored as `filtered` regardless of quality score. When adding sources that mix verticals (The Verge, Ars), trust the model gate — do not pre-filter by keyword in code.
+- **Some publishers WAF non-browser agents.** Anthropic publishes no RSS and VentureBeat's AI feed 429s our UA — both were probed and left out. Guru3D's `/rss/` path, VideoCardz and Overclock3D serve Cloudflare challenges to `curl`-style UAs — the verified URLs live in `sources.ts` (e.g. Guru3D works at `/rss.xml`, not `/rss/`). If a source goes dry, re-probe its URL with the exact `RSS_HEADERS` UA before assuming the pipeline is broken; Reddit returns transient 429s that `fetchWithRetry` absorbs.
+- **Publisher-declared categories are presets, not law.** `source.category` pre-fills attribution, but `canonicalCategory` lets the LLM override it; the model may also return `''` for cross-category stories (full builds, industry/business news, general tech policy). Never assume a source's articles all share its preset.
+- **`is_on_topic` gates everything.** Off-topic stories (games/esports, game consoles, crypto, cars/EVs, pure science or space, non-tech current events) are stored as `filtered` regardless of quality score; phones, tablets, laptops and AI stories ARE on-topic now. When adding sources that mix verticals (The Verge, Ars, TechCrunch), trust the model gate — do not pre-filter by keyword in code.
 - **Explore cursors are keyset, not offsets** — `<day_bucket>:<quality_score>:<published_at>:<id>`, where the day bucket is `floor(published_at/86400000)` and immutable, so the keyset is stable under inserts. Type guards on `ExploreFeed.nextCursor` must say `string`; when one said `number`, every SSR page silently reported the feed exhausted.
 - **`PRUNE_CRON` is duplicated in `wrangler.toml`** because a Worker cannot read that file. `retention.cron.test.ts` holds them together. Anything that is not `PRUNE_CRON` is treated as an ingest tick, so a stray third schedule means an extra full fan-out.
 - **Never DELETE from `articles`.** Retention archives instead: dropping a row takes its `canonical_url` and `fingerprint` with it, and the next tick re-ingests and re-enriches the same story. Deletion costs LLM calls. (Migration 0009 soft-offlined the whole football corpus with one `status = 'archived'` UPDATE for exactly this reason.)

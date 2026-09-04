@@ -3,7 +3,7 @@
 // milliseconds. If the JSON shape ExploreArticle carries ever changes,
 // renderExploreRss is the most likely place to feel it first.
 import { describe, expect, it } from 'vitest';
-import { SITE_DESCRIPTION, SITE_NAME, SITE_ORIGIN, SITE_TITLE } from '../site';
+import { GLOBAL_FEED_LABEL, SITE_DESCRIPTION, SITE_NAME, SITE_ORIGIN, SITE_TITLE } from '../site';
 import { renderExploreRss } from './exploreRss';
 import type { ExploreFeed } from '../types';
 
@@ -48,7 +48,7 @@ function article(
 
 describe('renderExploreRss', () => {
   it('starts with an XML declaration line, then the rss root', () => {
-    const xml = renderExploreRss({ items: [], nextCursor: null }, 'All hardware');
+    const xml = renderExploreRss({ items: [], nextCursor: null }, GLOBAL_FEED_LABEL);
     expect(xml.startsWith('<?xml version="1.0" encoding="UTF-8"?>')).toBe(true);
     expect(xml).toContain('<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">');
     expect(xml).toContain(`<title>${SITE_TITLE}</title>`);
@@ -75,7 +75,7 @@ describe('renderExploreRss', () => {
         ],
         nextCursor: null,
       },
-      'All hardware',
+      GLOBAL_FEED_LABEL,
     );
     expect(xml).toContain('<item>');
     expect(xml).toContain('<title>A new flagship GPU breaks cover</title>');
@@ -102,7 +102,7 @@ describe('renderExploreRss', () => {
         ],
         nextCursor: null,
       },
-      'All hardware',
+      GLOBAL_FEED_LABEL,
     );
     expect(xml).toContain('Nvidia &quot;wins&quot; &lt;3&gt; &amp; forgets the rest');
     expect(xml).toContain('They said &quot;lucky&quot; &amp; left.');
@@ -123,7 +123,7 @@ describe('renderExploreRss', () => {
 
     const fromBlurb = renderExploreRss(
       { items: [article({ summary: '', blurb: 'from blurb' })], nextCursor: null },
-      'All hardware',
+      GLOBAL_FEED_LABEL,
     );
     expect(itemsOnly(fromBlurb)).toContain('<description>from blurb</description>');
 
@@ -132,13 +132,13 @@ describe('renderExploreRss', () => {
         items: [article({ summary: '', blurb: '', description: 'publisher copy' })],
         nextCursor: null,
       },
-      'All hardware',
+      GLOBAL_FEED_LABEL,
     );
     expect(itemsOnly(fromDescription)).toContain('<description>publisher copy</description>');
 
     const empty = renderExploreRss(
       { items: [article({ summary: '', blurb: '', description: '' })], nextCursor: null },
-      'All hardware',
+      GLOBAL_FEED_LABEL,
     );
     expect(itemsOnly(empty)).not.toContain('<description>');
   });
@@ -148,13 +148,13 @@ describe('renderExploreRss', () => {
   // here would have been dead code the moment the clamp sat below it.
   it('renders every item it is handed', () => {
     const items = Array.from({ length: 120 }, (_, i) => article({ id: `id-${i}` }));
-    const xml = renderExploreRss({ items, nextCursor: null }, 'All hardware');
+    const xml = renderExploreRss({ items, nextCursor: null }, GLOBAL_FEED_LABEL);
     expect(xml.match(/<item>/g)).toHaveLength(120);
     expect(xml).toContain('<guid isPermaLink="false">id-119</guid>');
   });
 
   it('renders an Atom self link when given one', () => {
-    const xml = renderExploreRss({ items: [], nextCursor: null }, 'All hardware', {
+    const xml = renderExploreRss({ items: [], nextCursor: null }, GLOBAL_FEED_LABEL, {
       includeAtomSelfLink: '/rss.xml',
     });
     expect(xml).toContain('<atom:link href="/rss.xml" rel="self" type="application/rss+xml" />');
@@ -169,7 +169,7 @@ describe('renderExploreRss', () => {
   });
 
   it('falls back to the global origin when no channel link is supplied', () => {
-    const xml = renderExploreRss({ items: [], nextCursor: null }, 'All hardware');
+    const xml = renderExploreRss({ items: [], nextCursor: null }, GLOBAL_FEED_LABEL);
     expect(xml).toContain(`<link>${SITE_ORIGIN}/</link>`);
   });
 });

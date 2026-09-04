@@ -4,8 +4,8 @@ import type { SitemapData } from './data/api';
 import { renderGoogleNewsSitemap, renderSitemap, sitemapEntries } from './sitemap';
 import { SITE_NAME, SITE_ORIGIN } from './site';
 
-// Mirrors what production actually holds: three hardware hubs with content, and
-// no vacuum hub, because the desk is PC hardware & peripherals only.
+// Mirrors what production actually holds: three hubs with content, and
+// no /phones, because the sitemap only lists hubs the desk has published in.
 const DATA: SitemapData = {
   hubs: [
     { category: 'keyboards', lastmod: '2026-08-07T09:03:08.000Z' },

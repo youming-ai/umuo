@@ -38,8 +38,9 @@ export interface RawArticle {
 export type ArticleType = 'news' | 'review' | 'deal' | 'leak' | 'analysis' | 'guide' | 'video';
 
 export interface ArticleEnrichment {
-  /** True only for on-topic stories (PC hardware & peripherals). Off-topic
-   *  items are stored as filtered regardless of quality. */
+  /** True only for on-topic stories (technology: AI, consumer electronics,
+   *  PC hardware, peripherals). Off-topic items are stored as filtered
+   *  regardless of quality. */
   isOnTopic: boolean;
   /** Canonical category key from src/categories.ts, or '' when the story
    *  doesn't clearly belong to one category. */

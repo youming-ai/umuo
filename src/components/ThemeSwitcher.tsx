@@ -3,11 +3,6 @@ import { useEffect, useState } from 'react';
 type Theme = 'dark' | 'light';
 
 const STORAGE_KEY = 'theme';
-const CYCLE: Theme[] = ['dark', 'light'];
-const THEME_LABELS: Record<Theme, string> = {
-  dark: 'Dark theme',
-  light: 'Light theme',
-};
 
 function detectTheme(): Theme {
   try {
@@ -34,7 +29,7 @@ export default function ThemeSwitcher() {
   }, []);
 
   const cycle = () => {
-    const next = CYCLE[(CYCLE.indexOf(theme ?? 'dark') + 1) % CYCLE.length]!;
+    const next: Theme = theme === 'light' ? 'dark' : 'light';
     try {
       localStorage.setItem(STORAGE_KEY, next);
     } catch {
@@ -44,7 +39,7 @@ export default function ThemeSwitcher() {
     setTheme(next);
   };
 
-  const label = theme ? THEME_LABELS[theme] : 'Theme';
+  const label = theme === 'dark' ? 'Dark theme' : theme === 'light' ? 'Light theme' : 'Theme';
 
   return (
     <button

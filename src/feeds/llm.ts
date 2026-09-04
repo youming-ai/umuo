@@ -1,3 +1,4 @@
+import { CATEGORIES } from '../categories';
 import { sleep } from '../utils/coerce';
 import type { ArticleEnrichment, RawArticle } from './types';
 
@@ -44,10 +45,19 @@ function parseBatch(v: unknown): ArticleEnrichment[] {
   return results.map(parseEnrichment);
 }
 
+// Category values are derived from the registry, not hardcoded — the prompt
+// must never drift from src/categories.ts when a category is added.
+const CATEGORY_KEYS = Object.values(CATEGORIES)
+  .map((c) => c.key)
+  .join(', ');
+const CATEGORY_GLOSSARY = Object.values(CATEGORIES)
+  .map((c) => `${c.key} ${c.label}`)
+  .join('; ');
+
 const JSON_FIELDS = [
   'Respond as a JSON object with exactly these fields:',
-  '- isOnTopic: boolean — true only for PC hardware and peripherals stories',
-  '- category: string — "keyboards", "mice", "audio", "gear", "gpu", "cpu", "memory", "storage", "monitor", "cooling", or ""',
+  '- isOnTopic: boolean — true only for technology stories',
+  `- category: string — one of: ${CATEGORY_KEYS}, or ""`,
   `- articleType: string — one of: ${ARTICLE_TYPES.join(', ')}`,
   '- tags: string[] — up to 8 short lowercase-hyphen topic tags, preferring the controlled vocabulary; brand/product names allowed',
   '- summary: string — one factual sentence, at most 280 characters',
@@ -56,6 +66,11 @@ const JSON_FIELDS = [
 ].join('\n');
 
 const CONTROLLED_TAGS = [
+  'ai',
+  'llm',
+  'agents',
+  'models',
+  'research',
   'keyboards',
   'keycaps',
   'switches',
@@ -64,6 +79,12 @@ const CONTROLLED_TAGS = [
   'headsets',
   'earbuds',
   'controllers',
+  'smartphones',
+  'tablets',
+  'laptops',
+  'wearables',
+  'apps',
+  'chips',
   'gpu',
   'cpu',
   'motherboard',
@@ -83,20 +104,22 @@ const CONTROLLED_TAGS = [
 ] as const;
 
 const CLASSIFIER_RULES = [
-  'You are the editorial classification agent for a PC hardware and peripherals news site.',
-  'isOnTopic=true only for computer hardware and peripherals: keyboards, keycaps and switches; mice and mousepads; audio gear (headsets, earbuds, speakers, microphones); other desk gear (controllers, webcams, desks, chairs); GPUs, CPUs, motherboards, RAM, storage drives; monitors; cases, power supplies and cooling. Phones, tablets, smartwatches, game consoles, games, and pure-software or AI-policy stories are NOT on-topic.',
-  'Reject off-topic stories with isOnTopic=false and an empty category.',
+  'You are the editorial classification agent for a technology news site.',
+  'isOnTopic=true for technology stories: AI (model releases, agents, AI research, AI tooling and apps, AI industry); consumer electronics (phones, tablets, laptops, wearables, smart-home devices); computer hardware (GPUs, CPUs, motherboards, RAM, storage drives, monitors, cases, power supplies, cooling, chips and the semiconductor industry); peripherals (keyboards, keycaps and switches; mice and mousepads; audio gear such as headsets, earbuds, speakers and microphones; other desk gear such as controllers, webcams, desks and chairs); tech industry and business news; operating systems and consumer software.',
+  'Reject off-topic stories with isOnTopic=false and an empty category: games and esports, game consoles, crypto and blockchain, cars and EVs, pure science or space stories, and non-technology current events.',
   'Use only facts present in the source text. Do not invent specs, prices, release dates, or product names.',
-  'Rate qualityScore on editorial merit: a confidently-labelled leak is still low quality; a hands-on review with measured results or a well-sourced component announcement is high.',
+  'Rate qualityScore on editorial merit: a confidently-labelled leak is still low quality; a hands-on review with measured results or a well-sourced product or model announcement is high.',
   'Choose a canonical category only when the article is clearly about one:',
-  'keyboards Keyboards; mice Mice; audio Headphones & Audio; gear Other Peripherals; gpu Graphics Cards; cpu CPUs & Motherboards; memory RAM; storage SSDs & Drives; monitor Monitors; cooling Cases, PSUs & Cooling.',
-  'For cross-category hardware stories (laptops, full PC builds, industry/business news, roundups spanning many parts), leave category empty.',
-  `Tags: prefer the controlled vocabulary [${CONTROLLED_TAGS.join(', ')}]. You may also add proper-noun entity tags (brand/product names, e.g. "nvidia", "wooting", "rtx-5090"). Do not invent topical tags outside that list — pick the closest controlled tag instead.`,
+  `${CATEGORY_GLOSSARY}.`,
+  'For cross-category stories (full PC builds, company or industry news spanning many products, roundups spanning many products, general tech policy), leave category empty.',
+  `Tags: prefer the controlled vocabulary [${CONTROLLED_TAGS.join(', ')}]. You may also add proper-noun entity tags (brand/product names, e.g. "nvidia", "wooting", "rtx-5090", "openai", "iphone"). Do not invent topical tags outside that list — pick the closest controlled tag instead.`,
   'Examples:',
   '- "Keychron Q1 Max review: refined, thocky, and finally wireless" with measured results → isOnTopic=true, category=keyboards, articleType=review, tags=[keyboards, wireless, keychron], qualityScore~85.',
   '- "RTX 5080 Super pictured with 24GB" sourced only to a leaker → isOnTopic=true, category=gpu, articleType=leak, tags=[gpu, leak, nvidia], qualityScore~35.',
   '- "RX 7800 XT drops to $459 at Newegg" → isOnTopic=true, category=gpu, articleType=deal, tags=[deals, gpu, amd], qualityScore~70.',
-  '- "iPhone 18 rumor roundup: what to expect" → isOnTopic=false, category="".',
+  '- "Anthropic launches a coding-focused frontier model" → isOnTopic=true, category=ai, articleType=news, tags=[ai, llm, models, anthropic], qualityScore~85.',
+  '- "iPhone 18 rumor roundup: what to expect" → isOnTopic=true, category=phones, articleType=leak, tags=[smartphones, leak, apple, iphone], qualityScore~40.',
+  '- "Elden Ring patch notes: balance changes to PvP" → isOnTopic=false, category="".',
 ];
 
 function articleText(article: RawArticle): string {

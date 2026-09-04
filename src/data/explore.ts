@@ -1,4 +1,5 @@
 import { CATEGORIES } from '../categories';
+import { GLOBAL_FEED_LABEL } from '../site';
 import { num } from '../utils/coerce';
 import type {
   ExploreArticle,
@@ -10,7 +11,7 @@ import type {
 import { type Env, json, runCached } from './cache';
 import { renderExploreRss } from './exploreRss';
 
-// --- AI-curated hardware Explore feed (D1) ---
+// --- AI-curated tech Explore feed (D1) ---
 
 export interface ExploreQuery {
   category?: string;
@@ -319,7 +320,7 @@ export async function serveExploreRss(
 
   const scopeLabel = normalized.category
     ? (CATEGORIES[normalized.category]?.label ?? normalized.category)
-    : 'All hardware';
+    : GLOBAL_FEED_LABEL;
   // Per-category feeds link to /<category> so a reader clicking through lands
   // on the matching hub rather than the global home.
   const channelLink = normalized.category ? `${origin}/${normalized.category}` : `${origin}/`;

@@ -111,7 +111,8 @@ export async function storeEnrichedArticle(
   const category = canonicalCategory(enrichment.category, article.category);
   const isOnTopic = enrichment.isOnTopic;
   const qualityScore = score(article, enrichment);
-  const status = isOnTopic && qualityScore >= MIN_QUALITY_SCORE ? 'published' : 'filtered';
+  const passes = isOnTopic && qualityScore >= MIN_QUALITY_SCORE;
+  const status = passes ? 'published' : 'filtered';
   const articleId = article.fingerprint;
 
   await env.DB.batch([
@@ -155,6 +156,6 @@ export async function storeEnrichedArticle(
 
   return {
     id: articleId,
-    status: isOnTopic && qualityScore >= MIN_QUALITY_SCORE ? 'stored' : 'filtered',
+    status: passes ? 'stored' : 'filtered',
   };
 }

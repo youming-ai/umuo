@@ -1,4 +1,4 @@
-// --- AI-curated PC hardware & peripherals news (D1 content layer) ---
+// --- AI-curated technology news (D1 content layer) ---
 
 export type ExploreArticleType =
   | 'news'
