@@ -1,6 +1,5 @@
-import type { GoogleNewsArticleData, SitemapData } from './data/api';
-import { SITE_NAME, SITE_ORIGIN, articlePath } from './site';
-import { escapeXml } from './utils/coerce';
+import type { SitemapData } from './data/api';
+import { SITE_ORIGIN, articlePath } from './site';
 
 export interface SitemapEntry {
   path: string;
@@ -43,25 +42,4 @@ export function renderSitemap(entries: SitemapEntry[]): string {
     )
     .join('\n');
   return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls}\n</urlset>\n`;
-}
-
-export function renderGoogleNewsSitemap(articles: GoogleNewsArticleData[]): string {
-  const urls = articles
-    .map(({ id, title, publishedAt }) =>
-      [
-        '  <url>',
-        `    <loc>${SITE_ORIGIN}${articlePath(id)}</loc>`,
-        '    <news:news>',
-        '      <news:publication>',
-        `        <news:name>${escapeXml(SITE_NAME)}</news:name>`,
-        '        <news:language>en</news:language>',
-        '      </news:publication>',
-        `      <news:publication_date>${publishedAt}</news:publication_date>`,
-        `      <news:title>${escapeXml(title)}</news:title>`,
-        '    </news:news>',
-        '  </url>',
-      ].join('\n'),
-    )
-    .join('\n');
-  return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:news="http://www.google.com/schemas/sitemap-news/0.9">\n${urls}\n</urlset>\n`;
 }

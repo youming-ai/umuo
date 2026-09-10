@@ -69,7 +69,9 @@ function exploreArticleType(value: unknown): ExploreArticleType {
     'video',
   ];
   const candidate = rowString(value) as ExploreArticleType;
-  return allowed.includes(candidate) ? candidate : 'news';
+  // Unknown or NULL article_type falls back to 'link': every row this pipeline
+  // writes is a curated link, so a legacy value must not surface as 'news'.
+  return allowed.includes(candidate) ? candidate : 'link';
 }
 
 function sourceDomain(value: unknown): string {
