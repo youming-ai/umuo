@@ -4,7 +4,7 @@ export function num(v: unknown): number {
   return typeof v === 'number' && Number.isFinite(v) ? v : Number(v) || 0;
 }
 
-/** Shared HTML entity decoder for rss/readable. */
+/** Shared HTML entity decoder for rss. */
 export function decodeEntities(value: string): string {
   return value
     .replace(/<!\[CDATA\[([\s\S]*?)\]\]>/gi, '$1')

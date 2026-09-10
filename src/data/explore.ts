@@ -1,6 +1,5 @@
 import { CATEGORIES } from '../categories';
 import { GLOBAL_FEED_LABEL } from '../site';
-import { num } from '../utils/coerce';
 import type {
   ExploreArticle,
   ExploreArticleType,
@@ -8,10 +7,11 @@ import type {
   ExploreFilterOption,
   ExploreFilterSet,
 } from '../types';
+import { num } from '../utils/coerce';
 import { type Env, json, runCached } from './cache';
 import { renderExploreRss } from './exploreRss';
 
-// --- AI-curated tech Explore feed (D1) ---
+// --- Curated Explore feed (D1) ---
 
 export interface ExploreQuery {
   category?: string;
@@ -59,6 +59,7 @@ export const rowNumber = num;
 
 function exploreArticleType(value: unknown): ExploreArticleType {
   const allowed: ExploreArticleType[] = [
+    'link',
     'news',
     'review',
     'deal',
@@ -117,8 +118,8 @@ export function exploreArticle(row: ExploreRow): ExploreArticle {
 }
 
 /** Keyset cursor `<day>:<quality>:<published_at>:<id>`. The feed sorts by
- *  recency at day granularity first (newest day wins — a news desk must not
- *  pin a 75-day-old story above today's), then editorial quality within the
+ *  recency at day granularity first (newest day wins — an explore feed must not
+ *  pin a 75-day-old link above today's), then editorial quality within the
  *  day, then exact time, then id. Every key is immutable (the day bucket is
  *  floor(published_at / 86400000), not a now-relative window), so the keyset
  *  stays stable under the daily ingest inserts. Offset would slide under rows

@@ -6,20 +6,19 @@ export const SITE_ORIGIN = 'https://umuo.app';
 // Brand-facing copy. Single source of truth: the layout <title>/description
 // defaults and the RSS channel description import from here, so a rebrand
 // or positioning change edits one file, not three.
-// TODO(template): replace with your brand.
 export const SITE_NAME = 'umuo';
-export const SITE_TITLE = 'umuo — AI-curated tech news';
+export const SITE_TITLE = 'umuo — Curated explore feed';
 export const SITE_DESCRIPTION =
-  'AI-curated technology news — AI, consumer electronics, and PC hardware — from trusted sources, organized by category and source.';
+  'Curated links, tools, design, and articles from the web, organized by category.';
 
 /** Scope label for the global (uncategorised) feed: the rail's All row, the
  *  RSS channel-title marker, and the article page's back link. Single source
  *  of truth so the marker comparison in exploreRss.ts can't drift. */
-export const GLOBAL_FEED_LABEL = 'All tech';
+export const GLOBAL_FEED_LABEL = 'All links';
 export const SITE_LOCALE = 'en_US';
 export const SITE_LANGUAGE = 'en';
 
-/** Path prefix for AI-generated article summary pages. Single source of truth
+/** Path prefix for article summary pages. Single source of truth
  *  so the route, the sitemap, and the card links stay in sync. */
 export function articlePath(id: string): string {
   return `/a/${id}`;

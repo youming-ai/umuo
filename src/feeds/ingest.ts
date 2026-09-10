@@ -1,19 +1,13 @@
 import type { Env } from '../data/api';
-import { enrichBatch, normalizeTitle, storeEnrichedArticle } from './enrich';
-import { fillBody } from './readable';
+import { sleep } from '../utils/coerce';
+import { canonicalCategory, normalizeTitle, storeArticle } from './enrich';
 import { parseRss } from './rss';
 import { FEED_SOURCES } from './sources';
-import { sleep } from '../utils/coerce';
 import type { FeedSource, RawArticle } from './types';
 
-// Lookups go out in chunks — a tick fetches ~700 articles today, and that grows
-// with every source added.
-const FINGERPRINT_LOOKUP_CHUNK = 90;
-
-// Keep each B.AI request below the request timeout in llm.ts. Every chunk repeats the
-// classifier instructions, so this trades a little input-token overhead for
-// reliable completion on a cold backlog.
-const ENRICHMENT_BATCH_SIZE = 8;
+// D1 caps bound variables per statement, so the fingerprint and canonical URL
+// lookup goes out in chunks.
+const KNOWN_COLUMN_CHUNK = 90;
 
 const RSS_HEADERS = {
   accept: 'application/rss+xml, application/atom+xml, application/json, text/xml, */*',
@@ -145,56 +139,94 @@ async function enabledSources(db: D1Database): Promise<FeedSource[]> {
   return FEED_SOURCES.filter((source) => enabled.has(source.id));
 }
 
-/** Drop fingerprints already in `articles` so a tick only processes new work. */
-export async function knownFingerprints(
+async function knownColumn(
   db: D1Database,
-  fingerprints: string[],
+  column: 'fingerprint' | 'canonical_url',
+  values: string[],
 ): Promise<Set<string>> {
   const known = new Set<string>();
-  for (let offset = 0; offset < fingerprints.length; offset += FINGERPRINT_LOOKUP_CHUNK) {
-    const chunk = fingerprints.slice(offset, offset + FINGERPRINT_LOOKUP_CHUNK);
+  for (let offset = 0; offset < values.length; offset += KNOWN_COLUMN_CHUNK) {
+    const chunk = values.slice(offset, offset + KNOWN_COLUMN_CHUNK);
     const result = await db
       .prepare(
-        `SELECT fingerprint FROM articles WHERE fingerprint IN (${chunk.map(() => '?').join(',')})`,
+        `SELECT ${column} FROM articles WHERE ${column} IN (${chunk.map(() => '?').join(',')})`,
       )
       .bind(...chunk)
-      .all<{ fingerprint: string }>();
-    for (const row of result.results ?? []) known.add(row.fingerprint);
+      .all<Record<string, unknown>>();
+    for (const row of result.results ?? []) {
+      const value = row[column];
+      if (typeof value === 'string') known.add(value);
+    }
   }
   return known;
 }
 
-/** Drop normalized titles already stored so a story re-surfacing from a new
- *  outlet isn't re-enriched. Mirrors knownFingerprints; existing rows with a
- *  NULL title_norm never match, so only post-migration articles participate. */
-async function knownTitles(db: D1Database, titles: string[]): Promise<Set<string>> {
-  const known = new Set<string>();
-  for (let offset = 0; offset < titles.length; offset += FINGERPRINT_LOOKUP_CHUNK) {
-    const chunk = titles.slice(offset, offset + FINGERPRINT_LOOKUP_CHUNK);
+/** Drop fingerprints already in `articles` so a tick only stores new work. */
+export async function knownFingerprints(
+  db: D1Database,
+  fingerprints: string[],
+): Promise<Set<string>> {
+  return knownColumn(db, 'fingerprint', fingerprints);
+}
+
+/** Drop canonical URLs already stored so a rewritten headline on the same URL
+ *  isn't stored again. Fingerprint includes the title, so a headline change
+ *  looks like a new story; without this the INSERT would collide on the URL. */
+export async function knownCanonicalUrls(db: D1Database, urls: string[]): Promise<Set<string>> {
+  return knownColumn(db, 'canonical_url', urls);
+}
+
+/** Find candidates whose normalized title already belongs to another source.
+ *  A same-source title match is allowed: one curated source can legitimately
+ *  contain distinct links titled "Home" or "C++". */
+async function knownCrossSourceTitles(
+  db: D1Database,
+  articles: RawArticle[],
+): Promise<Set<string>> {
+  const titles = [...new Set(articles.map((article) => normalizeTitle(article.title)))];
+  const sourceIdsByTitle = new Map<string, Set<string>>();
+  for (let offset = 0; offset < titles.length; offset += KNOWN_COLUMN_CHUNK) {
+    const chunk = titles.slice(offset, offset + KNOWN_COLUMN_CHUNK);
     const result = await db
       .prepare(
-        `SELECT title_norm FROM articles WHERE title_norm IN (${chunk.map(() => '?').join(',')})`,
+        `SELECT title_norm, source_id FROM articles WHERE title_norm IN (${chunk.map(() => '?').join(',')})`,
       )
       .bind(...chunk)
-      .all<{ title_norm: string }>();
-    for (const row of result.results ?? []) known.add(row.title_norm);
+      .all<{ title_norm: unknown; source_id: unknown }>();
+    for (const row of result.results ?? []) {
+      if (typeof row.title_norm !== 'string' || typeof row.source_id !== 'string') continue;
+      const sourceIds = sourceIdsByTitle.get(row.title_norm) ?? new Set<string>();
+      sourceIds.add(row.source_id);
+      sourceIdsByTitle.set(row.title_norm, sourceIds);
+    }
   }
-  return known;
+
+  const blocked = new Set<string>();
+  for (const article of articles) {
+    const title = normalizeTitle(article.title);
+    const sourceIds = sourceIdsByTitle.get(title);
+    if (sourceIds && (sourceIds.size > 1 || !sourceIds.has(article.sourceId))) {
+      blocked.add(`${article.sourceId}\u0000${title}`);
+    }
+  }
+  return blocked;
 }
 
 export interface IngestReport {
   sources: number;
   fetched: number;
-  /** Already stored, so never re-enriched. */
+  /** Already stored or deduplicated, so never written again. */
   skipped: number;
-  /** Newly enriched and stored in this tick. */
+  /** Newly normalized and stored in this tick. */
   stored: number;
+  /** Fetched items with no category accepted by the registry. */
+  uncategorized: number;
   failed: string[];
 }
 
-/** Fetch every source, drop stored fingerprints, then enrich and persist the
- *  survivors in one scheduled handler pass. A failed article is not stored,
- *  so the next tick re-fetches and re-enriches it. */
+/** Fetch every source, drop stored duplicates, then persist the survivors in
+ *  one scheduled handler pass. A failed article is not stored, so the next tick
+ *  re-fetches it. */
 export async function ingestAllSources(env: Env, _ctx?: ExecutionContext): Promise<IngestReport> {
   if (!env.DB) throw new Error('D1 binding is required');
   await ensureSources(env.DB);
@@ -214,56 +246,48 @@ export async function ingestAllSources(env: Env, _ctx?: ExecutionContext): Promi
   );
 
   const fetched = results.flatMap((result) => result.articles);
-  const known = await knownFingerprints(
-    env.DB,
-    fetched.map((article) => article.fingerprint),
+  const uncategorized = fetched.filter((article) => !canonicalCategory(article.category)).length;
+  const [known, knownUrls] = await Promise.all([
+    knownFingerprints(
+      env.DB,
+      fetched.map((article) => article.fingerprint),
+    ),
+    knownCanonicalUrls(
+      env.DB,
+      fetched.map((article) => article.canonicalUrl),
+    ),
+  ]);
+  let articles = fetched.filter(
+    (article) => !known.has(article.fingerprint) && !knownUrls.has(article.canonicalUrl),
   );
-  let articles = fetched.filter((article) => !known.has(article.fingerprint));
 
   // Cross-source dedup: the same story syndicated across outlets has a
   // different fingerprint (hostname is part of it), so drop by normalized
-  // title. First occurrence wins — FEED_SOURCES order puts high-authority
-  // outlets first — and anything already stored is skipped.
-  const seenTitles = new Set<string>();
+  // title. Keep same-source title collisions because a title alone does not
+  // prove two links are the same story. First cross-source occurrence wins —
+  // FEED_SOURCES order puts high-authority outlets first.
+  const firstSourceByTitle = new Map<string, string>();
   articles = articles.filter((article) => {
-    const key = normalizeTitle(article.title);
-    if (seenTitles.has(key)) return false;
-    seenTitles.add(key);
-    return true;
+    const title = normalizeTitle(article.title);
+    const firstSource = firstSourceByTitle.get(title);
+    if (!firstSource) {
+      firstSourceByTitle.set(title, article.sourceId);
+      return true;
+    }
+    return firstSource === article.sourceId;
   });
-  const storedTitles = await knownTitles(
-    env.DB,
-    articles.map((article) => normalizeTitle(article.title)),
+  const storedTitles = await knownCrossSourceTitles(env.DB, articles);
+  articles = articles.filter(
+    (article) => !storedTitles.has(`${article.sourceId}\u0000${normalizeTitle(article.title)}`),
   );
-  articles = articles.filter((article) => !storedTitles.has(normalizeTitle(article.title)));
 
   let stored = 0;
-  if (articles.length > 0) {
-    for (let offset = 0; offset < articles.length; offset += ENRICHMENT_BATCH_SIZE) {
-      const chunk = articles.slice(offset, offset + ENRICHMENT_BATCH_SIZE);
-      // Pull bodies for any teaser-only articles in this chunk before the
-      // model call, in parallel so one slow publisher doesn't stall the tick.
-      await Promise.all(chunk.map(fillBody));
-      let enrichments: Awaited<ReturnType<typeof enrichBatch>>;
-      try {
-        enrichments = await enrichBatch(env, chunk);
-      } catch (error) {
-        // Keep anything already stored from earlier chunks. The next tick will
-        // retry this chunk after its fingerprints remain absent from D1.
-        console.error(`[ingest] enrichment failed for chunk at ${offset}:`, error);
-        break;
-      }
-
-      for (const [index, article] of chunk.entries()) {
-        const enrichment = enrichments[index];
-        if (!enrichment) continue;
-        try {
-          await storeEnrichedArticle(env, article, enrichment);
-          stored++;
-        } catch (error) {
-          console.error(`[ingest] ${article.sourceId} store failed:`, error);
-        }
-      }
+  for (const article of articles) {
+    try {
+      await storeArticle(env, article);
+      stored++;
+    } catch (error) {
+      console.error(`[ingest] ${article.sourceId} store failed:`, error);
     }
   }
 
@@ -272,6 +296,7 @@ export async function ingestAllSources(env: Env, _ctx?: ExecutionContext): Promi
     fetched: fetched.length,
     skipped: fetched.length - articles.length,
     stored,
+    uncategorized,
     failed: results.map((result) => result.error).filter(Boolean),
   };
 }

@@ -30,11 +30,11 @@ const sampleArticle: ExploreArticle = {
   sourceName: "Tom's Hardware",
   sourceDomain: 'tomshardware.com',
   publishedAt: 1700000000000,
-  category: 'keyboards',
+  category: 'tools',
   articleType: 'news',
   qualityScore: 85,
   freshnessScore: 90,
-  tags: ['keychron', 'keyboards'],
+  tags: ['keychron', 'tools'],
 };
 
 afterEach(() => vi.restoreAllMocks());
@@ -56,11 +56,11 @@ describe('getRelatedArticles', () => {
         source_name: 'KitGuru',
         source_url: 'https://kitguru.net',
         published_at: 1700000001000,
-        category: 'keyboards',
+        category: 'tools',
         article_type: 'news',
         quality_score: 80,
         freshness_score: 88,
-        tags: JSON.stringify(['ducky', 'keyboards']),
+        tags: JSON.stringify(['ducky', 'tools']),
       },
     ];
 
@@ -70,7 +70,7 @@ describe('getRelatedArticles', () => {
     expect(related).toHaveLength(1);
     expect(related[0]?.id).toBe('art-2');
     expect(related[0]?.title).toBe('Ducky courts enthusiasts');
-    expect(related[0]?.tags).toEqual(['ducky', 'keyboards']);
+    expect(related[0]?.tags).toEqual(['ducky', 'tools']);
     expect(env.CACHE.get).toHaveBeenCalledWith('related:art-1:4', 'json');
   });
 
@@ -128,7 +128,7 @@ describe('getRelatedArticles', () => {
     expect(capturedSql).toContain('a.id != ?');
     expect(capturedSql).toContain('a.category = ?');
     expect(capturedSql).toContain('filter_tags.tag IN (?, ?)');
-    expect(capturedBindings).toEqual(['art-1', 'keyboards', 'keychron', 'keyboards', 3]);
+    expect(capturedBindings).toEqual(['art-1', 'tools', 'keychron', 'tools', 3]);
     expect(related).toHaveLength(1);
     expect(related[0]?.id).toBe('art-3');
   });

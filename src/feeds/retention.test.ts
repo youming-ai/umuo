@@ -31,7 +31,7 @@ describe('pruneOldRecords', () => {
     await pruneOldRecords(env, NOW);
 
     // Deleting would drop the canonical_url/fingerprint rows that stop the same
-    // story being re-ingested and re-enriched, so retention must not DELETE here.
+    // story being re-ingested and stored again, so retention must not DELETE here.
     expect(sql[0]).toContain('UPDATE articles');
     expect(sql[0]).not.toContain('DELETE');
     expect(sql[0]).toContain("status = 'archived'");

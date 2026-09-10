@@ -2,7 +2,7 @@ import type { Env } from '../data/api';
 
 const DAY_MS = 86_400_000;
 
-/** The cron that runs this sweep, as written in wrangler.jsonc. Both schedules
+/** The cron that runs this sweep, as written in wrangler.toml. Both schedules
  *  arrive at the same scheduled() handler, so this string is the only thing
  *  telling a sweep apart from an ingest tick. retention.cron.test.ts holds the
  *  two copies together. */
@@ -10,7 +10,7 @@ export const PRUNE_CRON = '17 3 * * *';
 
 /** Articles are archived, never deleted — dropping a row takes its
  *  canonical_url and fingerprint with it, and the next tick would re-ingest
- *  and re-enrich the same story. */
+ *  and store the same story again. */
 export const ARTICLE_ARCHIVE_DAYS = 90;
 
 export interface RetentionReport {

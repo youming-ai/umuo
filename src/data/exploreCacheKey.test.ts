@@ -47,9 +47,9 @@ describe('explore cache keys', () => {
 
   it('still caches the queries the rail generates', async () => {
     const { env, ctx, puts } = harness();
-    await serveExplore({ category: 'gpu' }, env, ctx);
+    await serveExplore({ category: 'tools' }, env, ctx);
     expect(puts).toHaveLength(1);
-    expect(decodeURIComponent(puts[0]!)).toContain('"category":"gpu"');
+    expect(decodeURIComponent(puts[0]!)).toContain('"category":"tools"');
   });
 
   it('collapses a malformed cursor onto the first page instead of a new key', async () => {

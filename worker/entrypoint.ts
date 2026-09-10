@@ -1,9 +1,9 @@
 /// <reference types="@cloudflare/workers-types" />
 
 import { handle } from '@astrojs/cloudflare/handler';
+import type { Env } from '../src/data/api';
 import { ingestAllSources } from '../src/feeds/ingest';
 import { PRUNE_CRON, pruneOldRecords } from '../src/feeds/retention';
-import type { Env } from '../src/data/api';
 
 const entrypoint: ExportedHandler<Env> = {
   fetch(request, env, ctx) {
@@ -23,6 +23,11 @@ const entrypoint: ExportedHandler<Env> = {
       console.error(
         `[scheduled] ${report.failed.length}/${report.sources} sources failed:`,
         report.failed.join(', '),
+      );
+    }
+    if (report.uncategorized > 0) {
+      console.warn(
+        `[scheduled] ${report.uncategorized}/${report.fetched} fetched articles had no registered category`,
       );
     }
   },

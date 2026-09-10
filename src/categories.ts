@@ -1,20 +1,18 @@
 // Category registry — the single validation gate for category values: URL
-// segments (/<key>), feed-filter values, KV-key safety, and the enrichment
-// fallback all check against this record. Adding a category is registry-only.
+// segments (/<key>), feed-filter values, KV-key safety, and storage fallbacks
+// all check against this record. Adding a category is registry-only.
 export interface Category {
   key: string; // URL first segment, e.g. 'keyboards'
   label: string; // display name
   group: CategoryGroupKey; // rail section, see CATEGORY_GROUPS
 }
 
-export type CategoryGroupKey = 'ai' | 'consumer' | 'hardware' | 'peripherals';
+export type CategoryGroupKey = 'curated' | 'community';
 
 /** Rail/navigation sections in display order. */
 export const CATEGORY_GROUPS: { key: CategoryGroupKey; label: string }[] = [
-  { key: 'ai', label: 'AI' },
-  { key: 'consumer', label: 'Consumer Electronics' },
-  { key: 'hardware', label: 'PC Hardware' },
-  { key: 'peripherals', label: 'Peripherals' },
+  { key: 'curated', label: 'Curated' },
+  { key: 'community', label: 'Community' },
 ];
 
 const category = (key: string, label: string, group: CategoryGroupKey): Category => ({
@@ -24,24 +22,13 @@ const category = (key: string, label: string, group: CategoryGroupKey): Category
 });
 
 export const CATEGORIES: Record<string, Category> = {
-  // AI
-  ai: category('ai', 'AI', 'ai'),
-  // Consumer electronics
-  phones: category('phones', 'Phones', 'consumer'),
-  tablets: category('tablets', 'Tablets', 'consumer'),
-  laptops: category('laptops', 'Laptops', 'consumer'),
-  // PC hardware
-  gpu: category('gpu', 'GPUs', 'hardware'),
-  cpu: category('cpu', 'CPUs & Motherboards', 'hardware'),
-  memory: category('memory', 'Memory', 'hardware'),
-  storage: category('storage', 'Storage', 'hardware'),
-  monitor: category('monitor', 'Monitors', 'hardware'),
-  cooling: category('cooling', 'Cases & Cooling', 'hardware'),
-  // Peripherals
-  keyboards: category('keyboards', 'Keyboards', 'peripherals'),
-  mice: category('mice', 'Mice', 'peripherals'),
-  audio: category('audio', 'Audio', 'peripherals'),
-  gear: category('gear', 'Gear', 'peripherals'),
+  tools: category('tools', 'Tools', 'curated'),
+  design: category('design', 'Design', 'curated'),
+  development: category('development', 'Development', 'curated'),
+  articles: category('articles', 'Articles', 'community'),
+  social: category('social', 'Social', 'community'),
+  media: category('media', 'Media', 'community'),
+  other: category('other', 'Other', 'community'),
 };
 
 /** Label for a stored category key, falling back to the raw key when the

@@ -75,14 +75,14 @@ describe('serveExploreRss', () => {
   it('scopes the channel link to the category it was given', async () => {
     const { env } = mockEnv();
     const res = await serveExploreRss(
-      { category: 'gpu' },
-      `${SITE_ORIGIN}/gpu/rss.xml`,
+      { category: 'tools' },
+      `${SITE_ORIGIN}/tools/rss.xml`,
       SITE_ORIGIN,
       env,
       mockCtx(),
     );
     const xml = await res.text();
-    expect(xml).toContain(`<link>${SITE_ORIGIN}/gpu</link>`);
-    expect(xml).toContain('GPUs');
+    expect(xml).toContain(`<link>${SITE_ORIGIN}/tools</link>`);
+    expect(xml).toContain('Tools');
   });
 });
