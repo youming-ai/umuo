@@ -15,7 +15,7 @@
 - **Direct curation** — no model key, scraper, or external enrichment service is required
 - **KV SWR cache** — `runCached` with stale-while-revalidate, request coalescing, bounded keys (free-text `q` bypasses KV)
 - **Masonry board** — native CSS multi-column, infinite scroll, per-category `/[category]` hubs
-- **SEO ready** — `/rss.xml`, `/[category]/rss.xml`, `/sitemap.xml`, `/sitemap-news.xml` (Google News, last 48h), canonical/og tags, JSON-LD
+- **SEO ready** — `/rss.xml`, `/[category]/rss.xml`, `/sitemap.xml`, canonical/og tags, JSON-LD
 
 ## Tech stack
 
@@ -85,7 +85,7 @@ graph TD
 | `/:category` | Per-category hub (e.g. `/design`) |
 | `/a/:id` | Article summary detail + related stories |
 | `/rss.xml`, `/:category/rss.xml` | RSS 2.0 |
-| `/sitemap.xml`, `/sitemap-news.xml` | Sitemaps (latter: Google News, 48h) |
+| `/sitemap.xml` | Sitemap — hubs, articles, and feeds |
 
 ## Deployment
 

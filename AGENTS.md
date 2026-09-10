@@ -22,7 +22,7 @@ graph TD
 
 ## Key Directories
 
-- `src/pages/` — `/` (news home), `/[category]` (per-category hub), `/a/[id]` (article detail), `api/[...route].ts` (delegates to `worker/index.ts`), `rss.xml.ts` + `[category]/rss.xml.ts` (RSS 2.0), `sitemap.xml.ts`, `sitemap-news.xml.ts`.
+- `src/pages/` — `/` (explore home), `/[category]` (per-category hub), `/a/[id]` (article detail), `api/[...route].ts` (delegates to `worker/index.ts`), `rss.xml.ts` + `[category]/rss.xml.ts` (RSS 2.0), `sitemap.xml.ts`.
 - `src/feeds/` — the news pipeline. `sources.ts` (registry pointing to Poche Explore), `ingest.ts` (cron-side fetch, dedupe, store), `rss.ts` (regex RSS/Atom parse), `enrich.ts` (storage + title normalization), `retention.ts` (sweep + `PRUNE_CRON`), `types.ts`.
 - `src/categories.ts` — the 7-category registry in two groups (`CATEGORY_GROUPS`: curated: tools/design/development; community: articles/social/media/other).
 - `src/data/api.ts` — KV SWR core (`runCached`/`json`) facade + the D1 explore queries and SSR composers (implementation split across `cache.ts`, `explore.ts`, `article.ts`, `sitemapData.ts`).

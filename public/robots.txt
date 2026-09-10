@@ -3,4 +3,3 @@ Allow: /
 Disallow: /api/
 
 Sitemap: https://umuo.app/sitemap.xml
-Sitemap: https://umuo.app/sitemap-news.xml

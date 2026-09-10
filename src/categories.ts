@@ -2,7 +2,7 @@
 // segments (/<key>), feed-filter values, KV-key safety, and storage fallbacks
 // all check against this record. Adding a category is registry-only.
 export interface Category {
-  key: string; // URL first segment, e.g. 'keyboards'
+  key: string; // URL first segment, e.g. 'tools'
   label: string; // display name
   group: CategoryGroupKey; // rail section, see CATEGORY_GROUPS
 }
