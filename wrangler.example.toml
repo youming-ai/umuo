@@ -37,10 +37,9 @@ database_name = "news-desk-content"
 database_id = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"  # TODO: wrangler d1 create news-desk-content
 migrations_dir = "migrations"
 
-# No durable_objects/migrations here on purpose: the queue consumer calls
-# processArticle directly. A pending DO migration cannot be applied by
-# `wrangler versions upload`, which is what Workers Builds runs for preview
-# branches — so a Durable Object here breaks every PR build.
+# No durable_objects/migrations here on purpose. A pending DO migration cannot
+# be applied by `wrangler versions upload`, which is what Workers Builds runs
+# for preview branches — so a Durable Object here breaks every PR build.
 #
 # Two schedules, told apart by controller.cron in worker/entrypoint.ts:
 # */15 ingests, 17 3 sweeps. The daily string is duplicated in PRUNE_CRON
@@ -48,7 +47,3 @@ migrations_dir = "migrations"
 # runtime; retention.cron.test.ts asserts the two stay identical.
 [triggers]
 crons = ["*/15 * * * *", "17 3 * * *"]
-
-[vars]
-LLM_BASE_URL = "https://api.b.ai/v1"
-LLM_MODEL = "deepseek-v4-flash"

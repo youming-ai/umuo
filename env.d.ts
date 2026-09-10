@@ -5,14 +5,11 @@
 
 // Manual declarations for astro check, which does not fully merge the
 // generated __BaseEnv_Env extends chain in worker-configuration.d.ts.
-// Literal types must match wrangler.jsonc vars exactly.
+// Literal types must match wrangler.toml vars exactly.
 declare namespace Cloudflare {
   interface Env {
     CACHE: KVNamespace;
     DB: D1Database;
-    LLM_MODEL: string;
-    LLM_BASE_URL: string;
-    LLM_API_KEY: string;
   }
 }
 

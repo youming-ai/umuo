@@ -2,33 +2,32 @@
 
 ## Project Overview
 
-**umuo** is an AI-curated technology news desk (AI, consumer electronics, PC hardware & peripherals). A Cloudflare cron pulls 20 RSS/Atom feed sources every 15 minutes, a B.AI chat-completions agent (OpenAI-compatible, model `deepseek-v4-flash`) classifies and summarises each new article into D1, and an Astro SSR app renders that corpus as a full-bleed masonry board with a source / category / topic index.
+**umuo** is a curated explore feed. A Cloudflare cron pulls `https://poche.app/explore/rss` every 15 minutes, parses recommended links into D1, and an Astro SSR app renders that corpus as a full-bleed masonry board with a category / topic index.
 
-2026 pivots: the original football desk was replaced with a PC-hardware desk, which then widened to the full tech desk (the ESPN scoreboard, league-news JSON, and BBC image rewriter are gone entirely; ingestion is RSS/Atom-only).
+2026 pivots: from football to PC hardware, then to full tech, and finally to a direct curated explore feed powered by Poche Explore RSS (external LLM dependencies and web scrapers removed entirely).
 
 ## Architecture & Data Flow
 
 ```mermaid
 graph TD
-  Cron["cron */15"] --> Ingest[feeds/ingest: fetch, dedupe, enrich in chunks of 8]
-  Ingest -->|one call per chunk| LLM[B.AI chat completions]
-  LLM --> D1[(D1 umuo-content)]
+  Cron["cron */15"] --> Ingest[feeds/ingest: fetch & dedupe Poche RSS]
+  Ingest --> D1[(D1 umuo-content)]
   Sweep["cron 17 3"] --> Retention[feeds/retention: archive >90d]
   Retention --> D1
 
   Home["/ and /:category"] --> Explore[getExploreFeed] --> KV1[(KV CACHE)] --> D1
 ```
 
-`ingestAllSources` fans out over `FEED_SOURCES` (20 verified RSS/Atom sources: 9 broad tech desks + 4 AI publisher blogs + TechCrunch + 3 category-verticals with publisher-declared `category` + 3 Reddit community feeds, 2 of the verticals being keyboard/mouse subreddits), normalises to `RawArticle`, drops anything whose fingerprint or normalized title is already stored, and enriches the survivors directly in sequential chunks of eight. Each completed chunk is written to D1 before the next chunk starts, so a long backlog keeps its progress if the scheduled invocation ends early. Reads go through `getExploreFeed` / `getExploreFilters`, cached in KV.
+`ingestAllSources` pulls the Poche Explore RSS feed (`FEED_SOURCES`), normalises to `RawArticle`, drops anything whose fingerprint, canonical URL, or normalized title is already stored, and persists new articles directly to D1. Reads go through `getExploreFeed` / `getExploreFilters`, cached in KV.
 
 ## Key Directories
 
 - `src/pages/` — `/` (news home), `/[category]` (per-category hub), `/a/[id]` (article detail), `api/[...route].ts` (delegates to `worker/index.ts`), `rss.xml.ts` + `[category]/rss.xml.ts` (RSS 2.0), `sitemap.xml.ts`, `sitemap-news.xml.ts`.
-- `src/feeds/` — the news pipeline. `sources.ts` (registry, with publisher-declared category presets), `ingest.ts` (cron-side fetch, dedupe, chunked enrichment), `rss.ts` (regex RSS/Atom parse), `llm.ts` (model I/O + validation), `enrich.ts` (dedupe + write), `retention.ts` (sweep + `PRUNE_CRON`), `readable.ts` (HTML→text body extraction), `types.ts`.
-- `src/categories.ts` — the 14-category registry in four groups (`CATEGORY_GROUPS`: ai; consumer: phones/tablets/laptops; hardware: gpu/cpu/memory/storage/monitor/cooling; peripherals: keyboards/mice/audio/gear).
+- `src/feeds/` — the news pipeline. `sources.ts` (registry pointing to Poche Explore), `ingest.ts` (cron-side fetch, dedupe, store), `rss.ts` (regex RSS/Atom parse), `enrich.ts` (storage + title normalization), `retention.ts` (sweep + `PRUNE_CRON`), `types.ts`.
+- `src/categories.ts` — the 7-category registry in two groups (`CATEGORY_GROUPS`: curated: tools/design/development; community: articles/social/media/other).
 - `src/data/api.ts` — KV SWR core (`runCached`/`json`) facade + the D1 explore queries and SSR composers (implementation split across `cache.ts`, `explore.ts`, `article.ts`, `sitemapData.ts`).
 - `src/components/explore/` — `ExploreView` (grouped category rail, toolbar, masonry, infinite scroll), `ExploreCard`. `Logo`/`Footer` are shared chrome.
-- `migrations/` — D1 schema (0001–0009). Applied by `bun run deploy`, never automatically.
+- `migrations/` — D1 schema (0001–0011). Applied by `bun run deploy`, never automatically.
 - `worker/entrypoint.ts` — `fetch` (Astro), `scheduled` (cron). `worker/index.ts` is the `/api/*` dispatcher (explore endpoints + ASSETS passthrough).
 - `design-tokens/` — W3C design-tokens JSON; `src/index.css` and `tailwind.config.js` map to it.
 
@@ -50,19 +49,18 @@ Bun locally, `workerd` in production.
 - **SSR, no client router.** Every view is an independent document. Navigation is `<a href>`; there is no history API. Anything an island renders must be identical on the server and at hydration — dates are formatted UTC-only.
 - **KV SWR core** (`runCached`): fresh window → `HIT`, in-flight coalescing via a module-level `Map`, upstream failure serves stored stale data as `STALE` or 502. Emits `x-cache`. D1 queries (explore feed, filters, sitemaps) go through it; free-text search bypasses KV.
 - **Degrade, don't crash**: SSR composers return empty arrays on failure; the explore island swallows `AbortError` and keeps the last good state. Pages never query D1 directly — they go through `src/data/api.ts` getters.
-- **Registries are the source of truth.** `src/categories.ts` (14 categories in four groups), `src/feeds/sources.ts` (feeds, with optional publisher-declared `category`), `src/site.ts` (canonical origin for canonical/og/sitemap). Adding a category is registry-only. `sources.ts` throws at import time if a source declares an unknown category.
+- **Registries are the source of truth.** `src/categories.ts` (7 categories in two groups), `src/feeds/sources.ts` (the Poche feed registry), and `src/site.ts` (canonical origin for canonical/og/sitemap). Adding a category is registry-only. `sources.ts` throws at import time if a source declares an unknown category.
 - **Cancellation**: `ExploreView`'s fetch binds an `AbortController`; the effect aborts on unmount and key change.
 - **Copy is English**; Chinese comments explaining non-obvious logic are kept when editing around them.
 - **Commits** carry `Co-Authored-By: Claude <noreply@anthropic.com>`.
 
 ## Important Files
 
-- `src/categories.ts` — `CATEGORIES: Record<string, Category>` (14 keys: ai, phones, tablets, laptops, keyboards, mice, audio, gear, gpu, cpu, memory, storage, monitor, cooling; each carries a `group` the explore rail renders by). **The single validation gate** for category values — routes, facet filtering, KV-key safety, and enrichment fallback all check against it.
+- `src/categories.ts` — `CATEGORIES: Record<string, Category>` (7 keys: tools, design, development, articles, social, media, other; each carries a `group` the explore rail renders by). **The single validation gate** for category values — routes, facet filtering, KV-key safety, and storage fallback all check against it.
 - `src/site.ts` — `SITE_ORIGIN`, `articlePath(id)` → `/a/{id}`, `articleDeck(article, 'short'|'long')`. The image-proxy helper was removed with the football desk; cards render feed images directly and hide broken ones.
 - `src/data/api.ts` — `runCached`, `serveExplore`, `serveExploreRss`, `getExploreFeed`/`getExploreFilters`/`getArticle`/`getRelatedArticles`, sitemap composers. `EXPLORE_ARTICLE_COLUMNS` is the single shared projection.
 - `src/feeds/ingest.ts` — `ingestAllSources(env, ctx)`, `canonicalizeUrl`, `fingerprintFor`, `fetchWithRetry`, `RSS_HEADERS`.
-- `src/feeds/llm.ts` — `enrichWithLLM`/`enrichBatchWithLLM`, `CLASSIFIER_RULES` editorial prompt, `CONTROLLED_TAGS` (35 tags spanning AI, consumer electronics and hardware).
-- `src/feeds/enrich.ts` — `enrichBatch`, `storeEnrichedArticle`, `canonicalCategory`, `normalizeTag`, `MIN_QUALITY_SCORE`.
+- `src/feeds/enrich.ts` — `storeArticle`, `canonicalCategory`, and `normalizeTitle` for direct persistence and cross-source dedupe.
 - `src/feeds/retention.ts` — `PRUNE_CRON = '17 3 * * *'`, `ARTICLE_ARCHIVE_DAYS = 90`.
 - `worker/entrypoint.ts` / `worker/index.ts` — see Key Directories.
 - `wrangler.toml` — all Cloudflare bindings/crons/vars (see Infrastructure).
@@ -84,19 +82,17 @@ Bun locally, `workerd` in production.
 |KV|`CACHE` `b5d6927ae…`|
 |D1|`DB` → `umuo-content`, primary region **APAC** (cannot be moved without recreating)|
 |Crons|`*/15 * * * *` ingest, `17 3 * * *` retention sweep|
-|Vars|`LLM_BASE_URL = https://api.b.ai/v1`, `LLM_MODEL = deepseek-v4-flash` (plaintext `[vars]`)|
-|Secret|`LLM_API_KEY` (`wrangler secret put`) — the only real secret|
 
 ## Testing & QA
 
-Vitest 4, `jsdom`, `globals: true`, `fileParallelism: false` (tests mutate global fetch and location). `src/test-setup.ts` imports jest-dom and `afterEach(vi.restoreAllMocks())`. Files needing node/workerd semantics carry `// @vitest-environment node` on line 1 (13 files, incl. `worker/index.test.ts`).
+Vitest 4, `jsdom`, `globals: true`, `fileParallelism: false` (tests mutate global fetch and location). `src/test-setup.ts` imports jest-dom and `afterEach(vi.restoreAllMocks())`. Files needing node/workerd semantics carry `// @vitest-environment node` on line 1, including `worker/index.test.ts`.
 
 Patterns:
 - `react-dom/server` `renderToString` asserts SSR/hydration safety for the explore island (`ssr.test.tsx`).
 - Fetch mocking via `vi.stubGlobal('fetch', fetchMock)` (must `vi.unstubAllGlobals()` yourself) or module-scope `globalThis.fetch = …` (`worker/index.test.ts`).
 - Routes/worker tested by calling `worker.fetch(new Request('https://x/api/explore'), env, mockCtx())` directly — there is no Astro middleware/`onRequest`.
 - KV/D1 mocked as `vi.fn()` spy objects cast `as unknown as Env` / `as unknown as Env['DB']`; SQL-capture mocks assert on `capturedSql`/`capturedBindings`.
-- Module mocking via `vi.hoisted` + `vi.mock` before importing the module under test (see `ingest.batch.test.ts`).
+- Module mocking via `vi.hoisted` + `vi.mock` before importing the module under test when a test needs to replace an import.
 - **Binding tests** pin duplicated constants to their on-disk copy: `retention.cron.test.ts` (wrangler.toml `crons` ↔ `PRUNE_CRON`), `index.css.test.ts` (design-tokens ↔ `index.css`). File-reading tests use `resolve(process.cwd(), …)` — jsdom mangles `import.meta.url`.
 
 **A passing suite is not evidence code runs.** Modules have kept green suites long after nothing imported them. When you delete a module, delete its tests, then walk imports from every route and `worker/entrypoint.ts` to see what else is orphaned. (Done for the football removal: `newsFeed.ts`, its JSON contract, the `obj/arr/str/slugify` ESPN coercers and the BBC image rewriter all went together.)
@@ -105,15 +101,15 @@ Patterns:
 
 Each of these cost real debugging. They are not hypothetical.
 
-- **Some publishers WAF non-browser agents.** Anthropic publishes no RSS and VentureBeat's AI feed 429s our UA — both were probed and left out. Guru3D's `/rss/` path, VideoCardz and Overclock3D serve Cloudflare challenges to `curl`-style UAs — the verified URLs live in `sources.ts` (e.g. Guru3D works at `/rss.xml`, not `/rss/`). If a source goes dry, re-probe its URL with the exact `RSS_HEADERS` UA before assuming the pipeline is broken; Reddit returns transient 429s that `fetchWithRetry` absorbs.
-- **Publisher-declared categories are presets, not law.** `source.category` pre-fills attribution, but `canonicalCategory` lets the LLM override it; the model may also return `''` for cross-category stories (full builds, industry/business news, general tech policy). Never assume a source's articles all share its preset.
-- **`is_on_topic` gates everything.** Off-topic stories (games/esports, game consoles, crypto, cars/EVs, pure science or space, non-tech current events) are stored as `filtered` regardless of quality score; phones, tablets, laptops and AI stories ARE on-topic now. When adding sources that mix verticals (The Verge, Ars, TechCrunch), trust the model gate — do not pre-filter by keyword in code.
+- **The Poche endpoint is external and non-fatal.** `fetchWithRetry` retries transient 429/5xx responses, records a failed source in the scheduled report, and leaves existing D1 content available to readers. Probe the exact `POCHE_EXPLORE_URL` with `RSS_HEADERS` before changing parser or storage code.
+- **Poche categories are untrusted input.** `parseRss` extracts the publisher's category, and `canonicalCategory` accepts only registry keys or labels; unknown values become `null`. Do not add ad-hoc route categories outside `src/categories.ts`.
+- **Direct ingest stores the curated feed as published.** There is no model topic gate in this pipeline; `is_on_topic = 1` is set by `storeArticle`, while source and URL validation happen before persistence.
 - **Explore cursors are keyset, not offsets** — `<day_bucket>:<quality_score>:<published_at>:<id>`, where the day bucket is `floor(published_at/86400000)` and immutable, so the keyset is stable under inserts. Type guards on `ExploreFeed.nextCursor` must say `string`; when one said `number`, every SSR page silently reported the feed exhausted.
 - **`PRUNE_CRON` is duplicated in `wrangler.toml`** because a Worker cannot read that file. `retention.cron.test.ts` holds them together. Anything that is not `PRUNE_CRON` is treated as an ingest tick, so a stray third schedule means an extra full fan-out.
-- **Never DELETE from `articles`.** Retention archives instead: dropping a row takes its `canonical_url` and `fingerprint` with it, and the next tick re-ingests and re-enriches the same story. Deletion costs LLM calls. (Migration 0009 soft-offlined the whole football corpus with one `status = 'archived'` UPDATE for exactly this reason.)
-- **Dedupe before the model, not after.** `ingestAllSources` filters stored fingerprints AND normalized titles before enrichment. Both matter: without them a tick would repeatedly pay to classify every article in every feed.
-- **`sources.enabled` is an operator override, not a registry mirror.** `ensureSources` upserts kind/name/url/category/authority but deliberately never rewrites `enabled`; `enabledSources` intersects D1-enabled ids with `FEED_SOURCES`, so rows for sources that left the registry are inert. Do not bulk-flip `enabled` in a migration (0009 documents this).
+- **Never DELETE from `articles`.** Retention archives instead: dropping a row takes its `canonical_url` and `fingerprint` with it, and the next tick would re-ingest the same story. Migrations 0009 (football) and 0010 (pre-Poche tech) soft-offline retired corpora while preserving those dedupe guards. Migration 0011 only clears stale `title_norm` values (see below) — it retires no corpus.
+- **Dedupe before storage.** `ingestAllSources` filters stored fingerprints, canonical URLs, and Unicode-aware normalized titles before `storeArticle`. All three matter: a rewritten headline on a stored URL looks like a new fingerprint, while a title-only duplicate can arrive from another source. Migration 0011 cleared legacy `title_norm` values that an ASCII-only normalizer wrote, so pre-pivot rows have `NULL` and rely on the fingerprint and canonical-URL guards only; new rows always carry the current normalizer's key.
+- **`sources.enabled` is an operator override, not a registry mirror.** `ensureSources` upserts kind/name/url/category/authority but deliberately never rewrites `enabled`; `enabledSources` intersects D1-enabled ids with `FEED_SOURCES`, so rows for sources that left the registry are inert. Do not bulk-flip `enabled` in a migration.
 - **Explore cache keys embed the query.** Free-text `q` bypasses KV entirely — it is user-controlled and unbounded, and caching it let anyone write KV keys without limit. Cursors are re-serialised from their parsed form for the same reason.
-- **`description` is fingerprint-stable; `body` is model-facing.** `description` (teaser, ≤4000) feeds the fingerprint; `body` prefers feed `content:encoded` or a `fillBody` page fetch (≥400 chars, sliced to 3000). Changing description handling would re-ingest everything.
+- **`description` is fingerprint-stable.** The feed teaser is capped at 4000 characters and contributes to the fingerprint; keep that behavior stable unless you intend to re-ingest the corpus.
 - **`freshness_score` column is dead.** Display freshness is computed at query time in SQL (`LIVE_FRESHNESS`, 72h decay window from `published_at`); the stored column defaults 0 and is ignored.
-- **`wrangler dev --remote` does not support Queues** and returns 1042 on the scheduled endpoint. To trigger an ingest by hand, set a one-shot cron, deploy, let it fire, then remove it.
+- **Cron runs are deployment-driven.** Local `wrangler dev` does not fire the production schedule; to trigger an ingest by hand, set a one-shot cron, deploy, let it fire, then remove it.

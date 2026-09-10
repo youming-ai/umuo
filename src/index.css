@@ -123,19 +123,6 @@
 }
 
 @layer components {
-  /* Glass surfaces — the rounded-card glass panel is the only one still in use
-     since the WC hero panel was retired. The hero variant follows when a
-     surface that big returns; delete it otherwise. */
-  .ds-glass {
-    @apply rounded-card border border-line/30 bg-panel/85 shadow-panel backdrop-blur-md;
-  }
-
-  /* Light theme: white-on-white flattens the glass panels; a firmer hairline
-     restores the card/panel hierarchy the dark floodlit ground gives for free. */
-  [data-theme='light'] .ds-glass {
-    @apply border-line/70;
-  }
-
   /* Capsule segmented controls — used by the explore Grid/List toggle. The
      `ds-segmented-blur` variant carried the additional backdrop-blur a glass
      surface needed; nothing currently sits on glass. */
@@ -206,11 +193,11 @@
   }
 
   /* Signature — the desk's signal strip. A meter across the top edge of a
-     story card, filled to the AI quality score, so a grid of cards reads as a
-     bar chart of the desk's confidence. The track runs the full width on every
+     story card, filled to the editorial quality score, so a grid of cards reads
+     as a bar chart of the desk's confidence. The track runs the full width on every
      card so a low score reads as "low", not as a missing accent. The fill
-     color comes from `--signal-accent`: pitch, amber, or live — the same
-     quality thresholds the FreshMeter uses on the bottom edge. */
+     color comes from `--signal-accent`: pitch, amber, or live based on quality
+     score thresholds. */
   .ds-signal {
     @apply relative;
   }
