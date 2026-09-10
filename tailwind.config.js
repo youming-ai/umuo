@@ -18,7 +18,6 @@ export default {
         pitch: c('--c-pitch'),
         live: c('--c-live'),
         amber: c('--c-amber'),
-        sodium: c('--c-sodium'),
         overlay: c('--c-overlay'),
         scrim: c('--c-scrim'),
         onscrim: c('--c-on-scrim'),

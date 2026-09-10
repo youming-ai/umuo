@@ -25,7 +25,7 @@ function categoriesFor(article: ExploreArticle): string[] {
   return categories;
 }
 
-// Prefer the AI blurb, fall back to the publisher description. Both are
+// Prefer the stored blurb, falling back to the publisher description. Both are
 // plain-text in D1, so XML-escaping is sufficient.
 function descriptionFor(article: ExploreArticle): string {
   return article.summary || article.blurb || article.description || '';
@@ -36,7 +36,7 @@ function renderItem(article: ExploreArticle): string {
     '    <item>',
     `      <title>${escapeXml(article.title)}</title>`,
     `      <link>${escapeXml(article.url)}</link>`,
-    // isPermaLink=false: the article *id* (AI fingerprint) is the stable
+    // isPermaLink=false: the article *id* (content fingerprint) is the stable
     // identity, not the publisher URL.
     `      <guid isPermaLink="false">${escapeXml(article.id)}</guid>`,
     `      <pubDate>${rfc822(article.publishedAt)}</pubDate>`,
@@ -61,7 +61,7 @@ function renderItem(article: ExploreArticle): string {
 }
 
 /** Render an `ExploreFeed` as an RSS 2.0 document. `scopeLabel` is 'All
- *  tech' for the global feed, a category label for a hub feed.
+ *  links' for the global feed, a category label for a hub feed.
  *  `channelLink` lets the per-category feed jump a reader into the matching
  *  hub. */
 export function renderExploreRss(
@@ -70,7 +70,7 @@ export function renderExploreRss(
   options: { includeAtomSelfLink?: string; channelLink?: string } = {},
 ): string {
   const channelTitle =
-    scopeLabel === GLOBAL_FEED_LABEL ? SITE_TITLE : `${SITE_NAME} — ${scopeLabel} news`;
+    scopeLabel === GLOBAL_FEED_LABEL ? SITE_TITLE : `${SITE_NAME} — ${scopeLabel} links`;
   const channelLink = options.channelLink ?? `${SITE_ORIGIN}/`;
   const channelDescription = SITE_DESCRIPTION;
   const published = new Date().toUTCString();

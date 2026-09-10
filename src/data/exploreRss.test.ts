@@ -4,8 +4,8 @@
 // renderExploreRss is the most likely place to feel it first.
 import { describe, expect, it } from 'vitest';
 import { GLOBAL_FEED_LABEL, SITE_DESCRIPTION, SITE_NAME, SITE_ORIGIN, SITE_TITLE } from '../site';
-import { renderExploreRss } from './exploreRss';
 import type { ExploreFeed } from '../types';
+import { renderExploreRss } from './exploreRss';
 
 function article(
   overrides: Partial<{
@@ -19,7 +19,7 @@ function article(
     sourceDomain: string;
     publishedAt: number;
     category: string | null;
-    articleType: 'news' | 'review' | 'deal' | 'leak' | 'analysis' | 'guide' | 'video';
+    articleType: 'link' | 'news' | 'review' | 'deal' | 'leak' | 'analysis' | 'guide' | 'video';
     tags: string[];
   }>,
 ): ExploreFeed['items'][number] {
@@ -59,7 +59,7 @@ describe('renderExploreRss', () => {
 
   it('scopes the channel title to a category when one is provided', () => {
     const xml = renderExploreRss({ items: [], nextCursor: null }, 'GPUs');
-    expect(xml).toContain(`<title>${SITE_NAME} \u2014 GPUs news</title>`);
+    expect(xml).toContain(`<title>${SITE_NAME} \u2014 GPUs links</title>`);
   });
 
   it('emits one <item> per article with stable guid, RFC 822 date, and categories', () => {

@@ -1,8 +1,2 @@
-# Copy to .dev.vars for local dev: `cp .dev.vars.example .dev.vars`
-# Local Miniflare reads this; production uses `wrangler secret put LLM_API_KEY`
-
-LLM_API_KEY=sk-...your OpenAI-compatible key...
-# Optional overrides (defaults shown):
-# LLM_BASE_URL=https://api.openai.com/v1
-# LLM_MODEL=gpt-4o-mini
-# SITE_ORIGIN=https://example.com
+# Copy this file to .dev.vars (which is gitignored) and fill in real values.
+# No secrets required for Poche direct feed.

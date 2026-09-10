@@ -2,8 +2,10 @@ import { decodeEntities } from '../utils/coerce';
 import type { FeedSource, RawArticle } from './types';
 
 export function stripHtml(value: string): string {
-  return decodeEntities(value)
-    .replace(/<[^>]+>/g, ' ')
+  // Remove real markup before decoding entities. Otherwise an escaped literal
+  // such as `&lt;dialog&gt;` becomes a tag and disappears with the markup.
+  const withoutCdata = value.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/gi, '$1');
+  return decodeEntities(withoutCdata.replace(/<[^>]+>/g, ' '))
     .replace(/\s+/g, ' ')
     .trim();
 }
@@ -11,7 +13,7 @@ export function stripHtml(value: string): string {
 function tagValue(block: string, names: string[]): string {
   for (const name of names) {
     const match = block.match(new RegExp(`<${name}(?:\\s[^>]*)?>([\\s\\S]*?)</${name}>`, 'i'));
-    if (match?.[1]) return decodeEntities(match[1].trim());
+    if (match?.[1]) return match[1].trim();
   }
   return '';
 }
@@ -34,13 +36,27 @@ function imageMeta(block: string): { url: string; width: number; height: number 
 function linkValue(block: string): string {
   const href = block.match(/<link\b[^>]*\bhref=['"]([^'"]+)['"]/i);
   if (href?.[1]) return decodeEntities(href[1]);
-  return tagValue(block, ['link', 'guid']);
+  return decodeEntities(tagValue(block, ['link', 'guid']));
 }
 
 function itemBlocks(xml: string): string[] {
   return [...xml.matchAll(/<(item|entry)\b[^>]*>([\s\S]*?)<\/\1>/gi)].map(
     (match) => match[2] ?? '',
   );
+}
+
+function extractCategory(block: string): string | null {
+  const direct = decodeEntities(tagValue(block, ['category']));
+  if (direct) return direct.trim().toLowerCase();
+  // Poche byline heuristic, not a contract: items carry
+  // `<small><a>domain</a> · Category</small>` in content:encoded. The category
+  // is the segment after the last middot; anything unparseable falls through
+  // to null and the source preset. If Poche restyles the byline this silently
+  // yields null, so uncategorised stories stay visible on the global board.
+  const encoded = decodeEntities(tagValue(block, ['content:encoded', 'description']));
+  const match = encoded.match(/·\s*([^<]+)<\/small>/i);
+  const last = match?.[1]?.split('·').pop()?.trim().toLowerCase();
+  return last ? last : null;
 }
 
 export function parseRss(
@@ -55,23 +71,19 @@ export function parseRss(
       const description = stripHtml(
         tagValue(block, ['description', 'content:encoded', 'summary', 'content']),
       ).slice(0, 4000);
-      // Prefer the full-text syndication fields for the model's body, but keep
-      // `description` (teaser) stable so fingerprints don't shift and re-ingest
-      // everything. Many feeds put the whole story in content:encoded.
-      const body = stripHtml(
-        tagValue(block, ['content:encoded', 'content', 'description', 'summary']),
-      ).slice(0, 8000);
-      const publishedRaw = tagValue(block, ['pubDate', 'published', 'updated', 'dc:date']);
+      const publishedRaw = decodeEntities(
+        tagValue(block, ['pubDate', 'published', 'updated', 'dc:date']),
+      );
       const publishedAt = Date.parse(publishedRaw) || fetchedAt;
       const image = imageMeta(block);
+      const category = extractCategory(block) ?? source.category ?? null;
       return {
         sourceId: source.id,
         sourceName: source.name,
         sourceAuthority: source.authorityScore,
-        category: source.category ?? null,
+        category,
         title,
         description,
-        body,
         url,
         imageUrl: image.url,
         imageWidth: image.width,

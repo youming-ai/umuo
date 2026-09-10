@@ -71,11 +71,11 @@ describe('getExploreFeed', () => {
       },
     } as unknown as Env;
 
-    const feed = await getExploreFeed({ category: 'gpu' }, env, ctx);
+    const feed = await getExploreFeed({ category: 'tools' }, env, ctx);
     expect(feed.items).toEqual([]);
     expect(capturedSql).toContain('FROM articles a');
     expect(capturedSql).toContain('JOIN sources s ON s.id = a.source_id');
     expect(capturedSql).toContain('a.category = ?');
-    expect(capturedBindings).toContain('gpu');
+    expect(capturedBindings).toContain('tools');
   });
 });

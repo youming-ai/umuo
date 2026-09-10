@@ -45,7 +45,7 @@ describe('getArticle', () => {
       source_url: 'https://tomshardware.com',
       published_at: 1_780_000_000_000,
       category: 'gpu',
-      article_type: 'review',
+      article_type: 'link',
       quality_score: 85,
       tags: '["gpu"]',
     };
@@ -60,6 +60,7 @@ describe('getArticle', () => {
 
     const article = await getArticle('a'.repeat(64), env, ctx);
     expect(article?.id).toBe('a'.repeat(64));
+    expect(article?.articleType).toBe('link');
     expect(put).toHaveBeenCalledTimes(1);
   });
 });

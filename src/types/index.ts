@@ -1,6 +1,7 @@
-// --- AI-curated technology news (D1 content layer) ---
+// --- Curated Explore content (D1 content layer) ---
 
 export type ExploreArticleType =
+  | 'link'
   | 'news'
   | 'review'
   | 'deal'

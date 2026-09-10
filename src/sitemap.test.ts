@@ -8,9 +8,9 @@ import { SITE_NAME, SITE_ORIGIN } from './site';
 // no /phones, because the sitemap only lists hubs the desk has published in.
 const DATA: SitemapData = {
   hubs: [
-    { category: 'keyboards', lastmod: '2026-08-07T09:03:08.000Z' },
-    { category: 'mice', lastmod: '2026-08-07T09:06:13.000Z' },
-    { category: 'gpu', lastmod: '2026-08-06T13:23:52.000Z' },
+    { category: 'tools', lastmod: '2026-08-07T09:03:08.000Z' },
+    { category: 'design', lastmod: '2026-08-07T09:06:13.000Z' },
+    { category: 'development', lastmod: '2026-08-06T13:23:52.000Z' },
   ],
   articles: [
     { id: 'aaa111', lastmod: '2026-08-07T09:03:08.000Z' },
@@ -24,26 +24,24 @@ const paths = (data: SitemapData = DATA) => sitemapEntries(data).map((e) => e.pa
 
 describe('sitemapEntries', () => {
   it('never lists a news hub the desk has not published in', () => {
-    // The bug this replaces: the hub list came from CATEGORIES, so /phones was
-    // advertised while src/pages/[category]/index.astro answered it with a 404.
-    expect(paths()).not.toContain('/phones');
-    expect(paths()).toContain('/keyboards');
+    expect(paths()).not.toContain('/social');
+    expect(paths()).toContain('/tools');
   });
 
   it('lists a hub only while it has content', () => {
-    expect(paths(empty)).not.toContain('/keyboards');
+    expect(paths(empty)).not.toContain('/tools');
     expect(paths(empty)).toContain('/');
   });
 
   it('emits no competition-section paths — the old scoreboard plane is gone', () => {
-    for (const path of ['/phones/schedule', '/keyboards/stats', '/keyboards/teams']) {
+    for (const path of ['/tools/schedule', '/design/stats', '/design/teams']) {
       expect(paths()).not.toContain(path);
     }
   });
 
   it('dates each hub by its newest article, and / by the newest of all', () => {
     const entries = sitemapEntries(DATA);
-    expect(entries.find((e) => e.path === '/keyboards')?.lastmod).toBe('2026-08-07T09:03:08.000Z');
+    expect(entries.find((e) => e.path === '/tools')?.lastmod).toBe('2026-08-07T09:03:08.000Z');
     expect(entries.find((e) => e.path === '/')?.lastmod).toBe('2026-08-07T09:06:13.000Z');
   });
 
@@ -54,14 +52,14 @@ describe('sitemapEntries', () => {
 
   it('lists the global RSS feed and one per category hub', () => {
     expect(paths()).toContain('/rss.xml');
-    expect(paths()).toContain('/keyboards/rss.xml');
-    expect(paths()).toContain('/gpu/rss.xml');
+    expect(paths()).toContain('/tools/rss.xml');
+    expect(paths()).toContain('/design/rss.xml');
   });
 
   it('gives RSS entries no lastmod (feeds are always fresh)', () => {
     const entries = sitemapEntries(DATA);
     expect(entries.find((e) => e.path === '/rss.xml')?.lastmod).toBeUndefined();
-    expect(entries.find((e) => e.path === '/keyboards/rss.xml')?.lastmod).toBeUndefined();
+    expect(entries.find((e) => e.path === '/tools/rss.xml')?.lastmod).toBeUndefined();
   });
 
   it('lists each article at /a/{id} with its published date as lastmod', () => {
@@ -92,8 +90,8 @@ describe('renderSitemap', () => {
   });
 
   it('writes lastmod only where there is one', () => {
-    expect(xml).toContain(`<loc>${SITE_ORIGIN}/keyboards</loc>\n    <lastmod>`);
-    expect(xml).toContain(`<loc>${SITE_ORIGIN}/gpu</loc>\n    <lastmod>`);
+    expect(xml).toContain(`<loc>${SITE_ORIGIN}/tools</loc>\n    <lastmod>`);
+    expect(xml).toContain(`<loc>${SITE_ORIGIN}/design</loc>\n    <lastmod>`);
   });
 
   it('writes article URLs with lastmod', () => {

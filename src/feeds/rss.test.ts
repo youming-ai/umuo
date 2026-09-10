@@ -39,6 +39,19 @@ describe('parseRss', () => {
     ]);
   });
 
+  it('preserves escaped angle brackets in a title as text', () => {
+    const articles = parseRss(
+      `<rss><channel><item>
+        <title>Guide to &lt;dialog&gt;</title>
+        <link>https://example.com/dialog</link>
+        <description>A web platform guide.</description>
+      </item></channel></rss>`,
+      source,
+      Date.parse('2026-08-05T12:00:00Z'),
+    );
+    expect(articles[0]?.title).toBe('Guide to <dialog>');
+  });
+
   it('carries the source preset category into every article', () => {
     const articles = parseRss(
       `<rss><channel><item>
@@ -50,5 +63,49 @@ describe('parseRss', () => {
       Date.parse('2026-08-05T12:00:00Z'),
     );
     expect(articles[0].category).toBe('monitor');
+  });
+
+  it('extracts item category from Poche-style content:encoded or direct category tags', () => {
+    const articles = parseRss(
+      `<rss><channel><item>
+        <title>thonik – Home</title>
+        <link>https://thonik.nl/</link>
+        <description>Dutch studio thonik.</description>
+        <content:encoded><![CDATA[<p>Content</p><p><small><a href="https://thonik.nl/">thonik.nl</a> · Design</small></p>]]></content:encoded>
+        <media:thumbnail url="https://example.com/thumb.webp" />
+      </item></channel></rss>`,
+      source,
+      Date.parse('2026-08-05T12:00:00Z'),
+    );
+    expect(articles[0].category).toBe('design');
+    expect(articles[0].imageUrl).toBe('https://example.com/thumb.webp');
+  });
+
+  it('takes the trailing segment of a multi-part byline', () => {
+    const articles = parseRss(
+      `<rss><channel><item>
+        <title>A design tool</title>
+        <link>https://example.com/tool</link>
+        <description>A short report.</description>
+        <content:encoded><![CDATA[<p>Content</p><p><small><a href="https://example.com/">example.com</a> · Picks · Tools</small></p>]]></content:encoded>
+      </item></channel></rss>`,
+      source,
+      Date.parse('2026-08-05T12:00:00Z'),
+    );
+    expect(articles[0].category).toBe('tools');
+  });
+
+  it('returns null when the byline has no parseable category', () => {
+    const articles = parseRss(
+      `<rss><channel><item>
+        <title>An uncategorised link</title>
+        <link>https://example.com/link</link>
+        <description>A short report.</description>
+        <content:encoded><![CDATA[<p>Content</p><p><small><a href="https://example.com/">example.com</a></small></p>]]></content:encoded>
+      </item></channel></rss>`,
+      source,
+      Date.parse('2026-08-05T12:00:00Z'),
+    );
+    expect(articles[0].category).toBeNull();
   });
 });

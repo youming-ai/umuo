@@ -1,16 +1,16 @@
-import type { FormEvent, ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { CATEGORIES, CATEGORY_GROUPS } from '../../categories';
 import { GLOBAL_FEED_LABEL } from '../../site';
 import type { ExploreFeed, ExploreFilterOption, ExploreFilterSet } from '../../types';
 import Logo from '../Logo';
 import ThemeSwitcher from '../ThemeSwitcher';
+import ExploreCard from './ExploreCard';
 
 // Multi-column masonry approximation. column-fill: balance evens the column
 // heights as items are appended; tailwind has no built-in for it.
 const MASONRY_CLASS =
   'columns-1 gap-3 p-3 [column-fill:balance] md:columns-2 xl:columns-3 2xl:columns-4';
-import ExploreCard from './ExploreCard';
 
 interface ExploreQueryState {
   category: string;
@@ -23,6 +23,10 @@ type ViewMode = 'grid' | 'list';
 
 function queryKey(query: ExploreQueryState): string {
   return JSON.stringify(query);
+}
+
+function feedKey(query: ExploreQueryState): string {
+  return queryKey({ ...query, cursor: '' });
 }
 
 function apiUrl(query: ExploreQueryState): string {
@@ -130,15 +134,16 @@ export default function ExploreView({
     cursor: '',
   };
   const [query, setQuery] = useState(initialQuery);
-  const [draftSearch, setDraftSearch] = useState(initialSearch);
   const [items, setItems] = useState(initialData.items);
   const [nextCursor, setNextCursor] = useState(initialData.nextCursor);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
   const initialKey = useRef(queryKey(initialQuery));
+  const [loadedFeedKey, setLoadedFeedKey] = useState(() => feedKey(initialQuery));
   const sentinelRef = useRef<HTMLDivElement>(null);
   const key = useMemo(() => queryKey(query), [query]);
+  const currentFeedKey = useMemo(() => feedKey(query), [query]);
 
   // Category pages carry a scope label for the mobile disclosure; the header
   // bar itself stays a four-element strip: logo, search, layout, theme.
@@ -151,6 +156,9 @@ export default function ExploreView({
     }
 
     const controller = new AbortController();
+    const requestFeedKey = currentFeedKey;
+    const isFirstPage = !query.cursor;
+    if (isFirstPage) setNextCursor(null);
     setLoading(true);
     setError('');
     fetch(apiUrl(query), { signal: controller.signal })
@@ -159,8 +167,10 @@ export default function ExploreView({
         return (await response.json()) as ExploreFeed;
       })
       .then((feed) => {
+        if (controller.signal.aborted) return;
         setItems((previous) => (query.cursor ? [...previous, ...feed.items] : feed.items));
         setNextCursor(feed.nextCursor);
+        setLoadedFeedKey(requestFeedKey);
       })
       .catch((reason: unknown) => {
         if (reason instanceof DOMException && reason.name === 'AbortError') return;
@@ -170,24 +180,14 @@ export default function ExploreView({
         if (!controller.signal.aborted) setLoading(false);
       });
     return () => controller.abort();
-  }, [key, query]);
-
-  function submitSearch(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setQuery((previous) => ({ ...previous, q: draftSearch.trim(), cursor: '' }));
-  }
-
-  function clearFilters() {
-    setDraftSearch('');
-    setQuery({ ...initialQuery });
-  }
+  }, [currentFeedKey, key, query]);
 
   // Infinite scroll: re-running on [nextCursor, loading] is what makes it
   // repeat. Appending rows fires no new intersection event, so the observer is
   // rebuilt after each page.
   useEffect(() => {
     const node = sentinelRef.current;
-    if (!node || nextCursor === null || loading) return;
+    if (!node || nextCursor === null || loading || loadedFeedKey !== currentFeedKey) return;
     const cursor = nextCursor;
     const observer = new IntersectionObserver(
       (entries) => {
@@ -199,19 +199,16 @@ export default function ExploreView({
     );
     observer.observe(node);
     return () => observer.disconnect();
-  }, [nextCursor, loading]);
+  }, [currentFeedKey, loadedFeedKey, loading, nextCursor]);
 
-  // User-driven active search facet.
-  const activeFacets: { key: string; label: string; onClear: () => void }[] = [];
+  // Search is a normal GET navigation: the form submits to the hub URL and
+  // clearing is a real link back to it. The document reload keeps the SSR
+  // payload and island state on the same query instead of mutating history
+  // from the client.
+  const hubHref = initialCategory ? `/${initialCategory}` : '/';
+  const activeFacets: { key: string; label: string; href: string }[] = [];
   if (query.q) {
-    activeFacets.push({
-      key: `q:${query.q}`,
-      label: `“${query.q}”`,
-      onClear: () => {
-        setDraftSearch('');
-        setQuery((previous) => ({ ...previous, q: '', cursor: '' }));
-      },
-    });
+    activeFacets.push({ key: `q:${query.q}`, label: `“${query.q}”`, href: hubHref });
   }
 
   const rail: ReactNode = (
@@ -225,15 +222,15 @@ export default function ExploreView({
   const feed =
     loading && items.length === 0 ? (
       <div className={MASONRY_CLASS} role="status">
-        <span className="sr-only">Loading tech news</span>
+        <span className="sr-only">Loading explore links</span>
         <SkeletonCards count={8} />
       </div>
     ) : items.length === 0 ? (
       <p className="p-16 text-center ds-body text-chalkdim">
-        No stories match these filters. Clear one to widen the desk.
+        No links match these filters. Clear one to widen the explore feed.
       </p>
     ) : viewMode === 'list' ? (
-      <ol className="divide-y divide-line/30 border-b border-line/30" aria-label="Tech news">
+      <ol className="divide-y divide-line/30 border-b border-line/30" aria-label="Explore links">
         {items.map((article) => (
           <ExploreCard key={article.id} article={article} variant="list" />
         ))}
@@ -242,7 +239,7 @@ export default function ExploreView({
       // Native CSS multi-column, not a masonry lib. Fills column-major
       // (items 1..n down column 1); swap in an SSR round-robin split if
       // reading order ever has to be exact.
-      <section className={MASONRY_CLASS} aria-label="Tech news">
+      <section className={MASONRY_CLASS} aria-label="Explore links">
         {items.map((article) => (
           <ExploreCard key={article.id} article={article} />
         ))}
@@ -255,11 +252,12 @@ export default function ExploreView({
         <Logo />
 
         <form
-          onSubmit={submitSearch}
+          method="get"
+          action={hubHref}
           className="relative flex min-w-0 flex-1 sm:max-w-md lg:ml-8 lg:mr-auto lg:max-w-sm"
         >
           <label className="sr-only" htmlFor="explore-search">
-            Search tech news
+            Search explore links
           </label>
           <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-chalkdim">
             <svg
@@ -278,8 +276,8 @@ export default function ExploreView({
           </span>
           <input
             id="explore-search"
-            value={draftSearch}
-            onChange={(event) => setDraftSearch(event.target.value)}
+            name="q"
+            defaultValue={initialSearch}
             placeholder="Search stories"
             enterKeyHint="search"
             className="ds-input min-h-9 min-w-0 flex-1 py-1 pl-8"
@@ -318,24 +316,22 @@ export default function ExploreView({
         >
           <span className="uppercase tracking-caption">Filtering by</span>
           {activeFacets.map((facet) => (
-            <button
+            <a
               key={facet.key}
-              type="button"
-              onClick={facet.onClear}
+              href={facet.href}
               className="inline-flex items-center gap-1 rounded-pill border border-line/40 bg-panel/70 px-2 py-0.5 uppercase tracking-caption hover:border-pitch/50 hover:text-chalk ds-press"
             >
               <span>{facet.label}</span>
               <span aria-hidden="true">×</span>
               <span className="sr-only">Remove {facet.label} filter</span>
-            </button>
+            </a>
           ))}
-          <button
-            type="button"
-            onClick={clearFilters}
+          <a
+            href={hubHref}
             className="ml-auto uppercase tracking-caption text-pitch underline-offset-4 hover:underline"
           >
             Clear all
-          </button>
+          </a>
         </nav>
       )}
 

@@ -23,6 +23,20 @@ it('renders the Explore shell server-side without touching browser globals', () 
   expect(html).toContain('aria-label="Theme"');
 });
 
+it('uses document navigation for search and clearing an initial query', () => {
+  const html = renderToString(
+    <ExploreView
+      initialData={{ items: [], nextCursor: null }}
+      initialFilters={{ categories: [] }}
+      initialSearch="alpha"
+    />,
+  );
+  expect(html).toContain('<form method="get" action="/"');
+  expect(html).toContain('name="q"');
+  expect(html).toContain('value="alpha"');
+  expect(html).toContain('>Clear all</a>');
+});
+
 it('renders article cards server-side', () => {
   const html = renderToString(
     <ExploreView
@@ -42,9 +56,9 @@ it('renders article cards server-side', () => {
             sourceName: "Tom's Hardware",
             sourceDomain: 'tomshardware.com',
             publishedAt: 1786080856000,
-            category: 'gpu',
+            category: 'tools',
             articleType: 'review',
-            tags: ['gpu'],
+            tags: ['tools'],
             qualityScore: 82,
             freshnessScore: 60,
           },

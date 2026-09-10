@@ -3,7 +3,7 @@ import { env } from 'cloudflare:workers';
 import { CATEGORIES } from '../../categories';
 import { getArticle, getRelatedArticles } from '../../data/api';
 import Layout from '../../layouts/Layout.astro';
-import { GLOBAL_FEED_LABEL, SITE_NAME, SITE_ORIGIN, articleDeck, articlePath } from '../../site';
+import { articleDeck, articlePath, GLOBAL_FEED_LABEL, SITE_NAME, SITE_ORIGIN } from '../../site';
 
 export const prerender = false;
 
@@ -25,7 +25,7 @@ const backHref = category ? `/${article.category}` : '/';
 const backLabel = category?.label ?? GLOBAL_FEED_LABEL;
 const summary = articleDeck(article, 'long');
 const blurb = article.blurb && article.blurb !== summary ? article.blurb : null;
-const domain = article.sourceDomain || article.sourceName || 'tech source';
+const domain = article.sourceDomain || article.sourceName || 'source';
 const pubDate = new Date(article.publishedAt);
 const pubIso = pubDate.toISOString();
 const pubDisplay = pubDate.toLocaleDateString('en-US', {
@@ -60,12 +60,12 @@ breadcrumbItems.push({
   item: selfUrl,
 });
 
-// NewsArticle & BreadcrumbList structured data. The AI summary is the page's own content;
-// the original source is attributed via `isBasedOn` + the visible outbound link.
+// Article & BreadcrumbList structured data. The stored summary is the page's own
+// content; the original source is attributed via `isBasedOn` + the visible outbound link.
 const jsonLd = [
   {
     '@context': 'https://schema.org',
-    '@type': 'NewsArticle',
+    '@type': article.articleType === 'news' ? 'NewsArticle' : 'Article',
     headline: article.title,
     description: summary,
     datePublished: pubIso,
@@ -78,7 +78,7 @@ const jsonLd = [
     },
     mainEntityOfPage: { '@type': 'WebPage', '@id': selfUrl },
     url: selfUrl,
-    articleSection: category?.label ?? 'Tech',
+    articleSection: category?.label ?? 'Explore',
     ...(article.tags.length > 0 ? { keywords: article.tags.join(', ') } : {}),
     ...(article.imageUrl ? { image: article.imageUrl } : {}),
     isBasedOn: article.url,
@@ -151,7 +151,7 @@ const ogImageUrl = article.imageUrl ?? undefined;
 
     <div class="mt-4 flex flex-wrap items-center gap-3 ds-caption text-chalkdim">
       <span class="inline-flex items-center gap-1 rounded-pill bg-overlay/10 px-2.5 py-1">
-        AI Quality: <span class="font-semibold text-chalk">{article.qualityScore}</span>/100
+        Curated: <span class="font-semibold text-chalk">{article.qualityScore}</span>/100
       </span>
       <span class="inline-flex items-center gap-1 rounded-pill bg-overlay/10 px-2.5 py-1">
         Freshness: <span class="font-semibold text-chalk">{article.freshnessScore}</span>/100
@@ -165,6 +165,7 @@ const ogImageUrl = article.imageUrl ?? undefined;
           alt={article.title}
           class="w-full object-cover"
           loading="eager"
+          onerror="this.parentElement.style.display='none';"
           style={
             article.imageWidth > 0 && article.imageHeight > 0
               ? { aspectRatio: `${article.imageWidth} / ${article.imageHeight}` }
@@ -186,7 +187,7 @@ const ogImageUrl = article.imageUrl ?? undefined;
     {summary && (
       <div class="mt-6">
         <div class="mb-2 flex items-center gap-1.5 ds-caption font-semibold uppercase tracking-data text-pitch">
-          <span aria-hidden="true">&gt;_</span> AI Summary & Analysis
+          <span aria-hidden="true">&gt;_</span> Summary
         </div>
         <div class="ds-body text-chalk leading-relaxed whitespace-pre-line text-base sm:text-lg">
           {summary}
@@ -205,7 +206,7 @@ const ogImageUrl = article.imageUrl ?? undefined;
         rel="noopener noreferrer"
         class="inline-flex items-center justify-center gap-2 rounded-card bg-pitch px-5 py-2.5 font-display font-bold text-ink transition-opacity hover:opacity-90"
       >
-        Read original story at {domain} <span aria-hidden="true">↗</span>
+        Open original link at {domain} <span aria-hidden="true">↗</span>
       </a>
     </div>
 
@@ -226,9 +227,9 @@ const ogImageUrl = article.imageUrl ?? undefined;
       <section class="mt-12 border-t border-line/40 pt-8">
         <div class="mb-4 flex items-baseline justify-between">
           <h2 class="font-display text-xl font-bold text-chalk">
-            Related Tech News
+            Related Links
           </h2>
-          <span class="ds-caption text-pitch">AI Curated</span>
+          <span class="ds-caption text-pitch">Curated</span>
         </div>
         <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
           {relatedArticles.map((rel) => (

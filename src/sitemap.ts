@@ -9,7 +9,7 @@ export interface SitemapEntry {
 
 /** Every stable, crawlable path:
  *  - `/` plus one hub per category with published articles (date = newest article)
- *  - `/a/{id}` for each published article — gives each AI summary a crawlable URL
+ *  - `/a/{id}` for each published article — gives each summary a crawlable URL
  *  - `/rss.xml` and `/<category>/rss.xml` — no `lastmod`; a feed is always fresh
  */
 export function sitemapEntries(data: SitemapData): SitemapEntry[] {

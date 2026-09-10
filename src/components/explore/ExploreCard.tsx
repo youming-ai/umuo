@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { categoryLabel } from '../../categories';
 import { articleDeck, articlePath } from '../../site';
 import type { ExploreArticle } from '../../types';
 
@@ -18,7 +19,7 @@ function scoreValue(value: number): number {
   return Math.max(0, Math.min(100, Math.round(value)));
 }
 
-/** Accent for a 0–100 signal. The top strip is AI quality, the bottom
+/** Accent for a 0–100 signal. The top strip is editorial quality, the bottom
  *  strip is freshness — same colour language reads across both. */
 function signalAccent(score: number): 'pitch' | 'amber' | 'live' {
   if (score >= 75) return 'pitch';
@@ -35,7 +36,7 @@ export default function ExploreCard({
 }) {
   const date = publishedDate(article.publishedAt);
   const score = scoreValue(article.qualityScore);
-  const domain = article.sourceDomain || article.sourceName || 'tech source';
+  const domain = article.sourceDomain || article.sourceName || 'source';
   // Prefer short blurb on card stream; full summary is featured on detail page.
   const description = articleDeck(article, 'short');
 
@@ -71,7 +72,7 @@ export default function ExploreCard({
           />
           <span className="ds-caption shrink-0 tabular-nums text-chalkdim">{date}</span>
           <span className="sr-only">
-            AI signal {score} of 100, published {date}
+            Curated signal {score} of 100, published {date}
           </span>
         </a>
         {article.url && (
@@ -159,7 +160,9 @@ export default function ExploreCard({
 
           <p className="mt-3 ds-caption uppercase tracking-data text-pitch">
             {typeLabel(article.articleType)}
-            {article.category && <span className="text-chalkdim"> / {article.category}</span>}
+            {article.category && (
+              <span className="text-chalkdim"> / {categoryLabel(article.category)}</span>
+            )}
             {article.tags.length > 0 && (
               <span className="text-chalkdim"> · {article.tags.slice(0, 3).join(', ')}</span>
             )}
@@ -168,7 +171,7 @@ export default function ExploreCard({
             <span className="truncate">{article.sourceName || domain}</span>
             <span className="ml-auto shrink-0 tabular-nums">{date}</span>
             <span className="sr-only">
-              AI signal {score} of 100, published {date}
+              Curated signal {score} of 100, published {date}
             </span>
           </p>
         </div>

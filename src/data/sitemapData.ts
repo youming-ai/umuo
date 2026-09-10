@@ -19,14 +19,14 @@ export interface SitemapData {
 }
 
 /** Category hubs + individual articles for the sitemap, derived from D1.
- *  Article URLs at `/a/{id}` give each AI summary its own crawlable page.
+ *  Article URLs at `/a/{id}` give each stored summary its own crawlable page.
  *  Degrades to empty arrays — a sitemap missing entries is survivable; a 500
  *  on /sitemap.xml is not. */
 export async function getSitemapNews(env: Env, ctx: ExecutionContext): Promise<SitemapData> {
   const empty: SitemapData = { hubs: [], articles: [] };
   try {
     const response = await runCached(
-      'sitemap:news',
+      'sitemap:news:v2',
       async () => {
         if (!env.DB) throw new Error('D1 binding is required');
         const [hubs, articles] = await env.DB.batch([
@@ -89,7 +89,7 @@ export async function getGoogleNewsSitemapArticles(
 ): Promise<GoogleNewsArticleData[]> {
   try {
     const response = await runCached(
-      'sitemap:google-news',
+      'sitemap:google-news:v2',
       async () => {
         if (!env.DB) throw new Error('D1 binding is required');
         const cutoff = now - 172_800_000; // 48h in ms
@@ -97,6 +97,7 @@ export async function getGoogleNewsSitemapArticles(
           `SELECT id, title, published_at
              FROM articles
             WHERE status = 'published' AND is_on_topic = 1
+              AND article_type = 'news'
               AND published_at >= ?
             ORDER BY published_at DESC
             LIMIT 1000`,
