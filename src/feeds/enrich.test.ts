@@ -70,6 +70,15 @@ describe('storeArticle', () => {
     await storeArticle(env, { ...ARTICLE, sourceAuthority: 0 });
     expect(bound[0][17]).toBe(50); // quality_score
   });
+
+  it('writes no topic tag for the category', async () => {
+    const { env, bound } = makeStoreEnv();
+    await storeArticle(env, ARTICLE);
+    // article_tags holds publisher topic tags and the Poche feed has none.
+    // Mirroring the category there made the card render "Development ·
+    // development" and the RSS emit both a category: and a tag: entry.
+    expect(bound).toHaveLength(1);
+  });
 });
 
 describe('canonicalCategory', () => {
