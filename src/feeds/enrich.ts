@@ -22,7 +22,13 @@ export function normalizeTitle(value: string): string {
   return normalized || value.toLowerCase();
 }
 
-/** Persist one article directly: the article row and its category tag. */
+/** Persist one article directly: the article row.
+ *
+ *  Deliberately writes no `article_tags` row. The Poche feed carries no topic
+ *  tags, and mirroring `category` into that table made the card render
+ *  "Development · development" and the RSS emit both `category:development`
+ *  and `tag:development`. The category already lives in `articles.category`,
+ *  and `getRelatedArticles` matches on it directly. */
 export async function storeArticle(env: Env, article: RawArticle): Promise<void> {
   const now = Date.now();
   const category = canonicalCategory(article.category);
@@ -35,15 +41,15 @@ export async function storeArticle(env: Env, article: RawArticle): Promise<void>
   // neutral midpoint when no authority is declared.
   const qualityScore = article.sourceAuthority || DEFAULT_QUALITY_SCORE;
 
-  await env.DB.batch([
-    env.DB.prepare(
-      `INSERT INTO articles (
+  await env.DB.prepare(
+    `INSERT INTO articles (
            id, source_id, canonical_url, fingerprint, title, title_norm, description, ai_summary, ai_blurb,
            image_url, image_width, image_height, published_at, fetched_at, category, article_type, is_on_topic,
            quality_score, status, created_at, updated_at
          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
          ON CONFLICT DO NOTHING`,
-    ).bind(
+  )
+    .bind(
       articleId,
       article.sourceId,
       article.canonicalUrl,
@@ -65,14 +71,6 @@ export async function storeArticle(env: Env, article: RawArticle): Promise<void>
       'published',
       now,
       now,
-    ),
-    ...(category
-      ? [
-          env.DB.prepare('INSERT OR IGNORE INTO article_tags (article_id, tag) VALUES (?, ?)').bind(
-            articleId,
-            category,
-          ),
-        ]
-      : []),
-  ]);
+    )
+    .run();
 }
