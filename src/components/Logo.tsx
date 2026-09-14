@@ -10,7 +10,7 @@ export default function Logo({ compact = false }: { compact?: boolean }) {
       href="/"
       className={`inline-flex items-center rounded-pill leading-none ${emojiSize} ds-press`}
     >
-      <span aria-hidden="true">⌨️</span>
+      <span aria-hidden="true">🤖</span>
       <span className="sr-only">{SITE_NAME} home</span>
     </a>
   );
