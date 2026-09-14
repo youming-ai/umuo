@@ -11,6 +11,15 @@
 -- their tags. This deletes rows, unlike retention — but article_tags is a
 -- derived table with no dedupe role, so nothing is lost that the next tick
 -- would need; the articles rows themselves are untouched.
+--
+-- Why the match is exact rather than a guess, despite article_tags carrying no
+-- provenance marker: for a Poche row every tag can only ever have been the
+-- fabricated mirror. `RawArticle` has no `tags` field, `parseRss` extracts no
+-- tags from the feed (only category/title/description/url/image/dates), and
+-- `src/feeds/enrich.ts` is the sole writer of `article_tags` — every other
+-- reference in the codebase is a read. So no path exists that could have
+-- written a publisher tag on a `poche-explore` article, and `tag = category`
+-- selects precisely the fabricated set.
 DELETE FROM article_tags
  WHERE article_id IN (SELECT id FROM articles WHERE source_id = 'poche-explore')
    AND tag = (SELECT a.category FROM articles a WHERE a.id = article_tags.article_id);
