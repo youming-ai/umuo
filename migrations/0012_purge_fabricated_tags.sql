@@ -16,10 +16,20 @@
 -- provenance marker: for a Poche row every tag can only ever have been the
 -- fabricated mirror. `RawArticle` has no `tags` field, `parseRss` extracts no
 -- tags from the feed (only category/title/description/url/image/dates), and
--- `src/feeds/enrich.ts` is the sole writer of `article_tags` — every other
--- reference in the codebase is a read. So no path exists that could have
+-- `src/feeds/enrich.ts` is the sole *runtime* producer of `article_tags` rows —
+-- every other reference in the codebase is a read. (0003 also writes the table,
+-- but it is a one-off that only rewrote tags Gemini had already produced, and
+-- it predates the Poche corpus entirely.) So no path exists that could have
 -- written a publisher tag on a `poche-explore` article, and `tag = category`
 -- selects precisely the fabricated set.
+--
+-- Deploy order leaves one window: `bun run deploy` applies migrations *before*
+-- `wrangler deploy`, so the outgoing Worker can still store a fabricated tag
+-- between this DELETE and the new Worker going live. That window exists only
+-- for this single transition — once the new code is live no writer produces a
+-- fabricated tag again — and this statement is idempotent, so re-running it
+-- once after the deploy closes it. Verified post-deploy; no split migration is
+-- needed.
 DELETE FROM article_tags
  WHERE article_id IN (SELECT id FROM articles WHERE source_id = 'poche-explore')
    AND tag = (SELECT a.category FROM articles a WHERE a.id = article_tags.article_id);
