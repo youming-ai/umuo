@@ -1,6 +1,12 @@
 // Category registry — the single validation gate for category values: URL
 // segments (/<key>), feed-filter values, KV-key safety, and storage fallbacks
 // all check against this record. Adding a category is registry-only.
+//
+// Mirrors the Poche Explore taxonomy one-for-one (Articles, Crypto, Design,
+// Development, Media, Other, Social, Tools). Poche's byline is the only source
+// of publisher categories; a value missing here is silently stored as NULL and
+// never reaches a hub, so this list must track the upstream feed — see the
+// taxonomy-coverage test in src/feeds/enrich.test.ts.
 export interface Category {
   key: string; // URL first segment, e.g. 'tools'
   label: string; // display name
@@ -28,6 +34,7 @@ export const CATEGORIES: Record<string, Category> = {
   articles: category('articles', 'Articles', 'community'),
   social: category('social', 'Social', 'community'),
   media: category('media', 'Media', 'community'),
+  crypto: category('crypto', 'Crypto', 'community'),
   other: category('other', 'Other', 'community'),
 };
 

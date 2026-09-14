@@ -24,7 +24,7 @@ graph TD
 
 - `src/pages/` — `/` (explore home), `/[category]` (per-category hub), `/a/[id]` (article detail), `api/[...route].ts` (delegates to `worker/index.ts`), `rss.xml.ts` + `[category]/rss.xml.ts` (RSS 2.0), `sitemap.xml.ts`.
 - `src/feeds/` — the news pipeline. `sources.ts` (registry pointing to Poche Explore), `ingest.ts` (cron-side fetch, dedupe, store), `rss.ts` (regex RSS/Atom parse), `enrich.ts` (storage + title normalization), `retention.ts` (sweep + `PRUNE_CRON`), `types.ts`.
-- `src/categories.ts` — the 7-category registry in two groups (`CATEGORY_GROUPS`: curated: tools/design/development; community: articles/social/media/other).
+- `src/categories.ts` — the 8-category registry in two groups (`CATEGORY_GROUPS`: curated: tools/design/development; community: articles/social/media/crypto/other). Mirrors the Poche Explore taxonomy one-for-one; see Gotchas.
 - `src/data/api.ts` — KV SWR core (`runCached`/`json`) facade + the D1 explore queries and SSR composers (implementation split across `cache.ts`, `explore.ts`, `article.ts`, `sitemapData.ts`).
 - `src/components/explore/` — `ExploreView` (grouped category rail, toolbar, masonry, infinite scroll), `ExploreCard`. `Logo`/`Footer` are shared chrome.
 - `migrations/` — D1 schema (0001–0011). Applied by `bun run deploy`, never automatically.
@@ -49,14 +49,14 @@ Bun locally, `workerd` in production.
 - **SSR, no client router.** Every view is an independent document. Navigation is `<a href>`; there is no history API. Anything an island renders must be identical on the server and at hydration — dates are formatted UTC-only.
 - **KV SWR core** (`runCached`): fresh window → `HIT`, in-flight coalescing via a module-level `Map`, upstream failure serves stored stale data as `STALE` or 502. Emits `x-cache`. D1 queries (explore feed, filters, sitemaps) go through it; free-text search bypasses KV.
 - **Degrade, don't crash**: SSR composers return empty arrays on failure; the explore island swallows `AbortError` and keeps the last good state. Pages never query D1 directly — they go through `src/data/api.ts` getters.
-- **Registries are the source of truth.** `src/categories.ts` (7 categories in two groups), `src/feeds/sources.ts` (the Poche feed registry), and `src/site.ts` (canonical origin for canonical/og/sitemap). Adding a category is registry-only. `sources.ts` throws at import time if a source declares an unknown category.
+- **Registries are the source of truth.** `src/categories.ts` (8 categories in two groups), `src/feeds/sources.ts` (the Poche feed registry), and `src/site.ts` (canonical origin for canonical/og/sitemap). Adding a category is registry-only. `sources.ts` throws at import time if a source declares an unknown category.
 - **Cancellation**: `ExploreView`'s fetch binds an `AbortController`; the effect aborts on unmount and key change.
 - **Copy is English**; Chinese comments explaining non-obvious logic are kept when editing around them.
 - **Commits** carry `Co-Authored-By: Claude <noreply@anthropic.com>`.
 
 ## Important Files
 
-- `src/categories.ts` — `CATEGORIES: Record<string, Category>` (7 keys: tools, design, development, articles, social, media, other; each carries a `group` the explore rail renders by). **The single validation gate** for category values — routes, facet filtering, KV-key safety, and storage fallback all check against it.
+- `src/categories.ts` — `CATEGORIES: Record<string, Category>` (8 keys: tools, design, development, articles, social, media, crypto, other; each carries a `group` the explore rail renders by). **The single validation gate** for category values — routes, facet filtering, KV-key safety, and storage fallback all check against it. Mirrors the Poche taxonomy exactly; `src/feeds/enrich.test.ts` pins the coverage.
 - `src/site.ts` — `SITE_ORIGIN`, `articlePath(id)` → `/a/{id}`, `articleDeck(article, 'short'|'long')`. The image-proxy helper was removed with the football desk; cards render feed images directly and hide broken ones.
 - `src/data/api.ts` — `runCached`, `serveExplore`, `serveExploreRss`, `getExploreFeed`/`getExploreFilters`/`getArticle`/`getRelatedArticles`, sitemap composers. `EXPLORE_ARTICLE_COLUMNS` is the single shared projection.
 - `src/feeds/ingest.ts` — `ingestAllSources(env, ctx)`, `canonicalizeUrl`, `fingerprintFor`, `fetchWithRetry`, `RSS_HEADERS`.
@@ -103,6 +103,7 @@ Each of these cost real debugging. They are not hypothetical.
 
 - **The Poche endpoint is external and non-fatal.** `fetchWithRetry` retries transient 429/5xx responses, records a failed source in the scheduled report, and leaves existing D1 content available to readers. Probe the exact `POCHE_EXPLORE_URL` with `RSS_HEADERS` before changing parser or storage code.
 - **Poche categories are untrusted input.** `parseRss` extracts the publisher's category, and `canonicalCategory` accepts only registry keys or labels; unknown values become `null`. Do not add ad-hoc route categories outside `src/categories.ts`.
+- **The registry must mirror the upstream taxonomy exactly.** Poche publishes 8 categories (Articles, Crypto, Design, Development, Media, Other, Social, Tools); a value missing from `src/categories.ts` is stored as `category = NULL`, so those stories never reach a hub and are visible only on the global board. `Crypto` was missing until a production row was found mis-categorised. Two consequences worth remembering: (1) the raw publisher category is **discarded** when unmapped, so historical NULLs cannot be audited or backfilled from D1 — only from a fresh feed fetch; (2) `ingestAllSources` reports `unmappedCategories`, and `worker/entrypoint.ts` names them in the `scheduled` warning, which is the only signal that upstream added a category. `src/feeds/enrich.test.ts` pins coverage of the known set.
 - **Direct ingest stores the curated feed as published.** There is no model topic gate in this pipeline; `is_on_topic = 1` is set by `storeArticle`, while source and URL validation happen before persistence.
 - **Explore cursors are keyset, not offsets** — `<day_bucket>:<quality_score>:<published_at>:<id>`, where the day bucket is `floor(published_at/86400000)` and immutable, so the keyset is stable under inserts. Type guards on `ExploreFeed.nextCursor` must say `string`; when one said `number`, every SSR page silently reported the feed exhausted.
 - **`PRUNE_CRON` is duplicated in `wrangler.toml`** because a Worker cannot read that file. `retention.cron.test.ts` holds them together. Anything that is not `PRUNE_CRON` is treated as an ingest tick, so a stray third schedule means an extra full fan-out.
