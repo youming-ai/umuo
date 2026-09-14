@@ -221,6 +221,9 @@ export interface IngestReport {
   stored: number;
   /** Fetched items with no category accepted by the registry. */
   uncategorized: number;
+  /** Distinct raw publisher categories behind `uncategorized`, so a taxonomy
+   *  drift upstream is diagnosable from the log instead of only countable. */
+  unmappedCategories: string[];
   failed: string[];
 }
 
@@ -246,7 +249,10 @@ export async function ingestAllSources(env: Env, _ctx?: ExecutionContext): Promi
   );
 
   const fetched = results.flatMap((result) => result.articles);
-  const uncategorized = fetched.filter((article) => !canonicalCategory(article.category)).length;
+  const unmapped = fetched.filter((article) => !canonicalCategory(article.category));
+  const unmappedCategories = [
+    ...new Set(unmapped.map((article) => article.category ?? '(none)')),
+  ].sort();
   const [known, knownUrls] = await Promise.all([
     knownFingerprints(
       env.DB,
@@ -296,7 +302,8 @@ export async function ingestAllSources(env: Env, _ctx?: ExecutionContext): Promi
     fetched: fetched.length,
     skipped: fetched.length - articles.length,
     stored,
-    uncategorized,
+    uncategorized: unmapped.length,
+    unmappedCategories,
     failed: results.map((result) => result.error).filter(Boolean),
   };
 }

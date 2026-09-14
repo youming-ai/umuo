@@ -85,3 +85,34 @@ describe('canonicalCategory', () => {
     expect(canonicalCategory(null)).toBeNull();
   });
 });
+
+describe('Poche taxonomy coverage', () => {
+  // Every category the Poche Explore feed actually publishes, as seen in its
+  // byline (`<small>domain · Category</small>`) and in stored rows. The registry
+  // must accept all of them: an unlisted value is stored as NULL, so the story
+  // never reaches a hub and is invisible except on the global board. `Crypto`
+  // was missing until it was found mis-categorised in production.
+  const POCHE_CATEGORIES = [
+    'Articles',
+    'Crypto',
+    'Design',
+    'Development',
+    'Media',
+    'Other',
+    'Social',
+    'Tools',
+  ];
+
+  it('accepts every category the upstream feed emits', () => {
+    for (const label of POCHE_CATEGORIES) {
+      expect(canonicalCategory(label), label).not.toBeNull();
+      expect(canonicalCategory(label.toLowerCase()), label).not.toBeNull();
+    }
+  });
+
+  it('maps each Poche label to the matching registry key', () => {
+    for (const label of POCHE_CATEGORIES) {
+      expect(canonicalCategory(label)).toBe(label.toLowerCase());
+    }
+  });
+});

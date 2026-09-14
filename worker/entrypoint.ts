@@ -26,8 +26,12 @@ const entrypoint: ExportedHandler<Env> = {
       );
     }
     if (report.uncategorized > 0) {
+      // Name the values: a category missing from src/categories.ts is stored as
+      // NULL and never reaches a hub, so an upstream taxonomy change is only
+      // visible here until the registry is updated to match the feed.
       console.warn(
-        `[scheduled] ${report.uncategorized}/${report.fetched} fetched articles had no registered category`,
+        `[scheduled] ${report.uncategorized}/${report.fetched} fetched articles had no registered category:`,
+        report.unmappedCategories.join(', '),
       );
     }
   },
