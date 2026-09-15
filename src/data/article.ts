@@ -16,7 +16,6 @@ export async function getArticle(
         const row = await env.DB.prepare(
           `SELECT ${EXPLORE_ARTICLE_COLUMNS}
            FROM articles a
-           JOIN sources s ON s.id = a.source_id
            WHERE a.id = ? AND a.status = 'published' AND a.is_on_topic = 1`,
         )
           .bind(id)
@@ -78,7 +77,6 @@ export async function getRelatedArticles(
         const rows = await env.DB.prepare(
           `SELECT ${EXPLORE_ARTICLE_COLUMNS}
            FROM articles a
-           JOIN sources s ON s.id = a.source_id
            WHERE ${conditions.join(' AND ')}
            ORDER BY a.published_at DESC
            LIMIT ?`,

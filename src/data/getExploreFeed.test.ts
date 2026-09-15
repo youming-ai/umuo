@@ -74,7 +74,9 @@ describe('getExploreFeed', () => {
     const feed = await getExploreFeed({ category: 'tools' }, env, ctx);
     expect(feed.items).toEqual([]);
     expect(capturedSql).toContain('FROM articles a');
-    expect(capturedSql).toContain('JOIN sources s ON s.id = a.source_id');
+    // EXPLORE_ARTICLE_COLUMNS reads nothing from `sources` any more, so the
+    // join that used to hang off every feed query is gone.
+    expect(capturedSql).not.toContain('JOIN sources');
     expect(capturedSql).toContain('a.category = ?');
     expect(capturedBindings).toContain('tools');
   });
