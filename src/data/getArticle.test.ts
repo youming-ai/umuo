@@ -41,7 +41,6 @@ describe('getArticle', () => {
       image_width: 0,
       image_height: 0,
       source_id: 'toms-hardware',
-      source_name: "Tom's Hardware",
       source_url: 'https://tomshardware.com',
       published_at: 1_780_000_000_000,
       category: 'gpu',

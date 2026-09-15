@@ -37,7 +37,6 @@ export interface ExploreRow {
   image_width: unknown;
   image_height: unknown;
   source_id: unknown;
-  source_name: unknown;
   source_url: unknown;
   published_at: unknown;
   day_bucket: unknown;
@@ -107,7 +106,6 @@ export function exploreArticle(row: ExploreRow): ExploreArticle {
     imageWidth: rowNumber(row.image_width),
     imageHeight: rowNumber(row.image_height),
     sourceId: rowString(row.source_id),
-    sourceName: rowString(row.source_name),
     // Story domain, not feed URL — feeds.bbci.co.uk → bbc.com.
     sourceDomain: sourceDomain(row.canonical_url),
     publishedAt: rowNumber(row.published_at),
@@ -138,7 +136,7 @@ const LIVE_FRESHNESS =
  *  detail page, and related stories. */
 export const EXPLORE_ARTICLE_COLUMNS =
   'a.id, a.title, a.description, a.ai_summary, a.ai_blurb, a.canonical_url, ' +
-  'a.image_url, a.image_width, a.image_height, a.source_id, s.name AS source_name, s.url AS source_url, ' +
+  'a.image_url, a.image_width, a.image_height, a.source_id, s.url AS source_url, ' +
   'a.published_at, (a.published_at / 86400000) AS day_bucket, a.category, a.article_type, a.quality_score, ' +
   `${LIVE_FRESHNESS}, ` +
   "COALESCE((SELECT json_group_array(at.tag) FROM article_tags at WHERE at.article_id = a.id), '[]') AS tags";

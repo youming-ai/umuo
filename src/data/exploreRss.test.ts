@@ -15,7 +15,6 @@ function article(
     summary: string;
     blurb: string;
     url: string;
-    sourceName: string;
     sourceDomain: string;
     publishedAt: number;
     category: string | null;
@@ -34,7 +33,6 @@ function article(
     imageWidth: 0,
     imageHeight: 0,
     sourceId: 'toms-hardware',
-    sourceName: "Tom's Hardware",
     sourceDomain: 'tomshardware.com',
     publishedAt: 1735689600000, // 2025-01-01T00:00:00Z (a fixed instant so the test is stable)
     category: 'gpu',
