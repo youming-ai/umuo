@@ -21,7 +21,6 @@ export interface ExploreArticle {
   imageWidth: number; // 0 when the feed gave no dimensions
   imageHeight: number;
   sourceId: string;
-  sourceName: string;
   sourceDomain: string;
   publishedAt: number;
   /** Canonical category key from src/categories.ts, null when unattributed. */

@@ -36,7 +36,7 @@ export default function ExploreCard({
 }) {
   const date = publishedDate(article.publishedAt);
   const score = scoreValue(article.qualityScore);
-  const domain = article.sourceDomain || article.sourceName || 'source';
+  const domain = article.sourceDomain || 'source';
   // Prefer short blurb on card stream; full summary is featured on detail page.
   const description = articleDeck(article, 'short');
 
@@ -168,7 +168,6 @@ export default function ExploreCard({
             )}
           </p>
           <p className="mt-1 flex items-center gap-2 ds-caption text-chalkdim">
-            <span className="truncate">{article.sourceName || domain}</span>
             <span className="ml-auto shrink-0 tabular-nums">{date}</span>
             <span className="sr-only">
               Curated signal {score} of 100, published {date}
