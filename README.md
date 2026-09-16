@@ -86,6 +86,7 @@ graph TD
 | `/a/:id` | Article summary detail + related stories |
 | `/rss.xml`, `/:category/rss.xml` | RSS 2.0 |
 | `/sitemap.xml` | Sitemap — hubs, articles, and feeds |
+| `/media/:id` | Feed-CDN images, re-served under this origin |
 
 ## Deployment
 

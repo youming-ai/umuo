@@ -28,7 +28,8 @@ graph TD
 - `src/data/api.ts` — KV SWR core (`runCached`/`json`) facade + the D1 explore queries and SSR composers (implementation split across `cache.ts`, `explore.ts`, `article.ts`, `sitemapData.ts`).
 - `src/components/explore/` — `ExploreView` (grouped category rail, toolbar, masonry, infinite scroll), `ExploreCard`. `Logo`/`Footer` are shared chrome.
 - `migrations/` — D1 schema (0001–0012). Applied by `bun run deploy`, never automatically.
-- `worker/entrypoint.ts` — `fetch` (Astro), `scheduled` (cron). `worker/index.ts` is the `/api/*` dispatcher (explore endpoints + ASSETS passthrough).
+- `worker/entrypoint.ts` — the deployed handler. `fetch` answers `/media/*` itself and hands everything else to Astro; `scheduled` runs ingest/sweep. `worker/index.ts` is the `/api/*` dispatcher (explore endpoints, then an `ASSETS` fallthrough) and is only reachable through `src/pages/api/[...route].ts`.
+- `src/media.ts` — rewrites feed-CDN images onto our own origin and serves them at `/media/<storage-id>`. See Gotchas.
 - `design-tokens/` — W3C design-tokens JSON; `src/index.css` and `tailwind.config.js` map to it.
 
 ## Development Commands
@@ -57,11 +58,12 @@ Bun locally, `workerd` in production.
 ## Important Files
 
 - `src/categories.ts` — `CATEGORIES: Record<string, Category>` (8 keys: tools, design, development, articles, social, media, crypto, other; each carries a `group` the explore rail renders by). **The single validation gate** for category values — routes, facet filtering, KV-key safety, and storage fallback all check against it. Mirrors the Poche taxonomy exactly; `src/feeds/enrich.test.ts` pins the coverage.
-- `src/site.ts` — `SITE_ORIGIN`, `articlePath(id)` → `/a/{id}`, `articleDeck(article, 'short'|'long')`. The image-proxy helper was removed with the football desk; cards render feed images directly and hide broken ones.
+- `src/site.ts` — `SITE_ORIGIN`, `articlePath(id)` → `/a/{id}`, `articleDeck(article, 'short'|'long')`. Cards render feed images directly and hide broken ones; feed-CDN images are re-originated by `src/media.ts`.
 - `src/data/api.ts` — `runCached`, `serveExplore`, `serveExploreRss`, `getExploreFeed`/`getExploreFilters`/`getArticle`/`getRelatedArticles`, sitemap composers. `EXPLORE_ARTICLE_COLUMNS` is the single shared projection.
 - `src/feeds/ingest.ts` — `ingestAllSources(env, ctx)`, `canonicalizeUrl`, `fingerprintFor`, `fetchWithRetry`, `RSS_HEADERS`.
 - `src/feeds/enrich.ts` — `storeArticle`, `canonicalCategory`, and `normalizeTitle` for direct persistence and cross-source dedupe.
 - `src/feeds/retention.ts` — `PRUNE_CRON = '17 3 * * *'`, `ARTICLE_ARCHIVE_DAYS = 90`.
+- `src/media.ts` — `proxiedImageUrl` (rewrites a feed-CDN image onto `SITE_ORIGIN`), `serveMedia` (the `/media/<storage-id>` handler), and the id allowlist that keeps it from being an open proxy.
 - `worker/entrypoint.ts` / `worker/index.ts` — see Key Directories.
 - `wrangler.toml` — all Cloudflare bindings/crons/vars (see Infrastructure).
 - `env.d.ts` / `worker/env.d.ts` — hand-declared `Cloudflare.Env` for the two tsconfigs; must match `wrangler.toml` vars exactly.
@@ -115,3 +117,4 @@ Each of these cost real debugging. They are not hypothetical.
 - **`description` is fingerprint-stable.** The feed teaser is capped at 4000 characters and contributes to the fingerprint; keep that behavior stable unless you intend to re-ingest the corpus.
 - **`freshness_score` column is dead.** Display freshness is computed at query time in SQL (`LIVE_FRESHNESS`, 72h decay window from `published_at`); the stored column defaults 0 and is ignored.
 - **Cron runs are deployment-driven.** Local `wrangler dev` does not fire the production schedule; to trigger an ingest by hand, set a one-shot cron, deploy, let it fire, then remove it.
+- **`/media/<id>` is not an open proxy.** It re-serves feed-CDN images so that origin never appears in card markup, the island payload, or `og:image`. The route takes a storage id and never a URL: `src/media.ts` checks a UUID pattern before building the upstream URL, so the `/api/img?src=<any-url>` proxy the football desk removed is *not* what this is — `worker/index.test.ts` keeps a guard that URL-shaped input still 404s. An unrecognised path on the upstream origin is dropped rather than forwarded, since forwarding it would leak the host the module exists to hide. Do not add a `?src=` form: that is the SSRF hole. Reads are edge-cached for a day (`cacheEverything`), the stored `articles.image_url` keeps the upstream value, and the rewrite happens at read time in `exploreArticle`. **The route lives in `worker/entrypoint.ts`, not `worker/index.ts`** — Astro mounts that dispatcher at `/api/*` only, so a `/media/` handler placed there is unreachable and every proxied image 404s against `ASSETS`; `worker/entrypoint.test.ts` guards the wiring by asserting `/media/*` never reaches Astro's handler.
