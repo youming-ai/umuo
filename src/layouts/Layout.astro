@@ -39,10 +39,14 @@ const {
 
 /** Pages that carry no image of their own — the board, a category hub, a link
  *  with no thumbnail — fall back to the site card, so a shared URL is never a
- *  bare text card. `public/og.png` is generated from `public/og.svg`. */
-const socialImage = image ?? `${SITE_ORIGIN}/og.png`;
+ *  bare text card. `public/og.png` is generated from `public/og.svg`.
+ *
+ *  Truthiness, not `??`: an article with no thumbnail (or one whose upstream
+ *  image the proxy drops) arrives here as an empty string, and a nullish check
+ *  would emit `content=""` for both images. */
+const socialImage = image || `${SITE_ORIGIN}/og.png`;
 const socialImageAlt =
-  imageAlt ?? (image ? undefined : `${SITE_NAME}: curated links from across the web`);
+  imageAlt || (image ? undefined : `${SITE_NAME}: curated links from across the web`);
 const socialCard = twitterCard ?? 'summary_large_image';
 
 // Strip a trailing slash from the path so canonical/og:url match the actual page.
