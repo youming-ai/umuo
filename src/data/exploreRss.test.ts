@@ -32,7 +32,6 @@ function article(
     imageUrl: '',
     imageWidth: 0,
     imageHeight: 0,
-    sourceId: 'toms-hardware',
     sourceDomain: 'tomshardware.com',
     publishedAt: 1735689600000, // 2025-01-01T00:00:00Z (a fixed instant so the test is stable)
     category: 'gpu',

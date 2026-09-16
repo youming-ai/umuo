@@ -1,4 +1,5 @@
 import { CATEGORIES } from '../categories';
+import { proxiedImageUrl } from '../media';
 import { GLOBAL_FEED_LABEL } from '../site';
 import type {
   ExploreArticle,
@@ -36,7 +37,6 @@ export interface ExploreRow {
   image_url: unknown;
   image_width: unknown;
   image_height: unknown;
-  source_id: unknown;
   published_at: unknown;
   day_bucket: unknown;
   category: unknown;
@@ -101,10 +101,11 @@ export function exploreArticle(row: ExploreRow): ExploreArticle {
     summary: rowString(row.ai_summary),
     blurb: rowString(row.ai_blurb),
     url: rowString(row.canonical_url),
-    imageUrl: rowString(row.image_url),
+    // Upstream-hosted images are rewritten to /media so the feed's own CDN
+    // origin never reaches markup, the payload, or og:image.
+    imageUrl: proxiedImageUrl(rowString(row.image_url)),
     imageWidth: rowNumber(row.image_width),
     imageHeight: rowNumber(row.image_height),
-    sourceId: rowString(row.source_id),
     // Story domain, not feed URL — feeds.bbci.co.uk → bbc.com.
     sourceDomain: sourceDomain(row.canonical_url),
     publishedAt: rowNumber(row.published_at),
@@ -135,7 +136,7 @@ const LIVE_FRESHNESS =
  *  detail page, and related stories. */
 export const EXPLORE_ARTICLE_COLUMNS =
   'a.id, a.title, a.description, a.ai_summary, a.ai_blurb, a.canonical_url, ' +
-  'a.image_url, a.image_width, a.image_height, a.source_id, ' +
+  'a.image_url, a.image_width, a.image_height, ' +
   'a.published_at, (a.published_at / 86400000) AS day_bucket, a.category, a.article_type, a.quality_score, ' +
   `${LIVE_FRESHNESS}, ` +
   "COALESCE((SELECT json_group_array(at.tag) FROM article_tags at WHERE at.article_id = a.id), '[]') AS tags";

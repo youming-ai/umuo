@@ -226,4 +226,40 @@ describe('fetch routing', () => {
     );
     expect(res.status).toBe(404);
   });
+
+  // The /media/ route is deliberately not a revival of the open proxy above:
+  // it accepts a storage id, never a URL, and only ever talks to one origin.
+  it('serves /media/<id> by proxying the upstream CDN', async () => {
+    const id = '437e368b-c40c-4e02-8e06-2ca5bbcb8055';
+    fetchMock.mockResolvedValueOnce(
+      new Response('image-bytes', { status: 200, headers: { 'content-type': 'image/png' } }),
+    );
+    const env = mockEnv(null);
+    const res = await worker.fetch(new Request(`https://x/media/${id}`), env, mockCtx());
+    expect(res.status).toBe(200);
+    expect(res.headers.get('content-type')).toBe('image/png');
+    expect(fetchMock).toHaveBeenCalledWith(
+      `https://cloud.poche.app/api/storage/${id}`,
+      expect.objectContaining({ cf: expect.objectContaining({ cacheEverything: true }) }),
+    );
+  });
+
+  it('404s on a /media/ file name that is not a storage id, without fetching', async () => {
+    const env = mockEnv(null);
+    for (const bad of ['not-a-uuid', 'https:%2F%2Fevil.test%2Fx.png', '..%2F..%2Fsecret']) {
+      const res = await worker.fetch(new Request(`https://x/media/${bad}`), env, mockCtx());
+      expect(res.status, bad).toBe(404);
+    }
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('rejects a non-GET on /media/', async () => {
+    const env = mockEnv(null);
+    const res = await worker.fetch(
+      new Request('https://x/media/437e368b-c40c-4e02-8e06-2ca5bbcb8055', { method: 'POST' }),
+      env,
+      mockCtx(),
+    );
+    expect(res.status).toBe(405);
+  });
 });

@@ -52,7 +52,6 @@ it('renders article cards server-side', () => {
             imageUrl: '',
             imageWidth: 0,
             imageHeight: 0,
-            sourceId: 'toms-hardware',
             sourceDomain: 'tomshardware.com',
             publishedAt: 1786080856000,
             category: 'tools',
