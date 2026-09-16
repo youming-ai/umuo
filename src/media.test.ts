@@ -127,6 +127,38 @@ describe('serveMedia', () => {
     expect((await serveMedia(ID)).status).toBe(502);
   });
 
+  it('refuses a followed redirect that lands off the pinned origin', async () => {
+    // `fetch` follows redirects by default; relaying whatever host it landed on
+    // would defeat pinning only one origin.
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        redirected: true,
+        url: 'https://evil.test/x.png',
+        headers: new Headers({ 'content-type': 'image/png' }),
+        body: null,
+      }),
+    );
+    expect((await serveMedia(ID)).status).toBe(502);
+  });
+
+  it('allows a same-origin redirect', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        redirected: true,
+        url: UPSTREAM,
+        headers: new Headers({ 'content-type': 'image/png' }),
+        body: null,
+      }),
+    );
+    expect((await serveMedia(ID)).status).toBe(200);
+  });
+
   it('502s when the upstream fetch throws', async () => {
     // The catch path logs; silence it so a green run stays quiet.
     vi.spyOn(console, 'error').mockImplementation(() => {});
@@ -180,6 +212,23 @@ describe('mediaRequest', () => {
       expect((await mediaRequest(new Request(url), url))?.status, bad).toBe(400);
     }
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('strips the body for HEAD while keeping the headers', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn()
+        .mockResolvedValue(
+          new Response('bytes', { status: 200, headers: { 'content-type': 'image/png' } }),
+        ),
+    );
+    const url = new URL(`https://x/media/${ID}`);
+    const res = await mediaRequest(new Request(url, { method: 'HEAD' }), url);
+    // HTTP requires HEAD to mirror the GET headers with no body.
+    expect(res?.status).toBe(200);
+    expect(res?.headers.get('content-type')).toBe('image/png');
+    expect(await res?.text()).toBe('');
   });
 
   it('rejects a non-GET/HEAD without touching the upstream', async () => {

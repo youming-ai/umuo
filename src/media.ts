@@ -78,7 +78,14 @@ export function mediaRequest(request: Request, url: URL): Promise<Response> | nu
     // entrypoint's catch-all and becomes a 500 plus an error log line.
     return Promise.resolve(new Response('Bad request', { status: 400 }));
   }
-  return serveMedia(file);
+
+  const served = serveMedia(file);
+  if (request.method !== 'HEAD') return served;
+  // HTTP requires a HEAD response to carry the headers of the equivalent GET
+  // and no body, so the relayed body is dropped rather than sent.
+  return served.then(
+    (response) => new Response(null, { status: response.status, headers: response.headers }),
+  );
 }
 
 /** The upstream URL for a `/media/<file>` request, or null when `file` is not a
@@ -98,6 +105,13 @@ export async function serveMedia(file: string): Promise<Response> {
     const response = await fetch(upstream, {
       cf: { cacheEverything: true, cacheTtl: 86_400 },
     });
+    // `fetch` follows redirects by default, which would let the relayed bytes
+    // come from a host we did not pin. A same-origin redirect is fine; anything
+    // else is refused rather than relayed blind. Guarded on `redirected` so the
+    // common no-redirect path never parses a URL.
+    if (response.redirected && new URL(response.url).origin !== UPSTREAM_MEDIA_ORIGIN) {
+      return new Response('Upstream unavailable', { status: 502 });
+    }
     // 404 is the upstream saying the file is gone — a permanent answer, and the
     // one worth caching as such. Anything else non-ok (5xx, 429) is transient,
     // so it must not be reported as a missing image.

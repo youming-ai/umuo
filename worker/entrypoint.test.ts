@@ -45,19 +45,22 @@ describe('entrypoint fetch', () => {
   });
 
   it('answers /media/<id> itself, without consulting Astro', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi
-        .fn()
-        .mockResolvedValue(
-          new Response('image-bytes', { status: 200, headers: { 'content-type': 'image/png' } }),
-        ),
-    );
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(
+        new Response('image-bytes', { status: 200, headers: { 'content-type': 'image/png' } }),
+      );
+    vi.stubGlobal('fetch', fetchMock);
 
     const res = await entrypoint.fetch!(request(`https://x/media/${ID}`), ENV, mockCtx());
 
     expect(res.status).toBe(200);
     expect(res.headers.get('content-type')).toBe('image/png');
+    // Pins the upstream the relay actually talks to, not just the status.
+    expect(fetchMock).toHaveBeenCalledWith(
+      `https://cloud.poche.app/api/storage/${ID}`,
+      expect.objectContaining({ cf: expect.objectContaining({ cacheEverything: true }) }),
+    );
     expect(handle).not.toHaveBeenCalled();
   });
 

@@ -232,11 +232,19 @@ describe('fetch routing', () => {
     // reaches it. Handling media here would be unreachable code; the real route
     // is worker/entrypoint.ts, covered by entrypoint.test.ts.
     const env = mockEnv(null);
+    const assets = vi.fn(async () => new Response('asset', { status: 404 }));
+    env.ASSETS = { fetch: assets } as unknown as Env['ASSETS'];
+
     const res = await worker.fetch(
       new Request('https://x/media/437e368b-c40c-4e02-8e06-2ca5bbcb8055'),
       env,
       mockCtx(),
     );
-    expect(res.status).not.toBe(200);
+
+    // It falls through to ASSETS rather than being proxied here. Without an
+    // ASSETS stub this assertion would pass for the wrong reason (a thrown
+    // TypeError caught into a 500).
+    expect(assets).toHaveBeenCalled();
+    expect(res.status).toBe(404);
   });
 });
