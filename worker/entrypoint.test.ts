@@ -90,4 +90,12 @@ describe('entrypoint fetch', () => {
     expect(res.status).toBe(405);
     expect(handle).not.toHaveBeenCalled();
   });
+
+  it('400s malformed percent-encoding instead of 500ing through the catch-all', async () => {
+    // Left unhandled the URIError escapes to the entrypoint's catch, which
+    // answers 500 and logs an unhandled error for what is client input.
+    const res = await entrypoint.fetch!(request('https://x/media/%'), ENV, mockCtx());
+    expect(res.status).toBe(400);
+    expect(handle).not.toHaveBeenCalled();
+  });
 });

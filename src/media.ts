@@ -68,7 +68,17 @@ export function mediaRequest(request: Request, url: URL): Promise<Response> | nu
   if (request.method !== 'GET' && request.method !== 'HEAD') {
     return Promise.resolve(new Response('Method not allowed', { status: 405 }));
   }
-  return serveMedia(decodeURIComponent(url.pathname.slice(MEDIA_PATH.length)));
+
+  let file: string;
+  try {
+    file = decodeURIComponent(url.pathname.slice(MEDIA_PATH.length));
+  } catch {
+    // Malformed percent-encoding (`/media/%`, `/media/%E0%A4%A`) is client
+    // input, not a server fault. Without this the URIError escapes to the
+    // entrypoint's catch-all and becomes a 500 plus an error log line.
+    return Promise.resolve(new Response('Bad request', { status: 400 }));
+  }
+  return serveMedia(file);
 }
 
 /** The upstream URL for a `/media/<file>` request, or null when `file` is not a
@@ -88,7 +98,11 @@ export async function serveMedia(file: string): Promise<Response> {
     const response = await fetch(upstream, {
       cf: { cacheEverything: true, cacheTtl: 86_400 },
     });
-    if (!response.ok) return new Response('Not found', { status: 404 });
+    // 404 is the upstream saying the file is gone — a permanent answer, and the
+    // one worth caching as such. Anything else non-ok (5xx, 429) is transient,
+    // so it must not be reported as a missing image.
+    if (response.status === 404) return new Response('Not found', { status: 404 });
+    if (!response.ok) return new Response('Upstream unavailable', { status: 502 });
     return new Response(response.body, {
       headers: {
         'content-type': response.headers.get('content-type') ?? 'application/octet-stream',

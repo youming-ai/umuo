@@ -122,7 +122,14 @@ describe('serveMedia', () => {
     expect((await serveMedia(ID)).status).toBe(404);
   });
 
+  it('502s on an upstream 5xx, so a transient fault is not read as a missing image', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('boom', { status: 503 })));
+    expect((await serveMedia(ID)).status).toBe(502);
+  });
+
   it('502s when the upstream fetch throws', async () => {
+    // The catch path logs; silence it so a green run stays quiet.
+    vi.spyOn(console, 'error').mockImplementation(() => {});
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('offline')));
     expect((await serveMedia(ID)).status).toBe(502);
   });
@@ -159,6 +166,18 @@ describe('mediaRequest', () => {
     for (const bad of ['not-a-uuid', 'https:%2F%2Fevil.test%2Fx.png', '..%2F..%2Fsecret']) {
       const url = new URL(`https://x/media/${bad}`);
       expect((await mediaRequest(new Request(url), url))?.status, bad).toBe(404);
+    }
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('400s malformed percent-encoding instead of throwing into the catch-all', async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+    // `decodeURIComponent` throws URIError on these; left unhandled it escapes
+    // to the entrypoint's catch-all and becomes a 500 plus an error log.
+    for (const bad of ['%', '%zz', '%E0%A4%A']) {
+      const url = new URL(`https://x/media/${bad}`);
+      expect((await mediaRequest(new Request(url), url))?.status, bad).toBe(400);
     }
     expect(fetchMock).not.toHaveBeenCalled();
   });
