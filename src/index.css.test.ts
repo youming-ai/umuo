@@ -88,4 +88,19 @@ describe('design tokens', () => {
       expect(toPx(match![1])).toBe(toPx(token.$value));
     }
   });
+
+  it('keeps the theme-color meta in sync with the dark --c-bg', () => {
+    // Layout.astro is the one place --c-bg is copied as a literal: the browser
+    // chrome color has to be in the markup before the stylesheet resolves.
+    // Pinned the way PRUNE_CRON is pinned to wrangler.toml, since the dark
+    // ground changing would otherwise silently leave the mobile chrome wrong.
+    const layout = readFileSync(resolve(process.cwd(), 'src/layouts/Layout.astro'), 'utf8');
+    const meta = layout.match(/name="theme-color"\s+content="rgb\(([^)]+)\)"/);
+    expect(meta, 'theme-color meta in Layout.astro').not.toBeNull();
+
+    const hex = dark.bg;
+    expect(hex, '--c-bg in the dark block').toBeDefined();
+    const channels = [1, 3, 5].map((i) => Number.parseInt(hex!.slice(i, i + 2), 16));
+    expect(meta![1].trim()).toBe(channels.join(' '));
+  });
 });

@@ -34,8 +34,20 @@ const {
   ogType = 'website',
   image,
   imageAlt,
-  twitterCard = image ? 'summary_large_image' : 'summary',
+  twitterCard,
 } = Astro.props;
+
+/** Pages that carry no image of their own — the board, a category hub, a link
+ *  with no thumbnail — fall back to the site card, so a shared URL is never a
+ *  bare text card. `public/og.png` is generated from `public/og.svg`.
+ *
+ *  Truthiness, not `??`: an article with no thumbnail (or one whose upstream
+ *  image the proxy drops) arrives here as an empty string, and a nullish check
+ *  would emit `content=""` for both images. */
+const socialImage = image || `${SITE_ORIGIN}/og.png`;
+const socialImageAlt =
+  imageAlt || (image ? undefined : `${SITE_NAME}: curated links from across the web`);
+const socialCard = twitterCard ?? 'summary_large_image';
 
 // Strip a trailing slash from the path so canonical/og:url match the actual page.
 const rawPath = Astro.url.pathname;
@@ -48,7 +60,11 @@ const canonicalUrl = `${SITE_ORIGIN}${canonicalPath}`;
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="" />
+    <!-- Server-rendered default so the tag is never empty for a crawler or a
+        no-JS visitor: it mirrors --c-bg for the default (dark) theme, and the
+        inline script below re-syncs it whenever the theme changes. -->
+    <meta name="theme-color" content="rgb(10 14 12)" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <title>{title}</title>
     <meta name="description" content={description} />
     <meta name="robots" content="index, follow" />
@@ -65,13 +81,13 @@ const canonicalUrl = `${SITE_ORIGIN}${canonicalPath}`;
     <meta property="og:description" content={description} />
     <meta property="og:url" content={canonicalUrl} />
     <meta property="og:locale" content={SITE_LOCALE} />
-    {image && <meta property="og:image" content={image} />}
-    {image && imageAlt && <meta property="og:image:alt" content={imageAlt} />}
-    <meta name="twitter:card" content={twitterCard} />
+    <meta property="og:image" content={socialImage} />
+    {socialImageAlt && <meta property="og:image:alt" content={socialImageAlt} />}
+    <meta name="twitter:card" content={socialCard} />
     <meta name="twitter:title" content={title} />
     <meta name="twitter:description" content={description} />
-    {image && <meta name="twitter:image" content={image} />}
-    {image && imageAlt && <meta name="twitter:image:alt" content={imageAlt} />}
+    <meta name="twitter:image" content={socialImage} />
+    {socialImageAlt && <meta name="twitter:image:alt" content={socialImageAlt} />}
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <!-- Archivo carries the desk headlines; Inter keeps prose readable; JetBrains Mono labels live state and source metadata. -->

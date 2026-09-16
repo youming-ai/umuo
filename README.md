@@ -55,6 +55,7 @@ All knobs are code, not env spaghetti. Edit one file per concern:
 | Concern | File | Notes |
 |---------|------|-------|
 | Branding / origin | `src/site.ts` | `SITE_ORIGIN`, `SITE_NAME`, `SITE_TITLE`, `SITE_DESCRIPTION` |
+| Icons / social card | `public/favicon.svg`, `public/og.svg` | Edit the SVG, then rasterize `og.svg` to `og.png` (the default `og:image`) |
 | Taxonomy | `src/categories.ts` | `CATEGORIES` — keys become `/:category` routes |
 | Ingest source | `src/feeds/sources.ts` | Poche Explore RSS registry; `id` is the stable D1 `source_id` |
 | Retention | `src/feeds/retention.ts` | `ARTICLE_ARCHIVE_DAYS` (default 90) |

@@ -97,7 +97,9 @@ function formatCardDate(timestamp: number): string {
   return `${String(d.getUTCMonth() + 1).padStart(2, '0')}/${String(d.getUTCDate()).padStart(2, '0')}`;
 }
 
-const ogImageUrl = article.imageUrl ?? undefined;
+// `||`, not `??`: an article with no thumbnail carries `imageUrl: ''`, and the
+// layout must see that as absent so its social-card fallback applies.
+const ogImageUrl = article.imageUrl || undefined;
 ---
 <Layout
   title={`${article.title} — ${SITE_NAME}`}
