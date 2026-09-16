@@ -221,20 +221,9 @@
 }
 
 /* ── Ink desk shell ───────────────────────────────────────────────────────── */
-body {
-  background-image:
-    linear-gradient(rgb(var(--c-line) / 0.16) 1px, transparent 1px),
-    linear-gradient(90deg, rgb(var(--c-line) / 0.16) 1px, transparent 1px);
-  background-size: 72px 72px;
-}
-
 .desk-shell {
   min-height: 100vh;
   overflow: clip;
-}
-
-@media (max-width: 800px) {
-  body { background-size: 40px 40px; }
 }
 
 .no-scrollbar::-webkit-scrollbar {
