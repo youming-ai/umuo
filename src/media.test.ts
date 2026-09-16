@@ -192,12 +192,21 @@ describe('mediaRequest', () => {
     expect((await mediaRequest(new Request(url), url))?.status).toBe(200);
   });
 
-  it('404s a file name that is not a storage id, including a smuggled URL', async () => {
+  it('leaves a /media/ path that is not a storage id to the rest of the app', async () => {
     const fetchMock = vi.fn();
     vi.stubGlobal('fetch', fetchMock);
-    for (const bad of ['not-a-uuid', 'https:%2F%2Fevil.test%2Fx.png', '..%2F..%2Fsecret']) {
-      const url = new URL(`https://x/media/${bad}`);
-      expect((await mediaRequest(new Request(url), url))?.status, bad).toBe(404);
+    // `/media/rss.xml` is the `media` category hub's own feed: claiming the whole
+    // prefix answered 404 for a URL the sitemap advertises. Non-ids must fall
+    // through, as must a smuggled URL.
+    for (const rest of [
+      'rss.xml',
+      'not-a-uuid',
+      'https:%2F%2Fevil.test%2Fx.png',
+      '..%2F..%2Fsecret',
+      '',
+    ]) {
+      const url = new URL(`https://x/media/${rest}`);
+      expect(mediaRequest(new Request(url), url), rest || '(empty)').toBeNull();
     }
     expect(fetchMock).not.toHaveBeenCalled();
   });
