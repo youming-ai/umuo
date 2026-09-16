@@ -19,6 +19,11 @@ export const MEDIA_PATH = '/media/';
  *  proxy: no absolute URLs, no `..`, no other host, no query string. */
 const MEDIA_FILE_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+/** Whether `file` is an upstream storage id — the only thing `/media/` serves. */
+export function isStorageId(file: string): boolean {
+  return MEDIA_FILE_RE.test(file);
+}
+
 /** The upstream storage id behind `url`, or null when it is not ours to proxy. */
 export function mediaFile(url: string): string | null {
   try {
@@ -26,7 +31,7 @@ export function mediaFile(url: string): string | null {
     if (parsed.origin !== UPSTREAM_MEDIA_ORIGIN) return null;
     if (!parsed.pathname.startsWith(UPSTREAM_MEDIA_PATH)) return null;
     const file = parsed.pathname.slice(UPSTREAM_MEDIA_PATH.length);
-    return MEDIA_FILE_RE.test(file) ? file : null;
+    return isStorageId(file) ? file : null;
   } catch {
     return null;
   }
@@ -65,9 +70,6 @@ export function proxiedImageUrl(url: string): string {
  *  through to ASSETS, 404ing every proxied image. Keep the call there. */
 export function mediaRequest(request: Request, url: URL): Promise<Response> | null {
   if (!url.pathname.startsWith(MEDIA_PATH)) return null;
-  if (request.method !== 'GET' && request.method !== 'HEAD') {
-    return Promise.resolve(new Response('Method not allowed', { status: 405 }));
-  }
 
   let file: string;
   try {
@@ -77,6 +79,16 @@ export function mediaRequest(request: Request, url: URL): Promise<Response> | nu
     // input, not a server fault. Without this the URIError escapes to the
     // entrypoint's catch-all and becomes a 500 plus an error log line.
     return Promise.resolve(new Response('Bad request', { status: 400 }));
+  }
+
+  // Claim only what this route can actually serve. `/media/` is also the path
+  // of the `media` category hub, so claiming the whole prefix swallowed
+  // `/media/rss.xml` — the hub's own feed — and answered 404 for a URL the
+  // sitemap advertises. Anything that is not a storage id belongs to the app.
+  if (!isStorageId(file)) return null;
+
+  if (request.method !== 'GET' && request.method !== 'HEAD') {
+    return Promise.resolve(new Response('Method not allowed', { status: 405 }));
   }
 
   const served = serveMedia(file);
@@ -91,7 +103,7 @@ export function mediaRequest(request: Request, url: URL): Promise<Response> | nu
 /** The upstream URL for a `/media/<file>` request, or null when `file` is not a
  *  storage id. Callers must treat null as 404 — never as "fetch it anyway". */
 export function upstreamMediaUrl(file: string): string | null {
-  return MEDIA_FILE_RE.test(file) ? `${UPSTREAM_MEDIA_ORIGIN}${UPSTREAM_MEDIA_PATH}${file}` : null;
+  return isStorageId(file) ? `${UPSTREAM_MEDIA_ORIGIN}${UPSTREAM_MEDIA_PATH}${file}` : null;
 }
 
 /** Stream one proxied image. The upstream body is relayed rather than buffered

@@ -73,15 +73,21 @@ describe('entrypoint fetch', () => {
     expect(handle).toHaveBeenCalledTimes(4);
   });
 
-  it('404s a /media/ path that is not a storage id, still without Astro', async () => {
+  it('hands a /media/ path that is not a storage id back to Astro', async () => {
+    // Regression: `/media/rss.xml` is the `media` category hub's feed, and the
+    // proxy used to claim the whole `/media/` prefix and answer 404 for it —
+    // a URL /sitemap.xml advertises.
     const fetchMock = vi.fn();
     vi.stubGlobal('fetch', fetchMock);
 
-    const res = await entrypoint.fetch!(request('https://x/media/not-a-uuid'), ENV, mockCtx());
+    for (const rest of ['rss.xml', 'not-a-uuid']) {
+      const res = await entrypoint.fetch!(request(`https://x/media/${rest}`), ENV, mockCtx());
+      expect(res.status, rest).toBe(200);
+      expect(await res.text(), rest).toBe('astro');
+    }
 
-    expect(res.status).toBe(404);
     expect(fetchMock).not.toHaveBeenCalled();
-    expect(handle).not.toHaveBeenCalled();
+    expect(handle).toHaveBeenCalledTimes(2);
   });
 
   it('rejects a non-GET on /media/', async () => {
