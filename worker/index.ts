@@ -1,7 +1,6 @@
 /// <reference types="@cloudflare/workers-types" />
 
 import { type Env, exploreQueryFromUrl, serveExplore, serveExploreFilters } from '../src/data/api';
-import { MEDIA_PATH, serveMedia } from '../src/media';
 
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
@@ -15,14 +14,9 @@ export default {
         if (request.method !== 'GET') return new Response('Method not allowed', { status: 405 });
         return serveExploreFilters(url.searchParams.get('category') ?? '', env, ctx);
       }
-      // Feed-hosted images, re-served under our own origin so the upstream CDN
-      // host never appears in markup, the island payload, or og:image.
-      if (url.pathname.startsWith(MEDIA_PATH)) {
-        if (request.method !== 'GET' && request.method !== 'HEAD') {
-          return new Response('Method not allowed', { status: 405 });
-        }
-        return serveMedia(decodeURIComponent(url.pathname.slice(MEDIA_PATH.length)));
-      }
+      // /media/* is deliberately absent: Astro only mounts this dispatcher at
+      // /api/*, so it is unreachable for media. That route lives in
+      // worker/entrypoint.ts, ahead of Astro.
 
       if (url.pathname.startsWith('/api/')) return new Response('Not found', { status: 404 });
       return env.ASSETS.fetch(request); // static assets + SPA fallback

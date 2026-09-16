@@ -56,6 +56,21 @@ export function proxiedImageUrl(url: string): string {
   return isUpstreamHost(url) ? '' : url;
 }
 
+/** Handle a request for `/media/<file>`, or return null when the path is not
+ *  ours so the caller can continue to its normal routing.
+ *
+ *  This is called from `worker/entrypoint.ts` *before* Astro's handler. Astro
+ *  only mounts the worker dispatcher at `/api/*` (`src/pages/api/[...route].ts`),
+ *  so a `/media/` request that reached Astro would match no page and fall
+ *  through to ASSETS, 404ing every proxied image. Keep the call there. */
+export function mediaRequest(request: Request, url: URL): Promise<Response> | null {
+  if (!url.pathname.startsWith(MEDIA_PATH)) return null;
+  if (request.method !== 'GET' && request.method !== 'HEAD') {
+    return Promise.resolve(new Response('Method not allowed', { status: 405 }));
+  }
+  return serveMedia(decodeURIComponent(url.pathname.slice(MEDIA_PATH.length)));
+}
+
 /** The upstream URL for a `/media/<file>` request, or null when `file` is not a
  *  storage id. Callers must treat null as 404 — never as "fetch it anyway". */
 export function upstreamMediaUrl(file: string): string | null {

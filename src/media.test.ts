@@ -3,7 +3,14 @@
 // care about two things: which URLs get rewritten, and that `/media/<file>`
 // can never be steered at a host we did not choose.
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { MEDIA_PATH, mediaFile, proxiedImageUrl, serveMedia, upstreamMediaUrl } from './media';
+import {
+  MEDIA_PATH,
+  mediaFile,
+  mediaRequest,
+  proxiedImageUrl,
+  serveMedia,
+  upstreamMediaUrl,
+} from './media';
 import { SITE_ORIGIN } from './site';
 
 const ID = '437e368b-c40c-4e02-8e06-2ca5bbcb8055';
@@ -118,5 +125,49 @@ describe('serveMedia', () => {
   it('502s when the upstream fetch throws', async () => {
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('offline')));
     expect((await serveMedia(ID)).status).toBe(502);
+  });
+});
+
+describe('mediaRequest', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('returns null for paths that are not ours, so routing continues', () => {
+    for (const path of ['/', '/api/explore', '/media', '/a/x']) {
+      const url = new URL(`https://x${path}`);
+      expect(mediaRequest(new Request(url), url), path).toBeNull();
+    }
+  });
+
+  it('serves a storage id', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn()
+        .mockResolvedValue(
+          new Response('bytes', { status: 200, headers: { 'content-type': 'image/png' } }),
+        ),
+    );
+    const url = new URL(`https://x/media/${ID}`);
+    expect((await mediaRequest(new Request(url), url))?.status).toBe(200);
+  });
+
+  it('404s a file name that is not a storage id, including a smuggled URL', async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+    for (const bad of ['not-a-uuid', 'https:%2F%2Fevil.test%2Fx.png', '..%2F..%2Fsecret']) {
+      const url = new URL(`https://x/media/${bad}`);
+      expect((await mediaRequest(new Request(url), url))?.status, bad).toBe(404);
+    }
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('rejects a non-GET/HEAD without touching the upstream', async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+    const url = new URL(`https://x/media/${ID}`);
+    expect((await mediaRequest(new Request(url, { method: 'POST' }), url))?.status).toBe(405);
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 });

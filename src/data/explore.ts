@@ -285,10 +285,14 @@ export async function serveExplore(
 
   // What is left is bounded: category is checked against CATEGORIES and
   // limit is clamped. `source`/`tag` are no longer read from the request.
-  // `v2`: the article payload dropped `sourceName`, and a warm KV entry written
-  // before that deploy would otherwise serve the removed field — and embed it in
-  // the island's hydration payload — until it revalidated.
-  const key = `explore:v2:${encodeURIComponent(JSON.stringify(normalized))}`;
+  //
+  // The key is versioned because a warm KV entry is served verbatim, before any
+  // mapper runs, so a payload-shape change would otherwise keep serving the old
+  // shape — into the API and the island's hydration markup — until it
+  // revalidated (and for the full `keep` window if D1 revalidation failed).
+  // Bump this whenever the article payload changes:
+  //   v2 dropped `sourceName`; v3 dropped `sourceId` and re-originated imageUrl.
+  const key = `explore:v3:${encodeURIComponent(JSON.stringify(normalized))}`;
   return runCached(
     key,
     async () => JSON.stringify(await queryExplore(normalized, env)),
