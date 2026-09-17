@@ -15,7 +15,7 @@ it('renders the Explore shell server-side without touching browser globals', () 
       initialFilters={{ categories: [] }}
     />,
   );
-  expect(html).toContain('viewBox="0 0 32 32"'); // the brand mark
+  expect(html).toContain('🤖');
   expect(html).toContain(SITE_NAME); // carried by the logo's sr-only span
   expect(html).toContain('Search stories');
   // The theme switcher SSRs as an icon-less button; localStorage stays
