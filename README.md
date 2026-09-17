@@ -85,7 +85,7 @@ graph TD
 | `/` | Global board + search + rail |
 | `/:category` | Per-category hub (e.g. `/design`) |
 | `/rss.xml`, `/:category/rss.xml` | RSS 2.0 |
-| `/sitemap.xml` | Sitemap — hubs, articles, and feeds |
+| `/sitemap.xml` | Sitemap — category hubs and feeds |
 | `/media/:id` | Feed-CDN images, re-served under this origin |
 
 ## Deployment

@@ -103,10 +103,7 @@ export default function ExploreCard({
           <span aria-hidden="true">&gt;_</span>
           <span className="truncate">{domain}</span>
         </div>
-        <span
-          className="inline-flex items-center gap-1 text-chalkdim"
-          title={`Open original article on ${domain}`}
-        >
+        <span className="inline-flex items-center gap-1 text-chalkdim" title={`Source: ${domain}`}>
           <span className="hidden text-[10px] tracking-tight sm:inline">source</span>
           <span aria-hidden="true">↗</span>
         </span>
