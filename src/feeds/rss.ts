@@ -64,8 +64,13 @@ export function parseRss(
   source: FeedSource,
   fetchedAt = Date.now(),
 ): Omit<RawArticle, 'canonicalUrl' | 'fingerprint'>[] {
-  return itemBlocks(xml)
-    .map((block): Omit<RawArticle, 'canonicalUrl' | 'fingerprint'> => {
+  const articles: Omit<RawArticle, 'canonicalUrl' | 'fingerprint'>[] = [];
+  // One item at a time, each isolated: a single malformed entry must cost that
+  // entry only. When the whole `.map` could throw, one bad item in a rolling
+  // feed aborted the entire parse on every tick — the site stopped updating
+  // silently, and the item stayed in the feed to fail again 15 minutes later.
+  for (const block of itemBlocks(xml)) {
+    try {
       const title = stripHtml(tagValue(block, ['title']));
       const url = linkValue(block).trim();
       const description = stripHtml(
@@ -77,7 +82,8 @@ export function parseRss(
       const publishedAt = Date.parse(publishedRaw) || fetchedAt;
       const image = imageMeta(block);
       const category = extractCategory(block) ?? source.category ?? null;
-      return {
+      if (title.length === 0 || url.length === 0) continue;
+      articles.push({
         sourceId: source.id,
         sourceName: source.name,
         sourceAuthority: source.authorityScore,
@@ -90,7 +96,10 @@ export function parseRss(
         imageHeight: image.height,
         publishedAt,
         fetchedAt,
-      };
-    })
-    .filter((article) => article.title.length > 0 && article.url.length > 0);
+      });
+    } catch (error) {
+      console.error('[rss] skipped an unparseable item:', error);
+    }
+  }
+  return articles;
 }
