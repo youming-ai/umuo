@@ -1,5 +1,5 @@
 import { CATEGORIES } from '../categories';
-import { proxiedImageUrl } from '../media';
+import { isVideoMediaUrl, proxiedImageUrl } from '../media';
 import { GLOBAL_FEED_LABEL } from '../site';
 import type {
   ExploreArticle,
@@ -94,6 +94,9 @@ function rowTags(value: unknown): string[] {
 }
 
 export function exploreArticle(row: ExploreRow): ExploreArticle {
+  // The video judgement reads the URL as the feed delivered it — before the
+  // /media rewrite, which can strip the extension the check depends on.
+  const rawImageUrl = rowString(row.image_url);
   return {
     id: rowString(row.id),
     title: rowString(row.title),
@@ -103,7 +106,8 @@ export function exploreArticle(row: ExploreRow): ExploreArticle {
     url: rowString(row.canonical_url),
     // Upstream-hosted images are rewritten to /media so the feed's own CDN
     // origin never reaches markup, the payload, or og:image.
-    imageUrl: proxiedImageUrl(rowString(row.image_url)),
+    imageUrl: proxiedImageUrl(rawImageUrl),
+    isVideo: isVideoMediaUrl(rawImageUrl),
     imageWidth: rowNumber(row.image_width),
     imageHeight: rowNumber(row.image_height),
     // Story domain, not feed URL — feeds.bbci.co.uk → bbc.com.

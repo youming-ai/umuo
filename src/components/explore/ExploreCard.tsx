@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
 import { categoryLabel } from '../../categories';
-import { isVideoMediaUrl } from '../../media';
 import { articleDeck, articlePath } from '../../site';
 import type { ExploreArticle } from '../../types';
 
@@ -137,16 +136,21 @@ export default function ExploreCard({
                 : undefined
             }
           >
-            {isVideoMediaUrl(article.imageUrl) ? (
+            {article.isVideo ? (
               // The feed handed us a video file. Muted + loop keeps it a silent
-              // looping thumbnail; preload="metadata" is what paints the first
-              // frame, so nothing large is fetched until the reader plays it.
+              // looping thumbnail. The `#t=0.1` fragment asks the browser to
+              // seek near the start, which is what paints a first frame from a
+              // metadata-only preload — though not every browser honours it, so
+              // a card can still degrade to the plain ground colour.
               <video
-                src={article.imageUrl}
+                src={`${article.imageUrl}#t=0.1`}
                 muted
                 loop
                 playsInline
                 preload="metadata"
+                onError={(event) => {
+                  event.currentTarget.style.display = 'none';
+                }}
                 className="h-full w-full object-cover"
               />
             ) : (

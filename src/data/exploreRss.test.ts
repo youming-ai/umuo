@@ -30,6 +30,7 @@ function article(
     blurb: '',
     url: 'https://tomshardware.com/pc-components/article',
     imageUrl: '',
+    isVideo: false,
     imageWidth: 0,
     imageHeight: 0,
     sourceDomain: 'tomshardware.com',

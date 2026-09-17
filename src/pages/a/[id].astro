@@ -3,7 +3,6 @@ import { env } from 'cloudflare:workers';
 import { CATEGORIES } from '../../categories';
 import { getArticle, getRelatedArticles } from '../../data/api';
 import Layout from '../../layouts/Layout.astro';
-import { isVideoMediaUrl } from '../../media';
 import { articleDeck, articlePath, GLOBAL_FEED_LABEL, SITE_NAME, SITE_ORIGIN } from '../../site';
 
 export const prerender = false;
@@ -27,6 +26,9 @@ const backLabel = category?.label ?? GLOBAL_FEED_LABEL;
 const summary = articleDeck(article, 'long');
 const blurb = article.blurb && article.blurb !== summary ? article.blurb : null;
 const domain = article.sourceDomain || 'source';
+// `isVideo` is judged on the URL as the feed delivered it, before the /media
+// rewrite — which can strip the extension the check depends on.
+const mediaIsVideo = article.isVideo;
 const pubDate = new Date(article.publishedAt);
 const pubIso = pubDate.toISOString();
 const pubDisplay = pubDate.toLocaleDateString('en-US', {
@@ -81,7 +83,9 @@ const jsonLd = [
     url: selfUrl,
     articleSection: category?.label ?? 'Explore',
     ...(article.tags.length > 0 ? { keywords: article.tags.join(', ') } : {}),
-    ...(article.imageUrl ? { image: article.imageUrl } : {}),
+    // `image` must be an image: a feed that handed us a video file is excluded,
+    // otherwise a crawler would treat a 556MB MP4 as the article's picture.
+    ...(article.imageUrl && !mediaIsVideo ? { image: article.imageUrl } : {}),
     isBasedOn: article.url,
     creditText: domain,
   },
@@ -100,9 +104,8 @@ function formatCardDate(timestamp: number): string {
 
 // `||`, not `??`: an article with no thumbnail carries `imageUrl: ''`, and the
 // layout must see that as absent so its social-card fallback applies.
-// A video cannot be an og:image — og:image must be an image — so it falls back
-// to the site card too, and the player below is what carries the media.
-const mediaIsVideo = isVideoMediaUrl(article.imageUrl);
+// A video cannot be an og:image — that property is for images — so it falls
+// back to the site card too, and the player below is what carries the media.
 const ogImageUrl = mediaIsVideo ? undefined : article.imageUrl || undefined;
 ---
 <Layout
