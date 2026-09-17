@@ -17,13 +17,6 @@ interface Props {
    *  `/<category>/rss.xml` on a category hub. */
   feedPath?: string;
   feedTitle?: string;
-  /** Open Graph object type. `article` on /a/{id} detail pages. */
-  ogType?: 'website' | 'article';
-  /** Featured image URL for OpenGraph and Twitter cards. */
-  image?: string;
-  imageAlt?: string;
-  /** Twitter card display mode. */
-  twitterCard?: 'summary' | 'summary_large_image';
 }
 
 const {
@@ -31,23 +24,13 @@ const {
   description = SITE_DESCRIPTION,
   feedPath = '/rss.xml',
   feedTitle = SITE_TITLE,
-  ogType = 'website',
-  image,
-  imageAlt,
-  twitterCard,
 } = Astro.props;
 
-/** Pages that carry no image of their own — the board, a category hub, a link
- *  with no thumbnail — fall back to the site card, so a shared URL is never a
- *  bare text card. `public/og.png` is generated from `public/og.svg`.
- *
- *  Truthiness, not `??`: an article with no thumbnail (or one whose upstream
- *  image the proxy drops) arrives here as an empty string, and a nullish check
- *  would emit `content=""` for both images. */
-const socialImage = image || `${SITE_ORIGIN}/og.png`;
-const socialImageAlt =
-  imageAlt || (image ? undefined : `${SITE_NAME}: curated links from across the web`);
-const socialCard = twitterCard ?? 'summary_large_image';
+/** Every page shares the site card: there are no per-link summary pages any
+ *  more, so there is no per-page image to override it with. */
+const socialImage = `${SITE_ORIGIN}/og.png`;
+const socialImageAlt = `${SITE_NAME}: curated links from across the web`;
+const socialCard = 'summary_large_image';
 
 // Strip a trailing slash from the path so canonical/og:url match the actual page.
 const rawPath = Astro.url.pathname;
@@ -75,7 +58,7 @@ const canonicalUrl = `${SITE_ORIGIN}${canonicalPath}`;
       title={feedTitle}
       href={`${SITE_ORIGIN}${feedPath}`}
     />
-    <meta property="og:type" content={ogType} />
+    <meta property="og:type" content="website" />
     <meta property="og:site_name" content={SITE_NAME} />
     <meta property="og:title" content={title} />
     <meta property="og:description" content={description} />

@@ -1,102 +1,35 @@
-import { CATEGORIES } from '../categories';
-import type { ExploreArticle } from '../types';
-import { type Env, runCached } from './cache';
-import { EXPLORE_ARTICLE_COLUMNS, type ExploreRow, exploreArticle } from './explore';
+import type { Env } from './cache';
 
-export async function getArticle(
-  id: string,
-  env: Env,
-  ctx: ExecutionContext,
-): Promise<ExploreArticle | null> {
+/** Legacy handler for the `/a/<id>` summary pages, which were removed.
+ *
+ *  The sitemap advertised every one of those URLs and readers bookmarked them,
+ *  so removing the route without a replacement would 404 links that are still
+ *  alive. The article rows are deliberately retained (archival is what keeps
+ *  the dedupe guards), and each carries the canonical source URL — so the page
+ *  is redirected there instead. A 301 tells search engines the content now
+ *  lives at the publisher, which matches why the pages were removed.
+ *
+ *  Always answers something: 301 on a known id, 404 otherwise. */
+export async function serveArticleRedirect(id: string, env: Env): Promise<Response> {
+  if (!env.DB) return new Response('Not found', { status: 404 });
+
   try {
-    const response = await runCached(
-      `article:${id}`,
-      async () => {
-        if (!env.DB) throw new Error('D1 binding is required');
-        const row = await env.DB.prepare(
-          `SELECT ${EXPLORE_ARTICLE_COLUMNS}
-           FROM articles a
-           WHERE a.id = ? AND a.status = 'published' AND a.is_on_topic = 1`,
-        )
-          .bind(id)
-          .first<ExploreRow>();
-        return row ? JSON.stringify(row) : null;
+    const row = await env.DB.prepare('SELECT canonical_url FROM articles WHERE id = ?')
+      .bind(id)
+      .first<{ canonical_url: string }>();
+    if (!row?.canonical_url) return new Response('Not found', { status: 404 });
+
+    return new Response(null, {
+      status: 301,
+      headers: {
+        location: row.canonical_url,
+        // Bookmarks resolve through here repeatedly; let the browser cache the
+        // answer rather than paying a D1 lookup each time.
+        'cache-control': 'public, max-age=86400',
       },
-      300,
-      3600,
-      env,
-      ctx,
-    );
-    if (!response.ok) return null;
-    const row = (await response.json()) as ExploreRow | null;
-    return row ? exploreArticle(row) : null;
+    });
   } catch (error) {
-    console.error('[data] article lookup failed:', error);
-    return null;
-  }
-}
-
-/** Fetch related published articles for the `/a/{id}` detail page.
- *  Matches articles sharing the category or tags, excluding current article.
- *  Cached in KV for 5 minutes. */
-export async function getRelatedArticles(
-  article: ExploreArticle,
-  env: Env,
-  ctx: ExecutionContext,
-  limit = 4,
-): Promise<ExploreArticle[]> {
-  try {
-    const clampedLimit = Math.min(12, Math.max(1, limit));
-    const response = await runCached(
-      `related:${article.id}:${clampedLimit}`,
-      async () => {
-        if (!env.DB) throw new Error('D1 binding is required');
-        const conditions: string[] = ['a.id != ?', "a.status = 'published'", 'a.is_on_topic = 1'];
-        const bindings: unknown[] = [article.id];
-
-        const matchConditions: string[] = [];
-        if (article.category && Object.hasOwn(CATEGORIES, article.category)) {
-          matchConditions.push('a.category = ?');
-          bindings.push(article.category);
-        }
-        const relevantTags = article.tags.filter(Boolean).slice(0, 5);
-        if (relevantTags.length > 0) {
-          const placeholders = relevantTags.map(() => '?').join(', ');
-          matchConditions.push(
-            `EXISTS (SELECT 1 FROM article_tags filter_tags WHERE filter_tags.article_id = a.id AND filter_tags.tag IN (${placeholders}))`,
-          );
-          bindings.push(...relevantTags);
-        }
-
-        if (matchConditions.length > 0) {
-          conditions.push(`(${matchConditions.join(' OR ')})`);
-        }
-
-        bindings.push(clampedLimit);
-
-        const rows = await env.DB.prepare(
-          `SELECT ${EXPLORE_ARTICLE_COLUMNS}
-           FROM articles a
-           WHERE ${conditions.join(' AND ')}
-           ORDER BY a.published_at DESC
-           LIMIT ?`,
-        )
-          .bind(...bindings)
-          .all<ExploreRow>();
-
-        return JSON.stringify(rows.results ?? []);
-      },
-      300,
-      3600,
-      env,
-      ctx,
-    );
-    if (!response.ok) return [];
-    const rows = (await response.json()) as ExploreRow[];
-    if (!Array.isArray(rows)) return [];
-    return rows.map(exploreArticle);
-  } catch (error) {
-    console.error('[data] related articles lookup failed:', error);
-    return [];
+    console.error('[legacy article] lookup failed:', error);
+    return new Response('Upstream unavailable', { status: 502 });
   }
 }

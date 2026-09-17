@@ -5,25 +5,23 @@ import { renderSitemap, sitemapEntries } from './sitemap';
 import { SITE_ORIGIN } from './site';
 
 // Mirrors what production actually holds: three hubs with content, and
-// no /phones, because the sitemap only lists hubs the desk has published in.
+// no /social, because the sitemap only lists hubs the site has published in.
+// There are no per-link pages: the site is a link feed and readers go straight
+// to the source.
 const DATA: SitemapData = {
   hubs: [
     { category: 'tools', lastmod: '2026-08-07T09:03:08.000Z' },
     { category: 'design', lastmod: '2026-08-07T09:06:13.000Z' },
     { category: 'development', lastmod: '2026-08-06T13:23:52.000Z' },
   ],
-  articles: [
-    { id: 'aaa111', lastmod: '2026-08-07T09:03:08.000Z' },
-    { id: 'bbb222', lastmod: '2026-08-06T13:23:52.000Z' },
-  ],
 };
 
-const empty: SitemapData = { hubs: [], articles: [] };
+const empty: SitemapData = { hubs: [] };
 
 const paths = (data: SitemapData = DATA) => sitemapEntries(data).map((e) => e.path);
 
 describe('sitemapEntries', () => {
-  it('never lists a news hub the desk has not published in', () => {
+  it('never lists a hub the site has not published in', () => {
     expect(paths()).not.toContain('/social');
     expect(paths()).toContain('/tools');
   });
@@ -62,15 +60,8 @@ describe('sitemapEntries', () => {
     expect(entries.find((e) => e.path === '/tools/rss.xml')?.lastmod).toBeUndefined();
   });
 
-  it('lists each article at /a/{id} with its published date as lastmod', () => {
-    const entries = sitemapEntries(DATA);
-    expect(entries.find((e) => e.path === '/a/aaa111')?.lastmod).toBe('2026-08-07T09:03:08.000Z');
-    expect(entries.find((e) => e.path === '/a/bbb222')?.lastmod).toBe('2026-08-06T13:23:52.000Z');
-  });
-
-  it('emits no article paths when there are none', () => {
-    const noArticles = sitemapEntries({ hubs: DATA.hubs, articles: [] });
-    expect(noArticles.every((e) => !e.path.startsWith('/a/'))).toBe(true);
+  it('never lists a per-link page — readers go straight to the source', () => {
+    expect(paths().every((p) => !p.startsWith('/a/'))).toBe(true);
   });
 });
 
@@ -92,10 +83,6 @@ describe('renderSitemap', () => {
   it('writes lastmod only where there is one', () => {
     expect(xml).toContain(`<loc>${SITE_ORIGIN}/tools</loc>\n    <lastmod>`);
     expect(xml).toContain(`<loc>${SITE_ORIGIN}/design</loc>\n    <lastmod>`);
-  });
-
-  it('writes article URLs with lastmod', () => {
-    expect(xml).toContain(`<loc>${SITE_ORIGIN}/a/aaa111</loc>\n    <lastmod>`);
   });
 });
 
