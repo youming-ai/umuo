@@ -40,6 +40,15 @@ export function isVideoMediaUrl(url: string): boolean {
   }
 }
 
+/** Point a <video> at `url` near its start, so a metadata-only preload paints a
+ *  first frame. Any fragment the URL already carries is replaced — a second `#`
+ *  would leave the browser applying neither seek. */
+export function withTemporalFragment(url: string): string {
+  const hash = url.indexOf('#');
+  const base = hash === -1 ? url : url.slice(0, hash);
+  return `${base}#t=0.1`;
+}
+
 /** The upstream storage id behind `url`, or null when it is not ours to proxy. */
 export function mediaFile(url: string): string | null {
   try {

@@ -11,6 +11,7 @@ import {
   proxiedImageUrl,
   serveMedia,
   upstreamMediaUrl,
+  withTemporalFragment,
 } from './media';
 import { SITE_ORIGIN } from './site';
 
@@ -49,6 +50,17 @@ describe('isVideoMediaUrl', () => {
 
   it('survives a value that is not a URL', () => {
     expect(isVideoMediaUrl('not a url')).toBe(false);
+  });
+});
+
+describe('withTemporalFragment', () => {
+  it('appends the seek hint', () => {
+    expect(withTemporalFragment('https://x.test/v.mp4')).toBe('https://x.test/v.mp4#t=0.1');
+  });
+
+  it('replaces a fragment the URL already carries', () => {
+    // A second `#` would leave the browser honouring neither seek.
+    expect(withTemporalFragment('https://x.test/v.mp4#t=30')).toBe('https://x.test/v.mp4#t=0.1');
   });
 });
 

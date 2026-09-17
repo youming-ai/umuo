@@ -295,8 +295,9 @@ export async function serveExplore(
   // shape — into the API and the island's hydration markup — until it
   // revalidated (and for the full `keep` window if D1 revalidation failed).
   // Bump this whenever the article payload changes:
-  //   v2 dropped `sourceName`; v3 dropped `sourceId` and re-originated imageUrl.
-  const key = `explore:v3:${encodeURIComponent(JSON.stringify(normalized))}`;
+  //   v2 dropped `sourceName`; v3 dropped `sourceId` and re-originated imageUrl;
+  //   v4 added `isVideo`.
+  const key = `explore:v4:${encodeURIComponent(JSON.stringify(normalized))}`;
   return runCached(
     key,
     async () => JSON.stringify(await queryExplore(normalized, env)),

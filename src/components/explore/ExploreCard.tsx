@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { categoryLabel } from '../../categories';
+import { withTemporalFragment } from '../../media';
 import { articleDeck, articlePath } from '../../site';
 import type { ExploreArticle } from '../../types';
 
@@ -138,12 +139,12 @@ export default function ExploreCard({
           >
             {article.isVideo ? (
               // The feed handed us a video file. Muted + loop keeps it a silent
-              // looping thumbnail. The `#t=0.1` fragment asks the browser to
+              // looping thumbnail. The temporal fragment asks the browser to
               // seek near the start, which is what paints a first frame from a
               // metadata-only preload — though not every browser honours it, so
               // a card can still degrade to the plain ground colour.
               <video
-                src={`${article.imageUrl}#t=0.1`}
+                src={withTemporalFragment(article.imageUrl)}
                 muted
                 loop
                 playsInline
