@@ -24,6 +24,31 @@ export function isStorageId(file: string): boolean {
   return MEDIA_FILE_RE.test(file);
 }
 
+// Extensions a browser can play in a <video> element. Checked on the pathname
+// only, so a query string or fragment cannot sneak past the check.
+const VIDEO_EXT_RE = /\.(mp4|webm|m4v|mov|ogv)$/i;
+
+/** Feeds sometimes hand us a video file where a thumbnail belongs — a site's
+ *  hero video, for instance. That cannot render in an <img>, and worse, the
+ *  browser downloads the whole file before failing to decode it, so such URLs
+ *  are detected and routed to a <video> element instead. */
+export function isVideoMediaUrl(url: string): boolean {
+  try {
+    return VIDEO_EXT_RE.test(new URL(url).pathname);
+  } catch {
+    return false;
+  }
+}
+
+/** Point a <video> at `url` near its start, so a metadata-only preload paints a
+ *  first frame. Any fragment the URL already carries is replaced — a second `#`
+ *  would leave the browser applying neither seek. */
+export function withTemporalFragment(url: string): string {
+  const hash = url.indexOf('#');
+  const base = hash === -1 ? url : url.slice(0, hash);
+  return `${base}#t=0.1`;
+}
+
 /** The upstream storage id behind `url`, or null when it is not ours to proxy. */
 export function mediaFile(url: string): string | null {
   try {

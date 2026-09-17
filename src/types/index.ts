@@ -18,6 +18,10 @@ export interface ExploreArticle {
   blurb: string;
   url: string;
   imageUrl: string;
+  /** True when `imageUrl` is a playable video rather than an image. Judged on
+   *  the URL as the feed delivered it, before the /media rewrite — that rewrite
+   *  can strip the extension the judgement depends on. */
+  isVideo: boolean;
   imageWidth: number; // 0 when the feed gave no dimensions
   imageHeight: number;
   sourceDomain: string;

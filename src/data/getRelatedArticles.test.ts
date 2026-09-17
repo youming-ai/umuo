@@ -24,6 +24,7 @@ const sampleArticle: ExploreArticle = {
   blurb: 'Keychron launches Q1 Max.',
   url: 'https://example.com/art-1',
   imageUrl: 'https://example.com/img.jpg',
+  isVideo: false,
   imageWidth: 800,
   imageHeight: 600,
   sourceDomain: 'tomshardware.com',

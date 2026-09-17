@@ -50,6 +50,7 @@ it('renders article cards server-side', () => {
             blurb: '',
             url: 'https://tomshardware.com/pc-components',
             imageUrl: '',
+            isVideo: false,
             imageWidth: 0,
             imageHeight: 0,
             sourceDomain: 'tomshardware.com',
@@ -69,4 +70,44 @@ it('renders article cards server-side', () => {
   expect(html).toContain('New flagship GPU beats its predecessor');
   expect(html).toContain('tomshardware.com');
   expect(html).toContain('review');
+});
+
+it('renders a feed-supplied video as a <video> element, never as an <img>', () => {
+  // Regression: the 豆包 launch item carried a 556MB .mp4 in its image field,
+  // which an <img> cannot render — the browser downloaded the whole file and
+  // only then fired onerror.
+  const html = renderToString(
+    <ExploreView
+      initialData={{
+        items: [
+          {
+            id: 'v1',
+            title: 'Launch film',
+            description: '',
+            summary: '',
+            blurb: '',
+            url: 'https://o.doubao.com/',
+            imageUrl: 'https://cdn.example.com/hero_1080p_video.mp4',
+            isVideo: true,
+            imageWidth: 0,
+            imageHeight: 0,
+            sourceDomain: 'o.doubao.com',
+            publishedAt: 1789434835000,
+            category: 'tools',
+            articleType: 'link',
+            tags: ['tools'],
+            qualityScore: 90,
+            freshnessScore: 100,
+          },
+        ],
+        nextCursor: null,
+      }}
+      initialFilters={{ categories: [] }}
+    />,
+  );
+  expect(html).toContain('<video');
+  expect(html).toContain('hero_1080p_video.mp4');
+  expect(html).not.toContain('<img');
+  expect(html).toContain('muted');
+  expect(html).toContain('preload="metadata"');
 });
