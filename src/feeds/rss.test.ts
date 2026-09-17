@@ -108,4 +108,26 @@ describe('parseRss', () => {
     );
     expect(articles[0].category).toBeNull();
   });
+
+  it('keeps the good items when one item is unparseable', () => {
+    // The failure this pins: `parseRss` used to map the whole block list, so a
+    // single bad item threw the entire batch away — on this tick and on every
+    // tick after, because the item stays in the rolling feed. The site stopped
+    // updating with nothing but a failed-source line in the log.
+    const articles = parseRss(
+      `<rss><channel>
+        <item><title>First good link</title><link>https://example.com/one</link></item>
+        <item><title>Bad &#1114112; code point</title><link>https://example.com/bad</link></item>
+        <item><title>Second good link</title><link>https://example.com/two</link></item>
+      </channel></rss>`,
+      source,
+      Date.parse('2026-08-05T12:00:00Z'),
+    );
+
+    expect(articles.map((article) => article.url)).toEqual([
+      'https://example.com/one',
+      'https://example.com/bad',
+      'https://example.com/two',
+    ]);
+  });
 });
