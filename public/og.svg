@@ -2,20 +2,18 @@
   <!-- Source for public/og.png, the default Open Graph card. Browsers do not
        accept SVG for og:image, so the PNG beside this file is what ships:
        rasterize this file with sips, writing the result to public/og.png.
-       Palette mirrors the dark theme tokens: ground #0a0e0c, mark #2ed573,
-       text #f2f7f4, muted #8a9690. -->
+       Palette mirrors the dark theme tokens: ground #0a0e0c, text #f2f7f4,
+       muted #8a9690; the robot emoji carries its own colours. -->
   <rect width="1200" height="630" fill="#0a0e0c" />
 
-  <!-- Robot mark: the same geometry as public/favicon.svg, scaled up. -->
-  <g transform="translate(600 196) scale(9) translate(-16 -13.1)">
-    <g fill="#2ed573">
-      <rect x="14.75" y="4.5" width="2.5" height="4" rx="1.25" />
-      <circle cx="16" cy="3.5" r="1.75" />
-      <rect x="5.5" y="8.5" width="21" height="16" rx="5.5" />
-    </g>
-    <circle cx="11.75" cy="16.5" r="2.5" fill="#0a0e0c" />
-    <circle cx="20.25" cy="16.5" r="2.5" fill="#0a0e0c" />
-  </g>
+  <!-- Brand mark: the robot emoji, matching the header logo and favicon. The
+       emoji font supplies the artwork, so there is no vector to redraw. -->
+  <text
+    x="600"
+    y="260"
+    text-anchor="middle"
+    font-size="200"
+  >🤖</text>
 
   <text
     x="600"
