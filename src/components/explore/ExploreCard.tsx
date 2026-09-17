@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { categoryLabel } from '../../categories';
 import { withTemporalFragment } from '../../media';
-import { articleDeck, articlePath } from '../../site';
+import { articleDeck } from '../../site';
 import type { ExploreArticle } from '../../types';
 
 /** UTC-only so the SSR string and the hydrated string always match. */
@@ -53,9 +53,16 @@ export default function ExploreCard({
   const showShimmer = imgLoading && !imgLoaded;
 
   if (variant === 'list') {
+    // The whole row is the outbound link: with no summary page, the card's job
+    // is to hand the reader straight to the source.
     return (
       <li className="group flex items-baseline gap-3 px-3 py-2 hover:bg-overlay/5">
-        <a href={articlePath(article.id)} className="flex min-w-0 flex-1 items-baseline gap-3">
+        <a
+          href={article.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex min-w-0 flex-1 items-baseline gap-3"
+        >
           <span className="ds-caption hidden w-44 shrink-0 truncate text-pitch sm:block">
             <span aria-hidden="true">&gt;_ </span>
             {domain}
@@ -76,18 +83,6 @@ export default function ExploreCard({
             Curated signal {score} of 100, published {date}
           </span>
         </a>
-        {article.url && (
-          <a
-            href={article.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="ds-caption shrink-0 text-chalkdim transition-colors hover:text-pitch"
-            title={`Open original article on ${domain}`}
-            aria-label={`Open original article on ${domain}`}
-          >
-            ↗
-          </a>
-        )}
       </li>
     );
   }
@@ -108,22 +103,16 @@ export default function ExploreCard({
           <span aria-hidden="true">&gt;_</span>
           <span className="truncate">{domain}</span>
         </div>
-        {article.url && (
-          <a
-            href={article.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-1 text-chalkdim transition-colors hover:text-pitch"
-            title={`Open original article on ${domain}`}
-            aria-label={`Open original article on ${domain}`}
-          >
-            <span className="hidden text-[10px] tracking-tight sm:inline">source</span>
-            <span aria-hidden="true">↗</span>
-          </a>
-        )}
+        <span
+          className="inline-flex items-center gap-1 text-chalkdim"
+          title={`Open original article on ${domain}`}
+        >
+          <span className="hidden text-[10px] tracking-tight sm:inline">source</span>
+          <span aria-hidden="true">↗</span>
+        </span>
       </div>
 
-      <a href={articlePath(article.id)} className="group block">
+      <a href={article.url} target="_blank" rel="noopener noreferrer" className="group block">
         {article.imageUrl && (
           // Reserve aspect-ratio so the column doesn't shift when the image
           // loads. Natural ratio when the feed gave width+height, else 16:9.

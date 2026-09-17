@@ -8,68 +8,45 @@ export interface SitemapNewsHub {
   lastmod: string;
 }
 
-export interface SitemapArticle {
-  id: string;
-  lastmod: string;
-}
-
 export interface SitemapData {
   hubs: SitemapNewsHub[];
-  articles: SitemapArticle[];
 }
 
-/** Category hubs + individual articles for the sitemap, derived from D1.
- *  Article URLs at `/a/{id}` give each stored summary its own crawlable page.
- *  Degrades to empty arrays — a sitemap missing entries is survivable; a 500
- *  on /sitemap.xml is not. */
+/** Category hubs for the sitemap, derived from D1.
+ *
+ *  The site is a link feed: readers go straight to the source, so hubs are the
+ *  only pages worth crawling — the per-link summary pages are gone. Degrades to
+ *  an empty list — a sitemap missing hubs is survivable; a 500 on /sitemap.xml
+ *  is not. */
 export async function getSitemapNews(env: Env, ctx: ExecutionContext): Promise<SitemapData> {
-  const empty: SitemapData = { hubs: [], articles: [] };
   try {
     const response = await runCached(
-      'sitemap:news:v2',
+      'sitemap:news:v3',
       async () => {
         if (!env.DB) throw new Error('D1 binding is required');
-        const [hubs, articles] = await env.DB.batch([
-          env.DB.prepare(
-            `SELECT category AS value, MAX(published_at) AS count
-               FROM articles
-              WHERE status = 'published' AND is_on_topic = 1
-                AND category IS NOT NULL
-              GROUP BY category`,
-          ),
-          env.DB.prepare(
-            `SELECT id, published_at
-               FROM articles
-              WHERE status = 'published' AND is_on_topic = 1
-              ORDER BY published_at DESC
-              LIMIT 50000`,
-          ),
-        ]);
-        return JSON.stringify({ hubs: hubs.results ?? [], articles: articles.results ?? [] });
+        const hubs = await env.DB.prepare(
+          `SELECT category AS value, MAX(published_at) AS count
+             FROM articles
+            WHERE status = 'published' AND is_on_topic = 1
+              AND category IS NOT NULL
+            GROUP BY category`,
+        ).all<CountRow>();
+        return JSON.stringify({ hubs: hubs.results ?? [] });
       },
       3600,
       86400,
       env,
       ctx,
     );
-    if (!response.ok) return empty;
-    const raw = (await response.json()) as {
-      hubs: CountRow[];
-      articles: { id: unknown; published_at: unknown }[];
-    };
+    if (!response.ok) return { hubs: [] };
+    const raw = (await response.json()) as { hubs: CountRow[] };
     const hubs: SitemapNewsHub[] = raw.hubs
       .map((row) => ({ category: rowString(row.value), newest: rowNumber(row.count) }))
       .filter((row) => Object.hasOwn(CATEGORIES, row.category) && row.newest > 0)
       .map((row) => ({ category: row.category, lastmod: new Date(row.newest).toISOString() }));
-    const articles: SitemapArticle[] = raw.articles
-      .map((row) => ({
-        id: rowString(row.id),
-        lastmod: new Date(rowNumber(row.published_at)).toISOString(),
-      }))
-      .filter((row) => row.id);
-    return { hubs, articles };
+    return { hubs };
   } catch (error) {
-    console.error('[data] sitemap news lookup failed:', error);
-    return empty;
+    console.error('[data] sitemap lookup failed:', error);
+    return { hubs: [] };
   }
 }

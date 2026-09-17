@@ -1,5 +1,5 @@
 import type { SitemapData } from './data/api';
-import { SITE_ORIGIN, articlePath } from './site';
+import { SITE_ORIGIN } from './site';
 
 export interface SitemapEntry {
   path: string;
@@ -8,8 +8,10 @@ export interface SitemapEntry {
 
 /** Every stable, crawlable path:
  *  - `/` plus one hub per category with published articles (date = newest article)
- *  - `/a/{id}` for each published article — gives each summary a crawlable URL
  *  - `/rss.xml` and `/<category>/rss.xml` — no `lastmod`; a feed is always fresh
+ *
+ *  Per-link pages are not listed: the site is a link feed and readers go
+ *  straight to the source, so hubs are the crawlable surface.
  */
 export function sitemapEntries(data: SitemapData): SitemapEntry[] {
   const newest = data.hubs.map((hub) => hub.lastmod).sort();
@@ -21,10 +23,6 @@ export function sitemapEntries(data: SitemapData): SitemapEntry[] {
   for (const hub of data.hubs) {
     entries.push({ path: `/${hub.category}`, lastmod: hub.lastmod });
     entries.push({ path: `/${hub.category}/rss.xml` });
-  }
-
-  for (const article of data.articles) {
-    entries.push({ path: articlePath(article.id), lastmod: article.lastmod });
   }
 
   return entries;

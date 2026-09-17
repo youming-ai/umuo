@@ -18,12 +18,6 @@ export const GLOBAL_FEED_LABEL = 'All links';
 export const SITE_LOCALE = 'en_US';
 export const SITE_LANGUAGE = 'en';
 
-/** Path prefix for article summary pages. Single source of truth
- *  so the route, the sitemap, and the card links stay in sync. */
-export function articlePath(id: string): string {
-  return `/a/${id}`;
-}
-
 /** Single source of truth for article description fallback policies:
  *  - 'short': blurb-first for card stream & previews (concise teaser)
  *  - 'long': summary-first for article detail page & RSS (in-depth analysis) */

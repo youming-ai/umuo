@@ -75,7 +75,7 @@ graph TD
 ```
 
 - **Ingest** — fetches and parses the Poche RSS feed, then writes new links directly to D1.
-- **Reads** — `getExploreFeed` / `getArticle` / `getRelatedArticles` via `runCached`; free-text search bypasses KV (unbounded key space).
+- **Reads** — `getExploreFeed` via `runCached`; free-text search bypasses KV (unbounded key space).
 - **Retention** — archive, never `DELETE` (keeps `fingerprint`/`canonical_url` guards).
 
 ## Product surface
@@ -84,7 +84,6 @@ graph TD
 |-------|-------------|
 | `/` | Global board + search + rail |
 | `/:category` | Per-category hub (e.g. `/design`) |
-| `/a/:id` | Article summary detail + related stories |
 | `/rss.xml`, `/:category/rss.xml` | RSS 2.0 |
 | `/sitemap.xml` | Sitemap — hubs, articles, and feeds |
 | `/media/:id` | Feed-CDN images, re-served under this origin |
