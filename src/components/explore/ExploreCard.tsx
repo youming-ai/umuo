@@ -138,17 +138,19 @@ export default function ExploreCard({
             }
           >
             {article.isVideo ? (
-              // The feed handed us a video file. Muted + loop keeps it a silent
-              // looping thumbnail. The temporal fragment asks the browser to
-              // seek near the start, which is what paints a first frame from a
-              // metadata-only preload — though not every browser honours it, so
-              // a card can still degrade to the plain ground colour.
+              // The feed handed us a video file, so the thumbnail is the video
+              // itself: muted autoplay loop is the only way to guarantee
+              // something visible — a metadata-only preload leaves a dark box
+              // on browsers that do not paint a frame from metadata alone.
+              // Muted is what makes the autoplay permissible; nothing has audio
+              // to surprise a reader.
               <video
                 src={withTemporalFragment(article.imageUrl)}
+                autoPlay
                 muted
                 loop
                 playsInline
-                preload="metadata"
+                preload="none"
                 onError={(event) => {
                   event.currentTarget.style.display = 'none';
                 }}

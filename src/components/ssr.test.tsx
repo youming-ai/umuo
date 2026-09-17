@@ -108,6 +108,8 @@ it('renders a feed-supplied video as a <video> element, never as an <img>', () =
   expect(html).toContain('<video');
   expect(html).toContain('hero_1080p_video.mp4');
   expect(html).not.toContain('<img');
+  expect(html).toContain('autoplay=""'); // a metadata-only preload leaves a dark box
   expect(html).toContain('muted');
-  expect(html).toContain('preload="metadata"');
+  expect(html).toContain('loop=""');
+  expect(html).toContain('playsinline=""');
 });
