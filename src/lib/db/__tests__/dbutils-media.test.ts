@@ -10,15 +10,12 @@ afterEach(async () => {
 describe('DBUtils media/subtitles operations', () => {
   it('addMedia / getMedia / listMedia (newest first)', async () => {
     const id1 = await DBUtils.addMedia({
-      kind: 'audio',
-      title: 'a.mp3',
+      kind: 'youtube',
+      title: 'video-a',
       durationSec: null,
       addedAt: new Date('2026-01-01'),
       updatedAt: new Date('2026-01-01'),
-      blob: new Blob(['x']),
-      fileName: 'a.mp3',
-      fileSize: 1,
-      mimeType: 'audio/mpeg',
+      externalId: 'aaaaaaaaaaa',
     })
     await DBUtils.addMedia({
       kind: 'youtube',
@@ -31,9 +28,9 @@ describe('DBUtils media/subtitles operations', () => {
       thumbnailUrl: 'https://i.ytimg.com/x.jpg',
       sourceUrl: 'https://youtu.be/dQw4w9WgXcQ',
     })
-    expect((await DBUtils.getMedia(id1))?.title).toBe('a.mp3')
+    expect((await DBUtils.getMedia(id1))?.title).toBe('video-a')
     const list = await DBUtils.listMedia()
-    expect(list.map((m) => m.title)).toEqual(['video', 'a.mp3'])
+    expect(list.map((m) => m.title)).toEqual(['video', 'video-a'])
   })
 
   it('findMediaByExternalId', async () => {
@@ -51,16 +48,16 @@ describe('DBUtils media/subtitles operations', () => {
 
   it('deleteMedia removes children first (segments → subtitles → media)', async () => {
     const mediaId = await DBUtils.addMedia({
-      kind: 'audio',
+      kind: 'youtube',
       title: 'a',
       durationSec: null,
       addedAt: new Date(),
       updatedAt: new Date(),
-      blob: new Blob(['x']),
+      externalId: 'bbbbbbbbbbb',
     })
     const subId = await DBUtils.addSubtitle({
       mediaId,
-      source: 'whisper',
+      source: 'official',
       status: 'completed',
       sourceLanguage: 'ja',
       targetLanguage: null,
@@ -83,16 +80,16 @@ describe('DBUtils media/subtitles operations', () => {
 
   it('deleteSubtitleWithSegments removes an orphan subtitle and its segments, leaving media intact', async () => {
     const mediaId = await DBUtils.addMedia({
-      kind: 'audio',
+      kind: 'youtube',
       title: 'a',
       durationSec: null,
       addedAt: new Date(),
       updatedAt: new Date(),
-      blob: new Blob(['x']),
+      externalId: 'bbbbbbbbbbb',
     })
     const subId = await DBUtils.addSubtitle({
       mediaId,
-      source: 'whisper',
+      source: 'official',
       status: 'completed',
       sourceLanguage: 'ja',
       targetLanguage: null,
@@ -123,14 +120,14 @@ describe('DBUtils media/subtitles operations', () => {
     expect(await db.media.count()).toBe(1)
   })
 
-  it('findSubtitleByMediaId / updateSubtitleStatus', async () => {
+  it('findSubtitleByMediaId / 状态更新（经由 DBUtils.update，即生产路径）', async () => {
     const mediaId = await DBUtils.addMedia({
-      kind: 'audio',
+      kind: 'youtube',
       title: 'a',
       durationSec: null,
       addedAt: new Date(),
       updatedAt: new Date(),
-      blob: new Blob(['x']),
+      externalId: 'bbbbbbbbbbb',
     })
     const subId = await DBUtils.addSubtitle({
       mediaId,
@@ -141,7 +138,8 @@ describe('DBUtils media/subtitles operations', () => {
       createdAt: new Date(),
       updatedAt: new Date(),
     })
-    await DBUtils.updateSubtitleStatus(subId, 'failed')
+    // `updateSubtitleStatus` 已删除（无调用方）；生产代码走 DBUtils.update
+    await DBUtils.update(db.subtitles, subId, { status: 'failed', updatedAt: new Date() })
     const sub = await DBUtils.findSubtitleByMediaId(mediaId)
     expect(sub?.status).toBe('failed')
   })

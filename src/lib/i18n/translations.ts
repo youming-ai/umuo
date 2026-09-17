@@ -9,43 +9,63 @@ export interface TranslationKey {
   'nav.selectLanguage': string
 
   // File Management
-  'file.upload.title': string
-  'file.upload.dragDrop': string
-  'file.upload.orClick': string
-  'file.upload.supportedFormats': string
-  'file.upload.uploading': string
-  'file.upload.error': string
-  'file.upload.retry': string
-  'file.upload.clearError': string
-  'file.upload.maxFilesReached': string
-  'file.upload.selectFiles': string
 
   // Player
   'player.loading': string
   'player.error': string
-  'player.noSubtitles': string
-  'player.transcribeFirst': string
   'player.back': string
   'player.retry': string
+  'player.errorTitle': string
+  'player.unknownError': string
+  'player.devDetails': string
+  'error.title': string
+  'error.description': string
 
   // Settings
   'settings.title': string
   'settings.language': string
   'settings.targetLanguage': string
-  'settings.nativeLanguage': string
   'settings.save': string
   'settings.cancel': string
+  'settings.ai.title': string
+  'settings.ai.engine': string
+  'settings.ai.engineHint': string
+  'settings.ai.engineDefault': string
+  'settings.ai.apiKey': string
+  'settings.ai.apiKeyHint': string
+  'settings.ai.apiKeyPlaceholder': string
+  'settings.ai.model': string
+  'settings.ai.modelHint': string
+  'settings.ai.save': string
+  'settings.ai.clear': string
+  'settings.ai.getKey': string
+  'settings.ai.privacy': string
+  'settings.ai.defaultQuotaHint': string
+  'settings.ai.saved': string
+
+  // Account
+  'account.title': string
+  'account.localUser': string
+  'account.localUserHint': string
+
+  // Learning language
+  'settings.learning.title': string
+  'settings.learning.native': string
+  'settings.learning.nativeHint': string
+  'settings.learning.chooseNative': string
+
+  // Pro upgrade
+  'settings.pro.title': string
+  'settings.pro.heading': string
+  'settings.pro.description': string
+  'settings.pro.comingSoon': string
+
+  // Feedback
+  'settings.feedback.title': string
+  'settings.feedback.github': string
+  'settings.feedback.githubHint': string
 
   // Transcription
-  'transcription.status.pending': string
-  'transcription.status.processing': string
-  'transcription.status.completed': string
-  'transcription.status.failed': string
-  'transcription.start': string
-  'transcription.cancel': string
-  'transcription.retry': string
-  'transcription.success': string
-  'transcription.error': string
 
   // Library
   'library.title': string
@@ -57,33 +77,24 @@ export interface TranslationKey {
 
   // Import dialog
   'import.tab.youtube': string
-  'import.tab.upload': string
   'import.url.placeholder': string
   'import.submit': string
   'import.resolving': string
   'import.saving': string
   'import.error.INVALID_URL': string
   'import.error.VIDEO_NOT_FOUND': string
-  'import.error.VIDEO_UNAVAILABLE': string
   'import.error.LIVE_NOT_SUPPORTED': string
-  'import.error.VIDEO_TOO_LONG': string
-  'import.error.AUDIO_TOO_LARGE': string
-  'import.error.YT_BLOCKED': string
-  'import.error.EXTRACTOR_UNAVAILABLE': string
   'import.error.EXTRACTOR_FAILED': string
-  'import.error.QUOTA_EXHAUSTED': string
-  'import.error.SERVER_BUSY': string
+  'import.error.NO_CAPTIONS': string
   'import.error.RATE_LIMITED': string
 
   // Watch page
   'watch.subtitleCount': string
   'watch.regenerate': string
-  'watch.regenerateConfirm': string
   'watch.openOnYouTube': string
   'watch.embedBlocked': string
   'watch.notFound': string
   'watch.stage.captions': string
-  'watch.stage.transcribing': string
   'watch.stage.translating': string
   'watch.retryPipeline': string
   'watch.prevSentence': string
@@ -112,25 +123,45 @@ export interface TranslationKey {
   'watch.record.error.denied': string
   'watch.record.error.failed': string
   'watch.record.error.unsupported': string
+  'watch.controls.progress': string
+  'watch.controls.play': string
+  'watch.controls.pause': string
+  'watch.controls.speed': string
+  'watch.controls.mute': string
+  'watch.controls.unmute': string
+  'watch.controls.volume': string
+  'watch.rhythm.ahead': string
+  'watch.rhythm.onTime': string
+  'watch.rhythm.late': string
+  'watch.rhythm.latency': string
+  'watch.rhythm.pace': string
+  'watch.rhythm.analyzing': string
+  'watch.rhythm.noSpeech': string
+  'watch.rhythm.unavailable': string
 
   // Two-line nav + pages
   'nav.online': string
-  'nav.myAudio': string
   'online.title': string
   'online.empty.title': string
   'online.empty.cta': string
   'online.tab.youtube': string
   'online.tab.podcast': string
   'online.tab.podcastSoon': string
-  'myaudio.title': string
-  'myaudio.empty.title': string
-  'myaudio.empty.cta': string
-  'myaudio.upload': string
+
+  // PWA
+  'pwa.updateAvailable': string
+  'pwa.update': string
+  'pwa.installPrompt': string
+  'pwa.install': string
+  'pwa.installed': string
+  'pwa.online': string
+  'pwa.offline': string
 
   // Common
   'common.loading': string
   'common.error': string
   'common.retry': string
+  'common.reload': string
   'common.cancel': string
   'common.save': string
   'common.delete': string
@@ -153,43 +184,58 @@ export const translations: Record<string, TranslationKey> = {
     'nav.selectLanguage': '选择界面语言 / Select Language',
 
     // File Management
-    'file.upload.title': '上传音频文件',
-    'file.upload.dragDrop': '拖拽音频文件到此处，或点击选择文件',
-    'file.upload.orClick': '或点击选择文件',
-    'file.upload.supportedFormats': '支持格式：MP3, WAV, M4A, FLAC',
-    'file.upload.uploading': '上传中...',
-    'file.upload.error': '上传失败',
-    'file.upload.retry': '重试',
-    'file.upload.clearError': '清除错误',
-    'file.upload.maxFilesReached': '已达到文件数量上限',
-    'file.upload.selectFiles': '选择文件',
 
     // Player
     'player.loading': '加载中...',
     'player.error': '加载失败',
-    'player.noSubtitles': '暂无字幕内容，请先在主页转录此文件',
-    'player.transcribeFirst': '请先转录此文件',
     'player.back': '返回',
     'player.retry': '重试',
+    'player.errorTitle': '播放器遇到了问题',
+    'player.unknownError': '发生了未知错误',
+    'player.devDetails': '错误详情（开发者模式）',
+    'error.title': '页面出现错误',
+    'error.description': '抱歉，页面渲染时发生了意外错误。请尝试刷新页面。',
 
     // Settings
     'settings.title': '设置',
     'settings.language': '语言设置',
     'settings.targetLanguage': '目标学习语言（音频语言）',
-    'settings.nativeLanguage': '母语（翻译目标）',
     'settings.save': '保存',
     'settings.cancel': '取消',
+    'settings.ai.title': 'AI 引擎',
+    'settings.ai.engine': '翻译引擎',
+    'settings.ai.engineHint': '默认用免费额度；也可以填自己的 API Key 直连供应商',
+    'settings.ai.engineDefault': '默认（免费额度）',
+    'settings.ai.apiKey': 'API Key',
+    'settings.ai.apiKeyHint': '未配置。填入你自己的 {{provider}} Key 即可直连',
+    'settings.ai.apiKeyPlaceholder': '粘贴你的 API Key',
+    'settings.ai.model': '模型',
+    'settings.ai.modelHint': '可直接填写任意模型 ID；下面的建议只是预填',
+    'settings.ai.save': '保存',
+    'settings.ai.clear': '清除 Key',
+    'settings.ai.getKey': '获取 {{provider}} Key',
+    'settings.ai.privacy':
+      'Key 只保存在这台设备的浏览器里，只会发送给你选择的供应商，不会经过我们的服务器。但请知悉：与本站同源的任何脚本都能读到它，请自行评估风险。',
+    'settings.ai.defaultQuotaHint':
+      '当前使用免费额度：翻译由我们的服务器调用，你无需配置任何密钥。',
+    'settings.ai.saved': '已保存',
+    'account.title': '账户',
+    'account.localUser': '本地用户',
+    'account.localUserHint': '数据保存在本设备浏览器中，无需登录',
+    'settings.learning.title': '学习语言',
+    'settings.learning.native': '母语',
+    'settings.learning.nativeHint': '字幕第二行翻译要使用的语言',
+    'settings.learning.chooseNative': '选择{{name}}作为母语',
+    'settings.pro.title': '升级 Pro 版本',
+    'settings.pro.heading': '用 AI 解锁全部功能',
+    'settings.pro.description':
+      '订阅、跨设备同步与用量统计即将推出。当前版本可免费在本机使用全部已上线能力。',
+    'settings.pro.comingSoon': '敬请期待',
+    'settings.feedback.title': '意见反馈',
+    'settings.feedback.github': 'GitHub 反馈',
+    'settings.feedback.githubHint': '提交问题、建议或错误报告',
 
     // Transcription
-    'transcription.status.pending': '等待中',
-    'transcription.status.processing': '转录中',
-    'transcription.status.completed': '已完成',
-    'transcription.status.failed': '转录失败',
-    'transcription.start': '开始转录',
-    'transcription.cancel': '取消转录',
-    'transcription.retry': '重新转录',
-    'transcription.success': '转录完成',
-    'transcription.error': '转录失败',
 
     // Library
     'library.title': '资料库',
@@ -199,31 +245,22 @@ export const translations: Record<string, TranslationKey> = {
     'library.empty.cta': '粘贴一个 YouTube 链接开始学习',
     'library.deleteConfirm': '删除这个内容及其字幕？',
     'import.tab.youtube': 'YouTube 链接',
-    'import.tab.upload': '上传音频',
     'import.url.placeholder': '粘贴 YouTube 视频链接…',
     'import.submit': '导入',
     'import.resolving': '获取视频信息…',
     'import.saving': '保存中…',
     'import.error.INVALID_URL': '无法识别的 YouTube 链接，请检查格式',
     'import.error.VIDEO_NOT_FOUND': '视频不存在或已删除',
-    'import.error.VIDEO_UNAVAILABLE': '视频不可用（私享、区域或年龄限制）',
     'import.error.LIVE_NOT_SUPPORTED': '暂不支持直播内容，请等存档后再导入',
-    'import.error.VIDEO_TOO_LONG': '无字幕视频暂只支持 30 分钟以内',
-    'import.error.AUDIO_TOO_LARGE': '音频超过大小上限，暂无法转写',
-    'import.error.YT_BLOCKED': '服务器暂时无法访问 YouTube，请稍后再试',
-    'import.error.EXTRACTOR_UNAVAILABLE': '服务器未配置转写组件，暂只支持有字幕的视频',
     'import.error.EXTRACTOR_FAILED': 'YouTube 数据获取失败，请稍后重试',
-    'import.error.QUOTA_EXHAUSTED': '今日 AI 转写额度已用完，请明天再试',
-    'import.error.SERVER_BUSY': '已有转写任务进行中，请稍后再试',
+    'import.error.NO_CAPTIONS': '该视频没有可用字幕，无法生成跟读内容',
     'import.error.RATE_LIMITED': '请求过于频繁，请稍后再试',
     'watch.subtitleCount': '字幕',
     'watch.regenerate': '重新生成字幕',
-    'watch.regenerateConfirm': '重新转写将消耗 AI 额度，确定继续？',
     'watch.openOnYouTube': '在 YouTube 打开',
     'watch.embedBlocked': '该视频不允许嵌入播放',
     'watch.notFound': '内容不存在，可能已被删除',
     'watch.stage.captions': '获取字幕中…',
-    'watch.stage.transcribing': 'AI 转写中…',
     'watch.stage.translating': '翻译中（{{done}}/{{total}}）',
     'watch.retryPipeline': '重试',
     'watch.prevSentence': '上一句',
@@ -252,25 +289,45 @@ export const translations: Record<string, TranslationKey> = {
     'watch.record.error.denied': '麦克风权限被拒绝，请在浏览器设置中允许',
     'watch.record.error.failed': '无法启动录音，请重试',
     'watch.record.error.unsupported': '当前浏览器不支持录音',
+    'watch.controls.progress': '播放进度',
+    'watch.controls.play': '播放',
+    'watch.controls.pause': '暂停',
+    'watch.controls.speed': '播放速度',
+    'watch.controls.mute': '静音',
+    'watch.controls.unmute': '取消静音',
+    'watch.controls.volume': '音量',
+    'watch.rhythm.ahead': '抢拍',
+    'watch.rhythm.onTime': '合拍',
+    'watch.rhythm.late': '拖拍',
+    'watch.rhythm.latency': '开口 {{sec}}',
+    'watch.rhythm.pace': '语速 ×{{ratio}}',
+    'watch.rhythm.analyzing': '分析节奏…',
+    'watch.rhythm.noSpeech': '没听到人声，再录一次试试',
+    'watch.rhythm.unavailable': '当前浏览器无法分析节奏',
 
     // Two-line nav + pages
     'nav.online': '在线',
-    'nav.myAudio': '我的音频',
     'online.title': '在线发现',
     'online.empty.title': '还没有在线内容',
     'online.empty.cta': '粘贴一个 YouTube 链接开始学习',
     'online.tab.youtube': 'YouTube',
     'online.tab.podcast': '播客',
     'online.tab.podcastSoon': '即将推出',
-    'myaudio.title': '我的音频',
-    'myaudio.empty.title': '还没有上传音频',
-    'myaudio.empty.cta': '上传一段音频开始练习',
-    'myaudio.upload': '上传音频',
+
+    // PWA
+    'pwa.updateAvailable': '发现新版本，重启后即可更新。',
+    'pwa.update': '更新',
+    'pwa.installPrompt': '安装影子跟读应用，获得更好的体验！',
+    'pwa.install': '安装',
+    'pwa.installed': '应用安装成功！',
+    'pwa.online': '网络已恢复！',
+    'pwa.offline': '当前已离线，部分功能可能受限。',
 
     // Common
     'common.loading': '加载中...',
     'common.error': '错误',
     'common.retry': '重试',
+    'common.reload': '刷新页面',
     'common.cancel': '取消',
     'common.save': '保存',
     'common.delete': '删除',
@@ -291,43 +348,58 @@ export const translations: Record<string, TranslationKey> = {
     'nav.selectLanguage': '選擇介面語言 / Select Language',
 
     // File Management
-    'file.upload.title': '上傳音頻檔案',
-    'file.upload.dragDrop': '拖拽音頻檔案到此處，或點擊選擇檔案',
-    'file.upload.orClick': '或點擊選擇檔案',
-    'file.upload.supportedFormats': '支援格式：MP3, WAV, M4A, FLAC',
-    'file.upload.uploading': '上傳中...',
-    'file.upload.error': '上傳失敗',
-    'file.upload.retry': '重試',
-    'file.upload.clearError': '清除錯誤',
-    'file.upload.maxFilesReached': '已達到檔案數量上限',
-    'file.upload.selectFiles': '選擇檔案',
 
     // Player
     'player.loading': '載入中...',
     'player.error': '載入失敗',
-    'player.noSubtitles': '暫無字幕內容，請先在主頁轉錄此檔案',
-    'player.transcribeFirst': '請先轉錄此檔案',
     'player.back': '返回',
     'player.retry': '重試',
+    'player.errorTitle': '播放器發生問題',
+    'player.unknownError': '發生未知錯誤',
+    'player.devDetails': '錯誤詳細資訊（開發者模式）',
+    'error.title': '頁面發生錯誤',
+    'error.description': '抱歉，頁面轉譯時發生未預期的錯誤。請嘗試重新整理頁面。',
 
     // Settings
     'settings.title': '設定',
     'settings.language': '語言設定',
     'settings.targetLanguage': '目標學習語言（音頻語言）',
-    'settings.nativeLanguage': '母語（翻譯目標）',
     'settings.save': '儲存',
     'settings.cancel': '取消',
+    'settings.ai.title': 'AI 引擎',
+    'settings.ai.engine': '翻譯引擎',
+    'settings.ai.engineHint': '預設使用免費額度；也可以填入自己的 API Key 直連供應商',
+    'settings.ai.engineDefault': '預設（免費額度）',
+    'settings.ai.apiKey': 'API Key',
+    'settings.ai.apiKeyHint': '尚未設定。填入你自己的 {{provider}} Key 即可直連',
+    'settings.ai.apiKeyPlaceholder': '貼上你的 API Key',
+    'settings.ai.model': '模型',
+    'settings.ai.modelHint': '可直接填寫任意模型 ID；下方建議只是預填',
+    'settings.ai.save': '儲存',
+    'settings.ai.clear': '清除 Key',
+    'settings.ai.getKey': '取得 {{provider}} Key',
+    'settings.ai.privacy':
+      'Key 只保存在這台裝置的瀏覽器裡，只會傳送給你選擇的供應商，不會經過我們的伺服器。但請知悉：與本站同源的任何腳本都能讀取它，請自行評估風險。',
+    'settings.ai.defaultQuotaHint':
+      '目前使用免費額度：翻譯由我們的伺服器呼叫，你不需要設定任何金鑰。',
+    'settings.ai.saved': '已儲存',
+    'account.title': '帳戶',
+    'account.localUser': '本機使用者',
+    'account.localUserHint': '資料保存在這台裝置的瀏覽器中，無須登入',
+    'settings.learning.title': '學習語言',
+    'settings.learning.native': '母語',
+    'settings.learning.nativeHint': '字幕第二行翻譯要使用的語言',
+    'settings.learning.chooseNative': '選擇{{name}}作為母語',
+    'settings.pro.title': '升級 Pro 版本',
+    'settings.pro.heading': '用 AI 解鎖全部功能',
+    'settings.pro.description':
+      '訂閱、跨裝置同步與用量統計即將推出。目前版本可在本機免費使用所有已上線功能。',
+    'settings.pro.comingSoon': '敬請期待',
+    'settings.feedback.title': '意見回饋',
+    'settings.feedback.github': 'GitHub 意見回饋',
+    'settings.feedback.githubHint': '提交問題、建議或錯誤報告',
 
     // Transcription
-    'transcription.status.pending': '等待中',
-    'transcription.status.processing': '轉錄中',
-    'transcription.status.completed': '已完成',
-    'transcription.status.failed': '轉錄失敗',
-    'transcription.start': '開始轉錄',
-    'transcription.cancel': '取消轉錄',
-    'transcription.retry': '重新轉錄',
-    'transcription.success': '轉錄完成',
-    'transcription.error': '轉錄失敗',
 
     // Library
     'library.title': '資料庫',
@@ -337,31 +409,22 @@ export const translations: Record<string, TranslationKey> = {
     'library.empty.cta': '貼上一個 YouTube 連結開始學習',
     'library.deleteConfirm': '刪除這個內容及其字幕？',
     'import.tab.youtube': 'YouTube 連結',
-    'import.tab.upload': '上傳音訊',
     'import.url.placeholder': '貼上 YouTube 影片連結…',
     'import.submit': '匯入',
     'import.resolving': '取得影片資訊…',
     'import.saving': '儲存中…',
     'import.error.INVALID_URL': '無法識別的 YouTube 連結，請檢查格式',
     'import.error.VIDEO_NOT_FOUND': '影片不存在或已刪除',
-    'import.error.VIDEO_UNAVAILABLE': '影片不可用（私人、區域或年齡限制）',
     'import.error.LIVE_NOT_SUPPORTED': '暫不支援直播內容，請等存檔後再匯入',
-    'import.error.VIDEO_TOO_LONG': '無字幕影片暫只支援 30 分鐘以內',
-    'import.error.AUDIO_TOO_LARGE': '音訊超過大小上限，暫無法轉寫',
-    'import.error.YT_BLOCKED': '伺服器暫時無法存取 YouTube，請稍後再試',
-    'import.error.EXTRACTOR_UNAVAILABLE': '伺服器未設定轉寫元件，暫只支援有字幕的影片',
     'import.error.EXTRACTOR_FAILED': 'YouTube 資料取得失敗，請稍後重試',
-    'import.error.QUOTA_EXHAUSTED': '今日 AI 轉寫額度已用完，請明天再試',
-    'import.error.SERVER_BUSY': '已有轉寫任務進行中，請稍後再試',
+    'import.error.NO_CAPTIONS': '該影片沒有可用字幕，無法產生跟讀內容',
     'import.error.RATE_LIMITED': '請求過於頻繁，請稍後再試',
     'watch.subtitleCount': '字幕',
     'watch.regenerate': '重新產生字幕',
-    'watch.regenerateConfirm': '重新轉寫將消耗 AI 額度，確定繼續？',
     'watch.openOnYouTube': '在 YouTube 開啟',
     'watch.embedBlocked': '該影片不允許嵌入播放',
     'watch.notFound': '內容不存在，可能已被刪除',
     'watch.stage.captions': '取得字幕中…',
-    'watch.stage.transcribing': 'AI 轉寫中…',
     'watch.stage.translating': '翻譯中（{{done}}/{{total}}）',
     'watch.retryPipeline': '重試',
     'watch.prevSentence': '上一句',
@@ -390,25 +453,45 @@ export const translations: Record<string, TranslationKey> = {
     'watch.record.error.denied': '麥克風權限被拒絕，請在瀏覽器設定中允許',
     'watch.record.error.failed': '無法啟動錄音，請重試',
     'watch.record.error.unsupported': '目前瀏覽器不支援錄音',
+    'watch.controls.progress': '播放進度',
+    'watch.controls.play': '播放',
+    'watch.controls.pause': '暫停',
+    'watch.controls.speed': '播放速度',
+    'watch.controls.mute': '靜音',
+    'watch.controls.unmute': '取消靜音',
+    'watch.controls.volume': '音量',
+    'watch.rhythm.ahead': '搶拍',
+    'watch.rhythm.onTime': '合拍',
+    'watch.rhythm.late': '拖拍',
+    'watch.rhythm.latency': '開口 {{sec}}',
+    'watch.rhythm.pace': '語速 ×{{ratio}}',
+    'watch.rhythm.analyzing': '分析節奏…',
+    'watch.rhythm.noSpeech': '沒聽到人聲，再錄一次試試',
+    'watch.rhythm.unavailable': '目前瀏覽器無法分析節奏',
 
     // Two-line nav + pages
     'nav.online': '線上',
-    'nav.myAudio': '我的音訊',
     'online.title': '線上探索',
     'online.empty.title': '還沒有線上內容',
     'online.empty.cta': '貼上一個 YouTube 連結開始學習',
     'online.tab.youtube': 'YouTube',
     'online.tab.podcast': '播客',
     'online.tab.podcastSoon': '即將推出',
-    'myaudio.title': '我的音訊',
-    'myaudio.empty.title': '還沒有上傳音訊',
-    'myaudio.empty.cta': '上傳一段音訊開始練習',
-    'myaudio.upload': '上傳音訊',
+
+    // PWA
+    'pwa.updateAvailable': '發現新版本，重新啟動後即可更新。',
+    'pwa.update': '更新',
+    'pwa.installPrompt': '安裝影子跟讀應用，獲得更好的體驗！',
+    'pwa.install': '安裝',
+    'pwa.installed': '應用程式安裝成功！',
+    'pwa.online': '網路已恢復！',
+    'pwa.offline': '目前處於離線狀態，部分功能可能受限。',
 
     // Common
     'common.loading': '載入中...',
     'common.error': '錯誤',
     'common.retry': '重試',
+    'common.reload': '重新整理頁面',
     'common.cancel': '取消',
     'common.save': '儲存',
     'common.delete': '刪除',
@@ -429,43 +512,59 @@ export const translations: Record<string, TranslationKey> = {
     'nav.selectLanguage': 'Select Interface Language / 选择界面语言',
 
     // File Management
-    'file.upload.title': 'Upload Audio Files',
-    'file.upload.dragDrop': 'Drag and drop audio files here, or click to select',
-    'file.upload.orClick': 'or click to select files',
-    'file.upload.supportedFormats': 'Supported formats: MP3, WAV, M4A, FLAC',
-    'file.upload.uploading': 'Uploading...',
-    'file.upload.error': 'Upload failed',
-    'file.upload.retry': 'Retry',
-    'file.upload.clearError': 'Clear Error',
-    'file.upload.maxFilesReached': 'Maximum file count reached',
-    'file.upload.selectFiles': 'Select Files',
 
     // Player
     'player.loading': 'Loading...',
     'player.error': 'Loading failed',
-    'player.noSubtitles': 'No subtitles available. Please transcribe this file first.',
-    'player.transcribeFirst': 'Please transcribe this file first',
     'player.back': 'Back',
     'player.retry': 'Retry',
+    'player.errorTitle': 'The player ran into a problem',
+    'player.unknownError': 'An unknown error occurred',
+    'player.devDetails': 'Error details (developer mode)',
+    'error.title': 'Something went wrong on this page',
+    'error.description': 'Sorry, the page hit an unexpected rendering error. Try reloading it.',
 
     // Settings
     'settings.title': 'Settings',
     'settings.language': 'Language Settings',
     'settings.targetLanguage': 'Target Learning Language (Audio Language)',
-    'settings.nativeLanguage': 'Native Language (Translation Target)',
     'settings.save': 'Save',
     'settings.cancel': 'Cancel',
+    'settings.ai.title': 'AI Engine',
+    'settings.ai.engine': 'Translation engine',
+    'settings.ai.engineHint':
+      'Default uses the free quota; you can also connect directly with your own API key',
+    'settings.ai.engineDefault': 'Default (free quota)',
+    'settings.ai.apiKey': 'API Key',
+    'settings.ai.apiKeyHint': 'Not set. Add your own {{provider}} key to connect directly',
+    'settings.ai.apiKeyPlaceholder': 'Paste your API key',
+    'settings.ai.model': 'Model',
+    'settings.ai.modelHint': 'Any model ID works; the suggestions below are just prefill',
+    'settings.ai.save': 'Save',
+    'settings.ai.clear': 'Clear key',
+    'settings.ai.getKey': 'Get a {{provider}} key',
+    'settings.ai.privacy':
+      'The key stays in this browser on this device and is sent only to the provider you pick, never through our servers. Be aware, though: any script running on this origin could read it, so weigh that risk yourself.',
+    'settings.ai.defaultQuotaHint':
+      'Using the free quota: translation runs on our servers, so you do not need to configure any key.',
+    'settings.ai.saved': 'Saved',
+    'account.title': 'Account',
+    'account.localUser': 'Local user',
+    'account.localUserHint': 'Your data stays in this device’s browser. No sign-in needed.',
+    'settings.learning.title': 'Learning language',
+    'settings.learning.native': 'Native language',
+    'settings.learning.nativeHint': 'Language for the second subtitle line',
+    'settings.learning.chooseNative': 'Use {{name}} as the native language',
+    'settings.pro.title': 'Upgrade to Pro',
+    'settings.pro.heading': 'Unlock everything with AI',
+    'settings.pro.description':
+      'Subscriptions, cross-device sync, and usage stats are coming soon. Every shipped feature is free on this device for now.',
+    'settings.pro.comingSoon': 'Coming soon',
+    'settings.feedback.title': 'Feedback',
+    'settings.feedback.github': 'GitHub issues',
+    'settings.feedback.githubHint': 'Report bugs, ideas, or issues',
 
     // Transcription
-    'transcription.status.pending': 'Pending',
-    'transcription.status.processing': 'Processing',
-    'transcription.status.completed': 'Completed',
-    'transcription.status.failed': 'Failed',
-    'transcription.start': 'Start Transcription',
-    'transcription.cancel': 'Cancel Transcription',
-    'transcription.retry': 'Retry Transcription',
-    'transcription.success': 'Transcription Completed',
-    'transcription.error': 'Transcription Failed',
 
     // Library
     'library.title': 'Library',
@@ -475,32 +574,22 @@ export const translations: Record<string, TranslationKey> = {
     'library.empty.cta': 'Paste a YouTube link to start learning',
     'library.deleteConfirm': 'Delete this item and its subtitles?',
     'import.tab.youtube': 'YouTube link',
-    'import.tab.upload': 'Upload audio',
     'import.url.placeholder': 'Paste a YouTube video link…',
     'import.submit': 'Import',
     'import.resolving': 'Fetching video info…',
     'import.saving': 'Saving…',
     'import.error.INVALID_URL': 'Unrecognized YouTube link — please check the format',
     'import.error.VIDEO_NOT_FOUND': 'Video not found or deleted',
-    'import.error.VIDEO_UNAVAILABLE': 'Video unavailable (private, region or age restricted)',
     'import.error.LIVE_NOT_SUPPORTED': 'Live streams are not supported yet',
-    'import.error.VIDEO_TOO_LONG': 'Videos without captions are limited to 30 minutes',
-    'import.error.AUDIO_TOO_LARGE': 'Audio exceeds the size limit for transcription',
-    'import.error.YT_BLOCKED': 'The server cannot reach YouTube right now — try again later',
-    'import.error.EXTRACTOR_UNAVAILABLE':
-      'Transcription unavailable on this server; only captioned videos are supported',
     'import.error.EXTRACTOR_FAILED': 'Failed to fetch YouTube data — please retry',
-    'import.error.QUOTA_EXHAUSTED': 'Daily AI transcription quota reached — try tomorrow',
-    'import.error.SERVER_BUSY': 'Another transcription is running — try again shortly',
+    'import.error.NO_CAPTIONS': 'This video has no captions, so there is nothing to shadow',
     'import.error.RATE_LIMITED': 'Too many requests — please slow down',
     'watch.subtitleCount': 'Subtitles',
     'watch.regenerate': 'Regenerate subtitles',
-    'watch.regenerateConfirm': 'Re-transcribing consumes AI quota. Continue?',
     'watch.openOnYouTube': 'Open on YouTube',
     'watch.embedBlocked': 'This video does not allow embedded playback',
     'watch.notFound': 'Content not found — it may have been deleted',
     'watch.stage.captions': 'Fetching captions…',
-    'watch.stage.transcribing': 'AI transcribing…',
     'watch.stage.translating': 'Translating ({{done}}/{{total}})',
     'watch.retryPipeline': 'Retry',
     'watch.prevSentence': 'Previous sentence',
@@ -529,25 +618,45 @@ export const translations: Record<string, TranslationKey> = {
     'watch.record.error.denied': 'Microphone permission denied — enable it in browser settings',
     'watch.record.error.failed': 'Could not start recording — try again',
     'watch.record.error.unsupported': 'Recording is not supported in this browser',
+    'watch.controls.progress': 'Playback progress',
+    'watch.controls.play': 'Play',
+    'watch.controls.pause': 'Pause',
+    'watch.controls.speed': 'Playback speed',
+    'watch.controls.mute': 'Mute',
+    'watch.controls.unmute': 'Unmute',
+    'watch.controls.volume': 'Volume',
+    'watch.rhythm.ahead': 'Rushed',
+    'watch.rhythm.onTime': 'On beat',
+    'watch.rhythm.late': 'Late',
+    'watch.rhythm.latency': 'Start {{sec}}',
+    'watch.rhythm.pace': 'Pace ×{{ratio}}',
+    'watch.rhythm.analyzing': 'Analyzing rhythm…',
+    'watch.rhythm.noSpeech': 'No speech detected — try recording again',
+    'watch.rhythm.unavailable': 'This browser cannot analyze rhythm',
 
     // Two-line nav + pages
     'nav.online': 'Online',
-    'nav.myAudio': 'My Audio',
     'online.title': 'Discover',
     'online.empty.title': 'No online content yet',
     'online.empty.cta': 'Paste a YouTube link to start learning',
     'online.tab.youtube': 'YouTube',
     'online.tab.podcast': 'Podcast',
     'online.tab.podcastSoon': 'Coming soon',
-    'myaudio.title': 'My Audio',
-    'myaudio.empty.title': 'No uploaded audio yet',
-    'myaudio.empty.cta': 'Upload an audio file to start practicing',
-    'myaudio.upload': 'Upload audio',
+
+    // PWA
+    'pwa.updateAvailable': 'A new version is available. Restart to update.',
+    'pwa.update': 'Update',
+    'pwa.installPrompt': 'Install the Shadowing app for a better experience!',
+    'pwa.install': 'Install',
+    'pwa.installed': 'App installed successfully!',
+    'pwa.online': 'Connection restored!',
+    'pwa.offline': 'You are offline. Some features may be limited.',
 
     // Common
     'common.loading': 'Loading...',
     'common.error': 'Error',
     'common.retry': 'Retry',
+    'common.reload': 'Reload page',
     'common.cancel': 'Cancel',
     'common.save': 'Save',
     'common.delete': 'Delete',
@@ -568,43 +677,59 @@ export const translations: Record<string, TranslationKey> = {
     'nav.selectLanguage': 'インターフェース言語を選択 / Select Language',
 
     // File Management
-    'file.upload.title': '音声ファイルをアップロード',
-    'file.upload.dragDrop': '音声ファイルをここにドラッグ＆ドロップ、またはクリックして選択',
-    'file.upload.orClick': 'またはクリックしてファイルを選択',
-    'file.upload.supportedFormats': '対応フォーマット：MP3, WAV, M4A, FLAC',
-    'file.upload.uploading': 'アップロード中...',
-    'file.upload.error': 'アップロード失敗',
-    'file.upload.retry': '再試行',
-    'file.upload.clearError': 'エラーをクリア',
-    'file.upload.maxFilesReached': 'ファイル数の上限に達しました',
-    'file.upload.selectFiles': 'ファイルを選択',
 
     // Player
     'player.loading': '読み込み中...',
     'player.error': '読み込み失敗',
-    'player.noSubtitles': '字幕がありません。まずこのファイルを文字起こししてください。',
-    'player.transcribeFirst': 'まずこのファイルを文字起こししてください',
     'player.back': '戻る',
     'player.retry': '再試行',
+    'player.errorTitle': 'プレイヤーで問題が発生しました',
+    'player.unknownError': '不明なエラーが発生しました',
+    'player.devDetails': 'エラー詳細（開発者モード）',
+    'error.title': 'ページでエラーが発生しました',
+    'error.description':
+      '申し訳ありません。ページの表示中に予期しないエラーが発生しました。再読み込みしてお試しください。',
 
     // Settings
     'settings.title': '設定',
     'settings.language': '言語設定',
     'settings.targetLanguage': '学習対象言語（音声言語）',
-    'settings.nativeLanguage': '母語（翻訳対象）',
     'settings.save': '保存',
     'settings.cancel': 'キャンセル',
+    'settings.ai.title': 'AI エンジン',
+    'settings.ai.engine': '翻訳エンジン',
+    'settings.ai.engineHint': '既定は無料枠。自分の API キーでプロバイダに直結することもできます',
+    'settings.ai.engineDefault': '既定（無料枠）',
+    'settings.ai.apiKey': 'API キー',
+    'settings.ai.apiKeyHint': '未設定。{{provider}} のキーを入れると直結できます',
+    'settings.ai.apiKeyPlaceholder': 'API キーを貼り付け',
+    'settings.ai.model': 'モデル',
+    'settings.ai.modelHint': '任意のモデル ID を入力できます。候補は入力補助です',
+    'settings.ai.save': '保存',
+    'settings.ai.clear': 'キーを削除',
+    'settings.ai.getKey': '{{provider}} のキーを取得',
+    'settings.ai.privacy':
+      'キーはこの端末のブラウザにのみ保存され、選択したプロバイダにのみ送信されます。当社のサーバーは経由しません。ただし、このオリジンで動く任意のスクリプトが読み取れる点はご承知おきください。',
+    'settings.ai.defaultQuotaHint':
+      '現在は無料枠を使用中です。翻訳は当社のサーバーで実行されるため、キーの設定は不要です。',
+    'settings.ai.saved': '保存しました',
+    'account.title': 'アカウント',
+    'account.localUser': 'ローカルユーザー',
+    'account.localUserHint': 'データはこの端末のブラウザに保存されます。ログインは不要です。',
+    'settings.learning.title': '学習言語',
+    'settings.learning.native': '母語',
+    'settings.learning.nativeHint': '字幕2行目に使う言語',
+    'settings.learning.chooseNative': '{{name}}を母語として使う',
+    'settings.pro.title': 'Pro にアップグレード',
+    'settings.pro.heading': 'AI ですべての機能を解放',
+    'settings.pro.description':
+      'サブスク、デバイス間同期、利用統計は近日公開予定です。現時点で提供中の機能はすべてこの端末で無料で使えます。',
+    'settings.pro.comingSoon': '近日公開',
+    'settings.feedback.title': 'フィードバック',
+    'settings.feedback.github': 'GitHub Issues',
+    'settings.feedback.githubHint': '不具合や要望、問題を報告する',
 
     // Transcription
-    'transcription.status.pending': '待機中',
-    'transcription.status.processing': '処理中',
-    'transcription.status.completed': '完了',
-    'transcription.status.failed': '失敗',
-    'transcription.start': '文字起こしを開始',
-    'transcription.cancel': '文字起こしをキャンセル',
-    'transcription.retry': '文字起こしを再試行',
-    'transcription.success': '文字起こしが完了しました',
-    'transcription.error': '文字起こしに失敗しました',
 
     // Library
     'library.title': 'ライブラリ',
@@ -614,33 +739,22 @@ export const translations: Record<string, TranslationKey> = {
     'library.empty.cta': 'YouTube リンクを貼り付けて学習を始める',
     'library.deleteConfirm': 'このコンテンツと字幕を削除しますか？',
     'import.tab.youtube': 'YouTube リンク',
-    'import.tab.upload': '音声をアップロード',
     'import.url.placeholder': 'YouTube 動画のリンクを貼り付け…',
     'import.submit': 'インポート',
     'import.resolving': '動画情報を取得中…',
     'import.saving': '保存中…',
     'import.error.INVALID_URL': 'YouTube リンクを認識できません。形式を確認してください',
     'import.error.VIDEO_NOT_FOUND': '動画が存在しないか削除されています',
-    'import.error.VIDEO_UNAVAILABLE': '動画を利用できません（非公開・地域・年齢制限）',
     'import.error.LIVE_NOT_SUPPORTED': 'ライブ配信は未対応です。アーカイブ後にお試しください',
-    'import.error.VIDEO_TOO_LONG': '字幕なし動画は 30 分以内のみ対応しています',
-    'import.error.AUDIO_TOO_LARGE': '音声がサイズ上限を超えているため転写できません',
-    'import.error.YT_BLOCKED':
-      'サーバーが YouTube にアクセスできません。後でもう一度お試しください',
-    'import.error.EXTRACTOR_UNAVAILABLE':
-      'サーバーに転写コンポーネントがなく、字幕付き動画のみ対応しています',
     'import.error.EXTRACTOR_FAILED': 'YouTube データの取得に失敗しました。後で再試行してください',
-    'import.error.QUOTA_EXHAUSTED': '本日の AI 転写枠を使い切りました。明日お試しください',
-    'import.error.SERVER_BUSY': '別の転写タスクが実行中です。しばらくしてからお試しください',
+    'import.error.NO_CAPTIONS': 'この動画には字幕がないため、シャドーイング練習に使えません',
     'import.error.RATE_LIMITED': 'リクエストが多すぎます。しばらくお待ちください',
     'watch.subtitleCount': '字幕',
     'watch.regenerate': '字幕を再生成',
-    'watch.regenerateConfirm': '再転写は AI 枠を消費します。続行しますか？',
     'watch.openOnYouTube': 'YouTube で開く',
     'watch.embedBlocked': 'この動画は埋め込み再生を許可していません',
     'watch.notFound': 'コンテンツが見つかりません。削除された可能性があります',
     'watch.stage.captions': '字幕を取得中…',
-    'watch.stage.transcribing': 'AI 転写中…',
     'watch.stage.translating': '翻訳中（{{done}}/{{total}}）',
     'watch.retryPipeline': '再試行',
     'watch.prevSentence': '前の文',
@@ -669,25 +783,45 @@ export const translations: Record<string, TranslationKey> = {
     'watch.record.error.denied': 'マイクの権限が拒否されました。ブラウザ設定で許可してください',
     'watch.record.error.failed': '録音を開始できませんでした。再試行してください',
     'watch.record.error.unsupported': 'このブラウザは録音に対応していません',
+    'watch.controls.progress': '再生位置',
+    'watch.controls.play': '再生',
+    'watch.controls.pause': '一時停止',
+    'watch.controls.speed': '再生速度',
+    'watch.controls.mute': 'ミュート',
+    'watch.controls.unmute': 'ミュート解除',
+    'watch.controls.volume': '音量',
+    'watch.rhythm.ahead': '走り気味',
+    'watch.rhythm.onTime': 'ちょうど良い',
+    'watch.rhythm.late': '遅れ気味',
+    'watch.rhythm.latency': '開始 {{sec}}',
+    'watch.rhythm.pace': '速度 ×{{ratio}}',
+    'watch.rhythm.analyzing': 'リズムを分析中…',
+    'watch.rhythm.noSpeech': '音声を検出できませんでした。もう一度録音してください',
+    'watch.rhythm.unavailable': 'このブラウザはリズム分析に対応していません',
 
     // Two-line nav + pages
     'nav.online': 'オンライン',
-    'nav.myAudio': 'マイ音声',
     'online.title': '見つける',
     'online.empty.title': 'オンラインコンテンツがまだありません',
     'online.empty.cta': 'YouTube リンクを貼り付けて学習を始める',
     'online.tab.youtube': 'YouTube',
     'online.tab.podcast': 'ポッドキャスト',
     'online.tab.podcastSoon': '近日公開',
-    'myaudio.title': 'マイ音声',
-    'myaudio.empty.title': 'アップロードした音声がまだありません',
-    'myaudio.empty.cta': '音声をアップロードして練習を始める',
-    'myaudio.upload': '音声をアップロード',
+
+    // PWA
+    'pwa.updateAvailable': '新しいバージョンがあります。再起動して更新してください。',
+    'pwa.update': '更新',
+    'pwa.installPrompt': 'シャドーイングアプリをインストールして快適に使えます。',
+    'pwa.install': 'インストール',
+    'pwa.installed': 'アプリをインストールしました。',
+    'pwa.online': '接続が復旧しました。',
+    'pwa.offline': 'オフラインです。一部の機能が制限される場合があります。',
 
     // Common
     'common.loading': '読み込み中...',
     'common.error': 'エラー',
     'common.retry': '再試行',
+    'common.reload': 'ページを再読み込み',
     'common.cancel': 'キャンセル',
     'common.save': '保存',
     'common.delete': '削除',

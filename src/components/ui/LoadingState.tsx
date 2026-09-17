@@ -7,6 +7,7 @@ interface LoadingStateProps {
   size?: 'sm' | 'md' | 'lg'
   variant?: 'spinner' | 'dots' | 'skeleton'
   text?: string
+  loadingLabel?: string
   className?: string
 }
 
@@ -14,6 +15,7 @@ export function LoadingState({
   size = 'md',
   variant = 'spinner',
   text,
+  loadingLabel,
   className,
 }: LoadingStateProps) {
   const sizeClasses = {
@@ -26,7 +28,7 @@ export function LoadingState({
 
   if (variant === 'dots') {
     return (
-      <output className={containerClasses} aria-label={text || '加载中'}>
+      <output className={containerClasses} aria-label={loadingLabel ?? text}>
         <div className="flex space-x-1">
           <div
             className={cn(
@@ -70,7 +72,7 @@ export function LoadingState({
 
   // Default spinner variant
   return (
-    <output className={containerClasses} aria-label={text || '加载中'}>
+    <output className={containerClasses} aria-label={loadingLabel ?? text}>
       <Loader2 className={cn('animate-spin text-[var(--color-primary)]', sizeClasses[size])} />
       {text && <p className="mt-2 text-sm text-muted-foreground">{text}</p>}
     </output>
@@ -78,54 +80,11 @@ export function LoadingState({
 }
 
 // 页面级加载state
-export function PageLoadingState({ text = '加载中...' }: { text?: string }) {
+export function PageLoadingState({ text, loadingLabel }: { text?: string; loadingLabel?: string }) {
+  const resolvedText = text ?? loadingLabel
   return (
     <div className="flex min-h-[400px] items-center justify-center">
-      <LoadingState size="lg" text={text} />
-    </div>
-  )
-}
-
-// component级加载state
-export function ComponentLoadingState({ text = '加载中...' }: { text?: string }) {
-  return (
-    <div className="flex min-h-[100px] items-center justify-center">
-      <LoadingState size="md" text={text} />
-    </div>
-  )
-}
-
-// 列table加载state
-export function ListLoadingState({ count = 3 }: { count?: number }) {
-  return (
-    <div className="space-y-4">
-      {Array.from({ length: count }).map((_, index) => (
-        // biome-ignore lint/suspicious/noArrayIndexKey: skeleton placeholders are interchangeable; using the index is the simplest stable key (Date.now() in the previous form forced re-mounts on every render).
-        <div key={`skeleton-${index}`} className="animate-pulse space-y-3">
-          <div className="h-32 bg-muted rounded-lg"></div>
-          <div className="space-y-2">
-            <div className="h-4 bg-muted rounded w-3/4"></div>
-            <div className="h-3 bg-muted rounded w-1/2"></div>
-          </div>
-        </div>
-      ))}
-    </div>
-  )
-}
-
-// 卡片加载state
-export function CardLoadingState() {
-  return (
-    <div className="animate-pulse space-y-4 rounded-lg border p-4">
-      <div className="h-6 bg-muted rounded w-1/3"></div>
-      <div className="space-y-2">
-        <div className="h-4 bg-muted rounded"></div>
-        <div className="h-4 bg-muted rounded w-5/6"></div>
-      </div>
-      <div className="flex justify-between">
-        <div className="h-8 bg-muted rounded w-20"></div>
-        <div className="h-8 bg-muted rounded w-20"></div>
-      </div>
+      <LoadingState size="lg" text={resolvedText} loadingLabel={loadingLabel} />
     </div>
   )
 }

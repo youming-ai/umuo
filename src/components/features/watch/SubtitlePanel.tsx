@@ -36,6 +36,23 @@ export function SubtitlePanel({
   const { t } = useI18n()
   const activeRowRef = useRef<HTMLButtonElement | null>(null)
   const showOriginalOnly = subtitle?.source === 'official'
+  /**
+   * 无字幕视频**不给**重试入口。
+   *
+   * `NO_CAPTIONS` 是确定性的：服务端每次都会返回同一个结果（没有 yt-dlp / ASR 兜底路径），
+   * 而 `retry()` 会删掉字幕行并重跑整条抓取链路 —— 用户点一次就白等一次，结果完全一样。
+   * 文案本身已经说清原因（「该视频没有可用字幕」），而紧跟其后的「重试」按钮会让人以为
+   * 「再试一次可能有救」。
+   *
+   * **头部的「重新生成字幕」（`onRegenerate`）刻意保留**，这不是漏改：
+   * 失败行存在时自驱动 effect 不会重跑（它只在「没有字幕行」时启动），所以 `retry` 与
+   * `regenerate` 是用户仅有的恢复入口。两个都隐藏的话，某个视频日后被上传者补上字幕时，
+   * 用户就永远无法重新抓取了 —— 除非清掉整个 IndexedDB。留一个语义明确的「重新生成」、
+   * 去掉那个读起来像「重试可能成功」的按钮，是这里有意为之的不对称。
+   *
+   * 其它失败（网络抖动、上游故障）仍然是可重试的，照常给出按钮。
+   */
+  const retryable = subtitle?.error !== 'NO_CAPTIONS'
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: activeIndex triggers scroll; ref mutation is intentional
   useEffect(() => {
@@ -45,14 +62,12 @@ export function SubtitlePanel({
   const stageText =
     stage === 'fetching-captions'
       ? t('watch.stage.captions')
-      : stage === 'transcribing'
-        ? t('watch.stage.transcribing')
-        : stage === 'translating' && translateProgress
-          ? t('watch.stage.translating', {
-              done: translateProgress.done,
-              total: translateProgress.total,
-            })
-          : null
+      : stage === 'translating' && translateProgress
+        ? t('watch.stage.translating', {
+            done: translateProgress.done,
+            total: translateProgress.total,
+          })
+        : null
 
   return (
     <aside className="flex h-full min-h-0 flex-col rounded-xl border border-[var(--border-primary)] bg-[var(--surface-card)]">
@@ -88,9 +103,11 @@ export function SubtitlePanel({
                   经 youtubeErrorMessageKey 本地化，未知值回落到通用文案 */}
               {t(youtubeErrorMessageKey(subtitle?.error))}
             </p>
-            <button type="button" onClick={onRetry} className="btn-primary !h-9 !px-4 text-sm">
-              {t('watch.retryPipeline')}
-            </button>
+            {retryable && (
+              <button type="button" onClick={onRetry} className="btn-primary !h-9 !px-4 text-sm">
+                {t('watch.retryPipeline')}
+              </button>
+            )}
           </div>
         ) : (
           segments.map((segment, index) => {
@@ -106,7 +123,7 @@ export function SubtitlePanel({
                 onClick={() => onSegmentClick(segment, index)}
                 className={`block w-full rounded-lg px-3 py-2 text-left transition-colors ${
                   isActive
-                    ? 'bg-[var(--color-primary)]/10 ring-1 ring-[var(--color-primary)]'
+                    ? 'bg-[var(--rhythm-beat-soft)] ring-1 ring-[var(--rhythm-beat)]'
                     : 'hover:bg-[var(--surface-muted)]'
                 }`}
               >
@@ -115,7 +132,7 @@ export function SubtitlePanel({
                 </span>
                 <p
                   className={`text-sm font-medium ${
-                    isActive ? 'text-[var(--color-primary)]' : 'text-[var(--text-primary)]'
+                    isActive ? 'text-[var(--rhythm-beat)]' : 'text-[var(--text-primary)]'
                   }`}
                 >
                   {original}

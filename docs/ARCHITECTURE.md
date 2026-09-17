@@ -2,7 +2,7 @@
 
 ## Overview
 
-Shadowing Learning is an offline-first language learning app for shadowing practice. Users import audio locally or by YouTube URL, transcribe it through Groq Whisper, enrich transcript segments through Groq chat completions (normalize / translate / annotate / furigana), and practice with a synchronized media/subtitle player plus sentence recording.
+Shadowing Learning is an offline-first language learning app for shadowing practice. Users import a YouTube URL, the app fetches the video's caption track, enriches segments through Groq chat completions (translate / annotate / furigana), and provides a synchronized media/subtitle player plus sentence recording.
 
 All user data lives in the browser (IndexedDB via Dexie). **The server is stateless**: a single Cloudflare Worker proxies AI calls, fetches YouTube captions, enforces rate limits, and serves the static SPA.
 
@@ -16,7 +16,7 @@ graph TB
     Worker["Cloudflare Worker<br/>Hono"]
     Assets["ASSETS binding<br/>dist/ static build"]
     KV["RATE_LIMIT_KV<br/>sliding-window counters"]
-    Groq["Groq SDK<br/>Whisper + Chat"]
+    Groq["Groq SDK<br/>Chat"]
     YT["youtubei.js"]
     IDB[("IndexedDB / Dexie")]
 
@@ -44,8 +44,10 @@ Locally the same split applies but nothing builds implicitly: `dist/` is gitigno
 | Language | TypeScript strict mode | Type safety |
 | Styling | Tailwind CSS v4 (CSS-only), CSS variables | Design tokens and themes |
 | Server state | TanStack Query v5 | Query cache, mutations, invalidation |
-| Storage | Dexie v4 / IndexedDB | Local-first persistence |
-| AI | Groq SDK | Whisper transcription and text enhancement |
+| Storage | Dexie v5 / IndexedDB | Local-first persistence |
+| AI (default) | Groq SDK via our Worker | Translate / annotate / furigana on our server quota |
+| AI (BYOK) | Plain `fetch` to the provider | Same prompt, user's own key, direct from the browser — see [AI-ENGINES.md](./AI-ENGINES.md) |
+| Audio analysis | Web Audio API (decode) + hand-rolled DSP | Rhythm feedback; `lib/audio/decode.ts` is the only Web Audio site |
 | YouTube | youtubei.js (Innertube) | Metadata + caption fetch |
 | Rate limiting | Cloudflare KV (`RATE_LIMIT_KV`) | Per-IP sliding window |
 | Testing | Vitest, React Testing Library, happy-dom | Unit and integration tests |
@@ -56,11 +58,9 @@ Locally the same split applies but nothing builds implicitly: `dist/` is gitigno
 worker/                     # Cloudflare Worker (API + asset delivery)
   index.ts                  # Hono app: cors -> rateLimit -> routes -> ASSETS fallback
   routes/
-    transcribe.ts           # POST /api/transcribe
-    postprocess.ts          # POST /api/postprocess
+    postprocess.ts          # POST /api/postprocess — thin: validates, then delegates to shared/ai/postprocess-core
     youtube.ts              # POST /api/youtube/{resolve,captions}
   lib/
-    groq-whisper.ts         # audio validation + Whisper call
     groq-client.ts          # Groq SDK factory
     youtube-captions.ts     # timedtext fetch + cue normalization
     api-response.ts         # apiSuccess / apiError envelopes
@@ -69,34 +69,36 @@ worker/                     # Cloudflare Worker (API + asset delivery)
     cors.ts                 # allowed origins (localhost:3000 / :8787)
     rate-limit.ts           # KV-backed per-route sliding window
 
+shared/                     # Runtime-neutral code BOTH runtimes import (no DOM, no fetch)
+  ai/postprocess-core.ts    # THE prompt + short/long split + JSON parse + degradation rules
+
 src/                        # Vite SPA (client)
-  routes/                   # __root, index, watch.$mediaId, me, settings, account
+  routes/                   # __root, index, watch.$mediaId, settings, account
   components/
     features/
       watch/                # WatchPage, WatchControls, SubtitlePanel, CurrentSentence, RecordingBar, MediaViewport
-      player/               # source adapters (YouTubeAdapter, AudioFileAdapter, iframe-loader, factory), PlayerErrorBoundary
-      library/              # MyAudioPage and file library UI
-      file/                 # upload / file management UI
+      player/               # source adapters (YouTubeAdapter, iframe-loader, factory), PlayerErrorBoundary
+      library/              # online library and YouTube import UI
       settings/             # settings sections and layout
     layout/
       contexts/             # I18n, Theme, TranscriptionLanguage
       providers/            # QueryProvider
     ui/                     # shared primitives + app UI (Navigation, ErrorBoundary, ThemeToggle, PwaRegister, ...)
   hooks/
-    api/                    # useTranscription
     media/                  # useSubtitlePipeline, useMediaImport, subtitle-keys
     player/                 # useShadowingPractice, useSentenceRecorder, useSegmentLoop, useSegmentNavigation, usePlayerAdapter, useWatchKeyboard
     db/                     # useFiles
-    useFileStatus.ts
   lib/
-    db/db.ts                # Dexie schema (v4) + DBUtils
-    player/                 # shadowing-machine, active-segment, active-word
-    subtitles/              # chunk-postprocess (chunked translation loop)
+    db/db.ts                # Dexie schema (v5) + DBUtils
+    player/                 # shadowing-machine, rhythm, active-segment  ← pure, unit-tested
+    audio/decode.ts         # the ONLY place Web Audio appears (recording Blob -> mono PCM)
+    ai/                     # BYOK: catalog (declarative providers), protocol, keys, transports
+    subtitles/              # chunk-postprocess (chunking + write-back; transport injected)
     youtube/                # error-messages
-    utils/                  # error-handler, transcription-error-handler, retry-utils, transcription-queue, file-validation, logger, utils
+    utils/                  # error-handler, logger, utils (cn, nowMs)
     config/                 # routes
     i18n/translations.ts
-  types/                    # db, api, ui, transcription types
+  types/                    # db, api types
 ```
 
 ## Component Architecture
@@ -106,7 +108,7 @@ src/                        # Vite SPA (client)
 | Component | Purpose |
 |-----------|---------|
 | WatchPage | Main watch interface for a `media` row; drives the subtitle pipeline and player adapter |
-| MediaViewport | Renders the active media source (audio element or YouTube iframe) |
+| MediaViewport | Renders the YouTube iframe viewport |
 | WatchControls | Seek, playback, loop, speed, volume, and shadowing controls |
 | SubtitlePanel | Time-synced subtitle list with current-segment highlighting |
 | CurrentSentence | Focused current-segment view for shadowing |
@@ -115,7 +117,7 @@ src/                        # Vite SPA (client)
 
 ### Player Source Adapters (`components/features/player/sources`)
 
-A `factory` picks a source adapter by media kind. `AudioFileAdapter` plays a local Blob; `YouTubeAdapter` (+ `iframe-loader`) drives the YouTube IFrame player. Both satisfy a shared adapter interface consumed by `usePlayerAdapter`.
+`YouTubeAdapter` (+ `iframe-loader`) drives the YouTube IFrame player and satisfies the adapter interface consumed by `usePlayerAdapter`. (The former `AudioFileAdapter` was removed together with the audio module.)
 
 ### Layout / UI Components
 
@@ -138,14 +140,12 @@ A `factory` picks a source adapter by media kind. `AudioFileAdapter` plays a loc
 graph TB
     subgraph "React Component State"
         A[Media element / player adapter]
-        B[Upload + import state]
+        B[Import state]
         C[Theme/language state]
     end
 
     subgraph "TanStack Query"
         D[useFiles]
-        E[useFileStatus]
-        F[useTranscription]
         G[useSubtitlePipeline stages]
     end
 
@@ -157,9 +157,6 @@ graph TB
 
     B --> D
     D --> I
-    E --> J
-    F --> J
-    F --> K
     G --> J
     G --> K
     A --> I
@@ -178,24 +175,19 @@ graph TB
 
 ## Storage Schema
 
-Database version: 4 (two-phase migration from v3).
+Database version: 5 (v3 → v4 unified the media model; v5 dropped the legacy `files`/`transcripts` tables and purged the unreachable audio rows).
 
 **Live tables:**
 
 | Table | Key Fields |
 |-------|------------|
-| media | id, kind (`'audio'`\|`'youtube'`), externalId (unique), title, durationSec, blob, fileName, fileSize, mimeType, addedAt, updatedAt |
+| media | id, kind (`'youtube'`), externalId (unique), title, durationSec, channelName, thumbnailUrl, sourceUrl, addedAt, updatedAt |
 | subtitles | id, mediaId, source, status, sourceLanguage, targetLanguage, rawText, error, createdAt, updatedAt |
-| segments | id, transcriptId (`→ subtitles.id`), start, end, text, normalizedText, translation, romaji, annotations, furigana, wordTimestamps, createdAt, updatedAt |
+| segments | id, transcriptId (`→ subtitles.id`), segmentIndex, start, end, text, normalizedText, translation, annotations, furigana, createdAt, updatedAt |
 
 `subtitles.status` is the source of truth for subtitle processing state. `segments.transcriptId` references `subtitles.id` (field name retained for backwards compatibility).
 
-**Backup tables (v4, read-only — to be removed in v5):**
-
-| Table | Notes |
-|-------|-------|
-| files | Preserved verbatim from v3 |
-| transcripts | Preserved verbatim from v3 |
+**Legacy tables (removed in v5):** `files` and `transcripts` existed from v3 through v4 as a read-only recovery window. The v5 migration drops them and purges the unreachable `kind: 'audio'` `media` rows along with their subtitle/segment children.
 
 ## API Surface
 
@@ -203,54 +195,19 @@ All API routes run in the Worker under Hono: `cors` on `*`, then `rateLimit` on 
 
 | Endpoint | Method | Rate Limit (per client) | Purpose |
 |----------|--------|-------------------------|---------|
-| /api/transcribe | POST | 10 req / 1 min | Validate audio, call Groq Whisper, return verbose transcription (`text`, `language`, `duration`, `segments`) |
-| /api/postprocess | POST | 20 req / 1 min | Groq chat (`openai/gpt-oss-120b`): normalize, translate, add annotations/furigana |
+| /api/postprocess | POST | 20 req / 1 min | Groq chat (`openai/gpt-oss-120b`) on our quota. Validates, then delegates to `shared/ai/postprocess-core`. **Bypassed entirely when the user picks BYOK** |
 | /api/youtube/resolve | POST | 20 req / 10 min | Resolve YouTube URL → video metadata + caption-track list via youtubei.js |
 | /api/youtube/captions | POST | 20 req / 10 min | Fetch + normalize a caption track; returns `NO_CAPTIONS` (404) if unavailable |
-| /api/health | GET | default (60 / 1 min) | `{ status: "ok" }` |
+| /api/health | GET | default (60 / 1 min) | Liveness **plus** config readiness: `{ status: 'ok' \| 'degraded', config: { groqKey, rateLimit } }` |
+
+**Response headers live in two places.** `public/_headers` applies **only** to static-asset responses (shell, `/assets/*`, manifest, icons) — Cloudflare's docs state explicitly that it never applies to Worker-generated responses. Every `/api/*` response therefore gets its headers from [worker/middleware/security-headers.ts](../worker/middleware/security-headers.ts). The CSP in `public/_headers` is **report-only** until YouTube playback and BYOK are smoke-tested in a browser, and its `connect-src` is coupled to the AI provider catalog (guarded by a test).
 
 Client identity for rate limiting, in precedence order: the `cf-connecting-ip` header, else the first `x-forwarded-for` entry, else `request.cf.colo`, else a hash of `user-agent` + `accept-language`. Responses carry `X-RateLimit-Limit/Remaining/Reset` and, when limited, `Retry-After` with a `429 RATE_LIMITED` body.
 
 Two verified behavioral warts worth knowing:
 
 - **Unmatched `/api/*` paths return the SPA, not a JSON 404.** The final `app.get("*")` assets fallback catches them, so `GET /api/nope` answers `200 text/html`. API clients cannot rely on a 404 to detect a wrong path.
-- **A malformed body yields `500`, not `400`.** `POST /api/transcribe` with no body throws inside `c.req.formData()`, which the outer `catch` maps to `INTERNAL_ERROR`; the route's own `VALIDATION_ERROR` 400 only fires when the form parses but lacks an `audio`/`file` field.
-
-> **No `/api/youtube/transcribe` route exists.** Cloudflare Workers cannot execute the `yt-dlp` binary, so the no-caption audio-download fallback was dropped in the Worker migration; the client records `error: 'NO_CAPTIONS'` on the subtitle row instead.
-
-## Transcription Architecture
-
-```mermaid
-sequenceDiagram
-    participant UI
-    participant Status as useFileStatusManager
-    participant Queue as transcription queue
-    participant Mut as useTranscription
-    participant Retry as withRetry
-    participant API as /api/transcribe (Worker)
-    participant Groq as Groq SDK
-    participant DB as IndexedDB
-    participant Post as /api/postprocess (Worker)
-    participant Query as Query Cache
-
-    UI->>Status: startTranscription(language)
-    Status->>Queue: queue.add(fileId, language, callback)
-    Queue-->>Status: run callback (dedupes by fileId)
-    Status->>DB: subtitle status = processing
-    Status->>Mut: mutateAsync()
-    Mut->>Retry: callTranscribeAPI()
-    Retry->>API: POST audio FormData
-    API->>Groq: Whisper (verbose_json)
-    Groq-->>API: segments + metadata
-    API-->>Mut: segments + metadata
-    Mut->>DB: save subtitle + replace segments
-    Mut->>Post: async post-process (chunked)
-    Post->>Groq: chat completion
-    Post-->>Mut: enhanced segments
-    Mut->>DB: update enhanced fields
-    Mut->>Query: invalidate subtitle/transcription queries
-    Status->>DB: subtitle status = completed
-```
+> **No `/api/youtube/transcribe` route exists.** Cloudflare Workers cannot execute the `yt-dlp` binary, so there is no caption-less audio-download fallback; the client records `error: 'NO_CAPTIONS'` on the subtitle row instead.
 
 ## YouTube Import Pipeline
 
@@ -263,47 +220,109 @@ YouTube URL → POST /api/youtube/resolve  → video metadata (youtubei.js)
                  NO_CAPTIONS        → record subtitle row with error = 'NO_CAPTIONS'
                                       (no server-side audio fallback on Workers)
            → chunked translation loop (subtitles/chunk-postprocess):
-               POST /api/postprocess in bounded chunks
+               resolves an AI engine, then in bounded chunks:
+                 default → POST /api/postprocess (our server quota)
+                 BYOK    → direct browser → provider (user's own key)
                → update `segments` rows incrementally in IndexedDB
            → watch/$mediaId subtitle sync + shadowing practice → user
 ```
 
+## AI Post-Processing: Two Paths
+
+Translation is the only AI call in the product, and there are **two mutually exclusive
+ways** to make it. The orchestrator (`subtitles/chunk-postprocess.ts`) only chunks and
+writes back; *who* answers is an injected `PostProcessTransport`.
+
+| | Default (server quota) | BYOK |
+|---|---|---|
+| User setup | none | paste their own API key |
+| Key location | Worker secret | user's `localStorage` |
+| Request path | browser → our Worker → provider | browser → provider (never through us) |
+| Who pays tokens | us (guarded by rate limiting) | the user's own quota |
+
+The prompt, the short/long-text split, the JSON parsing and the degradation rules live in
+**exactly one place**: `shared/ai/postprocess-core.ts`. It is pure and takes an injected
+`ChatFn`, so the Worker and the browser share one implementation rather than two copies
+that would silently diverge. `shared/` is runtime-neutral; the Worker must import it by
+relative path because wrangler does not resolve path aliases.
+
+Failure semantics are split deliberately: **systemic** failures (401/403 invalid key,
+404 wrong endpoint/model, 429 quota, network/CORS, unexpected response shape) throw
+`FatalEngineError` and propagate so the user sees them and retrying after fixing the key
+works; **single-call** failures (5xx, timeout) degrade per segment so one hiccup does not
+ruin a whole subtitle; **content-level** failures (model returned non-JSON) degrade to the
+original text. Degrading a systemic failure instead would mark empty translations as
+`completed` — silently producing a broken result.
+
+Full detail, provider catalog rules and the security model: [AI-ENGINES.md](./AI-ENGINES.md).
+
+## Shadowing Rhythm Feedback
+
+Per-sentence timing ("抢拍 / 合拍 / 拖拍" + onset latency + pace ratio) is computed entirely
+client-side — no cloud, no ASR, therefore no paywall. Layering keeps browser APIs out of the
+pure layer:
+
+| Layer | Location | Responsibility |
+|---|---|---|
+| Pure | `lib/player/rhythm.ts` | PCM → RMS envelope → speech bounds → latency / pace ratio / verdict |
+| Decode | `lib/audio/decode.ts` | Blob → mono PCM. The only Web Audio in the codebase; every failure returns `null` |
+| Capture | `hooks/player/useSentenceRecorder.ts` | analyses after recording stops and back-fills the result |
+| Zero point | `WatchPage` refs + `lib/player/rhythm.ts` | converts "the sentence ended" into a signed offset at capture start |
+| Display | `components/features/watch/RecordingBar.tsx` | one line: verdict + latency + pace |
+
+The zero point is the **end of the original sentence**, reached two ways: in the `gap` phase
+the media is paused, so it is the phase-start wall clock (delay ≥ 0); during `listening` the
+media is still playing, so the remaining media time is converted by playback rate and
+**negated** — which is what makes the "ahead/rushed" verdict reachable at all, and it is the
+only way to measure true overlapping shadowing. The offset must be evaluated when capture
+actually begins, not when the record button is pressed: `getUserMedia` can sit on a
+permission prompt for seconds while the PCM timeline only starts at `MediaRecorder.start()`.
+
+Design rationale, colour semantics and known limits: [DESIGN-LANGUAGE.md](./DESIGN-LANGUAGE.md).
+
 ## Player / Shadowing
 
-- `usePlayerAdapter` selects a source adapter (audio Blob or YouTube IFrame) and exposes a uniform transport (play/pause/seek/rate).
-- `lib/player/shadowing-machine.ts` is the shadowing state machine; `active-segment` / `active-word` compute the current segment/word from playback time.
+- `usePlayerAdapter` mounts the YouTube IFrame adapter and exposes a uniform transport (play/pause/seek/rate).
+- `lib/player/shadowing-machine.ts` is the shadowing state machine; `active-segment` computes the current segment from playback time.
 - `useShadowingPractice`, `useSegmentLoop`, and `useSegmentNavigation` drive per-sentence looping and navigation.
 - `useSentenceRecorder` captures microphone audio for record-and-compare shadowing.
 - `useWatchKeyboard` binds keyboard shortcuts.
-- Audio object URLs are created per Blob and revoked when the Blob changes or the player unmounts.
 
 ## Error Handling
 
 - API routes return normalized success/error envelopes via `apiSuccess` / `apiError`.
-- `withRetry` (`src/lib/utils/retry-utils.ts`) wraps the transcribe call: max 3 attempts, 1 s base delay, ×2 backoff capped at 30 s. Its `shouldRetry` skips `AbortError` and 401/403; TanStack Query separately never retries 4xx.
-- `handleTranscriptionError` maps technical failures to user-facing toast messages.
 - Player and app-level error boundaries prevent cascading render failures.
 
 ## Environment Variables & Bindings
 
 | Name | Kind | Required | Used By |
 |------|------|----------|---------|
-| GROQ_API_KEY | Worker secret | Yes | `/api/transcribe`, `/api/postprocess` |
-| RATE_LIMIT_KV | KV namespace binding | Yes | `rate-limit` middleware |
+| GROQ_API_KEY | Worker secret | Yes | `/api/postprocess` |
+| RATE_LIMIT_KV | KV namespace binding | **Yes (bound)** | `rate-limit` middleware; still no-ops in code if unbound, but removing it exposes `/api/postprocess` as a free proxy to our Groq quota |
 | ASSETS | Assets binding (`dist/`) | Yes | SPA fallback in `worker/index.ts` |
-| VITE_APP_URL | Worker var (`wrangler.jsonc`) | No | **Currently unread.** No consumer in `src/`, `worker/`, `index.html`, or `vite.config.ts`; legacy from the pre-Worker setup, along with `PERFORMANCE_ADMIN_TOKEN` in `.env.example`. |
 
-Set the secret with `wrangler secret put GROQ_API_KEY`; the KV namespace id is in `wrangler.jsonc`.
+Set the secret with `wrangler secret put GROQ_API_KEY`. For local dev, copy [`.dev.vars.example`](../.dev.vars.example) to `.dev.vars` and fill in the key; `.dev.vars` is gitignored. The `RATE_LIMIT_KV` binding is present, so rate limiting is active. It is a **matched pair with the client's chunk retry**: the client posts one request per chunk and the limiter allows 20/min, so the retry/backoff in `subtitles/chunk-postprocess.ts` is what keeps long videos from being truncated.
 
 ## Performance Notes
 
 - IndexedDB writes use transactions and batch inserts for segments.
-- Query invalidation keeps UI synchronized after uploads, status changes, transcription completion, and post-processing completion.
-- Audio object URLs are explicitly revoked to avoid browser memory leaks.
+- Query invalidation keeps UI synchronized after imports, pipeline stage changes, and post-processing completion.
 - Rate-limit state is best-effort KV (eventually consistent across colos); it is a cost guard, not a hard transactional limit.
 
-## Legacy / Dead Artifacts
+## Which Document Owns What
 
-The Worker migration left some pre-migration code and infra in the tree that no longer runs in production. Remove when convenient:
+Added after a round of doc-consolidation, to stop these files from drifting into each other.
 
-- `Dockerfile`, `docker-compose.yml`, `docs/DOKPLOY.md` — target a self-hosted TanStack Start server (`dist/server/server.js`) and bundle `yt-dlp`. The current build produces a Vite SPA served by the Worker; the Docker `CMD` no longer exists.
+| Question | Document |
+|---|---|
+| How is the system put together? topology, layers, storage, API surface | **this file** |
+| How does data move through the app, step by step? | [DATA-FLOW.md](./DATA-FLOW.md) |
+| Why does the UI look and behave this way? tokens, interaction, colour semantics | [DESIGN-LANGUAGE.md](./DESIGN-LANGUAGE.md) |
+| How do the two AI paths work? BYOK rules, provider catalog, key security | [AI-ENGINES.md](./AI-ENGINES.md) |
+| How do I set up, build and test locally? | [DEVELOPMENT.md](./DEVELOPMENT.md) |
+| How do I branch, commit and open PRs? | [GIT-WORKFLOW.md](./GIT-WORKFLOW.md) |
+| What do competitors do, and how was that established? | [research/](./research/) |
+
+`CLAUDE.md` / `AGENTS.md` at the repo root are the short agent-facing summaries; they point
+here rather than restating details, so update them only when a rule changes, not when a
+detail does.

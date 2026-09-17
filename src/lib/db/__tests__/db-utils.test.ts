@@ -1,6 +1,17 @@
+import type { UpdateSpec } from 'dexie'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import type { MediaRow, Segment, SubtitleRow } from '~/types/db/database'
+import type { MediaRow, SubtitleRow } from '~/types/db/database'
 import { DBUtils, db } from '../db'
+
+function makeMedia(title: string): Omit<MediaRow, 'id'> {
+  return {
+    kind: 'youtube',
+    title,
+    durationSec: null,
+    addedAt: new Date(),
+    updatedAt: new Date(),
+  }
+}
 
 // Mock error handler
 vi.mock('~/lib/utils/error-handler', () => ({
@@ -19,13 +30,13 @@ describe('DBUtils', () => {
       const mockAdd = vi.fn().mockResolvedValue(1)
       db.media.add = mockAdd
 
-      const item = {
-        kind: 'audio',
-        title: 'test.mp3',
+      const item: Omit<MediaRow, 'id'> = {
+        kind: 'youtube',
+        title: 'test-video',
         durationSec: null,
         addedAt: new Date(),
         updatedAt: new Date(),
-      } as any
+      }
       const result = await DBUtils.add(db.media, item)
 
       expect(mockAdd).toHaveBeenCalledWith(item)
@@ -46,45 +57,47 @@ describe('DBUtils', () => {
       const mockUpdate = vi.fn().mockResolvedValue(1)
       db.media.update = mockUpdate
 
-      const changes = { title: 'updated.mp3' } as any
+      const changes: UpdateSpec<MediaRow> = { title: 'updated.mp3' }
       const result = await DBUtils.update(db.media, 1, changes)
 
       expect(mockUpdate).toHaveBeenCalledWith(1, changes)
       expect(result).toBe(1)
     })
 
-    it('should delete an item', async () => {
-      const mockDelete = vi.fn().mockResolvedValue(undefined)
-      db.media.delete = mockDelete
-
-      await DBUtils.delete(db.media, 1)
-
-      expect(mockDelete).toHaveBeenCalledWith(1)
-    })
-
     it('should bulk add items', async () => {
       const mockBulkAdd = vi.fn().mockResolvedValue([1, 2, 3])
       db.media.bulkAdd = mockBulkAdd
 
-      const items = [{ title: 'test1.mp3' }, { title: 'test2.mp3' }, { title: 'test3.mp3' }] as any
+      const items = [makeMedia('test1.mp3'), makeMedia('test2.mp3'), makeMedia('test3.mp3')]
       const result = await DBUtils.bulkAdd(db.media, items)
 
       expect(mockBulkAdd).toHaveBeenCalledWith(items)
       expect(result).toEqual([1, 2, 3])
     })
 
-    it('should bulk update items', async () => {
-      const mockUpdate = vi.fn().mockResolvedValue(1)
-      db.media.update = mockUpdate
+    it('should bulk put rows that carry an id', async () => {
+      const mockBulkPut = vi.fn().mockResolvedValue(undefined)
+      db.media.bulkPut = mockBulkPut
 
-      const items = [
-        { id: 1, changes: { title: 'updated1.mp3' } },
-        { id: 2, changes: { title: 'updated2.mp3' } },
-      ] as any
-      const result = await DBUtils.bulkUpdate(db.media, items)
+      const rows: MediaRow[] = [
+        { ...makeMedia('a'), id: 1 },
+        { ...makeMedia('b'), id: 2 },
+      ]
+      await DBUtils.bulkPut(db.media, rows)
 
-      expect(mockUpdate).toHaveBeenCalledTimes(2)
-      expect(result).toEqual([1, 1])
+      expect(mockBulkPut).toHaveBeenCalledWith(rows)
+    })
+
+    /**
+     * Dexie 的 `bulkPut` 遇到没有 `id` 的行会**静默插入新行**（自增主键），
+     * 于是「更新」变成「写重复数据」且不报错 —— 必须在这里拦掉。
+     */
+    it('should reject bulk put rows without a numeric id', async () => {
+      const mockBulkPut = vi.fn().mockResolvedValue(undefined)
+      db.media.bulkPut = mockBulkPut
+
+      await expect(DBUtils.bulkPut(db.media, [makeMedia('no-id') as MediaRow])).rejects.toThrow()
+      expect(mockBulkPut).not.toHaveBeenCalled()
     })
   })
 
@@ -94,15 +107,11 @@ describe('DBUtils', () => {
       db.media.add = mockAdd
 
       const media: Omit<MediaRow, 'id'> = {
-        kind: 'audio',
-        title: 'test.mp3',
+        kind: 'youtube',
+        title: 'test-video',
         durationSec: null,
         addedAt: new Date(),
         updatedAt: new Date(),
-        blob: new Blob(),
-        fileName: 'test.mp3',
-        fileSize: 1024,
-        mimeType: 'audio/mpeg',
       }
 
       const result = await DBUtils.addMedia(media)
@@ -137,7 +146,7 @@ describe('DBUtils', () => {
 
       const subtitle: Omit<SubtitleRow, 'id'> = {
         mediaId: 1,
-        source: 'whisper',
+        source: 'official',
         status: 'completed',
         sourceLanguage: 'en',
         targetLanguage: null,
@@ -159,7 +168,7 @@ describe('DBUtils', () => {
         first: vi.fn().mockResolvedValue({
           id: 1,
           mediaId: 1,
-          source: 'whisper',
+          source: 'official',
           status: 'completed',
           sourceLanguage: 'en',
           targetLanguage: null,
@@ -175,7 +184,7 @@ describe('DBUtils', () => {
       expect(result).toEqual({
         id: 1,
         mediaId: 1,
-        source: 'whisper',
+        source: 'official',
         status: 'completed',
         sourceLanguage: 'en',
         targetLanguage: null,
@@ -186,46 +195,6 @@ describe('DBUtils', () => {
   })
 
   describe('Segment-specific operations', () => {
-    it('should add a segment', async () => {
-      const mockAdd = vi.fn().mockResolvedValue(1)
-      db.segments.add = mockAdd
-
-      const segment: Omit<Segment, 'id'> = {
-        transcriptId: 1,
-        start: 0,
-        end: 3,
-        text: 'Hello world',
-        wordTimestamps: [],
-        normalizedText: 'Hello world',
-        translation: '你好世界',
-        annotations: [],
-        furigana: '',
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      }
-
-      const result = await DBUtils.addSegment(segment)
-
-      expect(mockAdd).toHaveBeenCalledWith(segment)
-      expect(result).toBe(1)
-    })
-
-    it('should get segments by transcript id', async () => {
-      const mockWhere = vi.fn().mockReturnValue({
-        equals: vi.fn().mockReturnThis(),
-        toArray: vi.fn().mockResolvedValue([
-          { id: 1, transcriptId: 1, text: 'Hello' },
-          { id: 2, transcriptId: 1, text: 'World' },
-        ]),
-      })
-      db.segments.where = mockWhere
-
-      const result = await DBUtils.getSegmentsByTranscriptId(1)
-
-      expect(mockWhere).toHaveBeenCalledWith('transcriptId')
-      expect(result).toHaveLength(2)
-    })
-
     it('should get segments by transcript id ordered', async () => {
       const mockWhere = vi.fn().mockReturnValue({
         equals: vi.fn().mockReturnThis(),
@@ -240,41 +209,6 @@ describe('DBUtils', () => {
 
       expect(mockWhere).toHaveBeenCalledWith('transcriptId')
       expect(result[0].start).toBeLessThan(result[1].start)
-    })
-
-    it('should find segments by time range', async () => {
-      const mockWhere = vi.fn().mockReturnValue({
-        equals: vi.fn().mockReturnThis(),
-        and: vi.fn().mockReturnValue({
-          toArray: vi.fn().mockResolvedValue([{ id: 1, start: 2, end: 4, text: 'Segment 1' }]),
-        }),
-      })
-      db.segments.where = mockWhere
-
-      const result = await DBUtils.findSegmentsByTimeRange(1, 1, 5)
-
-      expect(mockWhere).toHaveBeenCalledWith('transcriptId')
-      expect(result).toHaveLength(1)
-    })
-  })
-
-  describe('Database maintenance', () => {
-    it('should clear all data', async () => {
-      const mockClear = vi.fn().mockResolvedValue(undefined)
-      const mockTransaction = vi.fn().mockImplementation((...args) => {
-        const callback = args[args.length - 1]
-        return callback()
-      })
-
-      db.transaction = mockTransaction as any
-      db.segments.clear = mockClear
-      db.subtitles.clear = mockClear
-      db.media.clear = mockClear
-
-      await DBUtils.clearAll()
-
-      expect(mockTransaction).toHaveBeenCalled()
-      expect(mockClear).toHaveBeenCalledTimes(3)
     })
   })
 })

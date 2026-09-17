@@ -1,5 +1,6 @@
 import { useI18n } from '~/components/layout/contexts/I18nContext'
-import type { RecorderStatus } from '~/hooks/player/useSentenceRecorder'
+import type { RecorderStatus, SentenceRecording } from '~/hooks/player/useSentenceRecorder'
+import type { RhythmVerdict } from '~/lib/player/rhythm'
 import { cn } from '~/lib/utils/utils'
 
 interface RecordingBarProps {
@@ -8,10 +9,73 @@ interface RecordingBarProps {
   error: string | null
   hasRecording: boolean
   isGapPhase: boolean
+  /** 当前句已录的那一条（含节奏结论）。未录时为 null。 */
+  take: SentenceRecording | null
   onToggleRecord: () => void
   onPlayMine: () => void
   onPlayOriginal: () => void
   onStopPlayback: () => void
+}
+
+/** 分档 → 语义色。三档颜色与「节拍」设计语言的 --rhythm-* 对应。 */
+const VERDICT_COLOR: Record<RhythmVerdict, string> = {
+  ahead: 'var(--rhythm-ahead)',
+  onTime: 'var(--rhythm-ontime)',
+  late: 'var(--rhythm-late)',
+}
+
+function formatSeconds(sec: number): string {
+  // 保留一位小数即可；负值表示抢拍（在原句结束前就开口）
+  return `${sec >= 0 ? '' : '−'}${Math.abs(sec).toFixed(1)}s`
+}
+
+/**
+ * 跟读节奏读数 —— 本项目区别于"只给发音打分数"的产品的核心反馈。
+ *
+ * 只在拿得到结论时显示数字；算不出时如实说明原因（浏览器不支持 / 没听到人声 /
+ * 还在算），而不是留空或编一个值。
+ */
+function RhythmReadout({ take }: { take: SentenceRecording }) {
+  const { t } = useI18n()
+  const { rhythm, rhythmStatus } = take
+
+  if (!rhythmStatus) return null
+
+  if (rhythmStatus !== 'ready' || !rhythm) {
+    const key =
+      rhythmStatus === 'pending'
+        ? 'watch.rhythm.analyzing'
+        : rhythmStatus === 'noSpeech'
+          ? 'watch.rhythm.noSpeech'
+          : 'watch.rhythm.unavailable'
+    return <p className="text-[11px] text-[var(--text-tertiary)]">{t(key)}</p>
+  }
+
+  const hasAnchor = rhythm.basis === 'sentenceEnd'
+
+  return (
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px]">
+      {/*
+        分档与开口延迟都以"原句结束"为零点。`manual` 基准下零点其实是"按下录音键"，
+        据此算出的抢拍/拖拍没有任何依据 —— 那种情况只显示语速比，不显示分档。
+      */}
+      {hasAnchor && (
+        <span className="font-medium" style={{ color: VERDICT_COLOR[rhythm.verdict] }}>
+          {t(`watch.rhythm.${rhythm.verdict}`)}
+        </span>
+      )}
+      {hasAnchor && (
+        <span className="text-[var(--text-secondary)]">
+          {t('watch.rhythm.latency', { sec: formatSeconds(rhythm.onsetLatencySec) })}
+        </span>
+      )}
+      {rhythm.paceRatio != null && (
+        <span className="text-[var(--text-secondary)]">
+          {t('watch.rhythm.pace', { ratio: rhythm.paceRatio.toFixed(2) })}
+        </span>
+      )}
+    </div>
+  )
 }
 
 export function RecordingBar({
@@ -20,6 +84,7 @@ export function RecordingBar({
   error,
   hasRecording,
   isGapPhase,
+  take,
   onToggleRecord,
   onPlayMine,
   onPlayOriginal,
@@ -49,7 +114,8 @@ export function RecordingBar({
             onClick={onToggleRecord}
             className={cn(
               'btn-secondary !h-9 !rounded-full !px-3 text-xs font-medium',
-              recording && '!border-red-500 !bg-red-500/15 !text-red-500 animate-pulse',
+              recording &&
+                '!border-[var(--rhythm-voice)] !bg-[var(--rhythm-voice-soft)] !text-[var(--rhythm-voice)] animate-pulse',
             )}
             aria-pressed={recording}
             aria-label={recording ? t('watch.record.stop') : t('watch.record.start')}
@@ -66,7 +132,7 @@ export function RecordingBar({
             onClick={playing ? onStopPlayback : onPlayMine}
             className={cn(
               'btn-secondary !h-9 !rounded-full !px-3 text-xs',
-              playing && '!border-[var(--color-primary)] !text-[var(--color-primary)]',
+              playing && '!border-[var(--rhythm-voice)] !text-[var(--rhythm-voice)]',
             )}
             aria-label={t('watch.record.playMine')}
           >
@@ -91,15 +157,18 @@ export function RecordingBar({
         </div>
 
         {isGapPhase && !recording && (
-          <span className="text-xs text-[var(--color-primary)]">{t('watch.record.gapHint')}</span>
+          <span className="text-xs text-[var(--rhythm-beat)]">{t('watch.record.gapHint')}</span>
         )}
         {recording && (
-          <span className="text-xs font-medium text-red-500">{t('watch.record.recording')}</span>
+          <span className="text-xs font-medium text-[var(--rhythm-voice)]">
+            {t('watch.record.recording')}
+          </span>
         )}
       </div>
 
-      {errorText && <p className="text-xs text-red-500">{errorText}</p>}
-      {!errorText && !hasRecording && !recording && (
+      {errorText && <p className="text-xs text-[var(--color-error)]">{errorText}</p>}
+      {!errorText && take && <RhythmReadout take={take} />}
+      {!errorText && !take && !recording && (
         <p className="text-[11px] text-[var(--text-tertiary)]">{t('watch.record.hint')}</p>
       )}
     </div>

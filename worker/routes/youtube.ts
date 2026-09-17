@@ -1,9 +1,11 @@
-import { Hono } from "hono"
-import z from "zod"
-import type { Env } from "../lib/types"
-import { apiError, apiSuccess } from "../lib/api-response"
-import { Innertube } from "youtubei.js"
-import { fetchTimedtextSubtitles, mergeShortCues, msCuesToSeconds } from "../lib/youtube-captions"
+import { Hono } from 'hono'
+import { Innertube } from 'youtubei.js'
+import z from 'zod'
+import { apiError, apiSuccess } from '../lib/api-response'
+import { readBodyTextWithLimit } from '../lib/body-guard'
+import type { Env } from '../lib/types'
+import { fetchTimedtextSubtitles, mergeShortCues, msCuesToSeconds } from '../lib/youtube-captions'
+import { extractVideoId, VIDEO_ID_PATTERN } from '../lib/youtube-url'
 
 export const youtubeRoute = new Hono<{ Bindings: Env }>()
 
@@ -18,7 +20,7 @@ async function getInnertube(): Promise<Innertube> {
 
 interface CaptionTrackMeta {
   language: string
-  kind: "asr" | "manual"
+  kind: 'asr' | 'manual'
   displayName: string
   baseUrl: string
 }
@@ -41,7 +43,7 @@ function selectCaptionTrack(
   if (opts?.preferredLanguage) {
     const exact = tracks.find((t) => t.language === opts.preferredLanguage)
     if (exact) return exact
-    const prefix = opts.preferredLanguage.split("-")[0]
+    const prefix = opts.preferredLanguage.split('-')[0]
     const match = tracks.find((t) => t.language.startsWith(prefix))
     if (match) return match
   }
@@ -53,7 +55,7 @@ function getVideoMeta(videoId: string): Promise<VideoMeta> {
     const info = await yt.getBasicInfo(videoId)
     const basic = info.basic_info
     if (!basic?.id) {
-      throw Object.assign(new Error("视频不存在"), { code: "VIDEO_NOT_FOUND", statusCode: 404 })
+      throw Object.assign(new Error('视频不存在'), { code: 'VIDEO_NOT_FOUND', statusCode: 404 })
     }
     const captionTracks: CaptionTrackMeta[] = (
       (
@@ -69,38 +71,24 @@ function getVideoMeta(videoId: string): Promise<VideoMeta> {
         }
       ).captions?.caption_tracks ?? []
     ).map((t) => ({
-      language: String(t.language_code ?? ""),
-      kind: t.kind === "asr" ? ("asr" as const) : ("manual" as const),
-      displayName: String(t.name?.text ?? ""),
+      language: String(t.language_code ?? ''),
+      kind: t.kind === 'asr' ? ('asr' as const) : ('manual' as const),
+      displayName: String(t.name?.text ?? ''),
       baseUrl: t.base_url,
     }))
 
     return {
       videoId,
-      title: basic.title ?? "",
-      channelName: (basic.channel as { name?: string } | null)?.name ?? "",
-      thumbnailUrl: (basic.thumbnail?.[0] as { url?: string } | undefined)?.url ?? `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`,
+      title: basic.title ?? '',
+      channelName: (basic.channel as { name?: string } | null)?.name ?? '',
+      thumbnailUrl:
+        (basic.thumbnail?.[0] as { url?: string } | undefined)?.url ??
+        `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`,
       durationSec: basic.duration ?? 0,
       isLive: Boolean(basic.is_live),
       captionTracks,
     }
   })
-}
-
-function extractVideoId(input: string): string | null {
-  if (/^[a-zA-Z0-9_-]{11}$/.test(input)) return input
-  try {
-    const url = new URL(input)
-    if (url.hostname.includes("youtube.com")) {
-      return url.searchParams.get("v")
-    }
-    if (url.hostname === "youtu.be") {
-      return url.pathname.slice(1)
-    }
-  } catch {
-    // pass
-  }
-  return null
 }
 
 const resolveBody = z.object({ url: z.string().min(1).max(2048) })
@@ -109,22 +97,31 @@ const captionsBody = z.object({
   preferredLanguage: z.string().optional(),
 })
 
-youtubeRoute.post("/resolve", async (c) => {
+youtubeRoute.post('/resolve', async (c) => {
   try {
-    const body = await c.req.json().catch(() => null)
+    // 体积封顶（youtube 的 body 很小，这里防的是滥用而非正常流量）。
+    // 坏 JSON 仍按既有契约视为 null，由 schema 报 INVALID_URL。
+    const read = await readBodyTextWithLimit(c)
+    if (!read.ok) return read.response
+    let body: unknown = null
+    try {
+      body = JSON.parse(read.text)
+    } catch {
+      body = null
+    }
     const parsed = resolveBody.safeParse(body)
     if (!parsed.success) {
-      return apiError({ code: "INVALID_URL", message: "请求体无效", statusCode: 400 })
+      return apiError({ code: 'INVALID_URL', message: '请求体无效', statusCode: 400 })
     }
 
     const videoId = extractVideoId(parsed.data.url)
     if (!videoId) {
-      return apiError({ code: "INVALID_URL", message: "无法识别的 YouTube 链接", statusCode: 400 })
+      return apiError({ code: 'INVALID_URL', message: '无法识别的 YouTube 链接', statusCode: 400 })
     }
 
     const meta = await getVideoMeta(videoId)
     if (meta.isLive) {
-      return apiError({ code: "LIVE_NOT_SUPPORTED", message: "暂不支持直播内容", statusCode: 422 })
+      return apiError({ code: 'LIVE_NOT_SUPPORTED', message: '暂不支持直播内容', statusCode: 422 })
     }
     return apiSuccess(meta)
   } catch (error) {
@@ -132,16 +129,25 @@ youtubeRoute.post("/resolve", async (c) => {
     if (e.code) {
       return apiError({ code: e.code, message: e.message, statusCode: e.statusCode || 502 })
     }
-    return apiError({ code: "EXTRACTOR_FAILED", message: "YouTube 解析失败", statusCode: 502 })
+    return apiError({ code: 'EXTRACTOR_FAILED', message: 'YouTube 解析失败', statusCode: 502 })
   }
 })
 
-youtubeRoute.post("/captions", async (c) => {
+youtubeRoute.post('/captions', async (c) => {
   try {
-    const body = await c.req.json().catch(() => null)
+    // 体积封顶（youtube 的 body 很小，这里防的是滥用而非正常流量）。
+    // 坏 JSON 仍按既有契约视为 null，由 schema 报 INVALID_URL。
+    const read = await readBodyTextWithLimit(c)
+    if (!read.ok) return read.response
+    let body: unknown = null
+    try {
+      body = JSON.parse(read.text)
+    } catch {
+      body = null
+    }
     const parsed = captionsBody.safeParse(body)
-    if (!parsed.success || !/^[a-zA-Z0-9_-]{11}$/.test(parsed.data.videoId)) {
-      return apiError({ code: "INVALID_URL", message: "无效的 videoId", statusCode: 400 })
+    if (!parsed.success || !VIDEO_ID_PATTERN.test(parsed.data.videoId)) {
+      return apiError({ code: 'INVALID_URL', message: '无效的 videoId', statusCode: 400 })
     }
 
     const { videoId, preferredLanguage } = parsed.data
@@ -149,7 +155,7 @@ youtubeRoute.post("/captions", async (c) => {
     const meta = await getVideoMeta(videoId)
     const track = selectCaptionTrack(meta.captionTracks, { preferredLanguage })
     if (!track) {
-      return apiError({ code: "NO_CAPTIONS", message: "该视频没有可用字幕", statusCode: 404 })
+      return apiError({ code: 'NO_CAPTIONS', message: '该视频没有可用字幕', statusCode: 404 })
     }
 
     const cues = await fetchTimedtextSubtitles(track.baseUrl)
@@ -158,9 +164,16 @@ youtubeRoute.post("/captions", async (c) => {
     return apiSuccess({ language: track.language, kind: track.kind, segments })
   } catch (error) {
     const e = error as Error
-    if (e.message === "NO_CAPTIONS") {
-      return apiError({ code: "NO_CAPTIONS", message: "该视频没有可用字幕", statusCode: 404 })
+    if (e.message === 'NO_CAPTIONS') {
+      return apiError({ code: 'NO_CAPTIONS', message: '该视频没有可用字幕', statusCode: 404 })
     }
-    return apiError({ code: "EXTRACTOR_FAILED", message: `字幕抓取失败: ${e.message}`, statusCode: 502 })
+    // 不回显内部错误原文：上游的异常信息可能带内部 URL、签名参数或库版本。
+    // 排障信息留在 Worker 日志里（observability 已开启）。
+    console.error('[youtube/captions] extractor failed:', e.message)
+    return apiError({
+      code: 'EXTRACTOR_FAILED',
+      message: '字幕抓取失败，请稍后重试',
+      statusCode: 502,
+    })
   }
 })
