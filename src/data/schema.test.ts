@@ -70,8 +70,20 @@ function envFor(db: DatabaseSync): Env {
   return {
     DB: {
       prepare,
+      // D1 runs a batch as one transaction, so a later failure leaves no earlier
+      // write behind. `Promise.all` would let an ingest test observe partial
+      // writes production can never produce.
       async batch(statements: { all(): Promise<unknown> }[]) {
-        return Promise.all(statements.map((statement) => statement.all()));
+        db.exec('BEGIN');
+        try {
+          const results: unknown[] = [];
+          for (const statement of statements) results.push(await statement.all());
+          db.exec('COMMIT');
+          return results;
+        } catch (error) {
+          db.exec('ROLLBACK');
+          throw error;
+        }
       },
     },
     CACHE: { get: async () => null, put: async () => undefined },
@@ -196,6 +208,37 @@ describe('the explore queries run against the migrated schema', () => {
     const response = await serveArticleRedirect('f'.repeat(64), envFor(db));
     expect(response.status).toBe(301);
     expect(response.headers.get('location')).toBe('https://example.com/story');
+  });
+});
+
+describe('the D1 shim', () => {
+  it('rolls a whole batch back when one statement fails', async () => {
+    // D1's batch is transactional. If the shim were `Promise.all`, an ingest
+    // test could observe a partial write that production can never produce —
+    // and `ensureSources` writes its sources through `batch`.
+    const db = migratedDatabase();
+    const env = envFor(db) as unknown as { DB: { prepare(sql: string): unknown } };
+    const insert = (id: string, name: string) =>
+      (
+        env.DB.prepare(
+          `INSERT INTO sources (id, kind, name, url, authority_score, enabled, created_at, updated_at)
+         VALUES (?, 'rss', ?, 'https://example.com/rss', 80, 1, ?, ?)`,
+        ) as { bind(...params: unknown[]): unknown }
+      ).bind(id, name, PUBLISHED_AT, PUBLISHED_AT);
+
+    const statements = [
+      insert('first', 'First'),
+      // Same primary key: the second insert cannot succeed.
+      insert('first', 'Duplicate'),
+    ];
+    await expect(
+      (env.DB as unknown as { batch(s: unknown[]): Promise<unknown> }).batch(statements),
+    ).rejects.toThrow();
+
+    const count = db.prepare("SELECT COUNT(*) AS n FROM sources WHERE id = 'first'").get() as {
+      n: number;
+    };
+    expect(count.n).toBe(0);
   });
 });
 

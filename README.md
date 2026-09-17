@@ -23,7 +23,7 @@ Astro 7 + React islands · Cloudflare Workers (workerd) · D1 + KV · Tailwind �
 
 ## Prerequisites
 
-- **Bun ≥ 1.4.0** (`packageManager: bun@1.4.0`)
+- **Bun ≥ 1.4.2** (`packageManager: bun@1.4.2`)
 - Cloudflare account + `bunx wrangler login` for deployment (the local UI and ingest need no third-party API key)
 
 ## Quick start
