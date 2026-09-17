@@ -1,6 +1,10 @@
 {
   "name": "news-desk-template",
   "private": true,
+  "engines": {
+    "node": ">=22.13",
+    "bun": ">=1.4.2"
+  },
   "version": "0.1.0",
   "description": "Curated explore feed template — Cloudflare Workers + D1 + KV + Astro",
   "repository": "github:youming-ai/umuo",
@@ -13,7 +17,7 @@
     "template"
   ],
   "type": "module",
-  "packageManager": "bun@1.4.0",
+  "packageManager": "bun@1.4.2",
   "scripts": {
     "dev": "astro dev",
     "build": "astro check && tsc -p tsconfig.worker.json && astro build",
