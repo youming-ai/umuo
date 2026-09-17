@@ -1,4 +1,19 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+
+// Isolation is a guard against item parsing throwing at all, so the decoder is
+// made to throw for one sentinel item: the parser must lose that item alone,
+// not the batch. Everything else keeps the real implementation.
+vi.mock('../utils/coerce', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../utils/coerce')>();
+  return {
+    ...actual,
+    decodeEntities: (value: string) => {
+      if (value.includes('THROW_ON_THIS_ITEM')) throw new Error('unparseable item');
+      return actual.decodeEntities(value);
+    },
+  };
+});
+
 import { parseRss } from './rss';
 import type { FeedSource } from './types';
 
@@ -109,11 +124,10 @@ describe('parseRss', () => {
     expect(articles[0].category).toBeNull();
   });
 
-  it('keeps the good items when one item is unparseable', () => {
-    // The failure this pins: `parseRss` used to map the whole block list, so a
-    // single bad item threw the entire batch away — on this tick and on every
-    // tick after, because the item stays in the rolling feed. The site stopped
-    // updating with nothing but a failed-source line in the log.
+  it('passes hostile numeric references through a whole batch without losing items', () => {
+    // What this pins is the decoder, not the isolation guard: an out-of-range
+    // reference used to throw out of `String.fromCodePoint` and take the batch
+    // with it. It is now dropped, so all three items survive.
     const articles = parseRss(
       `<rss><channel>
         <item><title>First good link</title><link>https://example.com/one</link></item>
@@ -129,5 +143,24 @@ describe('parseRss', () => {
       'https://example.com/bad',
       'https://example.com/two',
     ]);
+  });
+
+  it('drops only the item that fails to parse', () => {
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const articles = parseRss(
+      `<rss><channel>
+        <item><title>Kept before</title><link>https://example.com/one</link></item>
+        <item><title>THROW_ON_THIS_ITEM</title><link>https://example.com/broken</link></item>
+        <item><title>Kept after</title><link>https://example.com/two</link></item>
+      </channel></rss>`,
+      source,
+      Date.parse('2026-08-05T12:00:00Z'),
+    );
+
+    expect(articles.map((article) => article.url)).toEqual([
+      'https://example.com/one',
+      'https://example.com/two',
+    ]);
+    expect(error).toHaveBeenCalledOnce();
   });
 });
