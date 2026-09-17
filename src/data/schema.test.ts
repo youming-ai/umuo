@@ -7,6 +7,11 @@
 // let a /media route sit in an unreachable file while the suite passed. Here the
 // migrations build a real SQLite database, a thin D1 shim puts it behind
 // `env.DB`, and the production functions run their own statements against it.
+//
+// `node:sqlite` is unflagged from Node 22.13, and Bun implements it too; the
+// floor is declared in package.json `engines`, because an older runtime cannot
+// collect this file at all. `bun:sqlite` would avoid the floor but ships no
+// types, and this repo typechecks its tests.
 import { readFileSync, readdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
