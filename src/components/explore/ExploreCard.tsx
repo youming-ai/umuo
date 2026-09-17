@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { categoryLabel } from '../../categories';
+import { isVideoMediaUrl } from '../../media';
 import { articleDeck, articlePath } from '../../site';
 import type { ExploreArticle } from '../../types';
 
@@ -136,18 +137,32 @@ export default function ExploreCard({
                 : undefined
             }
           >
-            <img
-              ref={imgRef}
-              src={article.imageUrl}
-              alt=""
-              decoding="async"
-              className={`h-full w-full object-cover transition-opacity duration-300${showShimmer ? ' opacity-0' : ' opacity-100'}`}
-              loading="lazy"
-              onLoad={() => setImgLoaded(true)}
-              onError={(event) => {
-                event.currentTarget.style.display = 'none';
-              }}
-            />
+            {isVideoMediaUrl(article.imageUrl) ? (
+              // The feed handed us a video file. Muted + loop keeps it a silent
+              // looping thumbnail; preload="metadata" is what paints the first
+              // frame, so nothing large is fetched until the reader plays it.
+              <video
+                src={article.imageUrl}
+                muted
+                loop
+                playsInline
+                preload="metadata"
+                className="h-full w-full object-cover"
+              />
+            ) : (
+              <img
+                ref={imgRef}
+                src={article.imageUrl}
+                alt=""
+                decoding="async"
+                className={`h-full w-full object-cover transition-opacity duration-300${showShimmer ? ' opacity-0' : ' opacity-100'}`}
+                loading="lazy"
+                onLoad={() => setImgLoaded(true)}
+                onError={(event) => {
+                  event.currentTarget.style.display = 'none';
+                }}
+              />
+            )}
           </div>
         )}
         <div className="p-3">

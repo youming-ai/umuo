@@ -5,6 +5,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   MEDIA_PATH,
+  isVideoMediaUrl,
   mediaFile,
   mediaRequest,
   proxiedImageUrl,
@@ -15,6 +16,41 @@ import { SITE_ORIGIN } from './site';
 
 const ID = '437e368b-c40c-4e02-8e06-2ca5bbcb8055';
 const UPSTREAM = `https://cloud.poche.app/api/storage/${ID}`;
+
+describe('isVideoMediaUrl', () => {
+  it('recognises the extensions a browser can play', () => {
+    for (const url of [
+      'https://x.test/video.mp4',
+      'https://x.test/video.webm',
+      'https://x.test/video.m4v',
+      'https://x.test/video.MOV',
+      'https://x.test/video.ogv',
+    ]) {
+      expect(isVideoMediaUrl(url), url).toBe(true);
+    }
+  });
+
+  it('is case-insensitive and ignores query strings and fragments', () => {
+    expect(isVideoMediaUrl('https://x.test/v.MP4?token=1')).toBe(true);
+    expect(isVideoMediaUrl('https://x.test/v.mp4#t=10')).toBe(true);
+  });
+
+  it('does not mistake images or pages for videos', () => {
+    for (const url of [
+      'https://x.test/og.png',
+      'https://x.test/og.jpg?w=1200',
+      'https://x.test/page',
+      'https://x.test/video.mp4.txt',
+      '',
+    ]) {
+      expect(isVideoMediaUrl(url), url).toBe(false);
+    }
+  });
+
+  it('survives a value that is not a URL', () => {
+    expect(isVideoMediaUrl('not a url')).toBe(false);
+  });
+});
 
 describe('mediaFile', () => {
   it('extracts the storage id from an upstream image URL', () => {
