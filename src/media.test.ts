@@ -171,17 +171,28 @@ describe('serveMedia', () => {
     // An HTML object in the upstream store would otherwise render as markup
     // under umuo.app — same-origin XSS, and `nosniff` does not help when the
     // declared type *is* HTML.
-    for (const type of ['text/html', 'application/octet-stream', '']) {
+    for (const type of ['text/html', 'application/octet-stream', 'text/html; charset=utf-8']) {
       const fetchMock = vi.fn().mockResolvedValue(
         new Response('<script>alert(1)</script>', {
           status: 200,
-          headers: type ? { 'content-type': type } : {},
+          headers: { 'content-type': type },
         }),
       );
       vi.stubGlobal('fetch', fetchMock);
-      const res = await serveMedia(ID);
-      expect(res.status, type || '(no content-type)').toBe(404);
+      expect((await serveMedia(ID)).status, type).toBe(404);
     }
+  });
+
+  it('refuses a response that declares no type at all', async () => {
+    // A byte body, not a string: Node's undici infers `text/plain;charset=UTF-8`
+    // for a string body and Bun infers nothing, so a string fixture would mean
+    // different things on different runtimes — this case would quietly stop
+    // testing a missing header under Node.
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(new Response(new Uint8Array([60, 104, 116, 109, 108]), { status: 200 }));
+    vi.stubGlobal('fetch', fetchMock);
+    expect((await serveMedia(ID)).status).toBe(404);
   });
 
   it('refuses SVG, which is a scripting context when navigated to directly', async () => {
