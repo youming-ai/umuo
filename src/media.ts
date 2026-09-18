@@ -154,10 +154,23 @@ export async function serveMedia(file: string): Promise<Response> {
     // so it must not be reported as a missing image.
     if (response.status === 404) return new Response('Not found', { status: 404 });
     if (!response.ok) return new Response('Upstream unavailable', { status: 502 });
+
+    // The bytes are served from OUR origin, so the upstream's declared type
+    // decides what a browser does with them: an HTML object in the storage
+    // bucket would render as markup under umuo.app. This is the gate the
+    // previous proxy carried and its reasoning still holds — only images pass,
+    // and SVG is excluded because it is a scripting context when navigated to
+    // directly, which `nosniff` cannot prevent.
+    const contentType = response.headers.get('content-type') ?? '';
+    if (!contentType.startsWith('image/') || contentType.startsWith('image/svg')) {
+      return new Response('Not found', { status: 404 });
+    }
+
     return new Response(response.body, {
       headers: {
-        'content-type': response.headers.get('content-type') ?? 'application/octet-stream',
+        'content-type': contentType,
         'cache-control': 'public, max-age=86400, immutable',
+        'x-content-type-options': 'nosniff',
       },
     });
   } catch (error) {

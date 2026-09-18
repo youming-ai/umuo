@@ -1,6 +1,6 @@
 import { CATEGORIES } from '../categories';
 import { isVideoMediaUrl, proxiedImageUrl } from '../media';
-import { GLOBAL_FEED_LABEL } from '../site';
+import { GLOBAL_FEED_LABEL, SITE_ORIGIN } from '../site';
 import type {
   ExploreArticle,
   ExploreArticleType,
@@ -316,8 +316,6 @@ const RSS_ITEM_LIMIT = 24;
  *  bookmarks. Honours the same SWR freshness/cache as the JSON endpoint. */
 export async function serveExploreRss(
   query: ExploreQuery,
-  selfUrl: string,
-  origin: string,
   env: Env,
   ctx: ExecutionContext,
 ): Promise<Response> {
@@ -333,9 +331,21 @@ export async function serveExploreRss(
   const scopeLabel = normalized.category
     ? (CATEGORIES[normalized.category]?.label ?? normalized.category)
     : GLOBAL_FEED_LABEL;
+  // Composed from SITE_ORIGIN, never from the request host. The rendered
+  // document is cached under a key that carries only the query, and KV is bound
+  // per Worker rather than per hostname — so a request arriving on any other
+  // host routed here (a preview, the workers.dev name) would otherwise write its
+  // own host into `<link>` and `<atom:link rel="self">` and serve that to every
+  // reader of the canonical feed. Taking the origin as a parameter made that a
+  // one-line mistake; not taking it makes it impossible.
+  const selfUrl = normalized.category
+    ? `${SITE_ORIGIN}/${normalized.category}/rss.xml`
+    : `${SITE_ORIGIN}/rss.xml`;
   // Per-category feeds link to /<category> so a reader clicking through lands
   // on the matching hub rather than the global home.
-  const channelLink = normalized.category ? `${origin}/${normalized.category}` : `${origin}/`;
+  const channelLink = normalized.category
+    ? `${SITE_ORIGIN}/${normalized.category}`
+    : `${SITE_ORIGIN}/`;
 
   const key = `explore:rss:${encodeURIComponent(JSON.stringify(normalized))}`;
   const cached = await runCached(

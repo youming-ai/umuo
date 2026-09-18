@@ -43,10 +43,28 @@ function mockEnv(options: { failing?: boolean } = {}): { env: Env; bindings: unk
 describe('serveExploreRss', () => {
   it('serves a rendered feed as application/rss+xml', async () => {
     const { env } = mockEnv();
-    const res = await serveExploreRss({}, `${SITE_ORIGIN}/rss.xml`, SITE_ORIGIN, env, mockCtx());
+    const res = await serveExploreRss({}, env, mockCtx());
     expect(res.status).toBe(200);
     expect(res.headers.get('content-type')).toBe('application/rss+xml; charset=utf-8');
     expect(await res.text()).toContain('<rss version="2.0"');
+  });
+
+  // The rendered document is cached under a key carrying only the query, and KV
+  // is bound per Worker rather than per hostname: if the origin came from the
+  // request, one hit on a preview or workers.dev host would write that host into
+  // every subscriber's <link> and <atom:link rel="self">. Composing them from
+  // SITE_ORIGIN makes that impossible rather than merely unlikely.
+  it('composes its own URLs from SITE_ORIGIN, not from a caller', async () => {
+    const { env } = mockEnv();
+    const body = await (await serveExploreRss({}, env, mockCtx())).text();
+    expect(body).toContain(`<link>${SITE_ORIGIN}/</link>`);
+    expect(body).toContain(`<atom:link href="${SITE_ORIGIN}/rss.xml"`);
+
+    const categoryBody = await (
+      await serveExploreRss({ category: 'tools' }, env, mockCtx())
+    ).text();
+    expect(categoryBody).toContain(`<link>${SITE_ORIGIN}/tools</link>`);
+    expect(categoryBody).toContain(`<atom:link href="${SITE_ORIGIN}/tools/rss.xml"`);
   });
 
   // Regression: the wrapper used to relabel runCached's JSON error body as
@@ -54,7 +72,7 @@ describe('serveExploreRss', () => {
   // every subscriber a parse error pinned in their HTTP cache for 5 minutes.
   it('passes a cold-cache upstream failure through untouched, never as a feed', async () => {
     const { env } = mockEnv({ failing: true });
-    const res = await serveExploreRss({}, `${SITE_ORIGIN}/rss.xml`, SITE_ORIGIN, env, mockCtx());
+    const res = await serveExploreRss({}, env, mockCtx());
     expect(res.status).toBe(502);
     expect(res.headers.get('content-type')).toBe('application/json; charset=utf-8');
     expect(res.headers.get('cache-control')).toBeNull();
@@ -65,7 +83,7 @@ describe('serveExploreRss', () => {
   // it the request silently shrinks, so pin the number the query actually asks for.
   it('asks the query layer for a full 24-item page', async () => {
     const { env, bindings } = mockEnv();
-    await serveExploreRss({}, `${SITE_ORIGIN}/rss.xml`, SITE_ORIGIN, env, mockCtx());
+    await serveExploreRss({}, env, mockCtx());
     // The explore query binds LIMIT last; it over-fetches by one to detect a
     // next page, so the feed page size shows up as 24 or 25.
     const limits = bindings.flat().filter((value): value is number => typeof value === 'number');
@@ -74,13 +92,7 @@ describe('serveExploreRss', () => {
 
   it('scopes the channel link to the category it was given', async () => {
     const { env } = mockEnv();
-    const res = await serveExploreRss(
-      { category: 'tools' },
-      `${SITE_ORIGIN}/tools/rss.xml`,
-      SITE_ORIGIN,
-      env,
-      mockCtx(),
-    );
+    const res = await serveExploreRss({ category: 'tools' }, env, mockCtx());
     const xml = await res.text();
     expect(xml).toContain(`<link>${SITE_ORIGIN}/tools</link>`);
     expect(xml).toContain('Tools');
