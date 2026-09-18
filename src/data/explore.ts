@@ -8,10 +8,8 @@ import { renderExploreRss } from './exploreRss';
 
 // --- Curated Explore feed (D1) ---
 
-export interface ExploreQuery {
+interface ExploreQuery {
   category?: string;
-  source?: string;
-  tag?: string;
   q?: string;
   cursor?: string;
   limit?: number;
@@ -29,7 +27,7 @@ const FILTERS_FALLBACK: ExploreFilterSet = {
   })),
 };
 
-export interface ExploreRow {
+interface ExploreRow {
   id: unknown;
   title: unknown;
   description: unknown;
@@ -49,7 +47,6 @@ export interface ExploreRow {
 
 export interface CountRow {
   value: unknown;
-  label?: unknown;
   count: unknown;
 }
 
@@ -77,7 +74,7 @@ function rowTags(value: unknown): string[] {
   }
 }
 
-export function exploreArticle(row: ExploreRow): ExploreArticle {
+function exploreArticle(row: ExploreRow): ExploreArticle {
   // The video judgement reads the URL as the feed delivered it — before the
   // /media rewrite, which can strip the extension the check depends on.
   const rawImageUrl = rowString(row.image_url);
@@ -124,7 +121,7 @@ const LIVE_FRESHNESS =
  *  `article_type` is deliberately absent: the pipeline writes `'link'` for every
  *  row, so it was a constant that cost a column read on every query and a slot
  *  in every cached payload (and was rendered on every card as `LINK / X`). */
-export const EXPLORE_ARTICLE_COLUMNS =
+const EXPLORE_ARTICLE_COLUMNS =
   'a.id, a.title, a.description, a.ai_summary, a.ai_blurb, a.canonical_url, ' +
   'a.image_url, a.image_width, a.image_height, ' +
   'a.published_at, a.day_bucket, a.category, a.quality_score, ' +
@@ -171,8 +168,6 @@ function normalizedExploreQuery(
   const limit = Number.isInteger(query.limit) ? Math.min(24, Math.max(1, query.limit ?? 10)) : 10;
   return {
     category,
-    source: query.source?.trim().slice(0, 80) || undefined,
-    tag: query.tag?.trim().toLowerCase().slice(0, 80) || undefined,
     q: query.q?.trim().slice(0, 100) || undefined,
     // Re-serialised so a malformed cursor collapses to "first page" instead of
     // becoming its own KV key.
@@ -190,16 +185,6 @@ async function queryExplore(query: ExploreQuery, env: Env): Promise<ExploreFeed>
   if (normalized.category) {
     where.push('a.category = ?');
     bindings.push(normalized.category);
-  }
-  if (normalized.source) {
-    where.push('a.source_id = ?');
-    bindings.push(normalized.source);
-  }
-  if (normalized.tag) {
-    where.push(
-      'EXISTS (SELECT 1 FROM article_tags filter_tags WHERE filter_tags.article_id = a.id AND filter_tags.tag = ?)',
-    );
-    bindings.push(normalized.tag);
   }
   if (normalized.q) {
     const search = `%${normalized.q}%`;
@@ -242,8 +227,8 @@ export function exploreQueryFromUrl(url: URL): ExploreQuery {
   const limit = limitValue === null ? Number.NaN : Number(limitValue);
   return {
     category: url.searchParams.get('category') ?? undefined,
-    // `source` and `tag` are deliberately not read: the rail dropped them, and
-    // as free-form request input they only served to widen the KV key space.
+    // `source` and `tag` are not read: the rail dropped both, and as free-form
+    // request input they only widened the KV key space.
     q: url.searchParams.get('q') ?? undefined,
     cursor: url.searchParams.get('cursor') ?? undefined,
     limit: Number.isFinite(limit) ? limit : undefined,
@@ -273,7 +258,7 @@ export async function serveExplore(
   }
 
   // What is left is bounded: category is checked against CATEGORIES and
-  // limit is clamped. `source`/`tag` are no longer read from the request.
+  // limit is clamped. `source`/`tag` are not read from the request at all.
   //
   // The key is versioned because a warm KV entry is served verbatim, before any
   // mapper runs, so a payload-shape change would otherwise keep serving the old
@@ -297,8 +282,9 @@ export async function serveExplore(
 const RSS_ITEM_LIMIT = 24;
 
 /** RSS 2.0 surface for the Explore feed. Drops `q` (transient) and `cursor`
- *  (subscribers take the head, not paginate); keeps category/source/tag for
- *  bookmarks. Honours the same SWR freshness/cache as the JSON endpoint. */
+ *  (subscribers take the head, not paginate); keeps the category so a per-hub
+ *  feed stays its own cache entry. Same SWR freshness/cache as the JSON
+ *  endpoint. */
 export async function serveExploreRss(
   query: ExploreQuery,
   env: Env,
@@ -404,10 +390,13 @@ export async function getExploreFeed(
 }
 
 /** Category options for the rail, derived from D1. Cached so a crawler burst
- *  doesn't fan out to D1. */
-async function queryExploreFilters(_category: string, env: Env): Promise<ExploreFilterSet> {
+ *  doesn't fan out to D1.
+ *
+ *  The list is global: every hub stays reachable from every page. It used to
+ *  take the caller's category and fold it into the cache key, which stored nine
+ *  identical copies of one payload — the parameter was never read here. */
+async function queryExploreFilters(env: Env): Promise<ExploreFilterSet> {
   if (!env.DB) throw new Error('D1 binding is required');
-  // Category list is global — every hub stays reachable.
   const published = "a.status = 'published' AND a.is_on_topic = 1";
   const categories = await env.DB.prepare(
     `SELECT a.category AS value, COUNT(*) AS count
@@ -431,18 +420,13 @@ async function queryExploreFilters(_category: string, env: Env): Promise<Explore
   return { categories: categoryOptions };
 }
 
-export async function serveExploreFilters(
-  category: string,
-  env: Env,
-  ctx: ExecutionContext,
-): Promise<Response> {
-  const scoped = Object.hasOwn(CATEGORIES, category) ? category : '';
+export async function serveExploreFilters(env: Env, ctx: ExecutionContext): Promise<Response> {
   // Versioned: the filters payload changed shape once ({competitions,sources,
   // tags} became {categories}) while reusing the same unversioned key, so a
   // warm entry rendered an empty rail with no error. Bump on any payload change.
   return runCached(
-    `explore:filters:v1:${scoped}`,
-    async () => JSON.stringify(await queryExploreFilters(scoped, env)),
+    'explore:filters:v1:',
+    async () => JSON.stringify(await queryExploreFilters(env)),
     300,
     3600,
     env,
@@ -451,12 +435,11 @@ export async function serveExploreFilters(
 }
 
 export async function getExploreFilters(
-  category: string,
   env: Env,
   ctx: ExecutionContext,
 ): Promise<ExploreFilterSet> {
   try {
-    const response = await serveExploreFilters(category, env, ctx);
+    const response = await serveExploreFilters(env, ctx);
     if (!response.ok) return FILTERS_FALLBACK;
     const parsed: unknown = await response.json();
     if (!parsed || typeof parsed !== 'object') return FILTERS_FALLBACK;

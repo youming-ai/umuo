@@ -1,12 +1,10 @@
-export type FeedSourceKind = 'rss';
+type FeedSourceKind = 'rss';
 
 export interface FeedSource {
   id: string;
   kind: FeedSourceKind;
   name: string;
   url: string;
-  /** Publisher-declared category extracted from the feed when available. */
-  category?: string;
   authorityScore: number;
   defaultEnabled: boolean;
 }

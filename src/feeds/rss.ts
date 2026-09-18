@@ -1,7 +1,7 @@
 import { decodeEntities } from '../utils/coerce';
 import type { FeedSource, RawArticle } from './types';
 
-export function stripHtml(value: string): string {
+function stripHtml(value: string): string {
   // Remove real markup before decoding entities. Otherwise an escaped literal
   // such as `&lt;dialog&gt;` becomes a tag and disappears with the markup.
   const withoutCdata = value.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/gi, '$1');
@@ -81,7 +81,7 @@ export function parseRss(
       );
       const publishedAt = Date.parse(publishedRaw) || fetchedAt;
       const image = imageMeta(block);
-      const category = extractCategory(block) ?? source.category ?? null;
+      const category = extractCategory(block);
       if (title.length === 0 || url.length === 0) continue;
       articles.push({
         sourceId: source.id,

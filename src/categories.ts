@@ -13,7 +13,7 @@ export interface Category {
   group: CategoryGroupKey; // rail section, see CATEGORY_GROUPS
 }
 
-export type CategoryGroupKey = 'curated' | 'community';
+type CategoryGroupKey = 'curated' | 'community';
 
 /** Rail/navigation sections in display order. */
 export const CATEGORY_GROUPS: { key: CategoryGroupKey; label: string }[] = [

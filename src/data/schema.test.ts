@@ -230,7 +230,7 @@ describe('the explore queries run against the migrated schema', () => {
   it('runs the filters aggregate', async () => {
     const db = migratedDatabase();
     seed(db);
-    const filters = await getExploreFilters('', envFor(db), ctx);
+    const filters = await getExploreFilters(envFor(db), ctx);
     expect(filters.categories).toEqual([expect.objectContaining({ value: 'tools', count: 1 })]);
   });
 
