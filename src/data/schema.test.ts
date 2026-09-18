@@ -157,6 +157,34 @@ describe('migrations', () => {
     expect(indexes).toContain('idx_feed_global');
     expect(indexes).toContain('idx_feed_category');
   });
+
+  it('buckets by floor, including pre-1970 timestamps', () => {
+    // 0014 divided with `/`, which truncates toward zero: a negative timestamp
+    // landed one bucket low and could intermix with the epoch day. Those inputs
+    // are reachable (`Date.parse` accepts a pre-1970 date), and the documented
+    // contract is floor, so this walks both sides of every boundary.
+    const db = migratedDatabase();
+    const DAY = 86_400_000;
+    for (const ms of [0, DAY, DAY + 1, -1, -DAY, -DAY + 1, -DAY - 1, -2 * DAY, 1_789_707_171_000]) {
+      seed(db, {
+        id: `b${ms}`,
+        fingerprint: `fp-b${ms}`,
+        canonical_url: `https://example.com/b/${ms}`,
+        published_at: ms,
+      });
+    }
+
+    const rows = db.prepare('SELECT published_at, day_bucket FROM articles').all() as {
+      published_at: number;
+      day_bucket: number;
+    }[];
+    expect(rows).toHaveLength(9);
+    for (const row of rows) {
+      expect(row.day_bucket, `published_at=${row.published_at}`).toBe(
+        Math.floor(row.published_at / DAY),
+      );
+    }
+  });
 });
 
 describe('the explore queries run against the migrated schema', () => {
