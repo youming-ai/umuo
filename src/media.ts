@@ -161,8 +161,13 @@ export async function serveMedia(file: string): Promise<Response> {
     // previous proxy carried and its reasoning still holds — only images pass,
     // and SVG is excluded because it is a scripting context when navigated to
     // directly, which `nosniff` cannot prevent.
+    //
+    // Compared lowercased: MIME type tokens are case-insensitive, so a
+    // `image/SVG+xml` would otherwise satisfy the first test and slip past the
+    // second. The upstream's own spelling is what gets sent on.
     const contentType = response.headers.get('content-type') ?? '';
-    if (!contentType.startsWith('image/') || contentType.startsWith('image/svg')) {
+    const type = contentType.toLowerCase();
+    if (!type.startsWith('image/') || type.startsWith('image/svg')) {
       return new Response('Not found', { status: 404 });
     }
 

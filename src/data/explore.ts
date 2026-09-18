@@ -347,7 +347,12 @@ export async function serveExploreRss(
     ? `${SITE_ORIGIN}/${normalized.category}`
     : `${SITE_ORIGIN}/`;
 
-  const key = `explore:rss:${encodeURIComponent(JSON.stringify(normalized))}`;
+  // Versioned because the body is a *rendered* document: no mapper runs on
+  // read, so a format change keeps being served from a warm entry until it
+  // expires. `v1` covers the URLs now being composed from SITE_ORIGIN rather
+  // than the request host — an entry written by an earlier deploy through
+  // another hostname would otherwise outlive the fix.
+  const key = `explore:rss:v1:${encodeURIComponent(JSON.stringify(normalized))}`;
   const cached = await runCached(
     key,
     async () => {

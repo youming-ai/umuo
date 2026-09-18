@@ -67,6 +67,18 @@ describe('serveExploreRss', () => {
     expect(categoryBody).toContain(`<atom:link href="${SITE_ORIGIN}/tools/rss.xml"`);
   });
 
+  // The body is a rendered document, so a format change needs a new key or a
+  // warm entry keeps serving the old shape — here, a document whose URLs came
+  // from whichever hostname filled it.
+  it('reads its document under a versioned key', async () => {
+    const { env } = mockEnv();
+    await serveExploreRss({}, env, mockCtx());
+    expect(vi.mocked(env.CACHE.get)).toHaveBeenCalledWith(
+      expect.stringContaining('explore:rss:v1:'),
+      'json',
+    );
+  });
+
   // Regression: the wrapper used to relabel runCached's JSON error body as
   // application/rss+xml AND stamp it `max-age=300`, so one D1 blip handed
   // every subscriber a parse error pinned in their HTTP cache for 5 minutes.

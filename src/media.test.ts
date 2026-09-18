@@ -172,14 +172,12 @@ describe('serveMedia', () => {
     // under umuo.app — same-origin XSS, and `nosniff` does not help when the
     // declared type *is* HTML.
     for (const type of ['text/html', 'application/octet-stream', '']) {
-      const fetchMock = vi
-        .fn()
-        .mockResolvedValue(
-          new Response('<script>alert(1)</script>', {
-            status: 200,
-            headers: type ? { 'content-type': type } : {},
-          }),
-        );
+      const fetchMock = vi.fn().mockResolvedValue(
+        new Response('<script>alert(1)</script>', {
+          status: 200,
+          headers: type ? { 'content-type': type } : {},
+        }),
+      );
       vi.stubGlobal('fetch', fetchMock);
       const res = await serveMedia(ID);
       expect(res.status, type || '(no content-type)').toBe(404);
