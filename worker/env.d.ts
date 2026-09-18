@@ -1,7 +1,13 @@
 /// <reference types="@cloudflare/workers-types" />
 
-// Manual declarations for the worker tsconfig, which does not include the
-// root env.d.ts. Literal types must match wrangler.toml vars exactly.
+// Manual declarations for the worker tsconfig, which does not include the root
+// env.d.ts (whose Env is what `/src/data/api` exports). They must match the
+// bindings in wrangler.toml, which declares no [vars].
+//
+// `ASSETS` is genuinely needed here, not descriptive: removing it makes
+// `handle(request, env, ctx)` in entrypoint.ts fail to typecheck, because the
+// generated chain does not supply it inside this program. That is the same
+// reason the whole file exists rather than relying on worker-configuration.d.ts.
 declare namespace Cloudflare {
   interface Env {
     CACHE: KVNamespace;

@@ -1,9 +1,9 @@
 # News Desk Template
 
-> Curated explore feed on Cloudflare Workers. Pull Poche Explore RSS into D1 and render it as a fast Astro masonry board with category hubs, article pages, and RSS feeds.
+> Curated explore feed on Cloudflare Workers. Pull Poche Explore RSS into D1 and render it as a fast Astro masonry board with category hubs and RSS feeds.
 
 [![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/youming-ai/umuo)
-[![Bun](https://img.shields.io/badge/bun-%3E%3D1.4-black)](https://bun.sh) [![Astro](https://img.shields.io/badge/Astro-7.x-ff5d01)](https://astro.build) [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](./LICENSE)
+[![Bun](https://img.shields.io/badge/bun-%3E%3D1.4.2-black)](https://bun.sh) [![Astro](https://img.shields.io/badge/Astro-7.x-ff5d01)](https://astro.build) [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](./LICENSE)
 
 *No ads, no tracking. The bundled config reads Poche Explore RSS; the taxonomy in `src/categories.ts` and source registry in `src/feeds/sources.ts` are yours to replace.*
 
@@ -34,7 +34,7 @@ bun install
 
 # One-time Cloudflare setup:
 bunx wrangler kv namespace create CACHE
-bunx wrangler d1 create news-desk-content
+bunx wrangler d1 create umuo-content
 # → paste the returned ids into wrangler.toml
 
 bun run dev        # http://localhost:4321 (Miniflare KV + D1)
@@ -86,7 +86,8 @@ graph TD
 | `/:category` | Per-category hub (e.g. `/design`) |
 | `/rss.xml`, `/:category/rss.xml` | RSS 2.0 |
 | `/sitemap.xml` | Sitemap — category hubs and feeds |
-| `/media/:id` | Feed-CDN images, re-served under this origin |
+| `/media/<uuid>` | Feed-CDN images, re-served under this origin. Unrecognised but validly encoded `/media/…` paths fall through to the app; malformed percent-encoding is answered `400` |
+| `/a/:id` | Legacy per-link URL, 301s to the article's source |
 
 ## Deployment
 
