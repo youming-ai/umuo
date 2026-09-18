@@ -279,7 +279,9 @@ export async function serveExplore(
 }
 
 /** Items a feed poll carries, equal to `normalizedExploreQuery`'s ceiling. */
-const RSS_ITEM_LIMIT = 24;
+/** Feed polls take a full page; the web feed's own default is smaller, so this
+ *  is exported for the test that pins the RSS path to it. */
+export const RSS_ITEM_LIMIT = 24;
 
 /** RSS 2.0 surface for the Explore feed. Drops `q` (transient) and `cursor`
  *  (subscribers take the head, not paginate); keeps the category so a per-hub

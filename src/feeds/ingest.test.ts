@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Env } from '../data/api';
+import { SITE_NAME, SITE_ORIGIN } from '../site';
 import { canonicalizeUrl, ingestAllSources, knownCanonicalUrls, knownFingerprints } from './ingest';
 
 describe('canonicalizeUrl', () => {
@@ -141,5 +142,41 @@ describe('ingestAllSources', () => {
     expect(report.stored).toBe(3);
     expect(report.uncategorized).toBe(2);
     expect(report.failed).toHaveLength(0);
+  });
+});
+
+describe('the upstream request identifies this site', () => {
+  // The publisher reads this header. It used to spell the template's product
+  // name beside this deployment's domain, with the origin typed in a second
+  // place; both now derive from src/site.ts, and this pins the result.
+  it('sends a user-agent naming the site and its real origin', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(new Response('<rss><channel></channel></rss>', { status: 200 }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const fakeDb = {
+      batch: vi.fn(async () => []),
+      prepare: vi.fn((sql: string) => {
+        if (sql.includes('SELECT id FROM sources')) {
+          return { all: async () => ({ results: [{ id: 'poche-explore' }] }) };
+        }
+        return {
+          bind: vi.fn(() => ({
+            all: async () => ({ results: [] }),
+            run: async () => ({ meta: { changes: 0 } }),
+          })),
+        };
+      }),
+    } as unknown as D1Database;
+
+    await ingestAllSources({ DB: fakeDb } as unknown as Env);
+
+    expect(fetchMock).toHaveBeenCalled();
+    const init = fetchMock.mock.calls[0]?.[1] as RequestInit | undefined;
+    const headers = init?.headers as Record<string, string> | undefined;
+    expect(headers?.['user-agent']).toBe(`${SITE_NAME}/1.0 (+${SITE_ORIGIN})`);
+    // The feed parser needs to be told what it is asking for.
+    expect(headers?.accept).toContain('application/rss+xml');
   });
 });

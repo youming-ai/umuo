@@ -25,7 +25,11 @@ afterEach(() => vi.restoreAllMocks());
 
 describe('getExploreFeed', () => {
   it('keeps a keyset cursor instead of dropping it', async () => {
-    const cursor = '1786080856000:2cfd02576735e225';
+    // The exact shape the API emits — day bucket, quality, published_at, id —
+    // rather than the two-part timestamp:hash this test used to carry, which
+    // no longer resembles anything the feed can return.
+    const cursor =
+      '20714:82:1789707171000:79f122ca1044a924eff328253084a6fbed3fd8cd3b22f5d9b5efb03ba5e13b43';
     const feed = await getExploreFeed(
       {},
       envReturning({ items: [{ id: 'a' }], nextCursor: cursor }),

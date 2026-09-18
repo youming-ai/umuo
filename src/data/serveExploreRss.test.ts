@@ -6,7 +6,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { SITE_ORIGIN } from '../site';
 import type { Env } from './api';
-import { serveExploreRss } from './api';
+import { RSS_ITEM_LIMIT, serveExploreRss } from './api';
 
 function mockCtx(): ExecutionContext {
   return {
@@ -90,16 +90,18 @@ describe('serveExploreRss', () => {
     expect(res.headers.get('cache-control')).toBeNull();
   });
 
-  // A feed poll should carry more than the 12-item web default. 24 is the
-  // ceiling normalizedExploreQuery clamps to; if that clamp ever drops below
-  // it the request silently shrinks, so pin the number the query actually asks for.
-  it('asks the query layer for a full 24-item page', async () => {
+  // A feed poll should carry more than the web default, and the clamp in
+  // normalizedExploreQuery has to stay above it or the request silently shrinks.
+  // Asserted through the constant rather than a repeated literal: the page size
+  // is a free choice, the invariant is that the RSS path asks for a full one.
+  it('asks the query layer for a full RSS page', async () => {
     const { env, bindings } = mockEnv();
     await serveExploreRss({}, env, mockCtx());
-    // The explore query binds LIMIT last; it over-fetches by one to detect a
-    // next page, so the feed page size shows up as 24 or 25.
+    // The explore query binds limit + 1 and never the bare limit: the extra row
+    // is how the subject detects that another page exists. So the bound value
+    // is the evidence that the RSS path asked for a full page.
     const limits = bindings.flat().filter((value): value is number => typeof value === 'number');
-    expect(limits.some((value) => value === 24 || value === 25)).toBe(true);
+    expect(limits).toContain(RSS_ITEM_LIMIT + 1);
   });
 
   it('scopes the channel link to the category it was given', async () => {

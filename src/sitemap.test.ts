@@ -1,6 +1,9 @@
 // @vitest-environment node
-import { describe, expect, it } from 'vitest';
-import type { SitemapData } from './data/api';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+import { describe, expect, it, vi } from 'vitest';
+import type { Env, SitemapData } from './data/api';
+import { getSitemapNews } from './data/sitemapData';
 import { renderSitemap, sitemapEntries } from './sitemap';
 import { SITE_ORIGIN } from './site';
 
@@ -88,10 +91,48 @@ describe('renderSitemap', () => {
 
 describe('canonical origin', () => {
   it('points at a host that actually serves the site', () => {
-    // Every <loc>, canonical tag and og:url derives from this one constant;
-    // public/robots.txt advertises the sitemap on the same host.
+    // Every <loc>, canonical tag and og:url derives from this one constant.
     expect(SITE_ORIGIN).toBe('https://umuo.app');
     expect(SITE_ORIGIN.startsWith('https://')).toBe(true);
     expect(SITE_ORIGIN.endsWith('/')).toBe(false);
+  });
+
+  it('advertises the sitemap from robots.txt on that same host', () => {
+    // This used to be a claim in the comment above with nothing checking it:
+    // a file that names a different host, or forgets the directive entirely,
+    // would have left crawlers pointed at the wrong place in silence.
+    const robots = readFileSync(resolve(process.cwd(), 'public/robots.txt'), 'utf8');
+    expect(robots).toContain(`Sitemap: ${SITE_ORIGIN}/sitemap.xml`);
+    // The API is crawler noise; the routes that matter are the hubs and feeds.
+    expect(robots).toContain('Disallow: /api/');
+  });
+});
+
+describe('sitemap cache key', () => {
+  it('reads one versioned entry, not an unversioned one', async () => {
+    // The other three cache keys have a test that names them; this one did not,
+    // so a silent reuse of an older key shape would have gone unnoticed — which
+    // is exactly how the filters key once served a stale payload.
+    const get = vi.fn(async () => null);
+    const env = {
+      CACHE: { get, put: vi.fn() },
+      DB: {
+        prepare: vi.fn(() => ({
+          bind: vi.fn(function bind(this: unknown) {
+            return this;
+          }),
+          all: vi.fn(async () => ({ results: [] })),
+        })),
+      },
+    } as unknown as Env;
+    const ctx = {
+      waitUntil: vi.fn(),
+      passThroughOnException: vi.fn(),
+      props: {},
+      tracing: {},
+    } as unknown as ExecutionContext;
+
+    await getSitemapNews(env, ctx);
+    expect(get).toHaveBeenCalledWith('sitemap:news:v3', 'json');
   });
 });
