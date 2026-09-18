@@ -18,6 +18,7 @@ import { DatabaseSync } from 'node:sqlite';
 import { describe, expect, it } from 'vitest';
 import { storeArticle } from '../feeds/enrich';
 import type { RawArticle } from '../feeds/types';
+import type { ExploreFeed } from '../types';
 import type { Env } from './api';
 import { getExploreFeed, getExploreFilters, getSitemapNews } from './api';
 // Not re-exported by the facade: the legacy-redirect module is imported directly
@@ -44,9 +45,12 @@ function migratedDatabase(): DatabaseSync {
   return db;
 }
 
-/** The D1 surface the app actually uses (prepare/bind/all/first/run/batch). */
-function envFor(db: DatabaseSync): Env {
+/** The D1 surface the app actually uses (prepare/bind/all/first/run/batch).
+ *  Every prepared statement is recorded so a test can EXPLAIN the real SQL
+ *  rather than a copy of it that would not move when the source changes. */
+function envFor(db: DatabaseSync, prepared: string[] = []): Env {
   const prepare = (sql: string) => {
+    prepared.push(sql);
     const statement = db.prepare(sql);
     const api = {
       params: [] as unknown[],
@@ -149,6 +153,37 @@ describe('migrations', () => {
     expect(indexes).toContain('idx_articles_source');
     // The ingest dedupe reads `WHERE title_norm IN (...)` every tick.
     expect(indexes).toContain('idx_articles_title_norm');
+    // The feed's sort and keyset seek are planned against these.
+    expect(indexes).toContain('idx_feed_global');
+    expect(indexes).toContain('idx_feed_category');
+  });
+
+  it('buckets by floor, including pre-1970 timestamps', () => {
+    // 0014 divided with `/`, which truncates toward zero: a negative timestamp
+    // landed one bucket low and could intermix with the epoch day. Those inputs
+    // are reachable (`Date.parse` accepts a pre-1970 date), and the documented
+    // contract is floor, so this walks both sides of every boundary.
+    const db = migratedDatabase();
+    const DAY = 86_400_000;
+    for (const ms of [0, DAY, DAY + 1, -1, -DAY, -DAY + 1, -DAY - 1, -2 * DAY, 1_789_707_171_000]) {
+      seed(db, {
+        id: `b${ms}`,
+        fingerprint: `fp-b${ms}`,
+        canonical_url: `https://example.com/b/${ms}`,
+        published_at: ms,
+      });
+    }
+
+    const rows = db.prepare('SELECT published_at, day_bucket FROM articles').all() as {
+      published_at: number;
+      day_bucket: number;
+    }[];
+    expect(rows).toHaveLength(9);
+    for (const row of rows) {
+      expect(row.day_bucket, `published_at=${row.published_at}`).toBe(
+        Math.floor(row.published_at / DAY),
+      );
+    }
   });
 });
 
@@ -282,5 +317,112 @@ describe('storeArticle', () => {
     await storeArticle(env, article);
     const count = db.prepare('SELECT COUNT(*) AS n FROM articles').get() as { n: number };
     expect(count.n).toBe(1);
+  });
+});
+
+describe('the feed query is planned against the index', () => {
+  // The shape that was broken: day_bucket was an expression, so neither the
+  // ORDER BY nor the keyset predicate could use an index — every page sorted the
+  // whole live partition in a temp B-tree and page N cost as much as page 1.
+  //
+  // The statement under test is the one queryExplore actually prepared, captured
+  // off the D1 shim. A copy written here would keep passing after the source it
+  // mirrors changed, which is the failure this whole file exists to avoid.
+  const FEED_CURSOR = '20711:90:1789634400000:x';
+
+  it('seeks instead of sorting the partition, with and without a category', async () => {
+    for (const query of [{}, { category: 'tools' }]) {
+      const db = migratedDatabase();
+      const prepared: string[] = [];
+      const env = envFor(db, prepared);
+      await getExploreFeed({ ...query, limit: 5 }, env, ctx);
+      await getExploreFeed({ ...query, limit: 5, cursor: FEED_CURSOR }, env, ctx);
+
+      const feedStatements = prepared.filter(
+        (sql) => sql.includes('FROM articles a') && sql.includes('ORDER BY'),
+      );
+      // Both the first page and the cursor page were exercised.
+      expect(feedStatements.length, 'feed statement prepared').toBeGreaterThanOrEqual(2);
+      expect(feedStatements.some((sql) => sql.includes('(?, ?, ?, ?)'))).toBe(true);
+
+      for (const sql of feedStatements) {
+        const plan = (db.prepare(`EXPLAIN QUERY PLAN ${sql}`).all() as { detail: string }[])
+          .map((row) => row.detail)
+          .join(' | ');
+        expect(plan, `plan: ${plan}`).toContain('USING INDEX idx_feed_');
+        expect(plan, `plan: ${plan}`).not.toContain('TEMP B-TREE');
+        expect(plan, `plan: ${plan}`).not.toContain('SCAN');
+      }
+    }
+  });
+});
+
+describe('keyset pagination over real rows', () => {
+  const TIE = Date.parse('2026-09-10T09:00:00Z');
+
+  /** Ties on every sort key but the id, which is where a keyset can skip or repeat. */
+  function seedCorpus(db: DatabaseSync, count: number): void {
+    for (let i = 0; i < count; i += 1) {
+      seed(db, {
+        id: `id-${String(i).padStart(3, '0')}`,
+        fingerprint: `fp-${String(i).padStart(3, '0')}`,
+        canonical_url: `https://example.com/${i}`,
+        // Same published_at and quality for all: only the id breaks the tie.
+        published_at: TIE,
+        quality_score: 90,
+      });
+    }
+  }
+
+  it('walks every row exactly once across pages', async () => {
+    const db = migratedDatabase();
+    const env = envFor(db);
+    seedCorpus(db, 7);
+
+    const seen: string[] = [];
+    let cursor: string | null = null;
+    let pages = 0;
+    do {
+      const feed: ExploreFeed = await getExploreFeed(
+        cursor ? { limit: 2, cursor } : { limit: 2 },
+        env,
+        ctx,
+      );
+      seen.push(...feed.items.map((item) => item.id));
+      cursor = feed.nextCursor;
+      pages += 1;
+      if (pages > 10) throw new Error('pagination did not terminate');
+    } while (cursor !== null);
+
+    // No repeats and no gaps: the row-value comparison must be the strict
+    // successor of the same ordering the query sorts by.
+    expect(new Set(seen).size).toBe(seen.length);
+    expect(seen).toHaveLength(7);
+  });
+
+  it('continues correctly across a day boundary', async () => {
+    const db = migratedDatabase();
+    const env = envFor(db);
+    // Day bucket is floor(published_at / 86400000): put rows either side of one.
+    const boundary = Math.floor(TIE / 86_400_000) * 86_400_000;
+    seed(db, {
+      id: 'before',
+      fingerprint: 'fp-before',
+      canonical_url: 'https://example.com/before',
+      published_at: boundary - 1,
+      quality_score: 90,
+    });
+    seed(db, {
+      id: 'after',
+      fingerprint: 'fp-after',
+      canonical_url: 'https://example.com/after',
+      published_at: boundary,
+      quality_score: 10, // lower quality, later day: the day bucket must win
+    });
+
+    const first = await getExploreFeed({ limit: 1 }, env, ctx);
+    expect(first.items.map((item) => item.id)).toEqual(['after']);
+    const second = await getExploreFeed({ limit: 1, cursor: first.nextCursor! }, env, ctx);
+    expect(second.items.map((item) => item.id)).toEqual(['before']);
   });
 });
