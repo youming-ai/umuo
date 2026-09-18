@@ -127,7 +127,7 @@ const LIVE_FRESHNESS =
 export const EXPLORE_ARTICLE_COLUMNS =
   'a.id, a.title, a.description, a.ai_summary, a.ai_blurb, a.canonical_url, ' +
   'a.image_url, a.image_width, a.image_height, ' +
-  'a.published_at, (a.published_at / 86400000) AS day_bucket, a.category, a.quality_score, ' +
+  'a.published_at, a.day_bucket, a.category, a.quality_score, ' +
   `${LIVE_FRESHNESS}, ` +
   "COALESCE((SELECT json_group_array(at.tag) FROM article_tags at WHERE at.article_id = a.id), '[]') AS tags";
 export function parseExploreCursor(
@@ -209,23 +209,22 @@ async function queryExplore(query: ExploreQuery, env: Env): Promise<ExploreFeed>
   // Strictly after the last row delivered, in the same (day, quality,
   // published_at, id) order the query sorts by. Day bucket is immutable
   // (floor(published_at / 86400000)), so the keyset stays stable.
+  //
+  // Expressed as one row-value comparison. The four-way OR this replaced was
+  // equivalent but not sargable: each branch wrapped day_bucket in an
+  // expression, so the planner could not turn the cursor into an index seek and
+  // re-sorted the whole partition on every page.
   const cursor = parseExploreCursor(normalized.cursor);
   if (cursor) {
-    const [cd, cq, cp, ci] = cursor;
-    where.push(
-      '(a.published_at / 86400000 < ?' +
-        ' OR (a.published_at / 86400000 = ? AND a.quality_score < ?)' +
-        ' OR (a.published_at / 86400000 = ? AND a.quality_score = ? AND a.published_at < ?)' +
-        ' OR (a.published_at / 86400000 = ? AND a.quality_score = ? AND a.published_at = ? AND a.id < ?))',
-    );
-    bindings.push(cd, cd, cq, cd, cq, cp, cd, cq, cp, ci);
+    where.push('(a.day_bucket, a.quality_score, a.published_at, a.id) < (?, ?, ?, ?)');
+    bindings.push(...cursor);
   }
 
   const statement = env.DB.prepare(
     `SELECT ${EXPLORE_ARTICLE_COLUMNS}
        FROM articles a
        WHERE ${where.join(' AND ')}
-       ORDER BY day_bucket DESC, a.quality_score DESC, a.published_at DESC, a.id DESC
+       ORDER BY a.day_bucket DESC, a.quality_score DESC, a.published_at DESC, a.id DESC
        LIMIT ?`,
   ).bind(...bindings, normalized.limit + 1);
   const result = await statement.all<ExploreRow>();
