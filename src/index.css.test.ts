@@ -56,6 +56,43 @@ function cssColorBlock(theme: 'dark' | 'light'): Record<string, string> {
   return out;
 }
 
+type Rgb = [number, number, number];
+
+/** Channel triple from a `#rrggbb` token value. */
+function channels(hex: string): Rgb {
+  expect(hex, 'parsed hex').toMatch(/^#[0-9a-fA-F]{6}$/);
+  return [1, 3, 5].map((i) => Number.parseInt(hex.slice(i, i + 2), 16)) as Rgb;
+}
+
+/** A token's value in one theme, falling back to dark where light inherits. */
+function token(theme: Record<string, string>, other: Record<string, string>, name: string): Rgb {
+  const v = theme[name] ?? other[name];
+  expect(v, `--c-${name} parsed`).toBeDefined();
+  return channels(v!);
+}
+
+const toHex = (c: Rgb): string => `#${c.map((v) => v.toString(16).padStart(2, '0')).join('')}`;
+
+/** Composite `fg` over `bg` at `alpha`, the way the CSS alpha utilities do. */
+function mix(fg: Rgb, bg: Rgb, alpha: number): Rgb {
+  return fg.map((c, i) => Math.round(c * alpha + bg[i]! * (1 - alpha))) as Rgb;
+}
+
+const channelLuminance = (c: number): number => {
+  const v = c / 255;
+  return v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
+};
+
+/** WCAG 2.x contrast ratio between two opaque colours. */
+function contrast(a: Rgb, b: Rgb): number {
+  const lum = (c: Rgb): number =>
+    0.2126 * channelLuminance(c[0]) +
+    0.7152 * channelLuminance(c[1]) +
+    0.0722 * channelLuminance(c[2]);
+  const [hi, lo] = [lum(a), lum(b)].sort((x, y) => y - x);
+  return (hi + 0.05) / (lo + 0.05);
+}
+
 describe('design tokens', () => {
   const dark = cssColorBlock('dark');
   const light = cssColorBlock('light');
@@ -100,8 +137,8 @@ describe('design tokens', () => {
 
     const hex = dark.bg;
     expect(hex, '--c-bg in the dark block').toBeDefined();
-    const channels = [1, 3, 5].map((i) => Number.parseInt(hex!.slice(i, i + 2), 16));
-    expect(meta![1].trim()).toBe(channels.join(' '));
+    const darkChannels = [1, 3, 5].map((i) => Number.parseInt(hex!.slice(i, i + 2), 16));
+    expect(meta![1].trim()).toBe(darkChannels.join(' '));
 
     // The inline theme script sets the SAME literal per branch before CSSOM
     // exists, so first paint already carries the right chrome in either theme.
@@ -116,46 +153,15 @@ describe('design tokens', () => {
   it('keeps the light accent readable where it actually renders', () => {
     // The 15%-fill active rail row is the dimmest surface pitch text sits on;
     // a token test on white alone would pass while the real row fails.
-    const chan = (hex: string): [number, number, number] => {
-      expect(hex, 'parsed hex').toMatch(/^#[0-9a-fA-F]{6}$/);
-      return [1, 3, 5].map((i) => Number.parseInt(hex.slice(i, i + 2), 16)) as [
-        number,
-        number,
-        number,
-      ];
-    };
-    const hex = (name: string): [number, number, number] => {
-      const v = light[name] ?? dark[name];
-      expect(v, `--c-${name} parsed`).toBeDefined();
-      return chan(v!);
-    };
-    const mix = (
-      fg: [number, number, number],
-      bg: [number, number, number],
-      alpha: number,
-    ): [number, number, number] =>
-      fg.map((c, i) => Math.round(c * alpha + bg[i]! * (1 - alpha))) as [number, number, number];
-    const rel = (c: number): number => {
-      const v = c / 255;
-      return v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
-    };
-    const ratio = (a: [number, number, number], b: [number, number, number]): number => {
-      const lum = (c: [number, number, number]): number =>
-        0.2126 * rel(c[0]) + 0.7152 * rel(c[1]) + 0.0722 * rel(c[2]);
-      const [hi, lo] = [lum(a), lum(b)].sort((x, y) => y - x);
-      return (hi + 0.05) / (lo + 0.05);
-    };
-    const toHex = (c: [number, number, number]): string =>
-      `#${c.map((v) => v.toString(16).padStart(2, '0')).join('')}`;
-    const page = hex('bg');
-    const card = chan(toHex(mix(chan('#ffffff'), page, 0.7)));
-    const pitch = hex('pitch');
-    const rowFill = chan(toHex(mix(pitch, page, 0.15)));
+    const page = token(light, dark, 'bg');
+    const card = channels(toHex(mix(channels('#ffffff'), page, 0.7)));
+    const pitch = token(light, dark, 'pitch');
+    const rowFill = channels(toHex(mix(pitch, page, 0.15)));
     // 11px caption text needs 4.5:1; no large-text exemption applies.
-    expect(ratio(pitch, rowFill), 'pitch on active rail row').toBeGreaterThanOrEqual(4.5);
-    expect(ratio(pitch, page), 'pitch on page').toBeGreaterThanOrEqual(4.5);
-    expect(ratio(pitch, card), 'pitch on card').toBeGreaterThanOrEqual(4.5);
-    expect(ratio(hex('live'), page), 'live on page').toBeGreaterThanOrEqual(4.5);
+    expect(contrast(pitch, rowFill), 'pitch on active rail row').toBeGreaterThanOrEqual(4.5);
+    expect(contrast(pitch, page), 'pitch on page').toBeGreaterThanOrEqual(4.5);
+    expect(contrast(pitch, card), 'pitch on card').toBeGreaterThanOrEqual(4.5);
+    expect(contrast(token(light, dark, 'live'), page), 'live on page').toBeGreaterThanOrEqual(4.5);
   });
 
   it('keeps the input boundary above 3:1 in both themes', () => {
@@ -164,46 +170,15 @@ describe('design tokens', () => {
     // `muted` rather than `line`. Nothing else pins that: the token-sync test
     // above only compares tokens.json with index.css, so a future retune of
     // --c-muted could drop the input boundary back under 3:1 silently.
-    const chan = (hex: string): [number, number, number] => {
-      expect(hex, 'parsed hex').toMatch(/^#[0-9a-fA-F]{6}$/);
-      return [1, 3, 5].map((i) => Number.parseInt(hex.slice(i, i + 2), 16)) as [
-        number,
-        number,
-        number,
-      ];
-    };
-    const hexOf = (theme: Record<string, string>, name: string): [number, number, number] => {
-      const v = theme[name];
-      expect(v, `--c-${name} parsed`).toBeDefined();
-      return chan(v!);
-    };
-    const mix = (
-      fg: [number, number, number],
-      bg: [number, number, number],
-      alpha: number,
-    ): [number, number, number] =>
-      fg.map((c, i) => Math.round(c * alpha + bg[i]! * (1 - alpha))) as [number, number, number];
-    const rel = (c: number): number => {
-      const v = c / 255;
-      return v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
-    };
-    const ratio = (a: [number, number, number], b: [number, number, number]): number => {
-      const lum = (c: [number, number, number]): number =>
-        0.2126 * rel(c[0]) + 0.7152 * rel(c[1]) + 0.0722 * rel(c[2]);
-      const [hi, lo] = [lum(a), lum(b)].sort((x, y) => y - x);
-      return (hi + 0.05) / (lo + 0.05);
-    };
-
-    // `.ds-input` is border-muted on bg-panel/70 (the panel token over the page).
-    for (const [name, theme, surface] of [
-      ['dark', dark, dark.surface],
-      ['light', light, light.surface],
+    for (const [name, theme, other] of [
+      ['dark', dark, dark],
+      ['light', light, dark],
     ] as const) {
-      const page = hexOf(theme, 'bg');
-      const border = hexOf(theme, 'muted');
-      const fill = mix(chan(surface!), page, 0.7);
-      expect(ratio(border, page), `${name}: input border vs page`).toBeGreaterThanOrEqual(3);
-      expect(ratio(border, fill), `${name}: input border vs fill`).toBeGreaterThanOrEqual(3);
+      const page = token(theme, other, 'bg');
+      const border = token(theme, other, 'muted');
+      const fill = mix(token(theme, other, 'surface'), page, 0.7);
+      expect(contrast(border, page), `${name}: input border vs page`).toBeGreaterThanOrEqual(3);
+      expect(contrast(border, fill), `${name}: input border vs fill`).toBeGreaterThanOrEqual(3);
     }
   });
 });
