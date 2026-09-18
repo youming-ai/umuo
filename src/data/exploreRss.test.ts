@@ -18,7 +18,6 @@ function article(
     sourceDomain: string;
     publishedAt: number;
     category: string | null;
-    articleType: 'link' | 'news' | 'review' | 'deal' | 'leak' | 'analysis' | 'guide' | 'video';
     tags: string[];
   }>,
 ): ExploreFeed['items'][number] {
@@ -36,7 +35,6 @@ function article(
     sourceDomain: 'tomshardware.com',
     publishedAt: 1735689600000, // 2025-01-01T00:00:00Z (a fixed instant so the test is stable)
     category: 'gpu',
-    articleType: 'review',
     tags: ['gpu'],
     qualityScore: 80,
     freshnessScore: 70,
@@ -83,9 +81,11 @@ describe('renderExploreRss', () => {
       /<pubDate>[A-Z][a-z]{2}, \d{2} [A-Z][a-z]{2} \d{4} \d{2}:\d{2}:\d{2} GMT<\/pubDate>/,
     );
     expect(xml).toContain('<category>category:gpu</category>');
-    expect(xml).toContain('<category>type:review</category>');
     expect(xml).toContain('<category>source:tomshardware.com</category>');
     expect(xml).toContain('<category>tag:gpu</category>');
+    // No `type:` category: the pipeline writes article_type = 'link' for every
+    // row, so the element was the same constant on every item in every feed.
+    expect(xml).not.toContain('<category>type:');
   });
 
   it('escapes XML special characters in title, blurb, and tag', () => {

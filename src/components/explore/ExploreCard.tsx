@@ -11,10 +11,6 @@ function publishedDate(timestamp: number): string {
   return `${String(d.getUTCMonth() + 1).padStart(2, '0')}/${String(d.getUTCDate()).padStart(2, '0')}`;
 }
 
-function typeLabel(value: string): string {
-  return value.replaceAll('-', ' ');
-}
-
 function scoreValue(value: number): number {
   if (!Number.isFinite(value)) return 0;
   return Math.max(0, Math.min(100, Math.round(value)));
@@ -69,9 +65,6 @@ export default function ExploreCard({
           </span>
           <span className="min-w-0 flex-1 truncate font-display text-body text-chalk transition-colors group-hover:text-pitch">
             {article.title}
-          </span>
-          <span className="ds-caption hidden shrink-0 uppercase tracking-data text-chalkdim lg:block">
-            {typeLabel(article.articleType)}
           </span>
           <span
             aria-hidden="true"
@@ -166,15 +159,17 @@ export default function ExploreCard({
             <p className="mt-1.5 ds-body line-clamp-3 text-chalkdim">{description}</p>
           )}
 
-          <p className="mt-3 ds-caption uppercase tracking-data text-pitch">
-            {typeLabel(article.articleType)}
-            {article.category && (
-              <span className="text-chalkdim"> / {categoryLabel(article.category)}</span>
-            )}
-            {article.tags.length > 0 && (
-              <span className="text-chalkdim"> · {article.tags.slice(0, 3).join(', ')}</span>
-            )}
-          </p>
+          {(article.category || article.tags.length > 0) && (
+            <p className="mt-3 ds-caption uppercase tracking-data text-pitch">
+              {article.category && categoryLabel(article.category)}
+              {article.tags.length > 0 && (
+                <span className="text-chalkdim">
+                  {article.category ? ' · ' : ''}
+                  {article.tags.slice(0, 3).join(', ')}
+                </span>
+              )}
+            </p>
+          )}
           <p className="mt-1 flex items-center gap-2 ds-caption text-chalkdim">
             <span className="ml-auto shrink-0 tabular-nums">{date}</span>
             <span className="sr-only">

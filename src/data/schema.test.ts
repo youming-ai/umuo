@@ -162,10 +162,12 @@ describe('the explore queries run against the migrated schema', () => {
       title: 'A seeded story',
       url: 'https://example.com/story',
       category: 'tools',
-      articleType: 'link',
       isVideo: false,
       qualityScore: 90,
       publishedAt: PUBLISHED_AT,
+      // Computed at query time from published_at over a 72h window, so a row
+      // this old floors at 0 — which is what proves the expression ran.
+      freshnessScore: 0,
     });
     expect(feed.nextCursor).toBeNull();
   });
