@@ -200,17 +200,45 @@ describe('design tokens', () => {
     // stylesheet had moved to 10px / 11px, and nothing noticed because only
     // colour and radius were pinned. The captions carry source names, dates and
     // every rail row, so the size is load-bearing rather than decorative.
+    //
+    // Sizes only. The three font families are `$type: fontFamily` entries with
+    // no CSS var behind them; the next test holds those to tailwind.config.js,
+    // which is where they are actually declared.
     const toPx = (v: string): number =>
       v.trim().endsWith('rem')
         ? Number.parseFloat(v) * 16
         : Number.parseFloat(v.replace(/px/i, ''));
+    let sizes = 0;
     for (const [name, token] of Object.entries(tokens.typography)) {
-      // The font families are named here but declared in tailwind.config.js.
       if (!/^\d/.test(token.$value)) continue;
+      sizes += 1;
       const match = css.match(new RegExp(`--text-${name}:\\s*([^;]+);`));
       expect(match, `--text-${name} present in index.css`).not.toBeNull();
       expect(toPx(match![1]), name).toBe(toPx(token.$value));
     }
+    // Guards against the loop silently iterating nothing after a rename.
+    expect(sizes).toBe(6);
+  });
+
+  it('keeps every tokens.json font family in sync with tailwind.config.js', () => {
+    // The families live in the Tailwind config as the font-display/body/mono
+    // utilities, not as CSS vars, so that file is where they can drift. Several
+    // are multi-word and quoted for CSS; the token names the family itself.
+    const tailwind = readFileSync(resolve(process.cwd(), 'tailwind.config.js'), 'utf8');
+    const start = tailwind.indexOf('fontFamily:');
+    const block = tailwind.slice(start, tailwind.indexOf('borderRadius:', start));
+    expect(block.length, 'fontFamily block in tailwind.config.js').toBeGreaterThan(0);
+
+    let families = 0;
+    for (const [name, token] of Object.entries(tokens.typography)) {
+      if (/^\d/.test(token.$value)) continue;
+      families += 1;
+      const key = name.replace(/^font-/, '');
+      const match = block.match(new RegExp(`${key}:\\s*\\[\\s*'([^']+)'`));
+      expect(match, `fontFamily.${key} in tailwind.config.js`).not.toBeNull();
+      expect(match![1].replace(/"/g, ''), name).toBe(token.$value);
+    }
+    expect(families).toBe(3);
   });
 
   it('keeps every tokens.json shadow in sync with index.css --shadow-*', () => {
