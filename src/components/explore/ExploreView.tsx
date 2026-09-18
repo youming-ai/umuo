@@ -80,10 +80,13 @@ function FilterRow({
 function CategoryRail({
   options,
   value,
+  total: providedTotal,
   hrefFor,
 }: {
   options: ExploreFilterOption[];
   value: string;
+  /** From the payload; undefined on a cache entry written before v2. */
+  total?: number | null;
   hrefFor: (value: string) => string;
 }) {
   // Unknown counts sum to null, not zero: an outage should leave the label bare
@@ -91,12 +94,13 @@ function CategoryRail({
   // case — a successful count over an empty corpus — and is known to be zero,
   // which `every` on an empty array would otherwise report as "all unknown".
   const known = options.map((option) => option.count);
-  const total =
+  const summed =
     options.length === 0
       ? 0
       : known.every((count) => count === null)
         ? null
         : known.reduce<number>((sum, count) => sum + (count ?? 0), 0);
+  const total = providedTotal ?? summed;
   const groups = CATEGORY_GROUPS.map((group) => ({
     ...group,
     options: options.filter((option) => CATEGORIES[option.value]?.group === group.key),
@@ -228,6 +232,11 @@ export default function ExploreView({
   const rail: ReactNode = (
     <CategoryRail
       options={initialFilters.categories}
+      // The payload's total counts the rows no hub holds — an unmapped publisher
+      // category is stored as NULL and shows on the global board only. Older
+      // cached payloads and the registry fallback carry none, so the sum is
+      // still the fallback.
+      total={initialFilters.total}
       value={initialCategory}
       hrefFor={(value) => (value ? `/${value}` : '/')}
     />

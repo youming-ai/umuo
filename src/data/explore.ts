@@ -25,6 +25,8 @@ const FILTERS_FALLBACK: ExploreFilterSet = {
     label: category.label,
     count: null,
   })),
+  // The registry says which hubs exist, never how many rows there are.
+  total: null,
 };
 
 interface ExploreRow {
@@ -410,17 +412,21 @@ export async function getExploreFeed(
 async function queryExploreFilters(env: Env): Promise<ExploreFilterSet> {
   if (!env.DB) throw new Error('D1 binding is required');
   const published = "a.status = 'published' AND a.is_on_topic = 1";
+  // NULL is deliberately included. It is not a hub, so it never becomes a rail
+  // row, but its count belongs to the "All links" total: an unmapped publisher
+  // category is stored as NULL and those stories do appear on the global board.
   const categories = await env.DB.prepare(
     `SELECT a.category AS value, COUNT(*) AS count
        FROM articles a
-       WHERE ${published} AND a.category IS NOT NULL
+       WHERE ${published}
        GROUP BY a.category ORDER BY count DESC`,
   ).all<CountRow>();
 
   // `Object.hasOwn`, like every other registry gate: a stored value equal to an
   // Object.prototype key would otherwise read as a truthy match and surface a
   // label-less row whose count still feeds the "All links" total.
-  const categoryOptions: ExploreFilterOption[] = (categories.results ?? []).flatMap(
+  const rows = categories.results ?? [];
+  const categoryOptions: ExploreFilterOption[] = rows.flatMap(
     (row: CountRow): ExploreFilterOption[] => {
       const value = rowString(row.value);
       return Object.hasOwn(CATEGORIES, value)
@@ -429,15 +435,20 @@ async function queryExploreFilters(env: Env): Promise<ExploreFilterSet> {
     },
   );
 
-  return { categories: categoryOptions };
+  // Summed over every group, including the one that produced no option.
+  const total = rows.reduce((sum, row) => sum + rowNumber(row.count), 0);
+
+  return { categories: categoryOptions, total };
 }
 
 export async function serveExploreFilters(env: Env, ctx: ExecutionContext): Promise<Response> {
   // Versioned: the filters payload changed shape once ({competitions,sources,
   // tags} became {categories}) while reusing the same unversioned key, so a
-  // warm entry rendered an empty rail with no error. Bump on any payload change.
+  // warm entry rendered an empty rail with no error. Bump on any payload change
+  // — v2 added `total`, so a v1 entry would leave the All row summing options
+  // and undercounting again.
   return runCached(
-    'explore:filters:v1:',
+    'explore:filters:v2:',
     async () => JSON.stringify(await queryExploreFilters(env)),
     300,
     3600,
@@ -462,6 +473,10 @@ export async function getExploreFilters(
       categories: Array.isArray(filters.categories)
         ? filters.categories
         : FILTERS_FALLBACK.categories,
+      // `null` and "absent" mean the same thing to the rail — count unknown —
+      // so a v1 cache entry (no field) degrades to the summed options rather
+      // than to a wrong number.
+      total: typeof filters.total === 'number' ? filters.total : null,
     };
   } catch {
     return FILTERS_FALLBACK;

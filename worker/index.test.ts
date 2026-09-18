@@ -224,7 +224,9 @@ describe('fetch routing', () => {
       mockCtx(),
     );
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ categories: [] });
+    // `total` rides along: it counts the rows no hub holds, which the option
+    // list cannot express.
+    expect(await res.json()).toEqual({ categories: [], total: 0 });
   });
 
   it('404s on an unknown /api/ path', async () => {

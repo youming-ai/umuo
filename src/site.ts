@@ -15,6 +15,12 @@ export const SITE_DESCRIPTION =
  *  RSS channel-title marker. Single source of truth so the marker comparison in
  *  exploreRss.ts can't drift. */
 export const GLOBAL_FEED_LABEL = 'All links';
+/** Reported by /api/health so a deployed Worker can be identified without the
+ *  dashboard. Duplicated from package.json, which a Worker cannot import —
+ *  `index.css.test.ts` holds the two together, the way retention.cron.test.ts
+ *  holds PRUNE_CRON to wrangler.toml. */
+export const SITE_VERSION = '0.1.0';
+
 export const SITE_LOCALE = 'en_US';
 export const SITE_LANGUAGE = 'en';
 /** RSS <language> uses the RFC 1766 tag form, not og:locale's underscore form.

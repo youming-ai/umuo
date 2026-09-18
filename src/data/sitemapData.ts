@@ -10,6 +10,10 @@ interface SitemapNewsHub {
 
 export interface SitemapData {
   hubs: SitemapNewsHub[];
+  /** The lookup failed rather than finding nothing. A sitemap with no hubs is a
+   *  claim about the site — "there is nothing here" — and answering a D1 outage
+   *  that way hands crawlers an empty document to believe. */
+  unavailable?: boolean;
 }
 
 /** Category hubs for the sitemap, derived from D1.
@@ -38,7 +42,7 @@ export async function getSitemapNews(env: Env, ctx: ExecutionContext): Promise<S
       env,
       ctx,
     );
-    if (!response.ok) return { hubs: [] };
+    if (!response.ok) return { hubs: [], unavailable: true };
     const raw = (await response.json()) as { hubs: CountRow[] };
     const hubs: SitemapNewsHub[] = raw.hubs
       .map((row) => ({ category: rowString(row.value), newest: rowNumber(row.count) }))
@@ -47,6 +51,6 @@ export async function getSitemapNews(env: Env, ctx: ExecutionContext): Promise<S
     return { hubs };
   } catch (error) {
     console.error('[data] sitemap lookup failed:', error);
-    return { hubs: [] };
+    return { hubs: [], unavailable: true };
   }
 }

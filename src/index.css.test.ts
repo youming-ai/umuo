@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { SITE_VERSION } from './site';
 
 // Design-token source-of-truth check: design-tokens/tokens.json (the Figma
 // import source) must stay in sync with the runtime values in src/index.css.
@@ -281,5 +282,18 @@ describe('design tokens', () => {
     for (const name of Object.keys(tokens.component)) {
       expect(css, `.${name} declared in index.css`).toContain(`.${name}`);
     }
+  });
+});
+
+describe('the reported version', () => {
+  it('matches the one in package.json', () => {
+    // /api/health reports a version a Worker cannot import — package.json is not
+    // in its bundle — so the constant is duplicated, and pinned here the way
+    // retention.cron.test.ts pins PRUNE_CRON to wrangler.toml.
+    const pkg = JSON.parse(readFileSync(resolve(process.cwd(), 'package.json'), 'utf8')) as {
+      version?: string;
+    };
+    expect(pkg.version, 'version in package.json').toBeDefined();
+    expect(SITE_VERSION, 'SITE_VERSION in src/site.ts').toBe(pkg.version);
   });
 });
