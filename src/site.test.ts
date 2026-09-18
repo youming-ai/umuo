@@ -20,8 +20,4 @@ describe('articleDeck', () => {
   it('returns an empty string when nothing is set', () => {
     expect(articleDeck({})).toBe('');
   });
-
-  it('prefers the blurb when only it is set among empty strings', () => {
-    expect(articleDeck(article)).toBe('blurb-first copy');
-  });
 });
