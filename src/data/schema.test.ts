@@ -147,6 +147,8 @@ describe('migrations', () => {
     expect(indexes).toContain('idx_articles_published');
     expect(indexes).toContain('idx_articles_category');
     expect(indexes).toContain('idx_articles_source');
+    // The ingest dedupe reads `WHERE title_norm IN (...)` every tick.
+    expect(indexes).toContain('idx_articles_title_norm');
   });
 });
 

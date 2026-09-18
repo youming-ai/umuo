@@ -27,7 +27,7 @@ graph TD
 - `src/categories.ts` — the 8-category registry in two groups (`CATEGORY_GROUPS`: curated: tools/design/development; community: articles/social/media/crypto/other). Mirrors the Poche Explore taxonomy one-for-one; see Gotchas.
 - `src/data/api.ts` — KV SWR core (`runCached`/`json`) facade + the D1 explore queries and sitemap composer (implementation split across `cache.ts`, `explore.ts`, `sitemapData.ts`).
 - `src/components/explore/` — `ExploreView` (grouped category rail, toolbar, masonry, infinite scroll), `ExploreCard`. `Logo`/`Footer` are shared chrome.
-- `migrations/` — D1 schema (0001–0012). Applied by `bun run deploy`, never automatically.
+- `migrations/` — D1 schema (0001–0013). Applied by `bun run deploy`, never automatically.
 - `worker/entrypoint.ts` — the deployed handler. `fetch` answers `/media/*` itself and hands everything else to Astro; `scheduled` runs ingest/sweep. `worker/index.ts` is the `/api/*` dispatcher (explore endpoints, then an `ASSETS` fallthrough) and is only reachable through `src/pages/api/[...route].ts`.
 - `src/media.ts` — rewrites feed-CDN images onto our own origin and serves them at `/media/<storage-id>`. See Gotchas.
 - `design-tokens/` — W3C design-tokens JSON; `src/index.css` and `tailwind.config.js` map to it.

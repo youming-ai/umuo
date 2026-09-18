@@ -438,8 +438,11 @@ export async function serveExploreFilters(
   ctx: ExecutionContext,
 ): Promise<Response> {
   const scoped = Object.hasOwn(CATEGORIES, category) ? category : '';
+  // Versioned: the filters payload changed shape once ({competitions,sources,
+  // tags} became {categories}) while reusing the same unversioned key, so a
+  // warm entry rendered an empty rail with no error. Bump on any payload change.
   return runCached(
-    `explore:filters:${scoped}`,
+    `explore:filters:v1:${scoped}`,
     async () => JSON.stringify(await queryExploreFilters(scoped, env)),
     300,
     3600,
