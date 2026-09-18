@@ -61,7 +61,7 @@ function FilterRow({
   active: boolean;
   href: string;
 }) {
-  const className = `flex w-full items-center gap-2 rounded-card-inset px-2 py-1 text-left ds-caption ${
+  const className = `flex w-full items-center gap-2 rounded-card-inset px-2 py-1.5 text-left ds-caption min-h-7 ${
     active
       ? 'bg-pitch/15 font-bold text-pitch'
       : 'text-chalkdim hover:bg-overlay/5 hover:text-chalk'
@@ -298,7 +298,7 @@ export default function ExploreView({
             defaultValue={initialSearch}
             placeholder="Search stories"
             enterKeyHint="search"
-            className="ds-input min-h-9 min-w-0 flex-1 py-1 pl-8"
+            className="ds-input max-sm:text-base min-h-9 min-w-0 flex-1 py-1 pl-8"
           />
         </form>
 

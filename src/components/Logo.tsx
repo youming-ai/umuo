@@ -8,7 +8,7 @@ export default function Logo({ compact = false }: { compact?: boolean }) {
   return (
     <a
       href="/"
-      className={`inline-flex items-center rounded-pill leading-none ${emojiSize} ds-press`}
+      className={`inline-flex min-h-11 min-w-11 items-center justify-center rounded-pill leading-none ${emojiSize} ds-press`}
     >
       <span aria-hidden="true">🤖</span>
       <span className="sr-only">{SITE_NAME} home</span>

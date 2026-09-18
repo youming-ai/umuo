@@ -83,7 +83,7 @@ describe('design tokens', () => {
     // ("0px", "16px"); compare numerically so "0" and "0px" both read as 0.
     const toPx = (v: string) => Number.parseFloat(v.replace(/px/i, '').trim());
     for (const [name, token] of Object.entries(tokens.radius)) {
-      const match = css.match(new RegExp(`--r-${name}:s*([^;]+);`));
+      const match = css.match(new RegExp(`--r-${name}:\\s*([^;]+);`));
       expect(match, `--r-${name} present in index.css`).not.toBeNull();
       expect(toPx(match![1])).toBe(toPx(token.$value));
     }
@@ -102,5 +102,59 @@ describe('design tokens', () => {
     expect(hex, '--c-bg in the dark block').toBeDefined();
     const channels = [1, 3, 5].map((i) => Number.parseInt(hex!.slice(i, i + 2), 16));
     expect(meta![1].trim()).toBe(channels.join(' '));
+
+    // The inline theme script sets the SAME literal per branch before CSSOM
+    // exists, so first paint already carries the right chrome in either theme.
+    // This test pins the pair: pick them out of the script's theme record.
+    const scriptTheme = layout.match(/dark:\s*'rgb\(10 14 12\)',\s*light:\s*'rgb\(([^)]+)\)'/);
+    expect(scriptTheme, 'theme literals in the Layout theme script').not.toBeNull();
+    const lightHex = light.bg;
+    expect(lightHex, '--c-bg in the light block').toBeDefined();
+    const lightChannels = [1, 3, 5].map((i) => Number.parseInt(lightHex!.slice(i, i + 2), 16));
+    expect(scriptTheme![1].trim()).toBe(lightChannels.join(' '));
+  });
+  it('keeps the light accent readable where it actually renders', () => {
+    // The 15%-fill active rail row is the dimmest surface pitch text sits on;
+    // a token test on white alone would pass while the real row fails.
+    const chan = (hex: string): [number, number, number] => {
+      expect(hex, 'parsed hex').toMatch(/^#[0-9a-fA-F]{6}$/);
+      return [1, 3, 5].map((i) => Number.parseInt(hex.slice(i, i + 2), 16)) as [
+        number,
+        number,
+        number,
+      ];
+    };
+    const hex = (name: string): [number, number, number] => {
+      const v = light[name] ?? dark[name];
+      expect(v, `--c-${name} parsed`).toBeDefined();
+      return chan(v!);
+    };
+    const mix = (
+      fg: [number, number, number],
+      bg: [number, number, number],
+      alpha: number,
+    ): [number, number, number] =>
+      fg.map((c, i) => Math.round(c * alpha + bg[i]! * (1 - alpha))) as [number, number, number];
+    const rel = (c: number): number => {
+      const v = c / 255;
+      return v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
+    };
+    const ratio = (a: [number, number, number], b: [number, number, number]): number => {
+      const lum = (c: [number, number, number]): number =>
+        0.2126 * rel(c[0]) + 0.7152 * rel(c[1]) + 0.0722 * rel(c[2]);
+      const [hi, lo] = [lum(a), lum(b)].sort((x, y) => y - x);
+      return (hi + 0.05) / (lo + 0.05);
+    };
+    const toHex = (c: [number, number, number]): string =>
+      `#${c.map((v) => v.toString(16).padStart(2, '0')).join('')}`;
+    const page = hex('bg');
+    const card = chan(toHex(mix(chan('#ffffff'), page, 0.7)));
+    const pitch = hex('pitch');
+    const rowFill = chan(toHex(mix(pitch, page, 0.15)));
+    // 11px caption text needs 4.5:1; no large-text exemption applies.
+    expect(ratio(pitch, rowFill), 'pitch on active rail row').toBeGreaterThanOrEqual(4.5);
+    expect(ratio(pitch, page), 'pitch on page').toBeGreaterThanOrEqual(4.5);
+    expect(ratio(pitch, card), 'pitch on card').toBeGreaterThanOrEqual(4.5);
+    expect(ratio(hex('live'), page), 'live on page').toBeGreaterThanOrEqual(4.5);
   });
 });

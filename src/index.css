@@ -97,8 +97,8 @@
   --c-text: 16 24 20;
   --c-muted: 90 105 98;
 
-  --c-pitch: 18 130 74; /* light: darkened for AA on white (5.05:1); on-accent fill drops to ~3.8:1 (semibold labels — accepted tradeoff) */
-  --c-live: 220 50 45;
+  --c-pitch: 14 110 62; /* light #0e6e3e: AA (4.5:1) on page, card, and the 15% active rail-row fill; on-accent fill vs ink is ~3.1:1 (decorative labels — accepted tradeoff) */
+  --c-live: 198 43 38;
   --c-amber: 156 100 0; /* light: darkened for AA on white (5.05:1); /25 badge ~3.7:1 */
 
   --c-overlay: 0 0 0;
@@ -177,7 +177,7 @@
     @apply inline-flex items-center justify-center min-h-11 px-4 py-2 rounded-control border border-line/50 bg-panel/70 text-chalk font-display font-semibold tracking-wide hover:bg-overlay/10 ds-press;
   }
   .ds-input {
-    @apply min-h-11 rounded-control border border-line/50 bg-panel/70 px-3 py-2 font-body text-sm text-chalk outline-none placeholder:text-chalkdim focus:border-pitch/70 focus:ring-1 focus:ring-pitch/40;
+    @apply min-h-11 rounded-control border border-line bg-panel/70 px-3 py-2 font-body text-sm text-chalk outline-none placeholder:text-chalkdim focus:border-pitch focus:ring-1 focus:ring-pitch;
   }
 
   /* Mono caption — use instead of repeating font-mono text-caption */

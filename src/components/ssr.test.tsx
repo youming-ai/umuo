@@ -175,3 +175,52 @@ it('renders a zero total for a successful empty count, and nothing when it is un
   );
   expect(unknown).toMatch(/Tools<\/span><\/a>/);
 });
+
+it('keeps the looping thumbnail honest for assistive tech', () => {
+  // The preview autoplays silently and offers no controls, so it must be
+  // decorative: no name, no announcement, no preloading on metered silence.
+  const html = renderToString(
+    <ExploreView
+      initialData={{
+        items: [
+          {
+            id: 'v1',
+            title: 'Launch film',
+            description: '',
+            summary: '',
+            blurb: '',
+            url: 'https://o.doubao.com/',
+            imageUrl: 'https://cdn.example.com/hero_1080p_video.mp4',
+            isVideo: true,
+            imageWidth: 0,
+            imageHeight: 0,
+            sourceDomain: 'o.doubao.com',
+            publishedAt: 1789434835000,
+            category: 'tools',
+            tags: ['tools'],
+            qualityScore: 90,
+            freshnessScore: 100,
+          },
+        ],
+        nextCursor: null,
+      }}
+      initialFilters={{ categories: [] }}
+    />,
+  );
+  expect(html).toContain('aria-hidden="true"');
+  expect(html).not.toContain('<video aria-label');
+});
+
+it('renders rail rows tall enough to tap', () => {
+  // SC 2.5.8: pointer targets need 24 CSS px. py-1 on 11px caption text yields
+  // ~21.75px rows; py-1.5 takes them to ~24px while the count stays tabbable.
+  const html = renderToString(
+    <ExploreView
+      initialData={{ items: [], nextCursor: null }}
+      initialFilters={{
+        categories: [{ value: 'tools', label: 'Tools', count: 1 }],
+      }}
+    />,
+  );
+  expect(html).toContain('min-h-7');
+});

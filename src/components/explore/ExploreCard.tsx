@@ -47,6 +47,18 @@ export default function ExploreCard({
     if (img && !img.complete) setImgLoading(true);
   }, []);
   const showShimmer = imgLoading && !imgLoaded;
+  // Respect the reader's motion setting: a looping video is ambient motion, not
+  // content, so under prefers-reduced-motion the thumbnail pauses on its first
+  // frame instead of playing. Done in an effect (never at render) so SSR and
+  // hydration still agree byte-for-byte.
+  const videoRef = useRef<HTMLVideoElement>(null);
+  useEffect(() => {
+    const video = videoRef.current;
+    if (video && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      video.autoplay = false;
+      video.pause();
+    }
+  }, []);
 
   if (variant === 'list') {
     // The whole row is the outbound link: with no summary page, the card's job
@@ -63,7 +75,7 @@ export default function ExploreCard({
             <span aria-hidden="true">&gt;_ </span>
             {domain}
           </span>
-          <span className="min-w-0 flex-1 truncate font-display text-body text-chalk transition-colors group-hover:text-pitch">
+          <span className="min-w-0 flex-1 truncate font-display text-lead text-chalk transition-colors group-hover:text-pitch">
             {article.title}
           </span>
           <span
@@ -122,14 +134,21 @@ export default function ExploreCard({
               // something visible — a metadata-only preload leaves a dark box
               // on browsers that do not paint a frame from metadata alone.
               // Muted is what makes the autoplay permissible; nothing has audio
-              // to surprise a reader.
+              // to surprise a reader. Paused by effect under
+              // prefers-reduced-motion (see above), where the box falls back
+              // to the container ground. aria-hidden is safe here: without
+              // `controls` the element is not focusable, and the wrapping link
+              // already carries the article title as its name.
+              // biome-ignore lint/a11y/noAriaHiddenOnFocusable: a control-less <video> is not in the tab order
               <video
+                ref={videoRef}
                 src={withTemporalFragment(article.imageUrl)}
                 autoPlay
                 muted
                 loop
                 playsInline
                 preload="none"
+                aria-hidden="true"
                 onError={(event) => {
                   event.currentTarget.style.display = 'none';
                 }}
@@ -152,9 +171,9 @@ export default function ExploreCard({
           </div>
         )}
         <div className="p-3">
-          <h2 className="font-display text-lead font-bold leading-lead text-chalk transition-colors duration-150 group-hover:text-pitch">
+          <h3 className="font-display text-lead font-bold leading-lead text-chalk transition-colors duration-150 group-hover:text-pitch">
             {article.title}
-          </h2>
+          </h3>
           {description && (
             <p className="mt-1.5 ds-body line-clamp-3 text-chalkdim">{description}</p>
           )}
