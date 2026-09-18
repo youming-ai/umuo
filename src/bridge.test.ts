@@ -1,6 +1,15 @@
 // @vitest-environment node
 // The bridge from Astro to the worker dispatcher.
 //
+// Placement is load-bearing twice over. Not under src/pages, because Astro
+// treats every .ts file there as a file-based endpoint: a test colocated with
+// its subject gets bundled as a deployed route (the build emitted
+// dist/server/chunks/bridge_*.mjs), shipping the test inside the Worker and
+// shadowing the [...route] catch-all for that path. Not under worker/ either,
+// because tsconfig.worker.json compiles worker/** and would then pull an Astro
+// route into the worker program, where Astro's Locals augmentation is out of
+// scope. The root tsconfig covers both sides; this file lives in it.
+//
 // `src/pages/api/[...route].ts` is the ONLY path to `worker/index.ts`, and
 // nothing tested it: the dispatcher's unit tests call `worker.fetch(...)`
 // directly, so deleting or repointing that route file would 404 every
@@ -34,7 +43,7 @@ const { fakeEnv, kvGet } = vi.hoisted(() => {
 });
 vi.mock('cloudflare:workers', () => ({ env: fakeEnv }));
 
-import { ALL } from './[...route]';
+import { ALL } from './pages/api/[...route]';
 
 const cfContext = {
   waitUntil: vi.fn(),
