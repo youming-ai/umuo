@@ -375,7 +375,13 @@ export default function ExploreView({
             </p>
           )}
 
-          {feed}
+          {/* The skip link's target. It has to exist in every state, including
+              the empty and unavailable ones, so it lives on this wrapper rather
+              than on the grid/list inside `feed`. tabIndex -1 keeps it out of
+              the tab order while letting the link move focus here. */}
+          <div id="explore-results" tabIndex={-1}>
+            {feed}
+          </div>
 
           {/* First-load skeleton lives inside `feed`; this covers the append
               path during infinite scroll and filter changes (items still

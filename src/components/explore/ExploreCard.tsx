@@ -56,10 +56,23 @@ export default function ExploreCard({
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-    void video.play().catch(() => {
-      /* autoplay blocked after all — the first frame still shows */
-    });
+    const query = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const sync = () => {
+      if (query.matches) {
+        // Pause on a real frame, not an empty box: a paused video with
+        // preload="none" loads nothing, so fetch metadata explicitly.
+        video.preload = 'metadata';
+        video.load();
+        video.pause();
+        return;
+      }
+      void video.play().catch(() => {
+        /* autoplay blocked after all — the first frame still shows */
+      });
+    };
+    sync();
+    query.addEventListener('change', sync);
+    return () => query.removeEventListener('change', sync);
   }, []);
 
   if (variant === 'list') {

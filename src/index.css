@@ -177,7 +177,10 @@
     @apply inline-flex items-center justify-center min-h-11 px-4 py-2 rounded-control border border-line/50 bg-panel/70 text-chalk font-display font-semibold tracking-wide hover:bg-overlay/10 ds-press;
   }
   .ds-input {
-    @apply min-h-11 rounded-control border border-line bg-panel/70 px-3 py-2 font-body text-sm text-chalk outline-none placeholder:text-chalkdim focus:border-pitch focus:ring-1 focus:ring-pitch;
+    /* The fill is only ~1.1:1 against the page, so the border is the field's
+       only boundary and owes SC 1.4.11 its 3:1 — `line` reads 1.44:1 in the
+       light theme, `muted` 5.4:1 (light) and 6.3:1 (dark). */
+    @apply min-h-11 rounded-control border border-chalkdim bg-panel/70 px-3 py-2 font-body text-sm text-chalk outline-none placeholder:text-chalkdim focus:border-pitch focus:ring-1 focus:ring-pitch;
   }
 
   /* Mono caption — use instead of repeating font-mono text-caption */

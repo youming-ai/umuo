@@ -210,8 +210,13 @@ it('keeps the looping thumbnail honest for assistive tech', () => {
       initialFilters={{ categories: [] }}
     />,
   );
-  expect(html).toContain('aria-hidden="true"');
-  expect(html).not.toContain('<video aria-label');
+  // Assert on the video tag itself: a page-wide `aria-hidden` (the theme
+  // switcher's icons have one too) would satisfy the loose form while the
+  // preview stayed exposed to assistive tech.
+  const tag = html.match(/<video[^>]*>/)?.[0] ?? '';
+  expect(tag, 'video tag rendered').not.toBe('');
+  expect(tag).toContain('aria-hidden="true"');
+  expect(tag).not.toContain('aria-label');
 });
 
 it('renders rail rows tall enough to tap', () => {
@@ -225,5 +230,10 @@ it('renders rail rows tall enough to tap', () => {
       }}
     />,
   );
-  expect(html).toContain('min-h-7');
+  // Asserted on the filter link itself: `min-h-7` also appears on the Grid and
+  // List buttons in every fixture, so a page-wide match stays green even if the
+  // rail rows lose it.
+  const link = html.match(/<a[^>]*href="\/tools"[^>]*>/)?.[0] ?? '';
+  expect(link, 'tools filter link rendered').not.toBe('');
+  expect(link).toContain('min-h-7');
 });
