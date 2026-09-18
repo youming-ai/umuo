@@ -162,7 +162,37 @@ describe('serveMedia', () => {
     expect(res.status).toBe(200);
     expect(res.headers.get('content-type')).toBe('image/webp');
     expect(res.headers.get('cache-control')).toContain('max-age=86400');
+    // Our origin serves the bytes, so the type must not be sniffed away from it.
+    expect(res.headers.get('x-content-type-options')).toBe('nosniff');
     expect(await res.text()).toBe('image-bytes');
+  });
+
+  it('refuses a non-image type rather than serving markup from our own origin', async () => {
+    // An HTML object in the upstream store would otherwise render as markup
+    // under umuo.app — same-origin XSS, and `nosniff` does not help when the
+    // declared type *is* HTML.
+    for (const type of ['text/html', 'application/octet-stream', '']) {
+      const fetchMock = vi.fn().mockResolvedValue(
+        new Response('<script>alert(1)</script>', {
+          status: 200,
+          headers: type ? { 'content-type': type } : {},
+        }),
+      );
+      vi.stubGlobal('fetch', fetchMock);
+      const res = await serveMedia(ID);
+      expect(res.status, type || '(no content-type)').toBe(404);
+    }
+  });
+
+  it('refuses SVG, which is a scripting context when navigated to directly', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response('<svg onload="alert(1)"/>', {
+        status: 200,
+        headers: { 'content-type': 'image/svg+xml' },
+      }),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+    expect((await serveMedia(ID)).status).toBe(404);
   });
 
   it('404s when the upstream reports a miss', async () => {

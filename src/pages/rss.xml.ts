@@ -6,14 +6,7 @@ export const prerender = false;
 
 // Global RSS 2.0 feed at /rss.xml (Astro's filename-as-route convention).
 // Per-category variant lives at /[category]/rss.xml and reuses serveExploreRss.
-export const GET: APIRoute = ({ request, locals }) => {
-  const url = new URL(request.url);
-  const origin = `${url.protocol}//${url.host}`;
-  return serveExploreRss(
-    {},
-    `${origin}/rss.xml`,
-    origin,
-    env,
-    locals.cfContext as ExecutionContext,
-  );
-};
+// The feed composes its own absolute URLs from SITE_ORIGIN, so this route never
+// consults the request host — the rendered document is cached host-independently.
+export const GET: APIRoute = ({ locals }) =>
+  serveExploreRss({}, env, locals.cfContext as ExecutionContext);
