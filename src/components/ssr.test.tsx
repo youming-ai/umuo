@@ -5,6 +5,7 @@
 // environment on purpose: `document` is undefined here, exactly like workerd.
 import { renderToString } from 'react-dom/server';
 import { expect, it } from 'vitest';
+import { CATEGORIES } from '../categories';
 import { SITE_NAME } from '../site';
 import ExploreView from './explore/ExploreView';
 
@@ -112,4 +113,64 @@ it('renders a feed-supplied video as a <video> element, never as an <img>', () =
   expect(html).toContain('muted');
   expect(html).toContain('loop=""');
   expect(html).toContain('playsinline=""');
+});
+
+it("says the feed is unavailable rather than blaming the reader's filters", () => {
+  // The failure this pins: with the feed unreadable the page asserted "No links
+  // match these filters. Clear one to widen the explore feed." — a D1 or KV
+  // outage presented as the reader's own doing, with an HTTP 200 and nothing
+  // else to notice.
+  const html = renderToString(
+    <ExploreView
+      initialData={{ items: [], nextCursor: null, unavailable: true }}
+      initialFilters={{ categories: [] }}
+    />,
+  );
+
+  expect(html).toContain('temporarily unavailable');
+  expect(html).not.toContain('No links match these filters');
+});
+
+it('keeps every hub reachable when the counts are unknown', () => {
+  const html = renderToString(
+    <ExploreView
+      initialData={{ items: [], nextCursor: null, unavailable: true }}
+      initialFilters={{
+        categories: Object.entries(CATEGORIES).map(([value, category]) => ({
+          value,
+          label: category.label,
+          count: null,
+        })),
+      }}
+    />,
+  );
+
+  for (const value of Object.keys(CATEGORIES)) {
+    expect(html, value).toContain(`href="/${value}"`);
+  }
+});
+
+it('renders a zero total for a successful empty count, and nothing when it is unknown', () => {
+  // The distinction the rail has to keep: a count of zero is a fact about an
+  // empty corpus, while a null count means the count could not be read. `every`
+  // on an empty array is vacuously true, so without the explicit empty case the
+  // successful-empty corpus renders as "unknown" and loses its 0.
+  const succeeded = renderToString(
+    <ExploreView
+      initialData={{ items: [], nextCursor: null }}
+      initialFilters={{ categories: [] }}
+    />,
+  );
+  expect(succeeded).toContain('All links');
+  expect(succeeded).toMatch(/All links<\/span><span[^>]*>0<\/span>/);
+
+  const unknown = renderToString(
+    <ExploreView
+      initialData={{ items: [], nextCursor: null, unavailable: true }}
+      initialFilters={{
+        categories: [{ value: 'tools', label: 'Tools', count: null }],
+      }}
+    />,
+  );
+  expect(unknown).toMatch(/Tools<\/span><\/a>/);
 });

@@ -86,7 +86,17 @@ function CategoryRail({
   value: string;
   hrefFor: (value: string) => string;
 }) {
-  const total = options.reduce((sum, option) => sum + option.count, 0);
+  // Unknown counts sum to null, not zero: an outage should leave the label bare
+  // rather than assert the site holds no links. An empty list is the opposite
+  // case — a successful count over an empty corpus — and is known to be zero,
+  // which `every` on an empty array would otherwise report as "all unknown".
+  const known = options.map((option) => option.count);
+  const total =
+    options.length === 0
+      ? 0
+      : known.every((count) => count === null)
+        ? null
+        : known.reduce<number>((sum, count) => sum + (count ?? 0), 0);
   const groups = CATEGORY_GROUPS.map((group) => ({
     ...group,
     options: options.filter((option) => CATEGORIES[option.value]?.group === group.key),
@@ -211,6 +221,10 @@ export default function ExploreView({
     activeFacets.push({ key: `q:${query.q}`, label: `“${query.q}”`, href: hubHref });
   }
 
+  // An outage is either what SSR was handed ("unavailable") or what a client
+  // fetch reported (its message set in `error`) — neither is an empty corpus.
+  const unavailable = Boolean(initialData.unavailable) || (error !== '' && items.length === 0);
+
   const rail: ReactNode = (
     <CategoryRail
       options={initialFilters.categories}
@@ -225,6 +239,10 @@ export default function ExploreView({
         <span className="sr-only">Loading explore links</span>
         <SkeletonCards count={8} />
       </div>
+    ) : items.length === 0 && unavailable ? (
+      <p className="p-16 text-center ds-body text-chalkdim">
+        The explore feed is temporarily unavailable. Reload in a moment.
+      </p>
     ) : items.length === 0 ? (
       <p className="p-16 text-center ds-body text-chalkdim">
         No links match these filters. Clear one to widen the explore feed.
@@ -349,7 +367,13 @@ export default function ExploreView({
             <div className="p-2">{rail}</div>
           </details>
 
-          {error && <p className="px-3 py-2 ds-caption text-live">{error}</p>}
+          {/* Only for the append path: a first-page failure is the empty state
+              below, and showing both would say the same thing twice. */}
+          {error && items.length > 0 && (
+            <p role="alert" className="px-3 py-2 ds-caption text-live">
+              {error}
+            </p>
+          )}
 
           {feed}
 

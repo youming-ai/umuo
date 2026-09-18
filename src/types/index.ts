@@ -38,12 +38,18 @@ export interface ExploreFeed {
   items: ExploreArticle[];
   /** Opaque; pass back as `cursor` for the next page. null when exhausted. */
   nextCursor: string | null;
+  /** Set by the SSR composer when the feed could not be read at all, so the
+   *  page can say so rather than blaming the reader's filters. Never part of
+   *  the cached API payload, so it does not change the explore key's shape. */
+  unavailable?: boolean;
 }
 
 export interface ExploreFilterOption {
   value: string;
   label: string;
-  count: number;
+  /** `null` when the counts could not be read. An outage must not render as a
+   *  confident zero — the rail still links to the hub. */
+  count: number | null;
 }
 
 export interface ExploreFilterSet {

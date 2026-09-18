@@ -81,3 +81,50 @@ describe('getExploreFeed', () => {
     expect(capturedBindings).toContain('tools');
   });
 });
+
+describe('getExploreFeed degradation', () => {
+  it('marks an unreadable feed instead of reporting an empty one', async () => {
+    // The distinction is the whole point: without it a D1 or KV outage renders
+    // as "No links match these filters" — the reader is told their filters are
+    // too narrow while the site is down, and nothing surfaces the failure.
+    const d1Down = {
+      CACHE: { get: vi.fn().mockResolvedValue(null), put: vi.fn() },
+      DB: {
+        prepare: vi.fn(() => ({
+          bind: vi.fn(function bind(this: unknown) {
+            return this;
+          }),
+          all: vi.fn(async () => {
+            throw new Error('d1 down');
+          }),
+        })),
+      },
+    } as unknown as Env;
+    const kvDown = {
+      CACHE: { get: vi.fn().mockRejectedValue(new Error('kv down')), put: vi.fn() },
+    } as unknown as Env;
+
+    for (const env of [d1Down, kvDown]) {
+      const feed = await getExploreFeed({}, env, ctx);
+      expect(feed.items).toEqual([]);
+      expect(feed.unavailable).toBe(true);
+    }
+  });
+
+  it('marks a 200 whose payload is not a feed, but not one that is merely empty', async () => {
+    // A body without an `items` array is a shape we cannot trust — a cache entry
+    // from an older format; `items: []` is a real "nothing matched" and must
+    // stay distinguishable from it.
+    for (const body of [[], { nextCursor: null }, { items: 'nope' }]) {
+      const feed = await getExploreFeed({}, envReturning(body), ctx);
+      expect(feed.unavailable, JSON.stringify(body)).toBe(true);
+    }
+    const empty = await getExploreFeed({}, envReturning({ items: [], nextCursor: null }), ctx);
+    expect(empty.unavailable).toBeUndefined();
+  });
+
+  it('does not mark a feed that legitimately holds nothing', async () => {
+    const feed = await getExploreFeed({}, envReturning({ items: [], nextCursor: null }), ctx);
+    expect(feed.unavailable).toBeUndefined();
+  });
+});
