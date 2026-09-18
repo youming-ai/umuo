@@ -157,4 +157,53 @@ describe('design tokens', () => {
     expect(ratio(pitch, card), 'pitch on card').toBeGreaterThanOrEqual(4.5);
     expect(ratio(hex('live'), page), 'live on page').toBeGreaterThanOrEqual(4.5);
   });
+
+  it('keeps the input boundary above 3:1 in both themes', () => {
+    // `.ds-input`'s fill is ~1.1:1 against the page, so its border is the only
+    // cue that a control is there (SC 1.4.11 needs 3:1), which is why it uses
+    // `muted` rather than `line`. Nothing else pins that: the token-sync test
+    // above only compares tokens.json with index.css, so a future retune of
+    // --c-muted could drop the input boundary back under 3:1 silently.
+    const chan = (hex: string): [number, number, number] => {
+      expect(hex, 'parsed hex').toMatch(/^#[0-9a-fA-F]{6}$/);
+      return [1, 3, 5].map((i) => Number.parseInt(hex.slice(i, i + 2), 16)) as [
+        number,
+        number,
+        number,
+      ];
+    };
+    const hexOf = (theme: Record<string, string>, name: string): [number, number, number] => {
+      const v = theme[name];
+      expect(v, `--c-${name} parsed`).toBeDefined();
+      return chan(v!);
+    };
+    const mix = (
+      fg: [number, number, number],
+      bg: [number, number, number],
+      alpha: number,
+    ): [number, number, number] =>
+      fg.map((c, i) => Math.round(c * alpha + bg[i]! * (1 - alpha))) as [number, number, number];
+    const rel = (c: number): number => {
+      const v = c / 255;
+      return v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
+    };
+    const ratio = (a: [number, number, number], b: [number, number, number]): number => {
+      const lum = (c: [number, number, number]): number =>
+        0.2126 * rel(c[0]) + 0.7152 * rel(c[1]) + 0.0722 * rel(c[2]);
+      const [hi, lo] = [lum(a), lum(b)].sort((x, y) => y - x);
+      return (hi + 0.05) / (lo + 0.05);
+    };
+
+    // `.ds-input` is border-muted on bg-panel/70 (the panel token over the page).
+    for (const [name, theme, surface] of [
+      ['dark', dark, dark.surface],
+      ['light', light, light.surface],
+    ] as const) {
+      const page = hexOf(theme, 'bg');
+      const border = hexOf(theme, 'muted');
+      const fill = mix(chan(surface!), page, 0.7);
+      expect(ratio(border, page), `${name}: input border vs page`).toBeGreaterThanOrEqual(3);
+      expect(ratio(border, fill), `${name}: input border vs fill`).toBeGreaterThanOrEqual(3);
+    }
+  });
 });

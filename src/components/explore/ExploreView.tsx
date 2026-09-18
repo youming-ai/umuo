@@ -378,8 +378,14 @@ export default function ExploreView({
           {/* The skip link's target. It has to exist in every state, including
               the empty and unavailable ones, so it lives on this wrapper rather
               than on the grid/list inside `feed`. tabIndex -1 keeps it out of
-              the tab order while letting the link move focus here. */}
-          <div id="explore-results" tabIndex={-1}>
+              the tab order while letting the link move focus here; scroll-mt
+              keeps the first row clear of the sticky toolbar after the jump
+              (the bar is exactly --h-bar on lg and wraps taller below it). */}
+          <div
+            id="explore-results"
+            tabIndex={-1}
+            className="scroll-mt-20 lg:scroll-mt-[calc(var(--h-bar)+0.5rem)]"
+          >
             {feed}
           </div>
 

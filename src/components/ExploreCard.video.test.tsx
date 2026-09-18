@@ -50,26 +50,47 @@ function stubMatchMedia(matches: boolean) {
   };
 }
 
+// jsdom has no media implementation, so these three are replaced outright.
+// Their original descriptors are captured and restored in afterEach: a direct
+// defineProperty is invisible to `vi.restoreAllMocks()`, so a leaked stub would
+// follow every later test in the file.
+const MEDIA_METHODS = ['play', 'pause', 'load'] as const;
+const originalDescriptors = new Map<string, PropertyDescriptor | undefined>();
+
 function stubPlayback() {
   const play = vi.fn(async () => {});
   const pause = vi.fn();
   const load = vi.fn();
-  Object.defineProperty(window.HTMLMediaElement.prototype, 'play', {
-    configurable: true,
-    value: play,
-  });
-  Object.defineProperty(window.HTMLMediaElement.prototype, 'pause', {
-    configurable: true,
-    value: pause,
-  });
-  Object.defineProperty(window.HTMLMediaElement.prototype, 'load', {
-    configurable: true,
-    value: load,
-  });
+  for (const [name, value] of [
+    ['play', play],
+    ['pause', pause],
+    ['load', load],
+  ] as const) {
+    if (!originalDescriptors.has(name)) {
+      originalDescriptors.set(
+        name,
+        Object.getOwnPropertyDescriptor(window.HTMLMediaElement.prototype, name),
+      );
+    }
+    Object.defineProperty(window.HTMLMediaElement.prototype, name, {
+      configurable: true,
+      writable: true,
+      value,
+    });
+  }
   return { play, pause, load };
 }
 
 afterEach(() => {
+  for (const name of MEDIA_METHODS) {
+    const descriptor = originalDescriptors.get(name);
+    if (descriptor) {
+      Object.defineProperty(window.HTMLMediaElement.prototype, name, descriptor);
+    } else {
+      delete (window.HTMLMediaElement.prototype as unknown as Record<string, unknown>)[name];
+    }
+  }
+  originalDescriptors.clear();
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
 });
