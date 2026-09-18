@@ -23,8 +23,16 @@ export interface ExploreQuery {
   limit?: number;
 }
 
-const EMPTY_EXPLORE_FILTERS: ExploreFilterSet = {
-  categories: [],
+/** The rail's options are D1 counts, but the registry is the source of truth for
+ *  what exists. When counting fails, fall back to the registry with unknown
+ *  counts: emptying the navigation because a COUNT failed removes every route
+ *  into the site, and rendering zeros would claim the hubs are empty. */
+const FILTERS_FALLBACK: ExploreFilterSet = {
+  categories: Object.entries(CATEGORIES).map(([value, category]) => ({
+    value,
+    label: category.label,
+    count: null,
+  })),
 };
 
 export interface ExploreRow {
@@ -395,9 +403,13 @@ export async function getExploreFeed(
 ): Promise<ExploreFeed> {
   try {
     const response = await serveExplore(query, env, ctx);
-    if (!response.ok) return { items: [], nextCursor: null };
+    // `unavailable` is what keeps a D1 or KV outage from rendering as "no links
+    // match these filters" — the reader is told the truth and the filters are
+    // not blamed for it. Composer-only; the cached payload never carries it.
+    if (!response.ok) return { items: [], nextCursor: null, unavailable: true };
     const parsed: unknown = await response.json();
-    if (!parsed || typeof parsed !== 'object') return { items: [], nextCursor: null };
+    if (!parsed || typeof parsed !== 'object')
+      return { items: [], nextCursor: null, unavailable: true };
     const feed = parsed as Partial<ExploreFeed>;
     return {
       items: Array.isArray(feed.items) ? (feed.items as ExploreArticle[]) : [],
@@ -406,7 +418,7 @@ export async function getExploreFeed(
       nextCursor: typeof feed.nextCursor === 'string' ? feed.nextCursor : null,
     };
   } catch {
-    return { items: [], nextCursor: null };
+    return { items: [], nextCursor: null, unavailable: true };
   }
 }
 
@@ -423,13 +435,17 @@ async function queryExploreFilters(_category: string, env: Env): Promise<Explore
        GROUP BY a.category ORDER BY count DESC`,
   ).all<CountRow>();
 
-  const categoryOptions: ExploreFilterOption[] = (categories.results ?? [])
-    .map((row: CountRow) => {
+  // `Object.hasOwn`, like every other registry gate: a stored value equal to an
+  // Object.prototype key would otherwise read as a truthy match and surface a
+  // label-less row whose count still feeds the "All links" total.
+  const categoryOptions: ExploreFilterOption[] = (categories.results ?? []).flatMap(
+    (row: CountRow): ExploreFilterOption[] => {
       const value = rowString(row.value);
-      const match = CATEGORIES[value];
-      return match ? { value, label: match.label, count: rowNumber(row.count) } : null;
-    })
-    .filter((option: ExploreFilterOption | null): option is ExploreFilterOption => option !== null);
+      return Object.hasOwn(CATEGORIES, value)
+        ? [{ value, label: CATEGORIES[value]!.label, count: rowNumber(row.count) }]
+        : [];
+    },
+  );
 
   return { categories: categoryOptions };
 }
@@ -457,14 +473,14 @@ export async function getExploreFilters(
 ): Promise<ExploreFilterSet> {
   try {
     const response = await serveExploreFilters(category, env, ctx);
-    if (!response.ok) return EMPTY_EXPLORE_FILTERS;
+    if (!response.ok) return FILTERS_FALLBACK;
     const parsed: unknown = await response.json();
-    if (!parsed || typeof parsed !== 'object') return EMPTY_EXPLORE_FILTERS;
+    if (!parsed || typeof parsed !== 'object') return FILTERS_FALLBACK;
     const filters = parsed as Partial<ExploreFilterSet>;
     return {
       categories: Array.isArray(filters.categories) ? filters.categories : [],
     };
   } catch {
-    return EMPTY_EXPLORE_FILTERS;
+    return FILTERS_FALLBACK;
   }
 }

@@ -81,3 +81,23 @@ describe('getExploreFeed', () => {
     expect(capturedBindings).toContain('tools');
   });
 });
+
+describe('getExploreFeed degradation', () => {
+  it('marks an unreadable feed instead of reporting an empty one', async () => {
+    // The distinction is the whole point: without it a D1 or KV outage renders
+    // as "No links match these filters" — the reader is told their filters are
+    // too narrow while the site is down, and nothing surfaces the failure.
+    const failing = {
+      CACHE: { get: vi.fn().mockRejectedValue(new Error('kv down')), put: vi.fn() },
+    } as unknown as Env;
+
+    const feed = await getExploreFeed({}, failing, ctx);
+    expect(feed.items).toEqual([]);
+    expect(feed.unavailable).toBe(true);
+  });
+
+  it('does not mark a feed that legitimately holds nothing', async () => {
+    const feed = await getExploreFeed({}, envReturning({ items: [], nextCursor: null }), ctx);
+    expect(feed.unavailable).toBeUndefined();
+  });
+});
