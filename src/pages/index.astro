@@ -30,7 +30,14 @@ const websiteJsonLd = {
 ---
 <Layout title={SITE_TITLE}>
   <script is:inline type="application/ld+json" set:html={JSON.stringify(websiteJsonLd)} />
+  <a
+    href="#explore-results"
+    class="sr-only focus:not-sr-only focus:absolute focus:left-3 focus:top-3 focus:z-50 focus:rounded-control focus:bg-panel focus:px-3 focus:py-2 ds-caption"
+  >
+    Skip to links
+  </a>
   <main>
+    <h1 class="sr-only">{SITE_TITLE}</h1>
     <ExploreView
       initialData={initialData}
       initialFilters={initialFilters}

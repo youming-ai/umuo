@@ -61,7 +61,7 @@ function FilterRow({
   active: boolean;
   href: string;
 }) {
-  const className = `flex w-full items-center gap-2 rounded-card-inset px-2 py-1 text-left ds-caption ${
+  const className = `flex w-full items-center gap-2 rounded-card-inset px-2 py-1.5 text-left ds-caption min-h-7 ${
     active
       ? 'bg-pitch/15 font-bold text-pitch'
       : 'text-chalkdim hover:bg-overlay/5 hover:text-chalk'
@@ -298,7 +298,7 @@ export default function ExploreView({
             defaultValue={initialSearch}
             placeholder="Search stories"
             enterKeyHint="search"
-            className="ds-input min-h-9 min-w-0 flex-1 py-1 pl-8"
+            className="ds-input max-sm:text-base min-h-9 min-w-0 flex-1 py-1 pl-8"
           />
         </form>
 
@@ -375,7 +375,19 @@ export default function ExploreView({
             </p>
           )}
 
-          {feed}
+          {/* The skip link's target. It has to exist in every state, including
+              the empty and unavailable ones, so it lives on this wrapper rather
+              than on the grid/list inside `feed`. tabIndex -1 keeps it out of
+              the tab order while letting the link move focus here; scroll-mt
+              keeps the first row clear of the sticky toolbar after the jump
+              (the bar is exactly --h-bar on lg and wraps taller below it). */}
+          <div
+            id="explore-results"
+            tabIndex={-1}
+            className="scroll-mt-20 lg:scroll-mt-[calc(var(--h-bar)+0.5rem)]"
+          >
+            {feed}
+          </div>
 
           {/* First-load skeleton lives inside `feed`; this covers the append
               path during infinite scroll and filter changes (items still
