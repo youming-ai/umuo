@@ -3,6 +3,13 @@ import type { Env } from '../data/api';
 import { SITE_NAME, SITE_ORIGIN } from '../site';
 import { canonicalizeUrl, ingestAllSources, knownCanonicalUrls, knownFingerprints } from './ingest';
 
+// File-scoped, not inside a describe. Two blocks here stub `fetch`, and a hook
+// bound to one of them let the other's stub outlive its test — the next case
+// added below it would have inherited a mock.
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
+
 describe('canonicalizeUrl', () => {
   it('removes tracking parameters while preserving editorial query parameters', () => {
     expect(
@@ -89,10 +96,6 @@ describe('knownCanonicalUrls', () => {
 });
 
 describe('ingestAllSources', () => {
-  afterEach(() => {
-    vi.unstubAllGlobals();
-  });
-
   it('fetches, normalises, and stores curated articles directly', async () => {
     const rssXml = `<?xml version="1.0" encoding="UTF-8"?>
       <rss version="2.0">
