@@ -23,7 +23,7 @@ function mockCtx(): ExecutionContext {
 function mockEnv(options: { failing?: boolean } = {}): { env: Env; bindings: unknown[][] } {
   const bindings: unknown[][] = [];
   const env = {
-    CACHE: { get: vi.fn(async () => null), put: vi.fn() },
+    CACHE: { get: vi.fn(async () => null), put: vi.fn(async () => {}) },
     DB: {
       prepare: vi.fn(() => ({
         bind: vi.fn(function bind(this: unknown, ...args: unknown[]) {

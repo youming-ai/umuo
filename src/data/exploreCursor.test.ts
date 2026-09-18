@@ -43,4 +43,16 @@ describe('parseExploreCursor', () => {
     expect(parseExploreCursor('12')).toBeNull();
     expect(parseExploreCursor('36')).toBeNull();
   });
+
+  it('rejects an impossible cursor rather than seeking past the corpus', () => {
+    // Every sort key is non-negative, so a negative part cannot come from a
+    // row. Left to reach the query it seeks past everything and renders an
+    // empty board under "No links match these filters" — blaming the reader's
+    // filters for a hand-edited URL.
+    expect(parseExploreCursor('-1:80:1789707171000:abc')).toBeNull();
+    expect(parseExploreCursor('20714:-1:1789707171000:abc')).toBeNull();
+    expect(parseExploreCursor('20714:80:-1:abc')).toBeNull();
+    // The boundary itself is legitimate: bucket 0 is the epoch day.
+    expect(parseExploreCursor('0:0:0:abc')).toEqual([0, 0, 0, 'abc']);
+  });
 });

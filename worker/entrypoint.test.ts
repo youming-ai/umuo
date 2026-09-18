@@ -168,6 +168,21 @@ describe('entrypoint scheduled', () => {
     expect(pruneOldRecords).not.toHaveBeenCalled();
   });
 
+  it('reports a scheduled failure instead of letting the tick vanish', async () => {
+    // Cron invocations are not retried, so a throw escaping this handler means
+    // the tick did not happen and nothing said so. Per-source and per-article
+    // failures are handled inside ingest; this covers the setup failure.
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+    ingestAllSources.mockRejectedValueOnce(new Error('D1 unavailable'));
+
+    await entrypoint.scheduled!(controller('*/15 * * * *'), ENV, mockCtx());
+
+    expect(error).toHaveBeenCalledWith(
+      expect.stringContaining('*/15 * * * * failed:'),
+      expect.objectContaining({ message: 'D1 unavailable' }),
+    );
+  });
+
   it('names unmapped categories at warn level, and failed sources at error', async () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     const error = vi.spyOn(console, 'error').mockImplementation(() => {});

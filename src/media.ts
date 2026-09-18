@@ -139,8 +139,12 @@ export async function serveMedia(file: string): Promise<Response> {
   if (!upstream) return new Response('Not found', { status: 404 });
 
   try {
+    // Same ceiling the feed fetch uses: without it a hanging upstream holds the
+    // reader's request until the platform gives up, and the card shows nothing
+    // for the whole wait.
     const response = await fetch(upstream, {
       cf: { cacheEverything: true, cacheTtl: 86_400 },
+      signal: AbortSignal.timeout(10_000),
     });
     // `fetch` follows redirects by default, which would let the relayed bytes
     // come from a host we did not pin. A same-origin redirect is fine; anything

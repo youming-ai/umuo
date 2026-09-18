@@ -148,6 +148,11 @@ export function parseExploreCursor(
     !id
   )
     return null;
+  // A well-formed but impossible cursor — negative where every sort key is a
+  // non-negative number — would seek past the whole corpus and render an empty
+  // board under a "no links match" message. Treated as no cursor, so a
+  // hand-edited or foreign value lands on page one like a malformed one.
+  if (day < 0 || qualityScore < 0 || publishedAt < 0) return null;
   return [day, qualityScore, publishedAt, id];
 }
 

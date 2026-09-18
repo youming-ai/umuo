@@ -304,17 +304,21 @@ describe('storeArticle', () => {
     // invisible to a stubbed `prepare`.
     const db = migratedDatabase();
     const env = envFor(db);
-    await expect(storeArticle(env, article)).resolves.toBeUndefined();
+    // Returns whether a row landed: the statement is ON CONFLICT DO NOTHING, so
+    // this is the only way the caller can report what it stored.
+    await expect(storeArticle(env, article)).resolves.toBe(true);
 
     const feed = await getExploreFeed({}, env, ctx);
     expect(feed.items.map((item) => item.title)).toEqual(['A stored story']);
   });
 
-  it('is idempotent on a repeated fingerprint', async () => {
+  it('is idempotent on a repeated fingerprint, and says so', async () => {
     const db = migratedDatabase();
     const env = envFor(db);
-    await storeArticle(env, article);
-    await storeArticle(env, article);
+    expect(await storeArticle(env, article)).toBe(true);
+    // The second insert conflicts, writes nothing, and must not be reported as
+    // stored — that overcount is what the report carried before.
+    expect(await storeArticle(env, article)).toBe(false);
     const count = db.prepare('SELECT COUNT(*) AS n FROM articles').get() as { n: number };
     expect(count.n).toBe(1);
   });

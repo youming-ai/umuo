@@ -14,7 +14,7 @@ describe('getExploreFilters degradation', () => {
     // D1 is present and its COUNT rejects — the counting outage itself, not the
     // missing-binding check that an env without DB would exercise.
     const failing = {
-      CACHE: { get: vi.fn().mockResolvedValue(null), put: vi.fn() },
+      CACHE: { get: vi.fn().mockResolvedValue(null), put: vi.fn(async () => {}) },
       DB: {
         prepare: vi.fn(() => ({
           bind: vi.fn(function bind(this: unknown) {
@@ -48,7 +48,7 @@ describe('getExploreFilters degradation', () => {
       })),
     };
     const get = vi.fn(async () => null);
-    const env = { CACHE: { get, put: vi.fn() }, DB: db } as unknown as Env;
+    const env = { CACHE: { get, put: vi.fn(async () => {}) }, DB: db } as unknown as Env;
 
     await getExploreFilters(env, ctx);
     expect(get).toHaveBeenCalledWith('explore:filters:v1:', 'json');
