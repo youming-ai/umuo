@@ -110,7 +110,10 @@ it('renders a feed-supplied video as a <video> element, never as an <img>', () =
   expect(html).toContain('<video');
   expect(html).toContain('hero_1080p_video.mp4');
   expect(html).not.toContain('<img');
-  expect(html).toContain('autoplay=""'); // a metadata-only preload leaves a dark box
+  // A rendered `autoplay` would start before the island hydrates — cached media
+  // or slow JS would expose reduced-motion readers to the loop the effect is
+  // supposed to suppress. Playback begins from the effect instead.
+  expect(html).not.toContain('autoplay');
   expect(html).toContain('muted');
   expect(html).toContain('loop=""');
   expect(html).toContain('playsinline=""');

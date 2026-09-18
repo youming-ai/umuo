@@ -47,17 +47,19 @@ export default function ExploreCard({
     if (img && !img.complete) setImgLoading(true);
   }, []);
   const showShimmer = imgLoading && !imgLoaded;
-  // Respect the reader's motion setting: a looping video is ambient motion, not
-  // content, so under prefers-reduced-motion the thumbnail pauses on its first
-  // frame instead of playing. Done in an effect (never at render) so SSR and
-  // hydration still agree byte-for-byte.
+  // Motion runs only when the reader allows it. SSR (and the first hydration
+  // pass) render the video paused with *no* `autoplay` attribute: a rendered
+  // `autoplay` can start before the island hydrates, so cached media or slow
+  // JavaScript would otherwise expose reduced-motion readers to the looping
+  // motion this guard intends to suppress.
   const videoRef = useRef<HTMLVideoElement>(null);
   useEffect(() => {
     const video = videoRef.current;
-    if (video && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-      video.autoplay = false;
-      video.pause();
-    }
+    if (!video) return;
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    void video.play().catch(() => {
+      /* autoplay blocked after all — the first frame still shows */
+    });
   }, []);
 
   if (variant === 'list') {
@@ -130,20 +132,19 @@ export default function ExploreCard({
           >
             {article.isVideo ? (
               // The feed handed us a video file, so the thumbnail is the video
-              // itself: muted autoplay loop is the only way to guarantee
+              // itself: a muted loop is the only thumbnail that guarantees
               // something visible — a metadata-only preload leaves a dark box
               // on browsers that do not paint a frame from metadata alone.
-              // Muted is what makes the autoplay permissible; nothing has audio
-              // to surprise a reader. Paused by effect under
-              // prefers-reduced-motion (see above), where the box falls back
-              // to the container ground. aria-hidden is safe here: without
-              // `controls` the element is not focusable, and the wrapping link
-              // already carries the article title as its name.
+              // Muted is what makes the playback permissible; nothing has audio
+              // to surprise a reader. It starts from an effect (never an
+              // `autoplay` attribute — see above) so reduced-motion readers are
+              // never exposed, even before hydration. aria-hidden is safe here:
+              // without `controls` the element is not focusable, and the
+              // wrapping link already carries the article title as its name.
               // biome-ignore lint/a11y/noAriaHiddenOnFocusable: a control-less <video> is not in the tab order
               <video
                 ref={videoRef}
                 src={withTemporalFragment(article.imageUrl)}
-                autoPlay
                 muted
                 loop
                 playsInline
@@ -171,9 +172,9 @@ export default function ExploreCard({
           </div>
         )}
         <div className="p-3">
-          <h3 className="font-display text-lead font-bold leading-lead text-chalk transition-colors duration-150 group-hover:text-pitch">
+          <h2 className="font-display text-lead font-bold leading-lead text-chalk transition-colors duration-150 group-hover:text-pitch">
             {article.title}
-          </h3>
+          </h2>
           {description && (
             <p className="mt-1.5 ds-body line-clamp-3 text-chalkdim">{description}</p>
           )}
