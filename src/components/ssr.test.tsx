@@ -149,3 +149,28 @@ it('keeps every hub reachable when the counts are unknown', () => {
     expect(html, value).toContain(`href="/${value}"`);
   }
 });
+
+it('renders a zero total for a successful empty count, and nothing when it is unknown', () => {
+  // The distinction the rail has to keep: a count of zero is a fact about an
+  // empty corpus, while a null count means the count could not be read. `every`
+  // on an empty array is vacuously true, so without the explicit empty case the
+  // successful-empty corpus renders as "unknown" and loses its 0.
+  const succeeded = renderToString(
+    <ExploreView
+      initialData={{ items: [], nextCursor: null }}
+      initialFilters={{ categories: [] }}
+    />,
+  );
+  expect(succeeded).toContain('All links');
+  expect(succeeded).toMatch(/All links<\/span><span[^>]*>0<\/span>/);
+
+  const unknown = renderToString(
+    <ExploreView
+      initialData={{ items: [], nextCursor: null, unavailable: true }}
+      initialFilters={{
+        categories: [{ value: 'tools', label: 'Tools', count: null }],
+      }}
+    />,
+  );
+  expect(unknown).toMatch(/Tools<\/span><\/a>/);
+});

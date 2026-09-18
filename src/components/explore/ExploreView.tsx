@@ -87,11 +87,16 @@ function CategoryRail({
   hrefFor: (value: string) => string;
 }) {
   // Unknown counts sum to null, not zero: an outage should leave the label bare
-  // rather than assert the site holds no links.
+  // rather than assert the site holds no links. An empty list is the opposite
+  // case — a successful count over an empty corpus — and is known to be zero,
+  // which `every` on an empty array would otherwise report as "all unknown".
   const known = options.map((option) => option.count);
-  const total = known.every((count) => count === null)
-    ? null
-    : known.reduce<number>((sum, count) => sum + (count ?? 0), 0);
+  const total =
+    options.length === 0
+      ? 0
+      : known.every((count) => count === null)
+        ? null
+        : known.reduce<number>((sum, count) => sum + (count ?? 0), 0);
   const groups = CATEGORY_GROUPS.map((group) => ({
     ...group,
     options: options.filter((option) => CATEGORIES[option.value]?.group === group.key),

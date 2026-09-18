@@ -11,8 +11,20 @@ describe('getExploreFilters degradation', () => {
     // Emptying the rail because a COUNT failed removes every route into the
     // site; rendering zeros would instead claim the hubs are empty. The
     // registry is the source of truth for what exists.
+    // D1 is present and its COUNT rejects — the counting outage itself, not the
+    // missing-binding check that an env without DB would exercise.
     const failing = {
-      CACHE: { get: vi.fn().mockRejectedValue(new Error('kv down')), put: vi.fn() },
+      CACHE: { get: vi.fn().mockResolvedValue(null), put: vi.fn() },
+      DB: {
+        prepare: vi.fn(() => ({
+          bind: vi.fn(function bind(this: unknown) {
+            return this;
+          }),
+          all: vi.fn(async () => {
+            throw new Error('d1 down');
+          }),
+        })),
+      },
     } as unknown as Env;
 
     const filters = await getExploreFilters('', failing, ctx);

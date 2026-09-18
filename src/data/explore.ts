@@ -408,11 +408,14 @@ export async function getExploreFeed(
     // not blamed for it. Composer-only; the cached payload never carries it.
     if (!response.ok) return { items: [], nextCursor: null, unavailable: true };
     const parsed: unknown = await response.json();
-    if (!parsed || typeof parsed !== 'object')
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed))
       return { items: [], nextCursor: null, unavailable: true };
     const feed = parsed as Partial<ExploreFeed>;
+    // A body without an `items` array is a payload we cannot trust — unlike a
+    // 200 that carries `items: []`, which is a real "nothing matched".
+    if (!Array.isArray(feed.items)) return { items: [], nextCursor: null, unavailable: true };
     return {
-      items: Array.isArray(feed.items) ? (feed.items as ExploreArticle[]) : [],
+      items: feed.items as ExploreArticle[],
       // String, not number: keyset cursor. While it checked for number it
       // coerced every SSR page to null, so pagination never began.
       nextCursor: typeof feed.nextCursor === 'string' ? feed.nextCursor : null,
@@ -477,8 +480,12 @@ export async function getExploreFilters(
     const parsed: unknown = await response.json();
     if (!parsed || typeof parsed !== 'object') return FILTERS_FALLBACK;
     const filters = parsed as Partial<ExploreFilterSet>;
+    // A 200 whose body is not the shape we expect is a cache entry from an
+    // older format, not an empty corpus: fall back rather than empty the rail.
     return {
-      categories: Array.isArray(filters.categories) ? filters.categories : [],
+      categories: Array.isArray(filters.categories)
+        ? filters.categories
+        : FILTERS_FALLBACK.categories,
     };
   } catch {
     return FILTERS_FALLBACK;
