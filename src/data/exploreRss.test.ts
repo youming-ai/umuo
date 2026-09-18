@@ -3,7 +3,14 @@
 // milliseconds. If the JSON shape ExploreArticle carries ever changes,
 // renderExploreRss is the most likely place to feel it first.
 import { describe, expect, it } from 'vitest';
-import { GLOBAL_FEED_LABEL, SITE_DESCRIPTION, SITE_NAME, SITE_ORIGIN, SITE_TITLE } from '../site';
+import {
+  GLOBAL_FEED_LABEL,
+  SITE_DESCRIPTION,
+  SITE_NAME,
+  SITE_ORIGIN,
+  SITE_RSS_LANGUAGE,
+  SITE_TITLE,
+} from '../site';
 import type { ExploreFeed } from '../types';
 import { renderExploreRss } from './exploreRss';
 
@@ -49,7 +56,7 @@ describe('renderExploreRss', () => {
     expect(xml).toContain('<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">');
     expect(xml).toContain(`<title>${SITE_TITLE}</title>`);
     expect(xml).toContain(`<description>${SITE_DESCRIPTION}`);
-    expect(xml).toContain('<language>en-us</language>');
+    expect(xml).toContain(`<language>${SITE_RSS_LANGUAGE}</language>`);
     expect(xml).toContain(`<generator>${SITE_NAME}</generator>`);
   });
 

@@ -1,6 +1,13 @@
 // RSS 2.0 renderer for the Explore feed. Pure: no DOM, no D1, no Worker
 // bindings — importable by both the API handler and the SSR pages.
-import { GLOBAL_FEED_LABEL, SITE_DESCRIPTION, SITE_NAME, SITE_ORIGIN, SITE_TITLE } from '../site';
+import {
+  GLOBAL_FEED_LABEL,
+  SITE_DESCRIPTION,
+  SITE_NAME,
+  SITE_ORIGIN,
+  SITE_RSS_LANGUAGE,
+  SITE_TITLE,
+} from '../site';
 import type { ExploreArticle, ExploreFeed } from '../types';
 import { escapeXml } from '../utils/coerce';
 
@@ -83,7 +90,7 @@ export function renderExploreRss(
     <title>${escapeXml(channelTitle)}</title>
     <link>${escapeXml(channelLink)}</link>
     <description>${escapeXml(channelDescription)}</description>
-    <language>en-us</language>
+    <language>${SITE_RSS_LANGUAGE}</language>
     <lastBuildDate>${published}</lastBuildDate>
     <generator>${SITE_NAME}</generator>${atomLink}
 ${items}

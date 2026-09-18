@@ -165,7 +165,9 @@ function normalizedExploreQuery(
 ): Required<Pick<ExploreQuery, 'limit'>> & Omit<ExploreQuery, 'limit'> {
   const category =
     query.category && Object.hasOwn(CATEGORIES, query.category) ? query.category : undefined;
-  const limit = Number.isInteger(query.limit) ? Math.min(24, Math.max(1, query.limit ?? 10)) : 10;
+  const limit = Number.isInteger(query.limit)
+    ? Math.min(EXPLORE_MAX_LIMIT, Math.max(1, query.limit ?? 10))
+    : 10;
   return {
     category,
     q: query.q?.trim().slice(0, 100) || undefined,
@@ -278,8 +280,11 @@ export async function serveExplore(
   );
 }
 
-/** Items a feed poll carries, equal to `normalizedExploreQuery`'s ceiling. */
-const RSS_ITEM_LIMIT = 24;
+/** The page ceiling every explore query is clamped to, and the page size a feed
+ *  poll asks for: the feed deliberately takes the largest page the API serves.
+ *  It was two literals — a clamp in `normalizedExploreQuery` and this — so
+ *  raising one silently shrank the other. Exported for the test that pins it. */
+export const EXPLORE_MAX_LIMIT = 24;
 
 /** RSS 2.0 surface for the Explore feed. Drops `q` (transient) and `cursor`
  *  (subscribers take the head, not paginate); keeps the category so a per-hub
@@ -296,7 +301,7 @@ export async function serveExploreRss(
     ...query,
     q: undefined,
     cursor: undefined,
-    limit: RSS_ITEM_LIMIT,
+    limit: EXPLORE_MAX_LIMIT,
   });
 
   const scopeLabel = normalized.category

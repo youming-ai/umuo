@@ -17,6 +17,10 @@ export const SITE_DESCRIPTION =
 export const GLOBAL_FEED_LABEL = 'All links';
 export const SITE_LOCALE = 'en_US';
 export const SITE_LANGUAGE = 'en';
+/** RSS <language> uses the RFC 1766 tag form, not og:locale's underscore form.
+ *  Declared here rather than inline in the renderer so the three spellings of
+ *  "this site is English" all come from one file. */
+export const SITE_RSS_LANGUAGE = 'en-us';
 
 /** Card-stream teaser policy: blurb first (the curated one-liner), then the
  *  summary, then the publisher's own teaser. The card is the only consumer —
