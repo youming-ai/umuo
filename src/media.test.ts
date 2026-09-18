@@ -178,11 +178,15 @@ describe('serveMedia', () => {
       );
     vi.stubGlobal('fetch', fetchMock);
 
+    // Spying on the factory rather than inspecting the signal: any duration,
+    // or a controller that never aborts, satisfies "an AbortSignal was passed",
+    // so the deadline itself is what has to be pinned.
+    const timeout = vi.spyOn(AbortSignal, 'timeout');
     await serveMedia(ID);
 
+    expect(timeout).toHaveBeenCalledWith(10_000);
     const init = fetchMock.mock.calls[0]?.[1] as RequestInit | undefined;
-    expect(init?.signal, 'abort signal passed to the upstream fetch').toBeDefined();
-    expect(init?.signal).toBeInstanceOf(AbortSignal);
+    expect(init?.signal, 'abort signal passed to the upstream fetch').toBeInstanceOf(AbortSignal);
   });
 
   it('refuses a non-image type rather than serving markup from our own origin', async () => {

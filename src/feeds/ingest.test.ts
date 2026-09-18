@@ -196,6 +196,7 @@ describe('the report does not overstate what it stored', () => {
       </channel></rss>`;
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(rssXml, { status: 200 })));
 
+    const run = vi.fn(async () => ({ meta: { changes: 0 } }));
     const fakeDb = {
       batch: vi.fn(async () => []),
       prepare: vi.fn((sql: string) => {
@@ -206,7 +207,7 @@ describe('the report does not overstate what it stored', () => {
           bind: vi.fn(() => ({
             all: async () => ({ results: [] }),
             // The row already exists, so the insert changes nothing.
-            run: async () => ({ meta: { changes: 0 } }),
+            run,
           })),
         };
       }),
@@ -214,6 +215,8 @@ describe('the report does not overstate what it stored', () => {
 
     const report = await ingestAllSources({ DB: fakeDb } as unknown as Env);
     expect(report.fetched).toBe(1);
+    // Without this the test would pass on a path that never inserted at all.
+    expect(run).toHaveBeenCalledTimes(1);
     expect(report.stored).toBe(0);
     expect(report.skipped).toBe(1);
   });

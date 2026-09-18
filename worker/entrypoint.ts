@@ -17,15 +17,17 @@ const entrypoint: ExportedHandler<Env> = {
   },
 
   async scheduled(controller, env, ctx) {
-    // Cron invocations are not retried, so a throw here means the tick simply
-    // never happened — and without this it also means no log line saying so.
-    // Per-source and per-article failures are already handled inside; this is
-    // for the setup failure that would otherwise escape (a D1 error while
-    // ensuring sources, most likely).
+    // Logged with which cron failed, then rethrown: a scheduled event that
+    // rejects follows the platform's retry path, and swallowing it here would
+    // report a successful invocation for a tick that never ran. Per-source and
+    // per-article failures are already handled inside; this covers the setup
+    // failure that would otherwise escape (a D1 error while ensuring sources,
+    // most likely).
     try {
       await runScheduled(controller, env, ctx);
     } catch (error) {
       console.error(`[scheduled] ${controller.cron} failed:`, error);
+      throw error;
     }
   },
 };

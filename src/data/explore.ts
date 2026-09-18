@@ -148,11 +148,13 @@ export function parseExploreCursor(
     !id
   )
     return null;
-  // A well-formed but impossible cursor — negative where every sort key is a
-  // non-negative number — would seek past the whole corpus and render an empty
-  // board under a "no links match" message. Treated as no cursor, so a
-  // hand-edited or foreign value lands on page one like a malformed one.
-  if (day < 0 || qualityScore < 0 || publishedAt < 0) return null;
+  // Only the field that cannot be negative is rejected. day_bucket and
+  // published_at legitimately are for a pre-1970 pubDate, which the feed parser
+  // stores as-is and migration 0015 buckets by floor — rejecting those would
+  // have made such a row listable but its page unreachable, since every
+  // subsequent cursor would collapse to page one. quality_score is a 0-100
+  // authority score, so a negative one cannot come from any row.
+  if (qualityScore < 0) return null;
   return [day, qualityScore, publishedAt, id];
 }
 

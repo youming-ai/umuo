@@ -44,15 +44,17 @@ describe('parseExploreCursor', () => {
     expect(parseExploreCursor('36')).toBeNull();
   });
 
-  it('rejects an impossible cursor rather than seeking past the corpus', () => {
-    // Every sort key is non-negative, so a negative part cannot come from a
-    // row. Left to reach the query it seeks past everything and renders an
-    // empty board under "No links match these filters" — blaming the reader's
-    // filters for a hand-edited URL.
-    expect(parseExploreCursor('-1:80:1789707171000:abc')).toBeNull();
+  it('rejects the one part that cannot be negative, and keeps the ones that can', () => {
+    // quality_score is a 0-100 authority score, so a negative one is not a row
+    // this corpus can produce.
     expect(parseExploreCursor('20714:-1:1789707171000:abc')).toBeNull();
-    expect(parseExploreCursor('20714:80:-1:abc')).toBeNull();
-    // The boundary itself is legitimate: bucket 0 is the epoch day.
+
+    // day_bucket and published_at are legitimately negative for a pre-1970
+    // pubDate, which parseRss stores as-is and migration 0015 buckets by floor.
+    // Treating those as impossible would make such a row listable while its
+    // next page collapsed to page one — an unfinishable pagination.
+    expect(parseExploreCursor('-1:80:-315619200000:abc')).toEqual([-1, 80, -315619200000, 'abc']);
+    // And the epoch boundary itself.
     expect(parseExploreCursor('0:0:0:abc')).toEqual([0, 0, 0, 'abc']);
   });
 });

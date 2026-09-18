@@ -175,7 +175,12 @@ describe('entrypoint scheduled', () => {
     const error = vi.spyOn(console, 'error').mockImplementation(() => {});
     ingestAllSources.mockRejectedValueOnce(new Error('D1 unavailable'));
 
-    await entrypoint.scheduled!(controller('*/15 * * * *'), ENV, mockCtx());
+    // The rejection has to escape: swallowing it reports a successful
+    // invocation for a tick that never ran, and a scheduled event that rejects
+    // is what follows the platform's retry path.
+    await expect(entrypoint.scheduled!(controller('*/15 * * * *'), ENV, mockCtx())).rejects.toThrow(
+      'D1 unavailable',
+    );
 
     expect(error).toHaveBeenCalledWith(
       expect.stringContaining('*/15 * * * * failed:'),
