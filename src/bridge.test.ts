@@ -26,7 +26,7 @@ const { fakeEnv, kvGet } = vi.hoisted(() => {
   return {
     kvGet: get,
     fakeEnv: {
-      CACHE: { get, put: vi.fn() },
+      CACHE: { get, put: vi.fn(async () => {}) },
       // A statement that succeeds and returns no rows: the point is that the
       // request reached queryExplore, not what it found there.
       DB: {

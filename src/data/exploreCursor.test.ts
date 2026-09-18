@@ -43,4 +43,18 @@ describe('parseExploreCursor', () => {
     expect(parseExploreCursor('12')).toBeNull();
     expect(parseExploreCursor('36')).toBeNull();
   });
+
+  it('rejects the one part that cannot be negative, and keeps the ones that can', () => {
+    // quality_score is a 0-100 authority score, so a negative one is not a row
+    // this corpus can produce.
+    expect(parseExploreCursor('20714:-1:1789707171000:abc')).toBeNull();
+
+    // day_bucket and published_at are legitimately negative for a pre-1970
+    // pubDate, which parseRss stores as-is and migration 0015 buckets by floor.
+    // Treating those as impossible would make such a row listable while its
+    // next page collapsed to page one — an unfinishable pagination.
+    expect(parseExploreCursor('-1:80:-315619200000:abc')).toEqual([-1, 80, -315619200000, 'abc']);
+    // And the epoch boundary itself.
+    expect(parseExploreCursor('0:0:0:abc')).toEqual([0, 0, 0, 'abc']);
+  });
 });

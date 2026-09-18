@@ -54,11 +54,23 @@ export async function runCached(
       const body = await produce();
       if (body === null) return { body: '{"error":"not found"}', status: 404, cache: 'MISS' };
       const producedAt = Date.now();
-      ctx.waitUntil(
-        env.CACHE.put(cacheKey, JSON.stringify({ body, at: producedAt } satisfies Entry), {
-          expirationTtl: keep,
-        }),
-      );
+      // Fire-and-forget, and deliberately isolated from the response: this runs
+      // inside the produce try, so a synchronously throwing put — or a
+      // waitUntil that rejects because the context is already settled — used to
+      // turn a perfectly good read into a 502. The put's own rejection is
+      // caught too; nothing awaits it, so an unhandled rejection would surface
+      // as a Worker error log with no request to attach it to.
+      try {
+        ctx.waitUntil(
+          env.CACHE.put(cacheKey, JSON.stringify({ body, at: producedAt } satisfies Entry), {
+            expirationTtl: keep,
+          }).catch((err) => {
+            console.error(`[data] KV put failed for ${cacheKey}:`, err);
+          }),
+        );
+      } catch (err) {
+        console.error(`[data] KV put could not be scheduled for ${cacheKey}:`, err);
+      }
       return { body, status: 200, cache: stored ? 'REVALIDATED' : 'MISS' };
     } catch (err) {
       console.error(`[data] produce failed for ${cacheKey}:`, err);

@@ -183,3 +183,41 @@ describe('the upstream request identifies this site', () => {
     expect(headers?.accept).toContain('application/rss+xml');
   });
 });
+
+describe('the report does not overstate what it stored', () => {
+  it('counts a row the insert discarded as skipped, not stored', async () => {
+    // storeArticle is ON CONFLICT DO NOTHING: a conflict the pre-filters cannot
+    // see (another tick racing the same story) inserts nothing, and counting it
+    // as stored made every such tick report work it had not done.
+    const rssXml = `<?xml version="1.0"?>
+      <rss version="2.0"><channel>
+        <item><title>Race</title><link>https://example.com/race</link>
+          <description>x</description></item>
+      </channel></rss>`;
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(rssXml, { status: 200 })));
+
+    const run = vi.fn(async () => ({ meta: { changes: 0 } }));
+    const fakeDb = {
+      batch: vi.fn(async () => []),
+      prepare: vi.fn((sql: string) => {
+        if (sql.includes('SELECT id FROM sources')) {
+          return { all: async () => ({ results: [{ id: 'poche-explore' }] }) };
+        }
+        return {
+          bind: vi.fn(() => ({
+            all: async () => ({ results: [] }),
+            // The row already exists, so the insert changes nothing.
+            run,
+          })),
+        };
+      }),
+    } as unknown as D1Database;
+
+    const report = await ingestAllSources({ DB: fakeDb } as unknown as Env);
+    expect(report.fetched).toBe(1);
+    // Without this the test would pass on a path that never inserted at all.
+    expect(run).toHaveBeenCalledTimes(1);
+    expect(report.stored).toBe(0);
+    expect(report.skipped).toBe(1);
+  });
+});

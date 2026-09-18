@@ -285,10 +285,13 @@ export async function ingestAllSources(env: Env, _ctx?: ExecutionContext): Promi
   );
 
   let stored = 0;
+  // A row the insert itself discarded (a conflict the pre-filters could not see)
+  // is a duplicate, not a store — counting it as stored overstated every tick.
+  let conflicted = 0;
   for (const article of articles) {
     try {
-      await storeArticle(env, article);
-      stored++;
+      if (await storeArticle(env, article)) stored += 1;
+      else conflicted += 1;
     } catch (error) {
       console.error(`[ingest] ${article.sourceId} store failed:`, error);
     }
@@ -297,7 +300,7 @@ export async function ingestAllSources(env: Env, _ctx?: ExecutionContext): Promi
   return {
     sources: sources.length,
     fetched: fetched.length,
-    skipped: fetched.length - articles.length,
+    skipped: fetched.length - articles.length + conflicted,
     stored,
     uncategorized: unmapped.length,
     unmappedCategories,

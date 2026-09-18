@@ -167,6 +167,28 @@ describe('serveMedia', () => {
     expect(await res.text()).toBe('image-bytes');
   });
 
+  it('gives the upstream fetch a deadline', async () => {
+    // Without one, a hanging upstream holds the reader's request until the
+    // platform gives up — nothing in the card, for the whole wait. The feed
+    // fetch has carried the same 10s ceiling since it was written.
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(
+        new Response('bytes', { status: 200, headers: { 'content-type': 'image/webp' } }),
+      );
+    vi.stubGlobal('fetch', fetchMock);
+
+    // Spying on the factory rather than inspecting the signal: any duration,
+    // or a controller that never aborts, satisfies "an AbortSignal was passed",
+    // so the deadline itself is what has to be pinned.
+    const timeout = vi.spyOn(AbortSignal, 'timeout');
+    await serveMedia(ID);
+
+    expect(timeout).toHaveBeenCalledWith(10_000);
+    const init = fetchMock.mock.calls[0]?.[1] as RequestInit | undefined;
+    expect(init?.signal, 'abort signal passed to the upstream fetch').toBeInstanceOf(AbortSignal);
+  });
+
   it('refuses a non-image type rather than serving markup from our own origin', async () => {
     // An HTML object in the upstream store would otherwise render as markup
     // under umuo.app — same-origin XSS, and `nosniff` does not help when the

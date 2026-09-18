@@ -14,7 +14,7 @@ function envReturning(body: unknown): Env {
   return {
     CACHE: {
       get: vi.fn().mockResolvedValue({ body: json, at: Date.now() }),
-      put: vi.fn(),
+      put: vi.fn(async () => {}),
     },
   } as unknown as Env;
 }
@@ -58,7 +58,7 @@ describe('getExploreFeed', () => {
     const env = {
       CACHE: {
         get: vi.fn().mockResolvedValue(null),
-        put: vi.fn(),
+        put: vi.fn(async () => {}),
       },
       DB: {
         prepare: vi.fn().mockImplementation((sql: string) => {
@@ -92,7 +92,7 @@ describe('getExploreFeed degradation', () => {
     // as "No links match these filters" — the reader is told their filters are
     // too narrow while the site is down, and nothing surfaces the failure.
     const d1Down = {
-      CACHE: { get: vi.fn().mockResolvedValue(null), put: vi.fn() },
+      CACHE: { get: vi.fn().mockResolvedValue(null), put: vi.fn(async () => {}) },
       DB: {
         prepare: vi.fn(() => ({
           bind: vi.fn(function bind(this: unknown) {
@@ -105,7 +105,7 @@ describe('getExploreFeed degradation', () => {
       },
     } as unknown as Env;
     const kvDown = {
-      CACHE: { get: vi.fn().mockRejectedValue(new Error('kv down')), put: vi.fn() },
+      CACHE: { get: vi.fn().mockRejectedValue(new Error('kv down')), put: vi.fn(async () => {}) },
     } as unknown as Env;
 
     for (const env of [d1Down, kvDown]) {

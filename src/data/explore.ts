@@ -148,6 +148,13 @@ export function parseExploreCursor(
     !id
   )
     return null;
+  // Only the field that cannot be negative is rejected. day_bucket and
+  // published_at legitimately are for a pre-1970 pubDate, which the feed parser
+  // stores as-is and migration 0015 buckets by floor — rejecting those would
+  // have made such a row listable but its page unreachable, since every
+  // subsequent cursor would collapse to page one. quality_score is a 0-100
+  // authority score, so a negative one cannot come from any row.
+  if (qualityScore < 0) return null;
   return [day, qualityScore, publishedAt, id];
 }
 

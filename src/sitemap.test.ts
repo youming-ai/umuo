@@ -118,7 +118,7 @@ describe('sitemap cache key', () => {
     // is exactly how the filters key once served a stale payload.
     const get = vi.fn(async () => null);
     const env = {
-      CACHE: { get, put: vi.fn() },
+      CACHE: { get, put: vi.fn(async () => {}) },
       // The sitemap aggregate is prepared and awaited directly; it never chains
       // `.bind()`, so the mock mirrors that shape rather than carrying a branch
       // that cannot run.

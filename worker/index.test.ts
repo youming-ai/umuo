@@ -14,7 +14,7 @@ function mockEnv(kvData?: { body: string; at: number } | null): Env {
   return {
     CACHE: {
       get: vi.fn(async () => (kvData ? { ...kvData } : null)),
-      put: vi.fn(),
+      put: vi.fn(async () => {}),
     },
     DB: mockDb(),
   } as unknown as Env;
@@ -119,6 +119,43 @@ describe('serveExplore', () => {
     await serveExplore({}, env, ctx);
     expect(ctx.waitUntil).toHaveBeenCalled();
     expect((env.CACHE as ReturnType<typeof mockEnv>['CACHE']).put).toHaveBeenCalled();
+  });
+
+  it('still serves the body when the cache write fails', async () => {
+    // The write is fire-and-forget and used to sit inside the produce try: a
+    // throwing put, or a waitUntil that refused because the context was already
+    // settled, turned a good read into a 502 (or into STALE, which is worse —
+    // it looks like an upstream problem).
+    const env = mockEnv(null);
+    (env.CACHE as { put: unknown }).put = vi.fn(async () => {
+      throw new Error('kv write down');
+    });
+    const logged = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const ctx = mockCtx();
+
+    const res = await serveExplore({}, env, ctx);
+    expect(res.status).toBe(200);
+    expect(res.headers.get('x-cache')).toBe('MISS');
+    // Nothing awaits the write, so without the catch attached to it the
+    // rejection surfaces as an unhandled rejection with no request to attach it
+    // to. The log line is the only evidence it was handled.
+    // Asserted before any restore: mockRestore() also clears the recorded calls.
+    expect(logged).toHaveBeenCalledWith(
+      expect.stringContaining('KV put failed'),
+      expect.objectContaining({ message: 'kv write down' }),
+    );
+  });
+
+  it('still serves the body when the write cannot even be scheduled', async () => {
+    const env = mockEnv(null);
+    const ctx = mockCtx();
+    ctx.waitUntil = vi.fn(() => {
+      throw new Error('context settled');
+    });
+
+    const res = await serveExplore({}, env, ctx);
+    expect(res.status).toBe(200);
+    expect(res.headers.get('x-cache')).toBe('MISS');
   });
 
   it('lets N coalesced callers each read the body without `Body is unusable`', async () => {
