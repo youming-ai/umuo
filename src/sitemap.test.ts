@@ -2,6 +2,21 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
+
+// The route reads its bindings from `cloudflare:workers`, so it is stubbed for
+// the two cases below. Everything else in this file is pure.
+const failingDb = {
+  prepare: () => ({
+    all: async () => {
+      throw new Error('D1 down');
+    },
+  }),
+};
+const coldCache = { get: vi.fn(async () => null), put: vi.fn(async () => {}) };
+
+vi.mock('cloudflare:workers', () => ({
+  env: { DB: failingDb, CACHE: coldCache },
+}));
 import type { Env, SitemapData } from './data/api';
 import { getSitemapNews } from './data/sitemapData';
 import { renderSitemap, sitemapEntries } from './sitemap';
@@ -136,5 +151,36 @@ describe('sitemap cache key', () => {
     // unversioned or older-shaped key be read first and forgotten.
     expect(get).toHaveBeenCalledTimes(1);
     expect(get).toHaveBeenCalledWith('sitemap:news:v3', 'json');
+  });
+});
+
+describe('the sitemap route when the lookup fails', () => {
+  const cfContext = {
+    waitUntil: vi.fn(),
+    passThroughOnException: vi.fn(),
+    props: {},
+    tracing: {},
+  } as unknown as ExecutionContext;
+
+  it('answers 503 rather than an empty sitemap', async () => {
+    // An empty <urlset> with a 200 is a claim about the site — "nothing here" —
+    // and on a cold cache a D1 outage used to make exactly that claim. A 5xx is
+    // the honest answer and leaves crawlers holding the last sitemap they read.
+    const { GET } = await import('./pages/sitemap.xml');
+    const res = await GET({ locals: { cfContext } } as never);
+
+    expect(res.status).toBe(503);
+    expect(res.headers.get('retry-after')).toBe('300');
+    expect(await res.text()).not.toContain('<urlset');
+  });
+
+  it('still serves 200 with an empty urlset when the lookup genuinely finds nothing', async () => {
+    // The other half of the distinction: a successful read of an empty corpus
+    // is not a failure, and this is what the fallback above must not swallow.
+    const data: SitemapData = { hubs: [] };
+    expect(sitemapEntries(data)).toHaveLength(2);
+    const xml = renderSitemap(sitemapEntries(data));
+    expect(xml).toContain('<urlset');
+    expect(xml).not.toContain('<lastmod>');
   });
 });

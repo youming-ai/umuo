@@ -45,4 +45,10 @@ export interface ExploreFilterOption {
 
 export interface ExploreFilterSet {
   categories: ExploreFilterOption[];
+  /** Every published row the board can show, which is not the sum of the
+   *  per-category counts: a row whose publisher category is not in the registry
+   *  is stored with `category = NULL`, so it appears on the global board and in
+   *  no hub. Summing the options undercounted "All links" for exactly as long
+   *  as a taxonomy drift lasted. `null` means the count could not be read. */
+  total?: number | null;
 }

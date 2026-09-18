@@ -324,6 +324,36 @@ describe('storeArticle', () => {
   });
 });
 
+describe('the rail total counts the rows no hub holds', () => {
+  it('includes the NULL-category row that appears only on the global board', async () => {
+    // The bug this pins: the query filtered `category IS NOT NULL`, so a story
+    // whose publisher category is not in the registry — stored as NULL, shown
+    // on the global board — was missing from "All links". The rail then
+    // undercounted the board it sits next to, for as long as the drift lasted.
+    const db = migratedDatabase();
+    const env = envFor(db);
+    seed(db, {
+      id: 'mapped',
+      fingerprint: 'fp-mapped',
+      canonical_url: 'https://example.com/mapped',
+      category: 'tools',
+    });
+    seed(db, {
+      id: 'unmapped',
+      fingerprint: 'fp-unmapped',
+      canonical_url: 'https://example.com/unmapped',
+      // What storeArticle writes for an unrecognised publisher category.
+      category: null,
+    });
+
+    const filters = await getExploreFilters(env, ctx);
+    expect(filters.categories.map((option) => option.value)).toEqual(['tools']);
+    expect(filters.categories[0]?.count).toBe(1);
+    // Both rows, not just the one with a hub.
+    expect(filters.total).toBe(2);
+  });
+});
+
 describe('the feed query is planned against the index', () => {
   // The shape that was broken: day_bucket was an expression, so neither the
   // ORDER BY nor the keyset predicate could use an index — every page sorted the

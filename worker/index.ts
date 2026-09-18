@@ -1,11 +1,21 @@
 /// <reference types="@cloudflare/workers-types" />
 
-import { type Env, exploreQueryFromUrl, serveExplore, serveExploreFilters } from '../src/data/api';
+import {
+  type Env,
+  exploreQueryFromUrl,
+  healthReport,
+  serveExplore,
+  serveExploreFilters,
+} from '../src/data/api';
 
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     try {
       const url = new URL(request.url);
+      if (url.pathname === '/api/health') {
+        if (request.method !== 'GET') return new Response('Method not allowed', { status: 405 });
+        return healthReport(env);
+      }
       if (url.pathname === '/api/explore') {
         if (request.method !== 'GET') return new Response('Method not allowed', { status: 405 });
         return serveExplore(exploreQueryFromUrl(url), env, ctx);

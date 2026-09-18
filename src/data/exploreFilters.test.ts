@@ -51,6 +51,8 @@ describe('getExploreFilters degradation', () => {
     const env = { CACHE: { get, put: vi.fn(async () => {}) }, DB: db } as unknown as Env;
 
     await getExploreFilters(env, ctx);
-    expect(get).toHaveBeenCalledWith('explore:filters:v1:', 'json');
+    // v2 added `total`; a v1 entry would leave the All row summing options and
+    // undercounting the rows no hub holds.
+    expect(get).toHaveBeenCalledWith('explore:filters:v2:', 'json');
   });
 });
