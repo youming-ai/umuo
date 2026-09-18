@@ -18,8 +18,8 @@ export function canonicalizeUrl(value: string): string {
   try {
     const url = new URL(value);
     // `new URL('javascript:alert(1)')` parses fine. The result is rendered as
-    // an href on the card and the detail-page CTA, so anything but http(s) is
-    // dropped here — the caller already skips articles with an empty url.
+    // the card's href, so anything but http(s) is dropped here — the caller
+    // already skips articles with an empty url.
     if (url.protocol !== 'https:' && url.protocol !== 'http:') return '';
     url.hash = '';
     url.hostname = url.hostname.toLowerCase();
@@ -39,11 +39,7 @@ export function canonicalizeUrl(value: string): string {
   }
 }
 
-export async function fingerprintFor(
-  title: string,
-  description: string,
-  url: string,
-): Promise<string> {
+async function fingerprintFor(title: string, description: string, url: string): Promise<string> {
   const parsed = new URL(url);
   const input = `${title.trim().toLowerCase()}\n${description.trim().slice(0, 240).toLowerCase()}\n${parsed.hostname}${parsed.pathname}`;
   const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(input));
@@ -103,14 +99,12 @@ async function ensureSources(db: D1Database): Promise<void> {
     FEED_SOURCES.map((source) =>
       db
         .prepare(
-          `INSERT INTO sources (
-             id, kind, name, url, category, authority_score, enabled, created_at, updated_at
-           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+          `INSERT INTO sources (id, kind, name, url, authority_score, enabled, created_at, updated_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?)
            ON CONFLICT(id) DO UPDATE SET
              kind = excluded.kind,
              name = excluded.name,
              url = excluded.url,
-             category = excluded.category,
              authority_score = excluded.authority_score,
              updated_at = excluded.updated_at`,
         )
@@ -119,7 +113,6 @@ async function ensureSources(db: D1Database): Promise<void> {
           source.kind,
           source.name,
           source.url,
-          source.category ?? null,
           source.authorityScore,
           source.defaultEnabled ? 1 : 0,
           now,
@@ -212,7 +205,7 @@ async function knownCrossSourceTitles(
   return blocked;
 }
 
-export interface IngestReport {
+interface IngestReport {
   sources: number;
   fetched: number;
   /** Already stored or deduplicated, so never written again. */

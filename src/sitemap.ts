@@ -1,7 +1,7 @@
 import type { SitemapData } from './data/api';
 import { SITE_ORIGIN } from './site';
 
-export interface SitemapEntry {
+interface SitemapEntry {
   path: string;
   lastmod?: string;
 }

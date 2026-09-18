@@ -34,8 +34,7 @@ export default function ExploreCard({
   const date = publishedDate(article.publishedAt);
   const score = scoreValue(article.qualityScore);
   const domain = article.sourceDomain || 'source';
-  // Prefer short blurb on card stream; full summary is featured on detail page.
-  const description = articleDeck(article, 'short');
+  const description = articleDeck(article);
 
   // Engage the shimmer only when the image is genuinely still loading at
   // hydration — cached / already-complete images stay visible and never flash.

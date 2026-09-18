@@ -15,7 +15,7 @@ const initialSearch = Astro.url.searchParams.get('q')?.trim() ?? '';
 const ctx = Astro.locals.cfContext;
 const [initialData, initialFilters] = await Promise.all([
   getExploreFeed(initialSearch ? { category, q: initialSearch } : { category }, env, ctx),
-  getExploreFilters(category, env, ctx),
+  getExploreFilters(env, ctx),
 ]);
 // Both the <head> autodiscovery link and the strip's "+ feed" CTA point at
 // this category's feed.

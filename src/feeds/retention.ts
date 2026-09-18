@@ -13,7 +13,7 @@ export const PRUNE_CRON = '17 3 * * *';
  *  and store the same story again. */
 export const ARTICLE_ARCHIVE_DAYS = 90;
 
-export interface RetentionReport {
+interface RetentionReport {
   articlesArchived: number;
 }
 

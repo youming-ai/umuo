@@ -42,22 +42,6 @@
   },
   "overrides": [
     {
-      "includes": ["public/sw.js"],
-      "javascript": {
-        "globals": ["caches", "fetch", "location", "Promise", "self", "URL"]
-      }
-    },
-    {
-      "includes": ["src/components/MatchDetailModal.tsx"],
-      "linter": {
-        "rules": {
-          "a11y": {
-            "useSemanticElements": "off"
-          }
-        }
-      }
-    },
-    {
       "includes": ["**/*.astro"],
       "linter": {
         "rules": {

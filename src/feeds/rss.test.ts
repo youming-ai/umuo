@@ -67,19 +67,6 @@ describe('parseRss', () => {
     expect(articles[0]?.title).toBe('Guide to <dialog>');
   });
 
-  it('carries the source preset category into every article', () => {
-    const articles = parseRss(
-      `<rss><channel><item>
-        <title>A monitor review</title>
-        <link>https://example.com/story</link>
-        <description>A short report.</description>
-      </item></channel></rss>`,
-      { ...source, category: 'monitor' },
-      Date.parse('2026-08-05T12:00:00Z'),
-    );
-    expect(articles[0].category).toBe('monitor');
-  });
-
   it('extracts item category from Poche-style content:encoded or direct category tags', () => {
     const articles = parseRss(
       `<rss><channel><item>

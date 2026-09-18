@@ -9,7 +9,7 @@ const initialSearch = Astro.url.searchParams.get('q')?.trim() ?? '';
 const ctx = Astro.locals.cfContext;
 const [initialData, initialFilters] = await Promise.all([
   getExploreFeed(initialSearch ? { q: initialSearch } : {}, env, ctx),
-  getExploreFilters('', env, ctx),
+  getExploreFilters(env, ctx),
 ]);
 const websiteJsonLd = {
   '@context': 'https://schema.org',

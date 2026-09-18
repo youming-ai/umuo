@@ -28,7 +28,7 @@ export function normalizeTitle(value: string): string {
  *  tags, and mirroring `category` into that table made the card render
  *  "Development · development" and the RSS emit both `category:development`
  *  and `tag:development`. The category already lives in `articles.category`,
- *  and `getRelatedArticles` matches on it directly. */
+ *  and nothing joins that table to read a category back. */
 export async function storeArticle(env: Env, article: RawArticle): Promise<void> {
   const now = Date.now();
   const category = canonicalCategory(article.category);

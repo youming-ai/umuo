@@ -178,6 +178,8 @@ describe('fetch routing', () => {
   });
 
   it('routes /api/explore/filters through serveExploreFilters', async () => {
+    // `?category` is tolerated and ignored: the rail is global, and old links
+    // carrying the parameter must keep working.
     const env = mockEnv(null);
     const res = await worker.fetch(
       new Request('https://x/api/explore/filters?category=gpu'),
@@ -230,21 +232,21 @@ describe('fetch routing', () => {
   it('does not serve /media/* — that route lives in the deployed entrypoint', async () => {
     // Astro mounts this dispatcher at /api/* only, so a /media/ request never
     // reaches it. Handling media here would be unreachable code; the real route
-    // is worker/entrypoint.ts, covered by entrypoint.test.ts.
+    // is worker/entrypoint.ts, covered by entrypoint.test.ts. It answers 404
+    // itself rather than consulting ASSETS: that fallthrough was reachable for
+    // the bare `/api` path alone, where no asset lives either.
     const env = mockEnv(null);
-    const assets = vi.fn(async () => new Response('asset', { status: 404 }));
-    env.ASSETS = { fetch: assets } as unknown as Env['ASSETS'];
-
     const res = await worker.fetch(
       new Request('https://x/media/437e368b-c40c-4e02-8e06-2ca5bbcb8055'),
       env,
       mockCtx(),
     );
+    expect(res.status).toBe(404);
+  });
 
-    // It falls through to ASSETS rather than being proxied here. Without an
-    // ASSETS stub this assertion would pass for the wrong reason (a thrown
-    // TypeError caught into a 500).
-    expect(assets).toHaveBeenCalled();
+  it('404s the bare /api path instead of falling through to assets', async () => {
+    const env = mockEnv(null);
+    const res = await worker.fetch(new Request('https://x/api'), env, mockCtx());
     expect(res.status).toBe(404);
   });
 });

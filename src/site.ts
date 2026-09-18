@@ -11,22 +11,20 @@ export const SITE_TITLE = 'umuo — Curated explore feed';
 export const SITE_DESCRIPTION =
   'Curated links, tools, design, and articles from the web, organized by category.';
 
-/** Scope label for the global (uncategorised) feed: the rail's All row, the
- *  RSS channel-title marker, and the article page's back link. Single source
- *  of truth so the marker comparison in exploreRss.ts can't drift. */
+/** Scope label for the global (uncategorised) feed: the rail's All row and the
+ *  RSS channel-title marker. Single source of truth so the marker comparison in
+ *  exploreRss.ts can't drift. */
 export const GLOBAL_FEED_LABEL = 'All links';
 export const SITE_LOCALE = 'en_US';
 export const SITE_LANGUAGE = 'en';
 
-/** Single source of truth for article description fallback policies:
- *  - 'short': blurb-first for card stream & previews (concise teaser)
- *  - 'long': summary-first for article detail page & RSS (in-depth analysis) */
-export function articleDeck(
-  article: { summary?: string; blurb?: string; description?: string },
-  mode: 'short' | 'long' = 'short',
-): string {
-  if (mode === 'short') {
-    return article.blurb || article.summary || article.description || '';
-  }
-  return article.summary || article.blurb || article.description || '';
+/** Card-stream teaser policy: blurb first (the curated one-liner), then the
+ *  summary, then the publisher's own teaser. The card is the only consumer —
+ *  the second mode that existed for the per-link pages went with them. */
+export function articleDeck(article: {
+  summary?: string;
+  blurb?: string;
+  description?: string;
+}): string {
+  return article.blurb || article.summary || article.description || '';
 }

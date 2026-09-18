@@ -7,7 +7,7 @@ import { SITE_ORIGIN } from './site';
 //
 // Only that one origin is proxied, and only its storage ids; everything else is
 // passed through untouched.
-export const UPSTREAM_MEDIA_ORIGIN = 'https://cloud.poche.app';
+const UPSTREAM_MEDIA_ORIGIN = 'https://cloud.poche.app';
 
 const UPSTREAM_MEDIA_PATH = '/api/storage/';
 
@@ -20,7 +20,7 @@ export const MEDIA_PATH = '/media/';
 const MEDIA_FILE_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /** Whether `file` is an upstream storage id — the only thing `/media/` serves. */
-export function isStorageId(file: string): boolean {
+function isStorageId(file: string): boolean {
   return MEDIA_FILE_RE.test(file);
 }
 

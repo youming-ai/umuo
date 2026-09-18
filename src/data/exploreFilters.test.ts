@@ -27,12 +27,30 @@ describe('getExploreFilters degradation', () => {
       },
     } as unknown as Env;
 
-    const filters = await getExploreFilters('', failing, ctx);
+    const filters = await getExploreFilters(failing, ctx);
 
     expect(filters.categories.map((option) => option.value).sort()).toEqual(
       Object.keys(CATEGORIES).sort(),
     );
     expect(filters.categories.every((option) => option.count === null)).toBe(true);
     expect(filters.categories.every((option) => option.label.length > 0)).toBe(true);
+  });
+
+  it('reads a single cache entry, not one per page that asked for it', async () => {
+    // The composer used to fold the caller's category into the key while the
+    // query itself was global, storing nine identical copies of one payload.
+    const db = {
+      prepare: vi.fn(() => ({
+        bind: vi.fn(function bind(this: unknown) {
+          return this;
+        }),
+        all: vi.fn(async () => ({ results: [] })),
+      })),
+    };
+    const get = vi.fn(async () => null);
+    const env = { CACHE: { get, put: vi.fn() }, DB: db } as unknown as Env;
+
+    await getExploreFilters(env, ctx);
+    expect(get).toHaveBeenCalledWith('explore:filters:v1:', 'json');
   });
 });

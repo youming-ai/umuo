@@ -2,7 +2,7 @@ import { CATEGORIES } from '../categories';
 import { type Env, runCached } from './cache';
 import { type CountRow, rowNumber, rowString } from './explore';
 
-export interface SitemapNewsHub {
+interface SitemapNewsHub {
   category: string;
   /** Newest published article in that hub, as an ISO 8601 instant. */
   lastmod: string;
