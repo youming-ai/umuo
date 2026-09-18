@@ -27,14 +27,6 @@
 
   /* Elevation overlays (replaces ad-hoc white/black alpha) */
   --c-overlay: 255 255 255;
-  --c-scrim: 0 0 0;
-
-  /* On-surface foregrounds — theme-INVARIANT. The scrim is always black and
-     the pitch accent stays mid-green in both themes, so text/icons on them
-     must not flip with the theme. Light theme intentionally does NOT override
-     these. */
-  --c-on-scrim: 255 255 255;
-  --c-on-accent: 10 14 12;
 
   /* Radius — none. The whole UI is now square; revisit per-surface if a
      single component ever wants to round again. */
@@ -102,7 +94,6 @@
   --c-amber: 156 100 0; /* light: darkened for AA on white (5.05:1); /25 badge ~3.7:1 */
 
   --c-overlay: 0 0 0;
-  --c-scrim: 0 0 0;
 
   --shadow-panel: 0 2px 6px -1px rgb(0 0 0 / 0.1), 0 1px 3px -1px rgb(0 0 0 / 0.07);
   --shadow-hero: 0 8px 12px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.08);

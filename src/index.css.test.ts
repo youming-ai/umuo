@@ -14,6 +14,10 @@ const tokens = JSON.parse(
 ) as {
   color: Record<string, { $value: { dark?: string; light?: string } }>;
   radius: Record<string, { $value: string }>;
+  spacing: Record<string, { $value: string }>;
+  typography: Record<string, { $value: string }>;
+  shadow: Record<string, { $value: { dark?: string; light?: string } }>;
+  component: Record<string, unknown>;
 };
 
 // tokens.json uses semantic names; index.css uses --c-* vars. This is the
@@ -29,9 +33,6 @@ const CSS_VAR: Record<string, string> = {
   live: 'live',
   amber: 'amber',
   overlay: 'overlay',
-  scrim: 'scrim',
-  onscrim: 'on-scrim',
-  onaccent: 'on-accent',
 };
 
 function hexFromChannels(channels: string): string {
@@ -105,8 +106,7 @@ describe('design tokens', () => {
         expect(dark[cssName]?.toLowerCase(), `${name} dark`).toBe(token.$value.dark.toLowerCase());
       }
       if (token.$value.light) {
-        // Theme-invariant tokens (on-scrim/on-accent) are deliberately not
-        // overridden in the light block — inherit the dark value.
+        // A token the light block does not override inherits the dark value.
         const lightValue = light[cssName] ?? dark[cssName];
         expect(lightValue?.toLowerCase(), `${name} light`).toBe(token.$value.light.toLowerCase());
       }
@@ -179,6 +179,107 @@ describe('design tokens', () => {
       const fill = mix(token(theme, other, 'surface'), page, 0.7);
       expect(contrast(border, page), `${name}: input border vs page`).toBeGreaterThanOrEqual(3);
       expect(contrast(border, fill), `${name}: input border vs fill`).toBeGreaterThanOrEqual(3);
+    }
+  });
+
+  it('keeps every tokens.json spacing in sync with index.css --space-*', () => {
+    // Same dimension comparison as radius: values may be px or rem; 1rem = 16px.
+    const toPx = (v: string): number =>
+      v.trim().endsWith('rem')
+        ? Number.parseFloat(v) * 16
+        : Number.parseFloat(v.replace(/px/i, ''));
+    for (const [name, token] of Object.entries(tokens.spacing)) {
+      const match = css.match(new RegExp(`--space-${name}:\\s*([^;]+);`));
+      expect(match, `--space-${name} present in index.css`).not.toBeNull();
+      expect(toPx(match![1]), name).toBe(toPx(token.$value));
+    }
+  });
+
+  it('keeps every tokens.json typography size in sync with index.css', () => {
+    // These had already drifted: tokens said micro 9px / caption 10px while the
+    // stylesheet had moved to 10px / 11px, and nothing noticed because only
+    // colour and radius were pinned. The captions carry source names, dates and
+    // every rail row, so the size is load-bearing rather than decorative.
+    //
+    // Sizes only. The three font families are `$type: fontFamily` entries with
+    // no CSS var behind them; the next test holds those to tailwind.config.js,
+    // which is where they are actually declared.
+    const toPx = (v: string): number =>
+      v.trim().endsWith('rem')
+        ? Number.parseFloat(v) * 16
+        : Number.parseFloat(v.replace(/px/i, ''));
+    let sizes = 0;
+    for (const [name, token] of Object.entries(tokens.typography)) {
+      if (!/^\d/.test(token.$value)) continue;
+      sizes += 1;
+      const match = css.match(new RegExp(`--text-${name}:\\s*([^;]+);`));
+      expect(match, `--text-${name} present in index.css`).not.toBeNull();
+      expect(toPx(match![1]), name).toBe(toPx(token.$value));
+    }
+    // Guards against the loop silently iterating nothing after a rename.
+    expect(sizes).toBe(6);
+  });
+
+  it('keeps every tokens.json font family in sync with tailwind.config.js', () => {
+    // The families live in the Tailwind config as the font-display/body/mono
+    // utilities, not as CSS vars, so that file is where they can drift. Several
+    // are multi-word and quoted for CSS; the token names the family itself.
+    const tailwind = readFileSync(resolve(process.cwd(), 'tailwind.config.js'), 'utf8');
+    const start = tailwind.indexOf('fontFamily:');
+    const block = tailwind.slice(start, tailwind.indexOf('borderRadius:', start));
+    expect(block.length, 'fontFamily block in tailwind.config.js').toBeGreaterThan(0);
+
+    let families = 0;
+    for (const [name, token] of Object.entries(tokens.typography)) {
+      if (/^\d/.test(token.$value)) continue;
+      families += 1;
+      const key = name.replace(/^font-/, '');
+      const match = block.match(new RegExp(`${key}:\\s*\\[\\s*'([^']+)'`));
+      expect(match, `fontFamily.${key} in tailwind.config.js`).not.toBeNull();
+      expect(match![1].replace(/"/g, ''), name).toBe(token.$value);
+    }
+    expect(families).toBe(3);
+  });
+
+  it('keeps every tokens.json shadow in sync with index.css --shadow-*', () => {
+    // The two files write the same shadow in different notations —
+    // `rgba(0,0,0,0.08)` against `rgb(0 0 0 / 0.08)` — so compare normalised.
+    // panel.light had drifted (blur 4px→6px, alpha .08→.1) unnoticed.
+    const normalise = (value: string): string =>
+      value
+        .replace(/rgb\(([\d\s]+?)\s*\/\s*([\d.]+)\)/g, (_m, rgb: string, a: string) => {
+          return `rgba(${rgb.trim().split(/\s+/).join(',')},${a})`;
+        })
+        .replace(/rgba\(([^)]+)\)/g, (_m, inner: string) => {
+          return `rgba(${inner
+            .split(',')
+            .map((part) => part.trim())
+            .join(',')})`;
+        })
+        .replace(/\s+/g, ' ')
+        .trim();
+
+    for (const [name, token] of Object.entries(tokens.shadow)) {
+      for (const theme of ['dark', 'light'] as const) {
+        const expected = token.$value[theme];
+        if (!expected) continue;
+        const block =
+          theme === 'dark'
+            ? css.slice(css.indexOf(':root,'), css.indexOf("[data-theme='light']"))
+            : css.slice(css.indexOf("[data-theme='light']"));
+        const match = block.match(new RegExp(`--shadow-${name}:\\s*([^;]+);`));
+        expect(match, `--shadow-${name} in the ${theme} block`).not.toBeNull();
+        expect(normalise(match![1]), `${name} ${theme}`).toBe(normalise(expected));
+      }
+    }
+  });
+
+  it('only names component tokens for classes the stylesheet declares', () => {
+    // The orphan check: ds-page, ds-page-inner, ds-glass, ds-glass-hero and
+    // ds-chip described recipes for markup that no longer exists, and nothing
+    // said so. Any token added here has to name a real rule.
+    for (const name of Object.keys(tokens.component)) {
+      expect(css, `.${name} declared in index.css`).toContain(`.${name}`);
     }
   });
 });

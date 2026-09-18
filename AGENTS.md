@@ -66,7 +66,7 @@ Bun locally, `workerd` in production.
 - `src/media.ts` — `proxiedImageUrl` (rewrites a feed-CDN image onto `SITE_ORIGIN`), `mediaRequest`/`serveMedia` (the `/media/<storage-id>` handler), `isVideoMediaUrl` + `withTemporalFragment` (the video thumbnails), and the id allowlist that keeps it from being an open proxy.
 - `worker/entrypoint.ts` / `worker/index.ts` — see Key Directories.
 - `wrangler.toml` — all Cloudflare bindings/crons/vars (see Infrastructure).
-- `env.d.ts` / `worker/env.d.ts` — hand-declared `Cloudflare.Env` for the two tsconfigs; must match the bindings in `wrangler.toml` (there are no `[vars]`). `ASSETS` is declared in the worker half only, since that tsconfig is the one that does not inherit the generated types.
+- `env.d.ts` / `worker/env.d.ts` — hand-declared `Cloudflare.Env` for the two tsconfigs; must match the bindings in `wrangler.toml` (there are no `[vars]`). `ASSETS` is listed in the worker half only, and it is load-bearing there: drop it and `handle(request, env, ctx)` stops typechecking, because that program excludes the root `env.d.ts` whose `Env` the data layer exports. Nothing in `src/` reads `ASSETS`, so the app half omits it.
 
 ## Runtime/Tooling Preferences
 

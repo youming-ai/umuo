@@ -19,9 +19,6 @@ export default {
         live: c('--c-live'),
         amber: c('--c-amber'),
         overlay: c('--c-overlay'),
-        scrim: c('--c-scrim'),
-        onscrim: c('--c-on-scrim'),
-        onaccent: c('--c-on-accent'),
       },
       borderRadius: {
         micro: 'var(--r-micro)',
