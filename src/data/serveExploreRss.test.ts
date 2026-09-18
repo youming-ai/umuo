@@ -6,7 +6,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { SITE_ORIGIN } from '../site';
 import type { Env } from './api';
-import { RSS_ITEM_LIMIT, serveExploreRss } from './api';
+import { EXPLORE_MAX_LIMIT, serveExploreRss } from './api';
 
 function mockCtx(): ExecutionContext {
   return {
@@ -99,9 +99,11 @@ describe('serveExploreRss', () => {
     await serveExploreRss({}, env, mockCtx());
     // The explore query binds limit + 1 and never the bare limit: the extra row
     // is how the subject detects that another page exists. So the bound value
-    // is the evidence that the RSS path asked for a full page.
+    // is the evidence that the RSS path asked for the API's full page — and
+    // because both come from EXPLORE_MAX_LIMIT, raising the ceiling cannot
+    // leave the feed quietly requesting less than the clamp allows.
     const limits = bindings.flat().filter((value): value is number => typeof value === 'number');
-    expect(limits).toContain(RSS_ITEM_LIMIT + 1);
+    expect(limits).toContain(EXPLORE_MAX_LIMIT + 1);
   });
 
   it('scopes the channel link to the category it was given', async () => {

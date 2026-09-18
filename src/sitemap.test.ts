@@ -102,9 +102,12 @@ describe('canonical origin', () => {
     // a file that names a different host, or forgets the directive entirely,
     // would have left crawlers pointed at the wrong place in silence.
     const robots = readFileSync(resolve(process.cwd(), 'public/robots.txt'), 'utf8');
-    expect(robots).toContain(`Sitemap: ${SITE_ORIGIN}/sitemap.xml`);
+    // Whole lines, not substrings: a commented-out or prefixed directive still
+    // contains the text while instructing crawlers to do nothing.
+    const lines = robots.split('\n').map((line) => line.trim());
+    expect(lines).toContain(`Sitemap: ${SITE_ORIGIN}/sitemap.xml`);
     // The API is crawler noise; the routes that matter are the hubs and feeds.
-    expect(robots).toContain('Disallow: /api/');
+    expect(lines).toContain('Disallow: /api/');
   });
 });
 
@@ -116,14 +119,10 @@ describe('sitemap cache key', () => {
     const get = vi.fn(async () => null);
     const env = {
       CACHE: { get, put: vi.fn() },
-      DB: {
-        prepare: vi.fn(() => ({
-          bind: vi.fn(function bind(this: unknown) {
-            return this;
-          }),
-          all: vi.fn(async () => ({ results: [] })),
-        })),
-      },
+      // The sitemap aggregate is prepared and awaited directly; it never chains
+      // `.bind()`, so the mock mirrors that shape rather than carrying a branch
+      // that cannot run.
+      DB: { prepare: vi.fn(() => ({ all: vi.fn(async () => ({ results: [] })) })) },
     } as unknown as Env;
     const ctx = {
       waitUntil: vi.fn(),
@@ -133,6 +132,9 @@ describe('sitemap cache key', () => {
     } as unknown as ExecutionContext;
 
     await getSitemapNews(env, ctx);
+    // Called once, then checked: asserting only the arguments would let an
+    // unversioned or older-shaped key be read first and forgotten.
+    expect(get).toHaveBeenCalledTimes(1);
     expect(get).toHaveBeenCalledWith('sitemap:news:v3', 'json');
   });
 });
