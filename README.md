@@ -86,7 +86,7 @@ graph TD
 | `/:category` | Per-category hub (e.g. `/design`) |
 | `/rss.xml`, `/:category/rss.xml` | RSS 2.0 |
 | `/sitemap.xml` | Sitemap — category hubs and feeds |
-| `/media/<uuid>` | Feed-CDN images, re-served under this origin (any other `/media/…` path falls through to the app) |
+| `/media/<uuid>` | Feed-CDN images, re-served under this origin. Unrecognised but validly encoded `/media/…` paths fall through to the app; malformed percent-encoding is answered `400` |
 | `/a/:id` | Legacy per-link URL, 301s to the article's source |
 
 ## Deployment
