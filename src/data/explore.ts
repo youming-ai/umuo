@@ -1,13 +1,7 @@
 import { CATEGORIES } from '../categories';
 import { isVideoMediaUrl, proxiedImageUrl } from '../media';
 import { GLOBAL_FEED_LABEL, SITE_ORIGIN } from '../site';
-import type {
-  ExploreArticle,
-  ExploreArticleType,
-  ExploreFeed,
-  ExploreFilterOption,
-  ExploreFilterSet,
-} from '../types';
+import type { ExploreArticle, ExploreFeed, ExploreFilterOption, ExploreFilterSet } from '../types';
 import { num } from '../utils/coerce';
 import { type Env, json, runCached } from './cache';
 import { renderExploreRss } from './exploreRss';
@@ -48,7 +42,6 @@ export interface ExploreRow {
   published_at: unknown;
   day_bucket: unknown;
   category: unknown;
-  article_type: unknown;
   quality_score: unknown;
   freshness_score: unknown;
   tags?: unknown;
@@ -62,23 +55,6 @@ export interface CountRow {
 
 export const rowString = (v: unknown): string => (typeof v === 'string' ? v : '');
 export const rowNumber = num;
-
-function exploreArticleType(value: unknown): ExploreArticleType {
-  const allowed: ExploreArticleType[] = [
-    'link',
-    'news',
-    'review',
-    'deal',
-    'leak',
-    'analysis',
-    'guide',
-    'video',
-  ];
-  const candidate = rowString(value) as ExploreArticleType;
-  // Unknown or NULL article_type falls back to 'link': every row this pipeline
-  // writes is a curated link, so a legacy value must not surface as 'news'.
-  return allowed.includes(candidate) ? candidate : 'link';
-}
 
 function sourceDomain(value: unknown): string {
   try {
@@ -122,10 +98,9 @@ export function exploreArticle(row: ExploreRow): ExploreArticle {
     sourceDomain: sourceDomain(row.canonical_url),
     publishedAt: rowNumber(row.published_at),
     category: rowString(row.category) || null,
-    articleType: exploreArticleType(row.article_type),
+    freshnessScore: rowNumber(row.freshness_score),
     tags: rowTags(row.tags),
     qualityScore: rowNumber(row.quality_score),
-    freshnessScore: rowNumber(row.freshness_score),
   };
 }
 
@@ -137,19 +112,22 @@ export function exploreArticle(row: ExploreRow): ExploreArticle {
  *  stays stable under the daily ingest inserts. Offset would slide under rows
  *  inserted at the top every ingest tick. */
 
-// Live freshness, computed at query time from published_at rather than the
-// frozen insert-time snapshot the column used to hold. Single source of truth
-// for the freshness formula; 259200 = 72h in seconds. The stored freshness_score
-// column is no longer written (defaults to 0) and ignored for display.
+/** Live freshness, computed at query time from published_at rather than the
+ *  frozen insert-time snapshot the column used to hold. 259200 = 72h in
+ *  seconds. Exported to API consumers; the current UI renders no freshness
+ *  value, so this is a documented surface rather than a rendered one. */
 const LIVE_FRESHNESS =
   "MAX(0, MIN(100, ROUND(100.0 - (CAST(strftime('%s','now') AS REAL) - a.published_at / 1000.0) / 259200.0 * 100.0))) AS freshness_score";
 
-/** Single source of truth for the article SELECT projection across explore feed,
- *  detail page, and related stories. */
+/** Single source of truth for the article SELECT projection.
+ *
+ *  `article_type` is deliberately absent: the pipeline writes `'link'` for every
+ *  row, so it was a constant that cost a column read on every query and a slot
+ *  in every cached payload (and was rendered on every card as `LINK / X`). */
 export const EXPLORE_ARTICLE_COLUMNS =
   'a.id, a.title, a.description, a.ai_summary, a.ai_blurb, a.canonical_url, ' +
   'a.image_url, a.image_width, a.image_height, ' +
-  'a.published_at, (a.published_at / 86400000) AS day_bucket, a.category, a.article_type, a.quality_score, ' +
+  'a.published_at, (a.published_at / 86400000) AS day_bucket, a.category, a.quality_score, ' +
   `${LIVE_FRESHNESS}, ` +
   "COALESCE((SELECT json_group_array(at.tag) FROM article_tags at WHERE at.article_id = a.id), '[]') AS tags";
 export function parseExploreCursor(
@@ -304,8 +282,8 @@ export async function serveExplore(
   // revalidated (and for the full `keep` window if D1 revalidation failed).
   // Bump this whenever the article payload changes:
   //   v2 dropped `sourceName`; v3 dropped `sourceId` and re-originated imageUrl;
-  //   v4 added `isVideo`.
-  const key = `explore:v4:${encodeURIComponent(JSON.stringify(normalized))}`;
+  //   v4 added `isVideo`; v5 dropped `articleType`.
+  const key = `explore:v5:${encodeURIComponent(JSON.stringify(normalized))}`;
   return runCached(
     key,
     async () => JSON.stringify(await queryExplore(normalized, env)),
@@ -359,8 +337,9 @@ export async function serveExploreRss(
   // read, so a format change keeps being served from a warm entry until it
   // expires. `v1` covers the URLs now being composed from SITE_ORIGIN rather
   // than the request host — an entry written by an earlier deploy through
-  // another hostname would otherwise outlive the fix.
-  const key = `explore:rss:v1:${encodeURIComponent(JSON.stringify(normalized))}`;
+  // another hostname would otherwise outlive the fix. `v2` drops the constant
+  // `type:` category.
+  const key = `explore:rss:v2:${encodeURIComponent(JSON.stringify(normalized))}`;
   const cached = await runCached(
     key,
     async () => {

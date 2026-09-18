@@ -19,7 +19,6 @@ function rfc822(timestamp: number): string {
 function categoriesFor(article: ExploreArticle): string[] {
   const categories: string[] = [];
   if (article.category) categories.push(`category:${article.category}`);
-  if (article.articleType) categories.push(`type:${article.articleType}`);
   if (article.sourceDomain) categories.push(`source:${article.sourceDomain}`);
   for (const tag of article.tags.slice(0, 8)) categories.push(`tag:${tag}`);
   return categories;

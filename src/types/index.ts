@@ -1,15 +1,5 @@
 // --- Curated Explore content (D1 content layer) ---
 
-export type ExploreArticleType =
-  | 'link'
-  | 'news'
-  | 'review'
-  | 'deal'
-  | 'leak'
-  | 'analysis'
-  | 'guide'
-  | 'video';
-
 export interface ExploreArticle {
   id: string;
   title: string;
@@ -28,9 +18,10 @@ export interface ExploreArticle {
   publishedAt: number;
   /** Canonical category key from src/categories.ts, null when unattributed. */
   category: string | null;
-  articleType: ExploreArticleType;
   tags: string[];
   qualityScore: number;
+  /** 0–100, decaying over a 72h window from `publishedAt`, computed at query
+   *  time. Exported for API consumers; the current UI does not render it. */
   freshnessScore: number;
 }
 

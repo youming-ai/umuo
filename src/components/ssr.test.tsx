@@ -57,7 +57,6 @@ it('renders article cards server-side', () => {
             sourceDomain: 'tomshardware.com',
             publishedAt: 1786080856000,
             category: 'tools',
-            articleType: 'review',
             tags: ['tools'],
             qualityScore: 82,
             freshnessScore: 60,
@@ -70,7 +69,10 @@ it('renders article cards server-side', () => {
   );
   expect(html).toContain('New flagship GPU beats its predecessor');
   expect(html).toContain('tomshardware.com');
-  expect(html).toContain('review');
+  // The card leads with the category now; the type label it used to lead with
+  // was the constant 'link', which said nothing on every card at once.
+  expect(html).toContain('Tools');
+  expect(html).not.toContain('>link<');
 });
 
 it('renders a feed-supplied video as a <video> element, never as an <img>', () => {
@@ -95,7 +97,6 @@ it('renders a feed-supplied video as a <video> element, never as an <img>', () =
             sourceDomain: 'o.doubao.com',
             publishedAt: 1789434835000,
             category: 'tools',
-            articleType: 'link',
             tags: ['tools'],
             qualityScore: 90,
             freshnessScore: 100,

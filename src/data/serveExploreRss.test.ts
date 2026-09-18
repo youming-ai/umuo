@@ -74,7 +74,7 @@ describe('serveExploreRss', () => {
     const { env } = mockEnv();
     await serveExploreRss({}, env, mockCtx());
     expect(vi.mocked(env.CACHE.get)).toHaveBeenCalledWith(
-      expect.stringContaining('explore:rss:v1:'),
+      expect.stringContaining('explore:rss:v2:'),
       'json',
     );
   });
