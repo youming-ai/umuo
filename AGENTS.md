@@ -22,7 +22,7 @@ bun run verify         # 提交前门禁：lint + type-check + vitest + build:we
 - **文案只有一个来源**：`apps/web/src/content/<locale>.ts`，四种语言结构一致；新增文案四种语言都要写，
   `content.test.ts` 会拦空串与漏翻。组件不写死句子。
 - **预渲染必须能 hydrate**：渲染期不读 `window`、不用随机数和计时器，副作用放进 effect（`hydration.test.tsx` 守着）。
-- **不放假下载链接**：安装包没发布前 `MACOS_DOWNLOAD_URL` 为 `null`，下载按钮不可点、里面带「开发中」标签。
+- **不放假下载链接**：`MACOS_DOWNLOAD_URL` 指向 Worker 的 `/download/macos`（读 R2 最新版）；设回 `null` 时下载按钮变为不可点。
 - 目前站点只有首页一屏：定价页暂时下线，页眉只放 logo（logo 尚未定稿）。页面清单在 `apps/web/src/lib/pages.ts`。
 
 ## 视觉方向：「对照本」

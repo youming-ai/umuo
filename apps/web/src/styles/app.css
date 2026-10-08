@@ -203,7 +203,7 @@
     cursor: default;
   }
 
-  .pending-tag {
+  .status-tag {
     margin-inline-start: 0.25rem;
     padding: 0.0625rem 0.375rem;
     border-radius: 4px;

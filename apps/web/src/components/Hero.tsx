@@ -1,4 +1,5 @@
 import { type CSSProperties, useEffect, useId, useState } from 'react'
+import { MACOS_DOWNLOAD_URL } from '../config'
 import type { DemoMode, DemoModeId, Locale, SiteContent } from '../content/types'
 import { DownloadButton } from './DownloadButton'
 
@@ -32,6 +33,9 @@ export function Hero({ content }: { content: SiteContent; locale: Locale }) {
               <p id={noteId} className="mt-3 text-sm text-text-tertiary">
                 {macos.requirement}
               </p>
+              {MACOS_DOWNLOAD_URL ? (
+                <p className="mt-1 max-w-md text-xs text-text-tertiary">{macos.note}</p>
+              ) : null}
             </div>
           ) : null}
         </div>

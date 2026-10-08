@@ -115,11 +115,11 @@ describe('首页一屏', () => {
     expect(document.documentElement.dataset.theme).toBe('dark')
   })
 
-  it('未发布时下载按钮不可点击，也不弹邮箱表单', () => {
-    const download = host.querySelector<HTMLButtonElement>('#download .btn-primary')
-    expect(download?.disabled).toBe(true)
-    click('#download .btn-primary')
+  it('下载按钮指向 Worker 给出的最新安装包，带预览版标签与放行说明', () => {
+    const download = host.querySelector<HTMLAnchorElement>('#download a.btn-primary')
+    expect(download?.getAttribute('href')).toBe('/download/macos')
+    expect(download?.textContent).toContain('预览版')
+    expect(host.querySelector('#download')?.textContent).toContain('仍要打开')
     expect(host.querySelector('form')).toBeNull()
-    expect(host.querySelector('input[type="email"]')).toBeNull()
   })
 })

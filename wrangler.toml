@@ -1,4 +1,4 @@
-# umuo.app —— 官网静态产物 + /api/* 的 Worker。
+# umuo.app —— 官网静态产物 + /api/* 与 /download/* 的 Worker。
 #
 # 为什么配置在**仓库根**而不是 worker/ 下：Cloudflare Workers Builds 里那个 `umuo`
 # 服务的 root directory 就是仓库根（它之前托管的是同账号的另一个项目）。配置放错
@@ -10,13 +10,13 @@ name = "umuo"
 main = "./worker/src/index.ts"
 compatibility_date = "2026-07-17"
 
-# 只有 /api/* 先交给 Worker，其余路径由静态资源层直接返回。
+# 只有 /api/* 与 /download/* 先交给 Worker，其余路径由静态资源层直接返回。
 # 官网是**预渲染的多页站**（vite build + renderToString 注入），不是 SPA，
 # 所以不做 index.html 兜底：未知路径就该 404，而不是回一个首页副本。
 # 资源目录由根脚本 `bun run build:web` 生成（`bun run build` 就是它）。
 [assets]
 directory = "./apps/web/dist"
-run_worker_first = ["/api/*"]
+run_worker_first = ["/api/*", "/download/*"]
 
 # 上线通知的邮箱列表。namespace 名 `umuo-notify`，与 9.6 的账号服务无关 ——
 # 官网这一份只是「发布时通知你」，不做账号系统（账号服务不在此仓库）。
@@ -29,6 +29,18 @@ id = "dad4b460f4a14797adc1e9491e42f7f1"
 [[previews.kv_namespaces]]
 binding = "NOTIFY_KV"
 id = "269178fa91564fc6954a8fd1b33d3be7"
+
+# 客户端安装包。私有仓库 umuo-app 的 Release 工作流每次合进 main 都往这里传新的 .dmg，
+# 并更新 macos/latest.json；Worker 只读。
+[[r2_buckets]]
+binding = "RELEASES"
+bucket_name = "umuo-releases"
+
+# PR 预览绑独立的空桶：R2 绑定本身不限制写入，预览里的代码不该碰得到正式安装包。
+# 预览环境的下载因此是 503「正在准备中」，这是预期的。
+[[previews.r2_buckets]]
+binding = "RELEASES"
+bucket_name = "umuo-releases-preview"
 
 # 调用日志默认只记 URL 与状态码；邮箱在 POST body 里，不会进 URL，所以不会落进日志。
 [observability]

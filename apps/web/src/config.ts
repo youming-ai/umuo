@@ -18,10 +18,10 @@ export const SITE_URL = 'https://umuo.app'
 export const CONTACT_EMAIL = 'hello@umuo.app'
 
 /**
- * macOS 安装包地址。发布前为 null，下载按钮暂不可点击。
- * 发布后配置真实 DMG 地址，Header 与首屏会直接提供下载，不再弹上线通知。
+ * macOS 安装包地址。由 Worker 读 R2 里的 macos/latest.json 给出最新版（见 worker/src/releases.ts）；
+ * 客户端仓库每次合进 main 都会自动发一个新版本。设回 null 则下载按钮变为不可点。
  */
-export const MACOS_DOWNLOAD_URL: string | null = null
+export const MACOS_DOWNLOAD_URL: string | null = '/download/macos'
 
 /** 对外展示的版本状态 */
 export const RELEASE = {

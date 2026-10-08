@@ -11,7 +11,7 @@ export type Locale = 'zh-cn' | 'zh-tw' | 'en' | 'ja' | 'ko'
 /** 首屏演示的三种模式：读 / 写 / 说 */
 export type DemoModeId = 'read' | 'write' | 'speak'
 
-/** Hero 的下载区三张卡片 */
+/** 首屏下载按钮对应的平台 */
 export type PlatformId = 'macos' | 'windows' | 'linux'
 
 export interface SeoContent {
@@ -35,8 +35,10 @@ export interface PlatformCard {
   /** 系统要求，显示在下载按钮下方 */
   requirement: string
   actionLabel: string
-  /** 未发布时按钮里的状态标签，例如「V1.0 开发中」 */
+  /** 下载按钮里的状态标签，例如「预览版」 */
   statusLabel: string
+  /** 按钮下方的补充说明：未公证的预览版首次打开怎么放行 */
+  note: string
 }
 
 /** 首屏演示的一种模式：上一行经快捷键变成下一行 */
