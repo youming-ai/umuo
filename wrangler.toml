@@ -24,6 +24,12 @@ run_worker_first = ["/api/*"]
 binding = "NOTIFY_KV"
 id = "dad4b460f4a14797adc1e9491e42f7f1"
 
+# PR 预览（`wrangler preview`）用独立的 namespace `umuo-notify-preview`：
+# 预览里提交的测试邮箱不会混进正式名单，预览也读不到真实名单。
+[[previews.kv_namespaces]]
+binding = "NOTIFY_KV"
+id = "269178fa91564fc6954a8fd1b33d3be7"
+
 # 调用日志默认只记 URL 与状态码；邮箱在 POST body 里，不会进 URL，所以不会落进日志。
 [observability]
 enabled = true
