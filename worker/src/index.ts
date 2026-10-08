@@ -53,7 +53,7 @@ const NOT_FOUND_HTML = `<!doctype html>
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const { pathname } = new URL(request.url)
-    if (pathname === '/' || pathname === '/index.html') return handleHome(request, env)
+    if (pathname === '/') return handleHome(request, env)
     const redirect = localeRedirect(pathname, request.url)
     if (redirect) return redirect
     if (pathname === '/api/notify') return handleNotify(request, env)

@@ -54,19 +54,59 @@ describe('首页地址', () => {
       request('/', { 'accept-language': 'en-GB,en;q=0.9' }),
       fakeEnv(requested),
     )
+    expect(response.status).toBe(200)
     expect(requested).toEqual(['/en/'])
     expect(await response.text()).toContain('data-locale="en"')
     expect(response.headers.get('vary')).toBe('Cookie, Accept-Language')
     expect(response.headers.get('content-language')).toBe('en')
   })
 
-  it('带语言前缀的旧地址记住语言后 301 回 /', async () => {
+  it('带语言前缀的旧地址记住语言后 301 回 /，查询参数保留', async () => {
     for (const path of ['/ko/', '/ko', '/en/pricing/']) {
       const response = await worker.fetch(request(path), fakeEnv())
       expect(response.status, path).toBe(301)
       expect(response.headers.get('location')).toBe('https://umuo.app/')
       expect(response.headers.get('set-cookie')).toContain(`umuo-lang=${path.split('/')[1]}`)
     }
+    const tagged = await worker.fetch(request('/ja/?utm_source=x'), fakeEnv())
+    expect(tagged.headers.get('location')).toBe('https://umuo.app/?utm_source=x')
+  })
+
+  it('/index.html 301 回 /，不留第二个首页地址', async () => {
+    const response = await worker.fetch(request('/index.html?ref=a'), fakeEnv())
+    expect(response.status).toBe(301)
+    expect(response.headers.get('location')).toBe('https://umuo.app/?ref=a')
+    expect(response.headers.get('set-cookie')).toBeNull()
+  })
+
+  it('挑中的语言页取不到时退回简体中文，都取不到返回 503', async () => {
+    const requested: string[] = []
+    const missingEn: Env = {
+      ...fakeEnv(requested),
+      ASSETS: {
+        async fetch(req) {
+          const { pathname } = new URL(req.url)
+          requested.push(pathname)
+          return pathname === '/en/'
+            ? new Response('not found', { status: 404 })
+            : new Response('<html data-locale="zh-cn">')
+        },
+      },
+    }
+    const fallback = await worker.fetch(request('/', { 'accept-language': 'en' }), missingEn)
+    expect(fallback.status).toBe(200)
+    expect(requested).toEqual(['/en/', '/zh-cn/'])
+    expect(fallback.headers.get('content-language')).toBe('zh-cn')
+
+    const broken: Env = {
+      ...fakeEnv(),
+      ASSETS: {
+        fetch: async () => {
+          throw new Error('binding down')
+        },
+      },
+    }
+    expect((await worker.fetch(request('/'), broken)).status).toBe(503)
   })
 
   it('不是语言前缀的未知路径仍然 404', async () => {

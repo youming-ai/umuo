@@ -11,7 +11,7 @@ import './styles/app.css'
 const pathLocale = localeFromPath(window.location.pathname)
 if (pathLocale) {
   switchLocale(pathLocale)
-  window.history.replaceState(null, '', `/${window.location.hash}`)
+  window.history.replaceState(null, '', `/${window.location.search}${window.location.hash}`)
 }
 
 const container = document.getElementById('root')

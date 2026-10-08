@@ -66,10 +66,30 @@ export function pickLocale(request: Request): Locale {
   )
 }
 
-/** `/` 与 `/index.html`：返回挑中语言的预渲染页面 */
+/** 取某种语言的预渲染页；绑定出错或文件缺失时返回 null */
+async function localePage(locale: Locale, request: Request, env: Env): Promise<Response | null> {
+  try {
+    const asset = await env.ASSETS.fetch(new Request(new URL(`/${locale}/`, request.url)))
+    return asset.ok ? asset : null
+  } catch {
+    return null
+  }
+}
+
+/** `/`：返回挑中语言的预渲染页面；那份取不到时退回简体中文，再不行才报错 */
 export async function handleHome(request: Request, env: Env): Promise<Response> {
-  const locale = pickLocale(request)
-  const asset = await env.ASSETS.fetch(new Request(new URL(`/${locale}/`, request.url)))
+  let locale = pickLocale(request)
+  let asset = await localePage(locale, request, env)
+  if (!asset && locale !== DEFAULT_LOCALE) {
+    locale = DEFAULT_LOCALE
+    asset = await localePage(locale, request, env)
+  }
+  if (!asset) {
+    return new Response('Service temporarily unavailable', {
+      status: 503,
+      headers: { 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'no-store' },
+    })
+  }
   const response = new Response(asset.body, asset)
   // 同一个地址按访客返回不同语言：缓存必须按这两个请求头区分，且每次回源确认
   response.headers.set('vary', 'Cookie, Accept-Language')
@@ -78,14 +98,26 @@ export async function handleHome(request: Request, env: Env): Promise<Response> 
   return response
 }
 
-/** `/en/`、`/ja` 这类带语言前缀的旧地址：记住语言，301 回 `/` */
+/**
+ * 首页的别名地址：`/index.html` 301 回 `/`（只留一个首页地址）；
+ * `/en/`、`/ja` 这类带语言前缀的旧地址记住语言后 301 回 `/`。查询参数（如 utm）原样保留。
+ */
 export function localeRedirect(pathname: string, url: string): Response | null {
+  const target = new URL(url)
+  target.pathname = '/'
+  target.hash = ''
+  if (pathname === '/index.html') {
+    return new Response(null, {
+      status: 301,
+      headers: { location: target.toString(), 'cache-control': 'no-store' },
+    })
+  }
   const segment = pathname.split('/').filter(Boolean)[0]
   if (!isLocale(segment)) return null
   return new Response(null, {
     status: 301,
     headers: {
-      location: new URL('/', url).toString(),
+      location: target.toString(),
       'set-cookie': `${LOCALE_COOKIE}=${segment}; Path=/; Max-Age=${ONE_YEAR}; SameSite=Lax`,
       'cache-control': 'no-store',
     },

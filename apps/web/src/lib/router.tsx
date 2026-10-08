@@ -51,20 +51,6 @@ function notifyRouteChange() {
   window.dispatchEvent(new Event('umuo:route'))
 }
 
-/**
- * 客户端跳转：改 URL、重新渲染、滚到目标锚点。
- * 不用整页刷新，所以静态托管只要把各语言目录指到同一份 HTML 就能用。
- */
-export function navigateTo(href: string, hash?: string) {
-  window.history.pushState(null, '', href)
-  notifyRouteChange()
-  if (hash) {
-    requestAnimationFrame(() => document.getElementById(hash)?.scrollIntoView({ block: 'start' }))
-    return
-  }
-  window.scrollTo({ top: 0 })
-}
-
 /** 从当前 URL 读出路由状态；放在组件外，避免 effect 依赖每次渲染新建的函数 */
 function readRoute(): Route {
   // 服务端渲染（构建期预渲染）没有 window：语言由 entry-server 提前注入。
