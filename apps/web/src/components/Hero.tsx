@@ -1,63 +1,36 @@
-import { type CSSProperties, useId, useState } from 'react'
+import { type CSSProperties, useEffect, useId, useState } from 'react'
 import { MACOS_DOWNLOAD_URL } from '../config'
-import type { Locale, SiteContent } from '../content/types'
-import { DownloadIcon } from './icons'
-import { LanguageGrid } from './LanguageGrid'
-import { NotifyForm } from './NotifyForm'
-
-export const DEMO_SOURCE = 'The quick brown fox jumps over the lazy dog.'
+import type { DemoMode, DemoModeId, Locale, SiteContent } from '../content/types'
+import { DownloadButton } from './DownloadButton'
 
 /**
- * 首屏：多语言网格衬托居中文案，下方展示选中即译；背景不影响下载与订阅操作。
- * 主按钮是「下载 macOS 版」，指向 Worker 给出的最新安装包；MACOS_DOWNLOAD_URL 为 null 时
- * 回到订阅通知面板，而不是一个假下载链接。下面一行说明未公证的预览版首次打开怎么放行。
+ * 首页唯一的一屏：左边是标题与下载，右边是可以亲手试的演示。
+ * 演示有读 / 写 / 说三种模式，点下面的键位或直接在页面上按快捷键切换；
+ * 切换时译文重新逐字流出（由访客触发的动效），首次加载时流一次。
  */
 export function Hero({ content }: { content: SiteContent; locale: Locale }) {
-  const [notifyOpen, setNotifyOpen] = useState(false)
   const { hero } = content
   const headingId = useId()
-
   const macos = hero.platforms.find((platform) => platform.id === 'macos')
-  const macosNoteId = 'platform-macos-note'
+  const noteId = 'platform-macos-note'
 
   return (
     <section id="download" aria-labelledby={headingId} className="hero-stage">
-      <LanguageGrid />
       <div className="hero container-page">
         <div className="hero-copy">
-          <p className="text-sm text-text-tertiary">{hero.badge}</p>
-          <h1 id={headingId} className="hero-title mt-4">
+          <h1 id={headingId} className="hero-title">
             {hero.title}
           </h1>
-          <p className="lead mt-5">{hero.subtitle}</p>
-
+          <p className="lead hero-gap">{hero.subtitle}</p>
           {macos ? (
-            <div className="mt-9">
-              <div className="hero-actions flex flex-wrap items-center gap-3">
-                {MACOS_DOWNLOAD_URL ? (
-                  <a
-                    href={MACOS_DOWNLOAD_URL}
-                    download
-                    className="btn-primary"
-                    aria-describedby={macosNoteId}
-                  >
-                    <DownloadIcon className="h-4 w-4" />
-                    {macos.actionLabel}
-                  </a>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => setNotifyOpen(true)}
-                    aria-describedby={macosNoteId}
-                    aria-expanded={notifyOpen}
-                    className="btn-primary"
-                  >
-                    <DownloadIcon className="h-4 w-4" />
-                    {macos.actionLabel}
-                  </button>
-                )}
-              </div>
-              <p id={macosNoteId} className="mt-3 text-sm text-text-tertiary">
+            <div className="hero-gap-lg">
+              <DownloadButton
+                label={macos.actionLabel}
+                status={macos.statusLabel}
+                describedBy={noteId}
+                className="btn-solid"
+              />
+              <p id={noteId} className="mt-3 text-sm text-text-tertiary">
                 {macos.requirement}
               </p>
               {MACOS_DOWNLOAD_URL ? (
@@ -65,43 +38,139 @@ export function Hero({ content }: { content: SiteContent; locale: Locale }) {
               ) : null}
             </div>
           ) : null}
-
-          {notifyOpen && macos ? (
-            <div className="mt-8">
-              <NotifyForm
-                content={hero.notify}
-                platformName={macos.name}
-                onClose={() => setNotifyOpen(false)}
-              />
-            </div>
-          ) : null}
         </div>
-
-        <figure aria-label={hero.demo.label} className="hero-page">
-          <p lang="en" className="source-text">
-            Keep your focus. <mark className="selection">{DEMO_SOURCE}</mark> Everything else can
-            wait.
-          </p>
-          <div className="mt-6 flex items-center gap-1.5" aria-hidden="true">
-            <kbd className="keycap">⌥</kbd>
-            <kbd className="keycap">D</kbd>
-          </div>
-          <p className="translation-text mt-4">
-            <span className="sr-only">{hero.demo.translation}</span>
-            {/* 首屏唯一的自发动效（网格高光只跟随指针）：译文逐字流式出现。纯 CSS 延迟，服务端与客户端渲染一致；减少动态效果时直接显示全文 */}
-            <span aria-hidden="true">
-              {[...hero.demo.translation].map((char, index) => (
-                // biome-ignore lint/suspicious/noArrayIndexKey: 字符序列固定，下标就是身份
-                <span key={index} className="stream-char" style={{ '--i': index } as CSSProperties}>
-                  {char}
-                </span>
-              ))}
-              <span className="stream-caret" />
-            </span>
-          </p>
-          <figcaption className="mt-5 text-xs text-text-tertiary">{hero.demo.metrics}</figcaption>
-        </figure>
+        <HeroDemo demo={hero.demo} />
       </div>
     </section>
+  )
+}
+
+function HeroDemo({ demo }: { demo: SiteContent['hero']['demo'] }) {
+  const [modeId, setModeId] = useState<DemoModeId>('read')
+  // 首次渲染的流式动画要等首屏稳定后再开始；之后每次切换立即开始
+  const [switched, setSwitched] = useState(false)
+  const mode = demo.modes.find((item) => item.id === modeId) ?? demo.modes[0]
+
+  useEffect(() => {
+    const choose = (id: DemoModeId) => {
+      setModeId(id)
+      setSwitched(true)
+    }
+    // 单独按一下右 ⌥（中间没按别的键）才算「按住说话」，免得和 ⌥D 等组合键冲突
+    let rightAltAlone = false
+    const onKeyDown = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null
+      if (target?.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(target?.tagName ?? ''))
+        return
+      rightAltAlone = event.code === 'AltRight' && !event.repeat
+      if (!event.altKey || event.metaKey || event.ctrlKey) return
+      if (event.code === 'KeyD' && !event.shiftKey) choose('read')
+      else if (event.code === 'KeyT' && event.shiftKey) choose('write')
+      else return
+      event.preventDefault()
+    }
+    const onKeyUp = (event: KeyboardEvent) => {
+      if (event.code === 'AltRight' && rightAltAlone) choose('speak')
+      rightAltAlone = false
+    }
+    window.addEventListener('keydown', onKeyDown)
+    window.addEventListener('keyup', onKeyUp)
+    return () => {
+      window.removeEventListener('keydown', onKeyDown)
+      window.removeEventListener('keyup', onKeyUp)
+    }
+  }, [])
+
+  return (
+    <figure aria-label={demo.label} className="hero-demo">
+      <div key={mode.id} className="demo-stage" aria-live="polite">
+        <DemoStage mode={mode} delay={switched ? 250 : 700} />
+      </div>
+      <div className="demo-switch">
+        {demo.modes.map((item) => (
+          <button
+            key={item.id}
+            type="button"
+            aria-pressed={item.id === mode.id}
+            onClick={() => {
+              setModeId(item.id)
+              setSwitched(true)
+            }}
+          >
+            <span className="flex gap-1" aria-hidden="true">
+              {item.keys.map((key) => (
+                <kbd key={key} className="keycap keycap-sm">
+                  {key}
+                </kbd>
+              ))}
+            </span>
+            <span className="demo-switch-name">
+              {item.name}
+              {item.tag ? <span className="tag ms-1.5">{item.tag}</span> : null}
+            </span>
+          </button>
+        ))}
+      </div>
+      <figcaption className="demo-hint">{demo.hint}</figcaption>
+    </figure>
+  )
+}
+
+/** 演示的上半部分：上一行经快捷键变成下一行。三种模式同一套记号：蓝色选区、灰色原话、墨色结果。 */
+function DemoStage({ mode, delay }: { mode: DemoMode; delay: number }) {
+  const result = <Stream text={mode.after} delay={delay} />
+
+  if (mode.id === 'read') {
+    return (
+      <>
+        <p className="source-text">
+          <mark className="selection">{mode.before}</mark>
+        </p>
+        <div className="demo-popover translation-text">{result}</div>
+      </>
+    )
+  }
+
+  if (mode.id === 'write') {
+    return (
+      <>
+        <p className="demo-replaced">{mode.before}</p>
+        <p className="demo-field translation-text">{result}</p>
+      </>
+    )
+  }
+
+  return (
+    <>
+      <div className="demo-wave" aria-hidden="true">
+        {WAVE.map((height, index) => (
+          // biome-ignore lint/suspicious/noArrayIndexKey: 固定序列，下标就是身份
+          <span key={index} style={{ '--h': `${height}%`, '--i': index } as CSSProperties} />
+        ))}
+      </div>
+      <p className="source-text">{mode.before}</p>
+      <p className="demo-field translation-text">{result}</p>
+    </>
+  )
+}
+
+/** 「说」的声波条高度（百分比）。写死而不是随机，预渲染与 hydration 才一致 */
+const WAVE = [30, 55, 80, 45, 95, 60, 35, 70, 50, 85, 40, 65, 25, 75, 45, 30, 60, 40]
+
+/** 逐字流出。读屏只读整句；减少动态效果时直接显示全文。 */
+function Stream({ text, delay }: { text: string; delay: number }) {
+  return (
+    <>
+      <span className="sr-only">{text}</span>
+      <span aria-hidden="true" style={{ '--d': `${delay}ms` } as CSSProperties}>
+        {[...text].map((char, index) => (
+          // biome-ignore lint/suspicious/noArrayIndexKey: 字符序列固定，下标就是身份
+          <span key={index} className="stream-char" style={{ '--i': index } as CSSProperties}>
+            {char}
+          </span>
+        ))}
+        <span className="stream-caret" />
+      </span>
+    </>
   )
 }

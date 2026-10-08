@@ -19,7 +19,7 @@ export const CONTACT_EMAIL = 'hello@umuo.app'
 
 /**
  * macOS 安装包地址。由 Worker 读 R2 里的 macos/latest.json 给出最新版（见 worker/src/releases.ts）；
- * 客户端仓库每次合进 main 都会自动发一个新版本。设回 null 则按钮回到「订阅上线通知」。
+ * 客户端仓库每次合进 main 都会自动发一个新版本。设回 null 则下载按钮变为不可点。
  */
 export const MACOS_DOWNLOAD_URL: string | null = '/download/macos'
 
@@ -31,13 +31,14 @@ export const RELEASE = {
 } as const
 
 /** 语言切换顺序与 <html lang> 映射（PRD §11.4） */
-export const LOCALES = ['zh-cn', 'zh-tw', 'en', 'ja'] as const
+export const LOCALES = ['zh-cn', 'zh-tw', 'en', 'ja', 'ko'] as const
 
 export const HTML_LANG: Record<string, string> = {
   'zh-cn': 'zh-Hans',
   'zh-tw': 'zh-Hant',
   en: 'en',
   ja: 'ja',
+  ko: 'ko',
 }
 
 /** 语言切换器里显示的名字（各语言写法固定，不进内容模型） */
@@ -46,4 +47,5 @@ export const LOCALE_LABEL: Record<string, string> = {
   'zh-tw': '繁體中文',
   en: 'English',
   ja: '日本語',
+  ko: '한국어',
 }
