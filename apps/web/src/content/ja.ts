@@ -21,11 +21,10 @@ export const ja: SiteContent = {
   },
   hero: {
     title: 'どのアプリでも、\nワンキーで翻訳',
-    subtitle:
-      '外国語を選べば、すぐに訳文。母語で書いた文章は、ワンキーで外国語に。話して入力することもできます。',
+    subtitle: '選べば訳文、書けば外国語に。話して入力もできます。',
     demo: {
       label: '翻訳プレビュー',
-      hint: 'ここで ⌥D を押しても試せます',
+      hint: '⌥D でそのまま試せます',
       modes: [
         {
           id: 'read',
@@ -46,7 +45,7 @@ export const ja: SiteContent = {
           name: '音声入力',
           tag: 'V1.1',
           keys: ['右 ⌥ を長押し'],
-          before: 'えーと、あの、会議を金曜日に変更できるか聞いてもらえますか',
+          before: 'えーと、会議を金曜日にできますか',
           after: 'Could we move the meeting to Friday?',
         },
       ],
@@ -57,7 +56,7 @@ export const ja: SiteContent = {
         requirement: 'macOS 13 以降、Apple Silicon と Intel に対応',
         actionLabel: 'macOS 版をダウンロード',
         statusLabel: 'プレビュー版',
-        note: 'プレビュー版はまだ Apple の公証を受けていません。初回に開けない場合は「システム設定 → プライバシーとセキュリティ」で「このまま開く」を押してください。',
+        note: '未公証のプレビュー版です。開けない場合は「プライバシーとセキュリティ」で「このまま開く」を押してください。',
       },
     ],
   },

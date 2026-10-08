@@ -19,12 +19,11 @@ export const en: SiteContent = {
     themeToDark: 'Switch to dark theme',
   },
   hero: {
-    title: 'Translate in any app with one shortcut',
-    subtitle:
-      'Select text to read it in English. Write in English and switch it to another language with one keystroke. Or just speak.',
+    title: 'Translate in any app with one key',
+    subtitle: 'Select to read, type to replace, or just speak.',
     demo: {
       label: 'Translation preview',
-      hint: 'Or press ⌥D right here',
+      hint: 'Try ⌥D right here',
       modes: [
         {
           id: 'read',
@@ -45,7 +44,7 @@ export const en: SiteContent = {
           name: 'Voice',
           tag: 'V1.1',
           keys: ['Hold right ⌥'],
-          before: 'Um, so, can you ask if we could move the meeting to Friday',
+          before: 'Um, so, can we move the meeting to Friday',
           after: '会议可以改到周五吗？',
         },
       ],
@@ -53,10 +52,10 @@ export const en: SiteContent = {
     platforms: [
       {
         id: 'macos',
-        requirement: 'macOS 13 or later, Apple Silicon or Intel',
+        requirement: 'macOS 13+, Apple Silicon or Intel',
         actionLabel: 'Download for macOS',
         statusLabel: 'Preview',
-        note: 'The preview isn’t notarized by Apple yet. If macOS blocks it the first time, go to System Settings → Privacy & Security and click “Open Anyway”.',
+        note: 'Not notarized yet. If macOS blocks it, open Privacy & Security and click “Open Anyway”.',
       },
     ],
   },

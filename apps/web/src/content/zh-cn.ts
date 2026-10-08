@@ -19,11 +19,11 @@ export const zhCn: SiteContent = {
     themeToDark: '切换到深色主题',
   },
   hero: {
-    title: '在任何应用里，\n一键翻译',
-    subtitle: '选中外文就看到译文，用母语写完一键换成外语，也可以直接说。',
+    title: '任何应用里，\n一键翻译',
+    subtitle: '选中即译，写完一键换成外语，也能直接说。',
     demo: {
       label: '翻译预览',
-      hint: '也可以直接按 ⌥D 试试',
+      hint: '直接按 ⌥D 试试',
       modes: [
         {
           id: 'read',
@@ -44,7 +44,7 @@ export const zhCn: SiteContent = {
           name: '语音输入',
           tag: 'V1.1',
           keys: ['按住右 ⌥'],
-          before: '嗯，那个，帮我问一下会议能不能改到周五',
+          before: '嗯，那个，会议能改到周五吗',
           after: 'Could we move the meeting to Friday?',
         },
       ],
@@ -52,10 +52,10 @@ export const zhCn: SiteContent = {
     platforms: [
       {
         id: 'macos',
-        requirement: 'macOS 13 或更高版本，Apple Silicon 与 Intel 均可',
+        requirement: 'macOS 13+，支持 Apple Silicon 与 Intel',
         actionLabel: '下载 macOS 版',
         statusLabel: '预览版',
-        note: '预览版还没有经过 Apple 公证：首次打开若被拦下，到「系统设置 → 隐私与安全性」点「仍要打开」即可。',
+        note: '预览版未经 Apple 公证，首次打开如被拦截，到「隐私与安全性」点「仍要打开」。',
       },
     ],
   },
