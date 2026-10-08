@@ -24,6 +24,7 @@ CI 也照样绿，只有 PR 上多一个红色的 `Workers Builds: umuo`。
 | 绑定 | 类型 | 值 | 用途 |
 | --- | --- | --- | --- |
 | `NOTIFY_KV` | KV namespace | `umuo-notify`（id 在 `wrangler.toml` 里） | 上线通知的邮箱名单 |
+| `NOTIFY_KV`（预览） | KV namespace | `umuo-notify-preview` | PR 预览（`wrangler preview`）专用，与正式名单隔离 |
 
 绑定 id 不是密钥，写在仓库里是有意的：它需要跟着代码一起 review。
 真要放密钥用 `wrangler secret put`，不进 `wrangler.toml`、也不进 git。
