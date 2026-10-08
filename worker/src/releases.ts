@@ -92,10 +92,15 @@ export async function handleMacosDownload(env: Env): Promise<Response> {
   })
 }
 
-/** 取 R2 key 的最后一段当文件名；清单里万一不是 .dmg 或带了引号，就退回 `umuo-<版本>.dmg`。 */
+/**
+ * 取 R2 key 的最后一段当文件名。清单里的字符串原样进响应头，所以只放行 `[\w.-]`：
+ * key 不合规退回 `umuo-<版本>.dmg`，版本号也不合规就用 `umuo.dmg`。
+ */
 export function downloadName(latest: ReleaseManifest): string {
+  const safe = /^[\w.-]+$/
   const name = latest.key.split('/').pop() ?? ''
-  return /^[\w.-]+\.dmg$/.test(name) ? name : `umuo-${latest.version}.dmg`
+  if (safe.test(name) && name.endsWith('.dmg')) return name
+  return safe.test(latest.version) ? `umuo-${latest.version}.dmg` : 'umuo.dmg'
 }
 
 /** `/api/release`：最新版的元数据（版本、大小、校验和），给官网与以后的「检查更新」用。 */

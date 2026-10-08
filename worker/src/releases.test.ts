@@ -37,6 +37,7 @@ describe('下载文件名', () => {
     expect(downloadName(manifest)).toBe('umuo-0.1.7-universal.dmg')
     expect(downloadName({ ...manifest, key: 'macos/evil".dmg' })).toBe('umuo-0.1.7.dmg')
     expect(downloadName({ ...manifest, key: 'macos/notes.txt' })).toBe('umuo-0.1.7.dmg')
+    expect(downloadName({ ...manifest, key: 'macos/x".dmg', version: '1"; x=y' })).toBe('umuo.dmg')
   })
 })
 
