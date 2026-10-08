@@ -45,7 +45,7 @@ export const ja: SiteContent = {
           name: '音声入力',
           tag: 'V1.1',
           keys: ['右 ⌥ を長押し'],
-          before: 'えーと、会議を金曜日にできますか',
+          before: 'えーと、会議を金曜日に移せますか',
           after: 'Could we move the meeting to Friday?',
         },
       ],

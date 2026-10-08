@@ -19,7 +19,7 @@ export const en: SiteContent = {
     themeToDark: 'Switch to dark theme',
   },
   hero: {
-    title: 'Translate in any app with one key',
+    title: 'Translate in any app with one shortcut',
     subtitle: 'Select to read, type to replace, or just speak.',
     demo: {
       label: 'Translation preview',
