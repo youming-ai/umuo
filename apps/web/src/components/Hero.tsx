@@ -9,8 +9,8 @@ export const DEMO_SOURCE = 'The quick brown fox jumps over the lazy dog.'
 
 /**
  * 首屏：多语言网格衬托居中文案，下方展示选中即译；背景不影响下载与订阅操作。
- * 主按钮是「下载 macOS 版」；安装包还没发布（MACOS_DOWNLOAD_URL 为 null），
- * 所以此刻点击打开的是订阅通知面板，而不是一个假下载链接。
+ * 主按钮是「下载 macOS 版」，指向 Worker 给出的最新安装包；MACOS_DOWNLOAD_URL 为 null 时
+ * 回到订阅通知面板，而不是一个假下载链接。下面一行说明未公证的预览版首次打开怎么放行。
  */
 export function Hero({ content }: { content: SiteContent; locale: Locale }) {
   const [notifyOpen, setNotifyOpen] = useState(false)
@@ -60,6 +60,9 @@ export function Hero({ content }: { content: SiteContent; locale: Locale }) {
               <p id={macosNoteId} className="mt-3 text-sm text-text-tertiary">
                 {macos.requirement}
               </p>
+              {MACOS_DOWNLOAD_URL ? (
+                <p className="mt-1 max-w-md text-xs text-text-tertiary">{macos.note}</p>
+              ) : null}
             </div>
           ) : null}
 

@@ -42,7 +42,7 @@ export const zhTw: SiteContent = {
     themeToDark: '切換為深色主題',
   },
   hero: {
-    badge: 'macOS 版 V1.0 開發中',
+    badge: 'macOS 預覽版，持續更新',
     title: '用自己的 AI，隨處翻譯',
     subtitle: '選取文字，按下快捷鍵。譯文就在目前視窗。',
     facts: ['不需要註冊帳號', '金鑰存在系統 Keychain', '請求直接連線供應商'],
@@ -60,7 +60,7 @@ export const zhTw: SiteContent = {
         requirement: 'macOS 13 或更新版本，Apple Silicon 與 Intel 皆可',
         actionLabel: '下載 macOS 版',
         statusLabel: 'V1.0 開發中',
-        note: '安裝檔還沒發布。留下信箱，發布當天通知你。',
+        note: '預覽版還沒有經過 Apple 公證：首次打開若被攔下，到「系統設定 → 隱私權與安全性」點「仍要打開」即可。',
       },
     ],
     notify: {
@@ -461,7 +461,7 @@ export const zhTw: SiteContent = {
   },
   footer: {
     ctaTitle: '翻譯，留在你的工作流程裡',
-    ctaDescription: 'macOS 版開發中，發布時通知你。',
+    ctaDescription: 'macOS 預覽版已可下載，選取文字按一下快捷鍵就能翻譯。',
     ctaDownload: '下載 macOS 版',
     ctaNotify: '訂閱上線通知',
     columns: [

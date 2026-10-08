@@ -36,7 +36,7 @@ function fakeStore(initial: Record<string, string> = {}) {
 }
 
 function makeEnv(store: NotifyStore): Env {
-  return { NOTIFY_KV: store }
+  return { NOTIFY_KV: store, RELEASES: { get: async () => null } }
 }
 
 function notifyRequest(body: unknown, init: RequestInit = {}) {

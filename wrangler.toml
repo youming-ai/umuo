@@ -16,7 +16,7 @@ compatibility_date = "2026-07-17"
 # 资源目录由根脚本 `bun run build:web` 生成（`bun run build` 就是它）。
 [assets]
 directory = "./apps/web/dist"
-run_worker_first = ["/api/*"]
+run_worker_first = ["/api/*", "/download/*"]
 
 # 上线通知的邮箱列表。namespace 名 `umuo-notify`，与 9.6 的账号服务无关 ——
 # 官网这一份只是「发布时通知你」，不做账号系统（账号服务不在此仓库）。
@@ -29,6 +29,16 @@ id = "dad4b460f4a14797adc1e9491e42f7f1"
 [[previews.kv_namespaces]]
 binding = "NOTIFY_KV"
 id = "269178fa91564fc6954a8fd1b33d3be7"
+
+# 客户端安装包。私有仓库 umuo-app 的 Release 工作流每次合进 main 都往这里传新的 .dmg，
+# 并更新 macos/latest.json；Worker 只读。预览也读同一个桶（只读，不会改动正式文件）。
+[[r2_buckets]]
+binding = "RELEASES"
+bucket_name = "umuo-releases"
+
+[[previews.r2_buckets]]
+binding = "RELEASES"
+bucket_name = "umuo-releases"
 
 # 调用日志默认只记 URL 与状态码；邮箱在 POST body 里，不会进 URL，所以不会落进日志。
 [observability]

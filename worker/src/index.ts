@@ -1,6 +1,7 @@
 import type { Env } from './env'
 import { json } from './http'
 import { handleHealth, handleNotify } from './notify'
+import { handleMacosDownload, handleRelease } from './releases'
 
 /**
  * 静态资源层没命中时的兜底页。
@@ -44,7 +45,7 @@ const NOT_FOUND_HTML = `<!doctype html>
 /**
  * umuo.app 的 Worker。
  *
- * `/api/*` 由这里处理；其余路径命中静态资源时不进 Worker，没命中时才会到这里
+ * `/api/*` 与 `/download/*` 由这里处理；其余路径命中静态资源时不进 Worker，没命中时才会到这里
  * （见上面的 NOT_FOUND_HTML）。
  */
 export default {
@@ -52,6 +53,8 @@ export default {
     const { pathname } = new URL(request.url)
     if (pathname === '/api/notify') return handleNotify(request, env)
     if (pathname === '/api/health') return handleHealth(env)
+    if (pathname === '/api/release') return handleRelease(env)
+    if (pathname === '/download/macos') return handleMacosDownload(env)
     if (pathname.startsWith('/api/')) return json({ ok: false, error: 'not_found' }, 404)
     return new Response(NOT_FOUND_HTML, {
       status: 404,

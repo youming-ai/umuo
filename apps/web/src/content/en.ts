@@ -42,7 +42,7 @@ export const en: SiteContent = {
     themeToDark: 'Switch to dark theme',
   },
   hero: {
-    badge: 'V1.0 for macOS, in development',
+    badge: 'Preview for macOS, updated often',
     title: 'Your AI. Translation everywhere.',
     subtitle: 'Select text. Press a shortcut. Keep working.',
     facts: [
@@ -64,7 +64,7 @@ export const en: SiteContent = {
         requirement: 'macOS 13 or later, Apple Silicon or Intel',
         actionLabel: 'Download for macOS',
         statusLabel: 'V1.0 in development',
-        note: 'The installer is not out yet. Leave your email and we will tell you the day it ships.',
+        note: 'The preview isn’t notarized by Apple yet. If macOS blocks it the first time, go to System Settings → Privacy & Security and click “Open Anyway”.',
       },
     ],
     notify: {
@@ -474,7 +474,7 @@ export const en: SiteContent = {
   },
   footer: {
     ctaTitle: 'Keep translation in your workflow',
-    ctaDescription: 'macOS is in development. Get notified at launch.',
+    ctaDescription: 'The macOS preview is ready to download. Select text, press a shortcut, done.',
     ctaDownload: 'Download for macOS',
     ctaNotify: 'Notify me at launch',
     columns: [

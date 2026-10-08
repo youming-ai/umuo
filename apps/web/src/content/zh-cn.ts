@@ -42,7 +42,7 @@ export const zhCn: SiteContent = {
     themeToDark: '切换到深色主题',
   },
   hero: {
-    badge: 'macOS 版 V1.0 开发中',
+    badge: 'macOS 预览版，持续更新',
     title: '用自己的 AI，随处翻译',
     subtitle: '选中文字，按下快捷键。译文就在当前窗口。',
     facts: ['无需注册账号', 'Key 存系统 Keychain', '请求直连厂商'],
@@ -60,7 +60,7 @@ export const zhCn: SiteContent = {
         requirement: 'macOS 13 或更高版本，Apple Silicon 与 Intel 均可',
         actionLabel: '下载 macOS 版',
         statusLabel: 'V1.0 开发中',
-        note: '安装包还没发布。留个邮箱，发布当天通知你。',
+        note: '预览版还没有经过 Apple 公证：首次打开若被拦下，到「系统设置 → 隐私与安全性」点「仍要打开」即可。',
       },
     ],
     notify: {
@@ -461,7 +461,7 @@ export const zhCn: SiteContent = {
   },
   footer: {
     ctaTitle: '翻译，留在你的工作流里',
-    ctaDescription: 'macOS 版开发中，发布时通知你。',
+    ctaDescription: 'macOS 预览版已可下载，选中文字按一下快捷键就能翻译。',
     ctaDownload: '下载 macOS 版',
     ctaNotify: '订阅上线通知',
     columns: [
