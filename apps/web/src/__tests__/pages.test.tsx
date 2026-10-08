@@ -50,11 +50,15 @@ describe('首页一屏', () => {
     expect(pageFromPath('/en/')).toBe('home')
   })
 
-  it('页眉只有 logo，没有导航链接和下载按钮', () => {
-    const header = host.querySelector('header')
-    expect(header?.querySelectorAll('a')).toHaveLength(1)
-    expect(header?.querySelector('a')?.getAttribute('href')).toBe('/')
-    expect(header?.querySelector('button')).toBeNull()
+  it('页眉左边 logo、右边 GitHub，没有导航链接和下载按钮', () => {
+    const links = [...(host.querySelector('header')?.querySelectorAll('a') ?? [])]
+    expect(links.map((link) => link.getAttribute('href'))).toEqual([
+      '/',
+      'https://github.com/youming-ai/umuo',
+    ])
+    expect(links[1]?.getAttribute('target')).toBe('_blank')
+    expect(links[1]?.getAttribute('rel')).toBe('noreferrer')
+    expect(host.querySelector('header button')).toBeNull()
   })
 
   it('演示可以点击切换，也可以直接按快捷键', () => {
