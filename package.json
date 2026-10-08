@@ -1,0 +1,35 @@
+{
+  "name": "umuo",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "umuo.app 官网与官网 API（Cloudflare Worker）",
+  "license": "MIT",
+  "packageManager": "bun@1.4.2",
+  "workspaces": [
+    "apps/*"
+  ],
+  "scripts": {
+    "dev": "bun run --filter umuo-web dev",
+    "dev:web": "bun run --filter umuo-web dev",
+    "dev:worker": "bunx wrangler dev",
+    "build": "bun run build:web",
+    "build:web": "bun run --filter umuo-web build",
+    "deploy": "bunx wrangler deploy",
+    "lint": "biome check .",
+    "format": "biome format . --write",
+    "type-check": "tsc --noEmit && tsc -p tsconfig.worker.json && bun run --filter umuo-web type-check",
+    "test": "vitest",
+    "test:run": "vitest run",
+    "verify": "bun run lint && bun run type-check && bun run test:run && bun run build:web"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.5.3",
+    "@cloudflare/workers-types": "^5.20261007.1",
+    "@types/bun": "^1.4.2",
+    "@types/node": "^24.10.1",
+    "happy-dom": "^20.14.5",
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.10"
+  }
+}

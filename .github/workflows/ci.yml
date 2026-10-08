@@ -1,0 +1,42 @@
+name: CI
+
+# 门禁：官网与 Worker 的 lint / 类型 / 测试 / 构建。
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  web:
+    name: Web (lint / types / tests / build)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          # 不写死小版本：仓库要求 bun >=1.2，写死一个本地版本在 CI 上可能并不存在
+          bun-version: latest
+
+      - name: Install dependencies
+        # lockfile 与 package.json 不一致时直接失败，而不是悄悄改锁文件
+        run: bun install --frozen-lockfile
+
+      - name: Lint (Biome)
+        run: bun run lint
+
+      - name: Type check
+        run: bun run type-check
+
+      - name: Tests (Vitest)
+        run: bun run test:run
+
+      - name: Build landing page
+        run: bun run build:web
+

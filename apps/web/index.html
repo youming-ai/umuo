@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="zh-Hans" data-theme="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <script>
+      // 首屏渲染前定好主题，避免先闪一下默认暗色
+      try {
+        const stored = localStorage.getItem('umuo-theme')
+        const prefersLight = matchMedia('(prefers-color-scheme: light)').matches
+        document.documentElement.dataset.theme =
+          stored === 'light' || stored === 'dark' ? stored : prefersLight ? 'light' : 'dark'
+      } catch {
+        document.documentElement.dataset.theme = 'dark'
+      }
+    </script>
+    <!-- seo:start -->
+    <title>umuo — 用你自己的 AI，翻译你看到的一切</title>
+    <meta
+      name="description"
+      content="umuo 是 macOS 系统级 AI 翻译客户端：⌥D 划词翻译、⌥A 撰写窗、⌥⇧T 输入框原地替换、⌥S 截图 OCR。自带 API Key，请求从本机直连厂商，Key 只存 Keychain。"
+    />
+    <!-- seo:end -->
+    <script type="module" src="/src/main.tsx"></script>
+  </head>
+  <body>
+    <div id="root"></div>
+  </body>
+</html>

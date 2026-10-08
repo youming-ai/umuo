@@ -1,0 +1,35 @@
+# 依赖
+node_modules/
+
+# 构建产物
+dist/
+# 官网预渲染用的服务端 bundle（构建末尾会删除，失败时可能残留）
+dist-ssr/
+*.tsbuildinfo
+
+# Tauri 生成物
+apps/desktop/src-tauri/gen/
+apps/desktop/src-tauri/
+# wrangler 的本地状态与 dry-run 产物（umuo.app 的 Worker 见 docs/DEPLOY.md）
+.wrangler/
+
+# 环境变量（Worker 的密钥用 wrangler secret put，不进 git）
+.env
+.env.local
+.env.*.local
+
+# 测试
+coverage/
+
+# 日志
+*.log
+
+# 编辑器 / 系统
+.vscode/
+.idea/
+.DS_Store
+
+# 其它包管理器（本仓库用 Bun，bun.lock 要提交）
+package-lock.json
+yarn.lock
+pnpm-lock.yaml

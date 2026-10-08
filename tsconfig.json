@@ -1,0 +1,9 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    // scripts/ 下是 Bun 脚本（用了 Bun.spawn / Bun.file / Bun.sleep），
+    // 所以这里必须带上 bun 的类型——否则脚本要么不被类型检查，要么报「找不到 Bun」。
+    "types": ["node", "bun", "vitest/globals"]
+  },
+  "include": ["vitest.config.ts", "scripts/**/*.ts"]
+}

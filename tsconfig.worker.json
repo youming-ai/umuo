@@ -1,0 +1,10 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    // Worker 里没有 DOM：Request / Response / KVNamespace 全部来自 workers-types。
+    // 同时带上 dom 会与它声明的同名全局冲突（重复标识符），所以这里只留 es2022。
+    "lib": ["es2022"],
+    "types": ["@cloudflare/workers-types"]
+  },
+  "include": ["worker/src/**/*.ts"]
+}

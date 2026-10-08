@@ -1,0 +1,29 @@
+{
+  "name": "umuo-web",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "umuo 官网（Vite + React 19 + Tailwind v4）",
+  "scripts": {
+    "dev": "vite --port 3000",
+    "build": "bun run build:client && bun run build:ssr && bun run prerender && rm -rf dist-ssr",
+    "build:client": "VITE_CONFIG_NATIVE_IGNORE_WARNING=true vite build",
+    "build:ssr": "VITE_CONFIG_NATIVE_IGNORE_WARNING=true vite build --ssr src/entry-server.tsx --outDir dist-ssr",
+    "prerender": "bun run ../../scripts/prerender-web.ts",
+    "type-check": "tsc --noEmit",
+    "preview": "vite preview --port 3000"
+  },
+  "dependencies": {
+    "@tailwindcss/vite": "^4.3.2",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7",
+    "tailwindcss": "^4.3.2"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^6.0.3",
+    "typescript": "^5.9.3",
+    "vite": "^8.1.4"
+  }
+}
