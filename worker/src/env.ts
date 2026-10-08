@@ -14,7 +14,20 @@ export interface NotifyStore {
   put(key: string, value: string, options?: { expirationTtl?: number }): Promise<void>
 }
 
+/** R2 的最小可用子集：只读、按 key 取对象。真实的 `R2Bucket` 结构上满足它。 */
+export interface ReleaseObject {
+  body: ReadableStream | null
+  size: number
+  text(): Promise<string>
+}
+
+export interface ReleaseStore {
+  get(key: string): Promise<ReleaseObject | null>
+}
+
 export interface Env {
   /** 上线通知的邮箱列表（KV namespace: umuo-notify，见 docs/DEPLOY.md） */
   NOTIFY_KV: NotifyStore
+  /** 客户端安装包（R2 桶 umuo-releases，由私有仓库的 Release 工作流写入，见 docs/DEPLOY.md） */
+  RELEASES: ReleaseStore
 }

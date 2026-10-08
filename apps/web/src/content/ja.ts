@@ -42,7 +42,7 @@ export const ja: SiteContent = {
     themeToDark: 'ダークテーマに切り替え',
   },
   hero: {
-    badge: 'macOS 版 V1.0 開発中',
+    badge: 'macOS プレビュー版（随時更新）',
     title: '自分の AI で、どこでも翻訳',
     subtitle: '文字を選び、ショートカットを押す。その場で訳文を確認。',
     facts: [
@@ -63,8 +63,8 @@ export const ja: SiteContent = {
         name: 'macOS 版',
         requirement: 'macOS 13 以降、Apple Silicon と Intel に対応',
         actionLabel: 'macOS 版をダウンロード',
-        statusLabel: 'V1.0 開発中',
-        note: 'インストーラはまだ配布していません。メールアドレスを残していただければ、公開日にお知らせします。',
+        statusLabel: 'プレビュー版',
+        note: 'プレビュー版はまだ Apple の公証を受けていません。初回に開けない場合は「システム設定 → プライバシーとセキュリティ」で「このまま開く」を押してください。',
       },
     ],
     notify: {
@@ -475,7 +475,8 @@ export const ja: SiteContent = {
   },
   footer: {
     ctaTitle: 'いつもの作業に、翻訳を',
-    ctaDescription: 'macOS 版は開発中。公開時にお知らせします。',
+    ctaDescription:
+      'macOS プレビュー版をダウンロードできます。文字を選んでショートカットを押すだけ。',
     ctaDownload: 'macOS 版をダウンロード',
     ctaNotify: '公開時に通知を受け取る',
     columns: [

@@ -18,10 +18,10 @@ export const SITE_URL = 'https://umuo.app'
 export const CONTACT_EMAIL = 'hello@umuo.app'
 
 /**
- * macOS 安装包地址。V1.0 里程碑 1 尚未发布，所以是 null：
- * Hero 的主按钮此时走「订阅上线通知」，发布后把它换成 DMG 地址即可。
+ * macOS 安装包地址。由 Worker 读 R2 里的 macos/latest.json 给出最新版（见 worker/src/releases.ts）；
+ * 客户端仓库每次合进 main 都会自动发一个新版本。设回 null 则按钮回到「订阅上线通知」。
  */
-export const MACOS_DOWNLOAD_URL: string | null = null
+export const MACOS_DOWNLOAD_URL: string | null = '/download/macos'
 
 /** 对外展示的版本状态 */
 export const RELEASE = {
