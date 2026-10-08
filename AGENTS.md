@@ -23,14 +23,14 @@ bun run verify         # 提交前门禁：lint + type-check + vitest + build:we
   `content.test.ts` 会拦空串与漏翻。组件不写死句子。
 - **预渲染必须能 hydrate**：渲染期不读 `window`、不用随机数和计时器，副作用放进 effect（`hydration.test.tsx` 守着）。
 - **不放假下载链接**：`MACOS_DOWNLOAD_URL` 指向 Worker 的 `/download/macos`（读 R2 最新版）；设回 `null` 时下载按钮变为不可点。
-- 目前站点只有首页一屏：定价页暂时下线，页眉只放 logo（logo 尚未定稿）。页面清单在 `apps/web/src/lib/pages.ts`。
+- 目前站点只有首页一屏：定价页暂时下线，页眉只放 logo（蓝底、从水里探出头的小水獭，`LogoMark` 与 `public/favicon.svg` 是同一张图）。页面清单在 `apps/web/src/lib/pages.ts`。
 
 ## 视觉方向：「对照本」
 
 官网排成一本双语对照本，这是定过的方向，别退回通用的 landing 模板：
 
 - **首页只有一屏、不滚动**：左边标题与下载，右边可切换读 / 写 / 说的演示；改动后用 1280×720 与 390×844 量一下 `scrollHeight`。
-- 白纸墨字，全站自托管 Open Sans（中日韩回落系统字体）；唯一的颜色是 macOS 文字选区蓝。
+- 白纸墨字，全站自托管 Open Sans（中日韩回落系统字体）；唯一的颜色是 macOS 文字选区蓝（logo 是例外：它是满底色的彩色图标，别按这条规则去色）。
 - 左对齐，但页面网格居中并铺满（最宽约 76rem）；区块头像书的章首，标题左、描述右。
 - 字体只用自托管或系统字体，不引 Google Fonts 等外部服务（大陆访问不稳且阻塞首屏）。
 - **不要加回**：深色光晕 / 渐变、胶囊形 eyebrow 标签、标题里单个渐变词、`A · B · C` 式中间点、千篇一律的圆角卡片墙、无意义的 01/02/03 编号。
