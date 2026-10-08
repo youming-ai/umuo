@@ -243,18 +243,102 @@
     margin-inline: 1rem;
   }
 
-  /* —— 首屏：左文案，右一页正在被翻译的文字 —— */
-  .hero {
+  /* —— 首屏：多语言网格与指针聚光，文案保持独立的可读层 —— */
+  .hero-stage {
+    position: relative;
+    isolation: isolate;
+    overflow: hidden;
+    background: radial-gradient(ellipse at 50% 0%, var(--paper-2), var(--paper) 75%);
+  }
+
+  .language-grid {
+    --grid-active: 0;
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    user-select: none;
+    mask-image: linear-gradient(to bottom, black 65%, transparent);
+  }
+
+  .language-grid-layer {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+  }
+
+  .language-grid-cells {
+    position: absolute;
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 96rem;
     display: grid;
-    grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
-    align-items: center;
-    gap: 4rem;
-    padding-block: 5rem 5.5rem;
+    grid-template-columns: repeat(16, 6rem);
+  }
+
+  .language-grid-cells > span {
+    display: grid;
+    place-items: center;
+    height: 6rem;
+    border: 1px solid var(--rule-strong);
+    margin: 0 -1px -1px 0;
+    font-size: 1.5rem;
+    font-weight: 500;
+    color: var(--ink-2);
+  }
+
+  .language-grid-base {
+    opacity: 0.13;
+  }
+
+  .language-grid-glow {
+    opacity: var(--grid-active);
+    transition: opacity 350ms ease;
+    mask-image: radial-gradient(
+      circle 15rem at var(--grid-x, 50%) var(--grid-y, 30%),
+      black,
+      transparent
+    );
+  }
+
+  :where(.language-grid-glow) .language-grid-cells > span {
+    color: var(--ink);
+    border-color: var(--ink-3);
+    background: color-mix(in srgb, var(--select) 12%, transparent);
+  }
+
+  .hero {
+    position: relative;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    justify-items: center;
+    gap: 3.5rem;
+    padding-block: 6rem 5.5rem;
+  }
+
+  .hero-copy {
+    max-width: 48rem;
+    text-align: center;
+    border-radius: var(--radius-card);
+    background: radial-gradient(ellipse, var(--paper) 35%, transparent 72%);
+  }
+
+  .hero-copy .lead {
+    margin-inline: auto;
+  }
+
+  .hero-copy .flex {
+    justify-content: center;
+  }
+
+  .hero-copy:has(form) {
+    background: var(--paper);
   }
 
   .hero-title {
-    font-family: var(--font-serif);
-    font-size: clamp(2.5rem, 4.6vw, 3.75rem);
+    font-family: var(--font-sans);
+    font-size: clamp(2.5rem, 5vw, 4.5rem);
     font-weight: 600;
     line-height: 1.12;
     letter-spacing: -0.01em;
@@ -262,6 +346,8 @@
   }
 
   .hero-page {
+    width: 100%;
+    max-width: 42rem;
     padding: 2.5rem 2.75rem 2rem;
     border: 1px solid var(--rule);
     border-radius: var(--radius-card);
