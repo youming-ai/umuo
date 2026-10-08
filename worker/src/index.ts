@@ -1,5 +1,6 @@
 import type { Env } from './env'
 import { json } from './http'
+import { handleHome, localeRedirect } from './locale'
 import { handleHealth, handleNotify } from './notify'
 import { handleMacosDownload, handleRelease } from './releases'
 
@@ -45,12 +46,16 @@ const NOT_FOUND_HTML = `<!doctype html>
 /**
  * umuo.app 的 Worker。
  *
- * `/api/*` 与 `/download/*` 由这里处理；其余路径命中静态资源时不进 Worker，没命中时才会到这里
+ * `/`（按语言挑预渲染页）、语言前缀的旧地址、`/api/*` 与 `/download/*` 由这里处理；
+ * 其余路径命中静态资源时不进 Worker，没命中时才会到这里
  * （见上面的 NOT_FOUND_HTML）。
  */
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const { pathname } = new URL(request.url)
+    if (pathname === '/' || pathname === '/index.html') return handleHome(request, env)
+    const redirect = localeRedirect(pathname, request.url)
+    if (redirect) return redirect
     if (pathname === '/api/notify') return handleNotify(request, env)
     if (pathname === '/api/health') return handleHealth(env)
     if (pathname === '/api/release') return handleRelease(env)

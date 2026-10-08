@@ -4,15 +4,13 @@ import type { Locale } from '../content/types'
 import { LocaleLink } from '../lib/router'
 import { ChevronDownIcon, GlobeIcon } from './icons'
 
-/** Header 向下展开，Footer 向上展开；语言切换保留当前页面与锚点。 */
+/** Header 向下展开，Footer 向上展开；切换语言就地生效，地址不变。 */
 export function LanguageMenu({
   locale,
-  hash,
   label,
   placement = 'bottom',
 }: {
   locale: Locale
-  hash: string
   label: string
   placement?: 'top' | 'bottom'
 }) {
@@ -67,7 +65,6 @@ export function LanguageMenu({
             <li key={code}>
               <LocaleLink
                 locale={code}
-                hash={hash}
                 current={code === locale}
                 onNavigate={() => {
                   setOpen(false)

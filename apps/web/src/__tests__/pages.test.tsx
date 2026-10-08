@@ -18,7 +18,10 @@ beforeEach(() => {
     removeEventListener: vi.fn(),
   }))
   vi.stubGlobal('requestAnimationFrame', vi.fn())
-  window.history.replaceState(null, '', '/zh-cn/')
+  window.history.replaceState(null, '', '/')
+  document.documentElement.dataset.locale = 'zh-cn'
+  // biome-ignore lint/suspicious/noDocumentCookie: 清掉上一个用例留下的语言 cookie
+  document.cookie = 'umuo-lang=; max-age=0; path=/'
   window.localStorage.clear()
   document.documentElement.dataset.theme = 'dark'
   host = document.createElement('div')
@@ -40,9 +43,9 @@ function click(selector: string) {
 }
 
 describe('首页一屏', () => {
-  it('站点只有首页，旧的定价地址也落回首页', () => {
-    expect(pagePath('en')).toBe('/en/')
-    expect(localeHref('ja', 'download')).toBe('/ja/#download')
+  it('地址永远是 /，不带语言前缀', () => {
+    expect(pagePath('en')).toBe('/')
+    expect(localeHref('ja', 'download')).toBe('/#download')
     expect(pageFromPath('/zh-cn/pricing')).toBe('home')
     expect(pageFromPath('/en/')).toBe('home')
   })
@@ -50,7 +53,7 @@ describe('首页一屏', () => {
   it('页眉只有 logo，没有导航链接和下载按钮', () => {
     const header = host.querySelector('header')
     expect(header?.querySelectorAll('a')).toHaveLength(1)
-    expect(header?.querySelector('a')?.getAttribute('href')).toBe('/zh-cn/')
+    expect(header?.querySelector('a')?.getAttribute('href')).toBe('/')
     expect(header?.querySelector('button')).toBeNull()
   })
 
@@ -88,7 +91,11 @@ describe('首页一屏', () => {
     ])
     expect(host.querySelector('footer ul')?.className).toContain('bottom-full')
     click('footer a[href="/ko/"]')
-    expect(window.location.pathname).toBe('/ko/')
+    // 就地切换：地址不变，语言记进 cookie 给 Worker 下次用
+    expect(window.location.pathname).toBe('/')
+    expect(document.documentElement.dataset.locale).toBe('ko')
+    expect(document.cookie).toContain('umuo-lang=ko')
+    expect(host.querySelector('h1')?.textContent).toContain('번역')
     expect(host.querySelector('footer ul')).toBeNull()
     expect(host.querySelector('footer button[aria-expanded]')?.textContent).toContain('한국어')
   })

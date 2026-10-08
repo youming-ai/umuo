@@ -1,15 +1,17 @@
 import { StrictMode } from 'react'
 import { createRoot, hydrateRoot } from 'react-dom/client'
 import { App } from './App'
-import { DEFAULT_LOCALE, localeFromPath } from './lib/router'
+import { localeFromPath, switchLocale } from './lib/router'
 import './styles/app.css'
 
 /**
- * 根路径（以及任何不带语言前缀的路径）重定向到 /zh-cn/。
- * 静态托管命中各语言目录时不会走到这里，只有 SPA 回退（/、未知路径）才会。
+ * 地址里不保留语言前缀。线上 Worker 会把 `/en/` 这类旧地址 301 到 `/`；
+ * 没有 Worker 的情况（本地开发、纯静态托管）在这里兜底：记住语言，再把地址换回 `/`。
  */
-if (!localeFromPath(window.location.pathname)) {
-  window.history.replaceState(null, '', `/${DEFAULT_LOCALE}/${window.location.hash}`)
+const pathLocale = localeFromPath(window.location.pathname)
+if (pathLocale) {
+  switchLocale(pathLocale)
+  window.history.replaceState(null, '', `/${window.location.hash}`)
 }
 
 const container = document.getElementById('root')

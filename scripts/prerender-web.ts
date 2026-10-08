@@ -21,7 +21,7 @@ import { join } from 'node:path'
 
 import { LOCALES } from '../apps/web/src/config'
 import type { Locale } from '../apps/web/src/content/types'
-import { pagePath, SITE_PAGES, type SitePage } from '../apps/web/src/lib/pages'
+import { localeDir, type SitePage } from '../apps/web/src/lib/pages'
 
 const WEB_DIR = join(import.meta.dirname, '..', 'apps/web')
 const DIST = join(WEB_DIR, 'dist')
@@ -35,15 +35,13 @@ const { render } = (await import(SSR_BUNDLE)) as {
 }
 
 const targets: Array<{ file: string; locale: Locale; page: SitePage }> = [
-  // 根路径是 SPA 回退的入口，main.tsx 会把它重定向到默认语言，所以按默认语言预渲染
+  // 根路径是 Worker 不在时的兜底，按默认语言预渲染；各语言的内部文件由 Worker 按需挑选
   { file: join(DIST, 'index.html'), locale: LOCALES[0], page: 'home' },
-  ...LOCALES.flatMap((locale) =>
-    SITE_PAGES.map((page) => ({
-      file: join(DIST, pagePath(locale, page).slice(1), 'index.html'),
-      locale,
-      page,
-    })),
-  ),
+  ...LOCALES.map((locale) => ({
+    file: join(DIST, localeDir(locale), 'index.html'),
+    locale,
+    page: 'home' as const,
+  })),
 ]
 
 let done = 0

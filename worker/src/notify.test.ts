@@ -36,7 +36,11 @@ function fakeStore(initial: Record<string, string> = {}) {
 }
 
 function makeEnv(store: NotifyStore): Env {
-  return { NOTIFY_KV: store, RELEASES: { get: async () => null } }
+  return {
+    NOTIFY_KV: store,
+    RELEASES: { get: async () => null },
+    ASSETS: { fetch: async () => new Response(null, { status: 404 }) },
+  }
 }
 
 function notifyRequest(body: unknown, init: RequestInit = {}) {
