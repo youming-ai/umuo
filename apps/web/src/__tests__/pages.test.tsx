@@ -39,32 +39,43 @@ function click(selector: string) {
   act(() => link.click())
 }
 
-describe('首页与定价页导航', () => {
-  it('生成有语言前缀的独立页面地址', () => {
-    expect(pagePath('en', 'pricing')).toBe('/en/pricing/')
-    expect(localeHref('ja', 'pricing', 'pricing')).toBe('/ja/pricing/#pricing')
-    expect(pageFromPath('/zh-cn/pricing')).toBe('pricing')
+describe('首页一屏', () => {
+  it('站点只有首页，旧的定价地址也落回首页', () => {
+    expect(pagePath('en')).toBe('/en/')
+    expect(localeHref('ja', 'download')).toBe('/ja/#download')
+    expect(pageFromPath('/zh-cn/pricing')).toBe('home')
     expect(pageFromPath('/en/')).toBe('home')
   })
 
-  it('产品、定价切换，语言切换仍留在定价页，产品返回主屏', () => {
-    click('header nav a[href="/zh-cn/pricing/"]')
-    expect(window.location.pathname).toBe('/zh-cn/pricing/')
-    expect(host.querySelector('#pricing')).not.toBeNull()
-    expect(host.querySelector('#download')).toBeNull()
-    expect(host.querySelector('header a[aria-current="page"]')?.textContent).toBe('定价')
-    click('footer button[aria-expanded]')
-    click('footer a[href="/en/pricing/"]')
-    expect(window.location.pathname).toBe('/en/pricing/')
-    expect(host.querySelector('#pricing')).not.toBeNull()
-    click('header nav a[href="/en/"]')
-    expect(window.location.pathname).toBe('/en/')
-    expect(window.location.hash).toBe('')
-    expect(host.querySelector('#download')).not.toBeNull()
+  it('页眉只有 logo，没有导航链接和下载按钮', () => {
+    const header = host.querySelector('header')
+    expect(header?.querySelectorAll('a')).toHaveLength(1)
+    expect(header?.querySelector('a')?.getAttribute('href')).toBe('/zh-cn/')
+    expect(header?.querySelector('button')).toBeNull()
   })
 
-  it('Footer 向上展开五种语言，韩语切换保留定价页并关闭菜单', () => {
-    click('header nav a[href="/zh-cn/pricing/"]')
+  it('演示可以点击切换，也可以直接按快捷键', () => {
+    const pressed = () => host.querySelector('.demo-switch [aria-pressed="true"]')?.textContent
+    expect(pressed()).toContain('划词翻译')
+    click('.demo-switch button:nth-child(2)')
+    expect(pressed()).toContain('原地替换')
+    const key = (type: string, init: KeyboardEventInit) =>
+      act(() => window.dispatchEvent(new KeyboardEvent(type, init)))
+    key('keydown', { code: 'KeyD', altKey: true })
+    expect(pressed()).toContain('划词翻译')
+    key('keydown', { code: 'KeyT', altKey: true, shiftKey: true })
+    expect(pressed()).toContain('原地替换')
+    // 单独按一下右 ⌥ 才算「按住说话」；中间按了别的键就不算
+    key('keydown', { code: 'AltRight', altKey: true })
+    key('keydown', { code: 'KeyD', altKey: true })
+    key('keyup', { code: 'AltRight' })
+    expect(pressed()).toContain('划词翻译')
+    key('keydown', { code: 'AltRight', altKey: true })
+    key('keyup', { code: 'AltRight' })
+    expect(pressed()).toContain('语音输入')
+  })
+
+  it('Footer 向上展开五种语言，切换后关闭菜单', () => {
     expect(host.querySelector('footer ul')).toBeNull()
     click('footer button[aria-expanded]')
     const options = host.querySelectorAll('footer ul a')
@@ -76,9 +87,8 @@ describe('首页与定价页导航', () => {
       '한국어',
     ])
     expect(host.querySelector('footer ul')?.className).toContain('bottom-full')
-    click('footer a[href="/ko/pricing/"]')
-    expect(window.location.pathname).toBe('/ko/pricing/')
-    expect(host.querySelector('#pricing')).not.toBeNull()
+    click('footer a[href="/ko/"]')
+    expect(window.location.pathname).toBe('/ko/')
     expect(host.querySelector('footer ul')).toBeNull()
     expect(host.querySelector('footer button[aria-expanded]')?.textContent).toContain('한국어')
   })
@@ -93,49 +103,23 @@ describe('首页与定价页导航', () => {
     expect(host.querySelector('footer ul')).toBeNull()
   })
 
-  it('语言和主题只在 Footer，主题选择被保存且跨页面保留', () => {
+  it('主题切换只在 Footer，选择会被保存', () => {
     expect(host.querySelector('header button[aria-label="主题"]')).toBeNull()
-    expect(host.querySelector('header button[aria-label="语言"]')).toBeNull()
     click('footer button[aria-label="主题"]')
     expect(document.documentElement.dataset.theme).toBe('light')
     expect(window.localStorage.getItem('umuo-theme')).toBe('light')
     expect(host.querySelector('footer button[aria-label="主题"]')?.getAttribute('title')).toBe(
       '切换到深色主题',
     )
-    click('header nav a[href="/zh-cn/pricing/"]')
-    expect(document.documentElement.dataset.theme).toBe('light')
     click('footer button[aria-label="主题"]')
     expect(document.documentElement.dataset.theme).toBe('dark')
-    expect(host.querySelector('footer button[aria-label="主题"]')?.getAttribute('title')).toBe(
-      '切换到浅色主题',
-    )
   })
 
-  it('未发布时下载暂不可点击，不再弹出邮箱订阅表单', () => {
+  it('未发布时下载按钮不可点击，也不弹邮箱表单', () => {
     const download = host.querySelector<HTMLButtonElement>('#download .btn-primary')
     expect(download?.disabled).toBe(true)
-    expect(host.querySelector<HTMLButtonElement>('header .btn-primary')?.disabled).toBe(true)
     click('#download .btn-primary')
     expect(host.querySelector('form')).toBeNull()
     expect(host.querySelector('input[type="email"]')).toBeNull()
-    expect(host.querySelector('#download')?.textContent).not.toContain('上线通知')
-  })
-
-  it('定价通知表单使用透明背景，关闭行为不变', () => {
-    click('header nav a[href="/zh-cn/pricing/"]')
-    click('#pricing .pricing-card button')
-    expect(host.querySelector('form')?.closest('section')?.className).toContain('bg-transparent')
-    click('#pricing button[aria-label="取消"]')
-    expect(host.querySelector('form')).toBeNull()
-  })
-
-  it('前进后退的 popstate 更新页面，不留下旧页面内容', () => {
-    window.history.replaceState(null, '', '/zh-cn/pricing/')
-    act(() => window.dispatchEvent(new PopStateEvent('popstate')))
-    expect(host.querySelector('#pricing')).not.toBeNull()
-    window.history.replaceState(null, '', '/zh-cn/')
-    act(() => window.dispatchEvent(new PopStateEvent('popstate')))
-    expect(host.querySelector('#pricing')).toBeNull()
-    expect(host.querySelector('#download')).not.toBeNull()
   })
 })

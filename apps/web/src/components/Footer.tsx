@@ -19,19 +19,14 @@ export function Footer({
   onToggleTheme: () => void
 }) {
   const { footer } = content
-  const contact = footer.columns
-    .flatMap((column) => column.links)
-    .find((link) => link.kind === 'contact')
   return (
     <footer className="site-footer container-page">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <p className="text-xs text-text-tertiary">{footer.copyright}</p>
         <div className="flex flex-wrap items-center gap-5">
-          {contact ? (
-            <a href={`mailto:${CONTACT_EMAIL}`} className="text-sm text-text-secondary">
-              {contact.label}
-            </a>
-          ) : null}
+          <a href={`mailto:${CONTACT_EMAIL}`} className="text-sm text-text-secondary">
+            {footer.contact}
+          </a>
           <div className="flex items-center gap-1">
             <LanguageMenu
               locale={locale}

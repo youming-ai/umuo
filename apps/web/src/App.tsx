@@ -3,13 +3,12 @@ import { Footer } from './components/Footer'
 import { Hero } from './components/Hero'
 import { LanguageGrid } from './components/LanguageGrid'
 import { Nav } from './components/Nav'
-import { Pricing } from './components/Pricing'
 import { getContent } from './content'
 import { useRoute } from './lib/router'
 import { applySeo } from './lib/seo'
 import { useTheme } from './lib/theme'
 
-/** 主屏与独立定价页，共用悬浮导航和全屏字符背景。 */
+/** 首页只有一屏：页眉 logo、首屏、页脚，垫在全屏字符网格上。 */
 export function App() {
   const { locale, hash, page } = useRoute()
   const { theme, toggleTheme } = useTheme()
@@ -31,13 +30,9 @@ export function App() {
       >
         {content.nav.skipToContent}
       </a>
-      <Nav content={content} locale={locale} page={page} />
-      <main id="main" className={page === 'pricing' ? 'pricing-page' : undefined}>
-        {page === 'home' ? (
-          <Hero content={content} locale={locale} />
-        ) : (
-          <Pricing content={content} />
-        )}
+      <Nav locale={locale} />
+      <main id="main">
+        <Hero content={content} locale={locale} />
       </main>
       <Footer
         content={content}

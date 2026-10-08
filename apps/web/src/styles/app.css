@@ -190,9 +190,26 @@
     color: var(--ink-2);
   }
 
-  .card-surface {
-    @apply border border-border p-6;
-    border-radius: var(--radius-card);
+  /* 实心主按钮：首屏唯一的行动入口 */
+  .btn-solid {
+    background: var(--button-fill);
+    border-color: var(--button-fill);
+    color: var(--button-text);
+  }
+
+  /* 安装包未发布：保持原样不变灰，靠里面的状态标签说明「还没发布」 */
+  .btn-primary.is-pending {
+    opacity: 1;
+    cursor: default;
+  }
+
+  .pending-tag {
+    margin-inline-start: 0.25rem;
+    padding: 0.0625rem 0.375rem;
+    border-radius: 4px;
+    background: color-mix(in srgb, currentColor 14%, transparent);
+    font-size: 0.75rem;
+    font-weight: 500;
   }
 
   .keycap {
@@ -202,6 +219,8 @@
     border-radius: 5px;
     background: var(--paper);
     color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    line-height: 1;
   }
 
   .keycap-sm {
@@ -217,14 +236,6 @@
     text-wrap: balance;
   }
 
-  .section-title-sm {
-    font-family: var(--font-serif);
-    font-size: 1.75rem;
-    font-weight: 600;
-    line-height: 1.25;
-    text-wrap: balance;
-  }
-
   .lead {
     color: var(--ink-2);
     font-size: 1.1875rem;
@@ -236,12 +247,6 @@
   .u-accent-text {
     color: var(--ink);
   }
-  .u-accent-border {
-    border-color: var(--ink);
-  }
-  .u-accent-surface {
-    background: var(--select);
-  }
 
   /* 图标同时保留在 DOM 中，保证预渲染和 hydration 的结构一致。 */
   html:not([data-theme="light"]) .umuo-theme-when-light,
@@ -250,17 +255,10 @@
   }
 
   /* —— 导航 —— */
+  /* 页眉透明地压在字符网格上；用 absolute 而非 fixed，定价页滚动时正文不会从页眉底下穿过 */
   .site-nav {
-    top: 1rem;
-    left: 50%;
-    transform: translateX(-50%);
-    width: calc(100% - 2rem);
-    max-width: 73rem;
-    border: 1px solid var(--rule);
-    border-radius: 12px;
-    background: color-mix(in srgb, var(--paper) 88%, transparent);
-    backdrop-filter: blur(16px);
-    box-shadow: 0 8px 28px -16px rgb(22 24 29 / 0.25);
+    inset-inline: 0;
+    top: 0;
   }
 
   .site-nav a[aria-current="page"] {
@@ -280,42 +278,19 @@
     flex: 1;
   }
 
+  /* 首页恰好一屏：main 吃掉页脚以外的高度，首屏在其中垂直居中；内容放不下的小屏才滚动 */
   .hero-stage {
     display: grid;
     align-items: center;
-    min-height: calc(100svh - 5rem);
-    padding-top: 5rem;
+    padding-top: 4rem;
   }
 
   .site-footer {
     padding-block: 1.5rem;
   }
 
-  .pricing-page {
-    padding-top: 7rem;
-    min-height: calc(100svh - 5rem);
-  }
-
-  :where(.pricing-page) .pricing-card {
-    background: var(--paper);
-  }
-
-  :where(.pricing-featured) .btn-primary {
-    background: var(--button-fill);
-    color: var(--button-text);
-  }
-
   .site-nav > .container-page {
-    height: 3.75rem;
-  }
-
-  .site-nav nav a {
-    border-radius: var(--radius-control);
-  }
-
-  #umuo-mobile-menu {
-    border-radius: var(--radius-card);
-    margin-inline: 1rem;
+    height: 4rem;
   }
 
   /* —— 首屏：多语言网格与指针聚光，文案保持独立的可读层 —— */
@@ -382,46 +357,166 @@
   .hero {
     position: relative;
     display: grid;
-    grid-template-columns: minmax(0, 1fr);
-    justify-items: center;
-    gap: 3.5rem;
-    padding-block: 6rem 5.5rem;
-  }
-
-  .hero-copy {
-    max-width: 48rem;
-    text-align: center;
-    border-radius: var(--radius-card);
-  }
-
-  .hero-copy .lead {
-    margin-inline: auto;
-  }
-
-  /* 只居中下载按钮行；不能写成 .hero-copy .flex，否则会连上线通知表单里的 flex 一起居中 */
-  .hero-actions {
-    justify-content: center;
+    grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
+    align-items: center;
+    gap: clamp(2rem, 5vw, 5.5rem);
+    padding-block: clamp(1.5rem, 4svh, 3rem);
   }
 
   .hero-title {
     font-family: var(--font-sans);
-    font-size: clamp(2.5rem, 5vw, 4.5rem);
+    font-size: clamp(2.25rem, min(4.4vw, 8svh), 4.25rem);
     font-weight: 600;
-    line-height: 1.12;
-    letter-spacing: -0.01em;
+    line-height: 1.08;
+    letter-spacing: -0.02em;
     text-wrap: balance;
+    /* 中日文标题在文案里用换行符指定断点，避免把一个词拆到两行 */
+    white-space: pre-line;
   }
 
-  .hero-page {
-    width: 100%;
-    max-width: 42rem;
-    padding: 2.5rem 2.75rem 2rem;
+  /* 首屏内部的纵向节奏随视口高度收放，矮屏也能一屏放下 */
+  .hero-gap {
+    margin-top: clamp(0.75rem, 2.4svh, 1.5rem);
+  }
+
+  .hero-gap-lg {
+    margin-top: clamp(1.25rem, 4svh, 2.5rem);
+  }
+
+  /* —— 演示面板：上半是正在发生的那一下，下半是切换键位 —— */
+  .hero-demo {
     border: 1px solid var(--rule);
-    border-radius: var(--radius-card);
+    border-radius: 12px;
     background: var(--paper);
     box-shadow:
       0 1px 0 var(--rule),
-      0 18px 40px -24px rgb(22 24 29 / 0.25);
+      0 28px 56px -36px rgb(22 24 29 / 0.4);
+    overflow: hidden;
+  }
+
+  .demo-stage {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 1rem;
+    min-height: clamp(12.5rem, 30svh, 16rem);
+    padding: clamp(1.25rem, 4svh, 2.5rem) clamp(1.25rem, 3vw, 2.5rem);
+  }
+
+  .hero-demo .translation-text {
+    font-size: clamp(1.1875rem, 2.8svh, 1.5rem);
+    line-height: 1.5;
+  }
+
+  .demo-popover {
+    position: relative;
+    align-self: flex-start;
+    padding: 0.75rem 1rem;
+    border: 1px solid var(--rule);
+    border-radius: 8px;
+    background: var(--paper);
+    box-shadow: 0 14px 30px -20px rgb(22 24 29 / 0.45);
+  }
+
+  /* 浮窗指向选区的小尖角 */
+  .demo-popover::before {
+    content: "";
+    position: absolute;
+    top: -6px;
+    left: 1.5rem;
+    width: 10px;
+    height: 10px;
+    border-top: 1px solid var(--rule);
+    border-left: 1px solid var(--rule);
+    background: var(--paper);
+    transform: rotate(45deg);
+  }
+
+  .demo-replaced {
+    color: var(--ink-3);
+    text-decoration: line-through;
+    text-decoration-color: var(--ink-3);
+  }
+
+  .demo-field {
+    padding: 0.625rem 0.875rem;
+    border: 1px solid var(--rule-strong);
+    border-radius: var(--radius-control);
+  }
+
+  .demo-wave {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    height: 1.75rem;
+  }
+
+  .demo-wave > span {
+    width: 3px;
+    height: var(--h);
+    border-radius: 2px;
+    background: var(--ink-3);
+    animation: wave 700ms ease-in-out calc(var(--i) * 35ms) 2 alternate;
+  }
+
+  @keyframes wave {
+    to {
+      transform: scaleY(0.3);
+    }
+  }
+
+  .demo-switch {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    border-top: 1px solid var(--rule);
+    background: var(--paper-2);
+  }
+
+  .demo-switch button {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+    padding: 0.875rem clamp(0.75rem, 1.6vw, 1.25rem);
+    text-align: start;
+    color: var(--ink-3);
+    transition: color 150ms ease;
+  }
+
+  .demo-switch button + button {
+    border-inline-start: 1px solid var(--rule);
+  }
+
+  .demo-switch button:hover {
+    color: var(--ink-2);
+  }
+
+  .demo-switch button[aria-pressed="true"] {
+    background: var(--paper);
+    color: var(--ink);
+  }
+
+  /* 当前模式：顶上一道墨线，和面板分隔线接在一起 */
+  .demo-switch button[aria-pressed="true"]::before {
+    content: "";
+    position: absolute;
+    inset: -1px 0 auto;
+    height: 2px;
+    background: var(--ink);
+  }
+
+  .demo-switch-name {
+    font-size: 0.875rem;
+    font-weight: 500;
+  }
+
+  .demo-hint {
+    padding: 0.5rem clamp(0.75rem, 1.6vw, 1.25rem);
+    border-top: 1px solid var(--rule);
+    background: var(--paper-2);
+    font-size: 0.75rem;
+    color: var(--ink-3);
   }
 
   .source-text {
@@ -438,10 +533,6 @@
     color: var(--ink);
   }
 
-  .hero-page .translation-text {
-    font-size: 1.625rem;
-  }
-
   .selection {
     background: var(--select);
     color: var(--ink);
@@ -452,7 +543,7 @@
 
   .stream-char {
     animation: stream-in 1ms linear backwards;
-    animation-delay: calc(600ms + var(--i) * 70ms);
+    animation-delay: calc(var(--d, 600ms) + var(--i) * 45ms);
   }
 
   @keyframes stream-in {
@@ -477,201 +568,26 @@
     }
   }
 
-  /* —— 读 / 写 / 看：对照本的一页，页边是另一种语言 —— */
-  .pillars {
-    border-top: 1px solid var(--ink);
-  }
-
-  .pillar {
-    display: grid;
-    grid-template-columns: minmax(0, 2fr) minmax(0, 5fr) minmax(0, 5fr);
-    gap: 3rem;
-    padding-block: 2.5rem;
-    border-bottom: 1px solid var(--rule);
-  }
-
-  .pillar-pair {
-    font-size: 0.9375rem;
-    line-height: 1.5;
-    color: var(--ink-3);
-  }
-
-  .pillar-pair > span {
-    font-family: var(--font-serif);
-    font-size: 1.75rem;
-    line-height: 1.2;
-    margin-bottom: 0.75rem;
-  }
-
-  .pillar-glyph {
-    font-family: var(--font-serif);
-    font-size: 3.5rem;
-    font-weight: 600;
-    line-height: 1;
-  }
-
-  .pillar-example {
-    align-self: start;
-    padding: 1.75rem;
-    border-radius: var(--radius-card);
-    background: var(--paper-2);
-  }
-
-  .capture {
-    padding: 0.5rem 0.75rem;
-    outline: 1.5px dashed var(--ink-3);
-    outline-offset: 2px;
-  }
-
-  /* —— 通用区块：像书的章首，标题左、描述右 —— */
-  .landing-section {
-    padding-block: 4.5rem;
-  }
-
-  .landing-section + .landing-section > .container-page > :first-child {
-    border-top: 1px solid var(--rule);
-    padding-top: 4.5rem;
-  }
-
-  .landing-section + .landing-section {
-    padding-top: 0;
-  }
-
-  .section-heading {
-    display: grid;
-    grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
-    align-items: end;
-    gap: 1rem 3rem;
-  }
-
-  .section-body {
-    margin-top: 2.5rem;
-  }
-
-  .provider-list {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.75rem 2.5rem;
-    font-size: 1.3125rem;
-    font-weight: 500;
-  }
-
-  .shortcut-card {
-    border-top: 1px solid var(--ink);
-  }
-
-  .shortcut-card > li {
-    display: grid;
-    grid-template-columns: 9rem minmax(0, 18rem) minmax(0, 1fr);
-    align-items: center;
-    gap: 1.5rem;
-    padding-block: 0.875rem;
-    border-bottom: 1px solid var(--rule);
-  }
-
-  .byok-points h3 {
-    font-family: var(--font-serif);
-    font-size: 1.3125rem;
-  }
-
-  /* —— 定价：不用卡片阴影，靠顶线区分；推荐档顶线加粗 —— */
-  .pricing-grid {
-    gap: 2.5rem;
-  }
-
-  .pricing-card {
-    padding-top: 1.5rem;
-    border-top: 1px solid var(--rule-strong);
-  }
-
-  .pricing-featured {
-    border-top: 3px solid var(--ink);
-  }
-
-  .pricing-badge {
+  /* 版本标记：小方角，不做胶囊 */
+  .tag {
+    display: inline-block;
+    padding: 0.0625rem 0.375rem;
+    border: 1px solid var(--rule-strong);
     border-radius: 4px;
-    background: var(--select);
-    color: var(--ink);
-  }
-
-  .pricing-card > p:nth-of-type(2) {
-    font-variant-numeric: tabular-nums;
-  }
-
-  .billing-switch fieldset {
-    border-color: var(--rule-strong);
-    border-radius: 8px;
-    padding: 0.1875rem;
-  }
-
-  .billing-switch button {
-    padding: 0.375rem 1.125rem;
-    border-radius: 6px;
-  }
-
-  .billing-switch button[aria-pressed="true"] {
-    background: var(--button-fill);
-    color: var(--button-text);
-  }
-
-  .comparison-scroll {
-    border-top: 1px solid var(--ink);
-  }
-
-  .landing input {
-    border-radius: var(--radius-control);
-  }
-
-  .faq-list {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    align-items: start;
-    column-gap: 4rem;
-    border-top: 1px solid var(--ink);
-  }
-
-  .faq-list details {
-    border-bottom: 1px solid var(--rule);
-  }
-
-  .faq-list summary {
-    list-style: none;
-  }
-  .faq-list summary::-webkit-details-marker {
-    display: none;
-  }
-
-  .cta {
-    max-width: 40rem;
+    font-size: 0.75rem;
+    font-weight: 500;
+    line-height: 1.4;
+    color: var(--ink-3);
+    white-space: nowrap;
   }
 
   @media (max-width: 1023px) {
     .hero {
       grid-template-columns: minmax(0, 1fr);
-      gap: 3rem;
-      padding-block: 3.5rem 4.5rem;
+      gap: clamp(1.5rem, 4svh, 2.5rem);
     }
-    .pillar {
-      grid-template-columns: minmax(0, 1fr);
-      gap: 1.5rem;
-    }
-    .pillar-pair > span {
-      display: inline;
-      font-size: inherit;
-      margin-right: 0.5em;
-    }
-  }
-
-  @media (max-width: 767px) {
-    .section-heading {
-      grid-template-columns: minmax(0, 1fr);
-    }
-    .faq-list {
-      grid-template-columns: minmax(0, 1fr);
-    }
-    .shortcut-card > li {
-      grid-template-columns: minmax(0, 1fr);
-      gap: 0.375rem;
+    .hero-copy {
+      max-width: 40rem;
     }
   }
 
@@ -679,23 +595,46 @@
     .container-page {
       padding-inline: 1.25rem;
     }
-    .site-nav > .container-page {
-      gap: 0.5rem;
+    .demo-switch-name {
+      font-size: 0.8125rem;
     }
-    .hero-page {
-      padding: 1.5rem 1.25rem;
+    .demo-stage {
+      min-height: 8.5rem;
+      gap: 0.75rem;
+      padding: 1.25rem;
     }
-    .hero-page .translation-text {
-      font-size: 1.375rem;
+    /* 手机上没有键盘：切换条只留功能名 */
+    .demo-switch kbd {
+      display: none;
     }
-    .landing-section {
-      padding-block: 4rem;
+    .demo-switch button {
+      padding-block: 0.75rem;
     }
-    .landing-section + .landing-section > .container-page > :first-child {
-      padding-top: 4rem;
+    .hero-title {
+      font-size: clamp(1.875rem, 8.5vw, 2.25rem);
     }
-    .section-body {
-      margin-top: 2rem;
+    .hero .lead {
+      font-size: 1rem;
+    }
+    .hero {
+      gap: 1.25rem;
+    }
+    .site-footer {
+      padding-block: 1rem;
+    }
+  }
+
+  /* 矮屏手机（如 iPhone SE）放不下演示；手机本来也用不了快捷键，只留标题和下载 */
+  @media (max-width: 639px) and (max-height: 720px) {
+    .hero-demo {
+      display: none;
+    }
+  }
+
+  /* 触屏设备没有快捷键可按 */
+  @media (hover: none) {
+    .demo-hint {
+      display: none;
     }
   }
 }

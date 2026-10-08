@@ -8,20 +8,11 @@
 
 export type Locale = 'zh-cn' | 'zh-tw' | 'en' | 'ja' | 'ko'
 
-/** 导航与页脚可用的站内锚点 / 外链目标 */
-export type NavLinkKind = 'product' | 'features' | 'pricing' | 'comparison' | 'faq'
-
-export type FooterLinkKind = NavLinkKind | 'privacy' | 'terms' | 'contact' | 'top'
-
-/** 「读 / 写 / 看」三段 */
-export type PillarId = 'read' | 'write' | 'look'
+/** 首屏演示的三种模式：读 / 写 / 说 */
+export type DemoModeId = 'read' | 'write' | 'speak'
 
 /** Hero 的下载区三张卡片 */
 export type PlatformId = 'macos' | 'windows' | 'linux'
-
-export type TierId = 'free' | 'pro' | 'pro-plus'
-
-export type Billing = 'monthly' | 'yearly'
 
 export interface SeoContent {
   /** <title> 与 og:title，含 SEO 关键词 */
@@ -34,13 +25,6 @@ export interface SeoContent {
 
 export interface NavContent {
   skipToContent: string
-  mainNavLabel: string
-  links: { kind: NavLinkKind; label: string }[]
-  download: string
-  /** 移动端菜单 */
-  menuOpen: string
-  menuClose: string
-  languageLabel: string
   themeLabel: string
   themeToLight: string
   themeToDark: string
@@ -48,163 +32,43 @@ export interface NavContent {
 
 export interface PlatformCard {
   id: PlatformId
-  name: string
+  /** 系统要求，显示在下载按钮下方 */
   requirement: string
-  /** 按钮文案；主平台是「下载 macOS 版」，未发布平台是「订阅上线通知」 */
   actionLabel: string
-  /** 次要说明，例如版本计划 */
+  /** 未发布时按钮里的状态标签，例如「V1.0 开发中」 */
   statusLabel: string
-  note: string
 }
 
-export interface NotifyFormContent {
-  title: string
-  description: string
-  emailLabel: string
-  emailPlaceholder: string
-  submit: string
-  cancel: string
-  /** 提交成功后显示的一句确认：存了什么、怎么删 */
-  hint: string
-  /** 提交失败（接口不通或被限流）时显示的一句提示 */
-  error: string
+/** 首屏演示的一种模式：上一行经快捷键变成下一行 */
+export interface DemoMode {
+  id: DemoModeId
+  /** 切换按钮上的功能名 */
+  name: string
+  /** 版本标记，例如 V1.1；首发功能留空 */
+  tag?: string
+  /** 触发键位，键帽逐个渲染；带文字的（如「按住右 ⌥」）也写在这里，随语言翻译 */
+  keys: string[]
+  /** 原文 / 草稿 / 口述 */
+  before: string
+  /** 译文 / 替换结果 / 整理后的文字 */
+  after: string
 }
 
 export interface HeroContent {
-  badge: string
   title: string
   subtitle: string
-  facts: string[]
   demo: {
     label: string
-    language: string
-    translation: string
-    /** 演示译文下方的一行说明：用了哪个模型、多快 */
-    metrics: string
+    /** 提示访客在页面上直接按快捷键（触屏设备上隐藏） */
+    hint: string
+    modes: DemoMode[]
   }
-  platformsLabel: string
   platforms: PlatformCard[]
-  notify: NotifyFormContent
-}
-
-export interface ShortcutItem {
-  keys: string[]
-  name: string
-  description: string
-  /** 版本标记，例如 V1.1；V1.0 首发功能留空 */
-  tag?: string
-}
-
-export interface ShortcutContent {
-  label: string
-  title: string
-  description: string
-  items: ShortcutItem[]
-  extraTitle: string
-  extra: { keys: string[]; name: string }[]
-  extraNote: string
-}
-
-export interface LogoWallContent {
-  label: string
-  title: string
-  description: string
-  providers: string[]
-  footnote: string
-}
-
-export interface PillarItem {
-  title: string
-  description: string
-  tag?: string
-}
-
-export interface PillarContent {
-  id: PillarId
-  label: string
-  title: string
-  description: string
-  items: PillarItem[]
-  footnote: string
-}
-
-export interface ByokContent {
-  label: string
-  title: string
-  description: string
-  points: PillarItem[]
-  flowTitle: string
-  flow: string[]
-  costTitle: string
-  costRows: { label: string; value: string }[]
-  costNote: string
-}
-
-export interface FeatureGridContent {
-  label: string
-  title: string
-  description: string
-  items: PillarItem[]
-}
-
-export interface ComparisonContent {
-  label: string
-  title: string
-  description: string
-  /** 第一列是行标题列，留空字符串 */
-  columns: string[]
-  rows: { label: string; values: string[] }[]
-  footnote: string
-}
-
-export interface PriceTier {
-  id: TierId
-  name: string
-  tagline: string
-  priceMonthly: string
-  priceYearly: string
-  periodMonthly: string
-  periodYearly: string
-  /** 「需要账号」这类前置条件 */
-  requirement: string
-  features: string[]
-  cta: string
-  highlight?: boolean
-}
-
-export interface PricingContent {
-  label: string
-  title: string
-  description: string
-  billingLabel: string
-  monthly: string
-  yearly: string
-  yearlyBadge: string
-  recommended: string
-  tiers: PriceTier[]
-  openSource: { title: string; description: string }
-  addon: { title: string; description: string }
-  regionalNote: string
-  refundNote: string
-  footnote: string
-}
-
-export interface FaqContent {
-  label: string
-  title: string
-  description: string
-  items: { question: string; answer: string }[]
 }
 
 export interface FooterContent {
-  ctaTitle: string
-  ctaDescription: string
-  ctaDownload: string
-  ctaNotify: string
-  columns: { title: string; links: { kind: FooterLinkKind; label: string }[] }[]
-  /** 指向「即将上线」而非死链的条目，键为链接 kind */
-  comingSoon: string
-  legalNote: string
+  /** 联系邮箱链接的文字 */
+  contact: string
   copyright: string
   languageLabel: string
 }
@@ -214,13 +78,5 @@ export interface SiteContent {
   seo: SeoContent
   nav: NavContent
   hero: HeroContent
-  shortcuts: ShortcutContent
-  logoWall: LogoWallContent
-  pillars: PillarContent[]
-  byok: ByokContent
-  features: FeatureGridContent
-  comparison: ComparisonContent
-  pricing: PricingContent
-  faq: FaqContent
   footer: FooterContent
 }

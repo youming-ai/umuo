@@ -7,7 +7,7 @@ type Route = { locale: Locale; hash: string; page: SitePage }
 
 /**
  * 极简路径前缀路由：`/zh-cn/`、`/zh-tw/`、`/en/`、`/ja/`，其余路径一律回到默认语言。
- * 首页与独立定价页共用语言前缀，保留站内锚点。
+ * 保留站内锚点；页面清单见 ./pages。
  */
 
 export const DEFAULT_LOCALE: Locale = 'zh-cn'
@@ -95,51 +95,6 @@ export function useRoute(): Route {
   }, [])
 
   return route
-}
-
-interface SiteLinkProps {
-  locale: Locale
-  /** 站内锚点，例如 `download` */
-  hash?: string
-  page?: SitePage
-  children: ReactNode
-  className?: string
-  title?: string
-  current?: boolean
-  onNavigate?: () => void
-}
-
-/** 站内锚点链接：中键 / 组合键仍然走浏览器默认行为 */
-export function SiteLink({
-  locale,
-  hash,
-  page = 'home',
-  children,
-  className,
-  title,
-  current,
-  onNavigate,
-}: SiteLinkProps) {
-  const href = localeHref(locale, hash, page)
-  const handleClick = (event: MouseEvent<HTMLAnchorElement>) => {
-    if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey)
-      return
-    event.preventDefault()
-    navigateTo(href, hash)
-    onNavigate?.()
-  }
-
-  return (
-    <a
-      href={href}
-      className={className}
-      title={title}
-      aria-current={current ? 'page' : undefined}
-      onClick={handleClick}
-    >
-      {children}
-    </a>
-  )
 }
 
 interface LocaleLinkProps {

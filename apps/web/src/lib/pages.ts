@@ -1,20 +1,21 @@
-import { getContent, getSeo } from '../content'
+import { getSeo } from '../content'
 import type { Locale } from '../content/types'
 
-export const SITE_PAGES = ['home', 'pricing'] as const
+/**
+ * 站点页面清单。定价页暂时下线，现在只有首页；路由、预渲染与 SEO 都按这张表生成，
+ * 以后加页面只需在这里加一项并补上路径规则。
+ */
+export const SITE_PAGES = ['home'] as const
 export type SitePage = (typeof SITE_PAGES)[number]
 
-export function pageFromPath(pathname: string): SitePage {
-  return pathname.split('/').filter(Boolean)[1] === 'pricing' ? 'pricing' : 'home'
+export function pageFromPath(_pathname: string): SitePage {
+  return 'home'
 }
 
-export function pagePath(locale: Locale, page: SitePage = 'home'): string {
-  return `/${locale}/${page === 'pricing' ? 'pricing/' : ''}`
+export function pagePath(locale: Locale, _page: SitePage = 'home'): string {
+  return `/${locale}/`
 }
 
-export function getPageSeo(locale: Locale, page: SitePage = 'home') {
-  const seo = getSeo(locale)
-  if (page === 'home') return seo
-  const { pricing } = getContent(locale)
-  return { ...seo, title: `${pricing.title} — umuo`, description: pricing.description }
+export function getPageSeo(locale: Locale, _page: SitePage = 'home') {
+  return getSeo(locale)
 }

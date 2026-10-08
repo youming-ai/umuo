@@ -27,28 +27,21 @@ function Svg({ children, className }: { children: ReactNode; className?: string 
   )
 }
 
+/** 像素小恐龙（20×20 网格），颜色跟随 currentColor。logo 尚未最终定稿。 */
 export function LogoMark({ className }: { className?: string }) {
   return (
-    <svg viewBox="0 0 24 24" className={className} aria-hidden="true" focusable="false">
-      <rect x="1" y="1" width="22" height="22" rx="7" fill="currentColor" opacity="0.16" />
+    <svg
+      viewBox="0 0 20 20"
+      className={className}
+      aria-hidden="true"
+      focusable="false"
+      shapeRendering="crispEdges"
+    >
       <path
-        d="M8 8v4.5a4 4 0 0 0 8 0V8"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
+        fill="currentColor"
+        d="M10 0h8v1h-8zM9 1h10v1h-10zM9 2h2v1h-2zM12 2h7v1h-7zM9 3h10v1h-10zM9 4h10v1h-10zM9 5h10v1h-10zM9 6h5v1h-5zM9 7h8v1h-8zM0 8h1v1h-1zM8 8h5v1h-5zM0 9h1v1h-1zM7 9h6v1h-6zM0 10h2v1h-2zM6 10h11v1h-11zM0 11h3v1h-3zM5 11h10v1h-10zM16 11h1v1h-1zM0 12h14v1h-14zM1 13h13v1h-13zM2 14h11v1h-11zM3 15h9v1h-9zM4 16h4v1h-4zM10 16h3v1h-3zM4 17h3v1h-3zM11 17h2v1h-2zM4 18h2v1h-2zM11 18h1v1h-1zM4 19h3v1h-3zM11 19h2v1h-2z"
       />
     </svg>
-  )
-}
-
-export function ExternalLinkIcon({ className }: { className?: string }) {
-  return (
-    <Svg className={className}>
-      <path d="M15 3h6v6" />
-      <path d="M10 14 21 3" />
-      <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
-    </Svg>
   )
 }
 
@@ -85,47 +78,6 @@ export function ThemeContrastIcon({ className }: { className?: string }) {
     <Svg className={className}>
       <circle cx="12" cy="12" r="9" />
       <path d="M12 3v18M12 9l4.65-4.65M12 14.3l7.37-7.37M12 19.6l8.85-8.85" />
-    </Svg>
-  )
-}
-
-export function SunIcon({ className }: { className?: string }) {
-  return (
-    <Svg className={className}>
-      <circle cx="12" cy="12" r="4" />
-      <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" />
-    </Svg>
-  )
-}
-
-export function MoonIcon({ className }: { className?: string }) {
-  return (
-    <Svg className={className}>
-      <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z" />
-    </Svg>
-  )
-}
-
-export function MenuIcon({ className }: { className?: string }) {
-  return (
-    <Svg className={className}>
-      <path d="M4 7h16M4 12h16M4 17h16" />
-    </Svg>
-  )
-}
-
-export function CloseIcon({ className }: { className?: string }) {
-  return (
-    <Svg className={className}>
-      <path d="m6 6 12 12M18 6 6 18" />
-    </Svg>
-  )
-}
-
-export function CheckIcon({ className }: { className?: string }) {
-  return (
-    <Svg className={className}>
-      <path d="m5 13 4 4L19 7" />
     </Svg>
   )
 }

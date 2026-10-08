@@ -34,7 +34,7 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
-describe('两页的四语言预渲染均可 hydrate', () => {
+describe('五种语言的预渲染均可 hydrate', () => {
   for (const locale of LOCALES) {
     for (const page of SITE_PAGES) {
       it(`${locale}/${page}：真实 SSR 与客户端结构一致`, async () => {
@@ -51,13 +51,10 @@ describe('两页的四语言预渲染均可 hydrate', () => {
         const container = document.createElement('div')
         container.innerHTML = html
         document.body.append(container)
-        expect(container.querySelectorAll('main > section')).toHaveLength(1)
         expect(container.querySelectorAll('h1')).toHaveLength(1)
-        expect(container.querySelector('#pricing') !== null).toBe(page === 'pricing')
-        expect(container.querySelector('#download') !== null).toBe(page === 'home')
-        for (const id of ['features', 'comparison', 'faq', 'cta']) {
-          expect(container.querySelector(`#${id}`)).toBeNull()
-        }
+        // 首页只有一屏：main 里只有首屏
+        expect(container.querySelectorAll('main > section')).toHaveLength(1)
+        expect(container.querySelector('#download')).not.toBeNull()
         // 服务端未知访客主题，客户端主题不同也不得重建 DOM。
         document.documentElement.dataset.theme = 'light'
         const errors: unknown[][] = []
