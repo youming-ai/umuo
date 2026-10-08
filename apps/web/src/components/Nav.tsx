@@ -11,7 +11,7 @@ export function Nav({ locale }: { locale: Locale }) {
           href={localeHref(locale)}
           className="flex items-center gap-2 text-lg font-semibold tracking-tight text-text-primary"
         >
-          <LogoMark className="h-6 w-6 u-accent-text" />
+          <LogoMark className="h-7 w-7" />
           <span>umuo</span>
         </a>
       </div>
