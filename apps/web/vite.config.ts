@@ -2,8 +2,8 @@ import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
 import { defineConfig, type Plugin } from 'vite'
 import { HTML_LANG, LOCALES, SITE_URL } from './src/config'
-import { getSeo } from './src/content'
 import type { Locale } from './src/content/types'
+import { getPageSeo, pagePath, SITE_PAGES, type SitePage } from './src/lib/pages'
 
 const DEFAULT_LOCALE: Locale = 'zh-cn'
 
@@ -16,14 +16,15 @@ function escapeHtml(value: string): string {
 }
 
 /** 每种语言一份 head：title / description / canonical / hreflang / OG / Twitter Card */
-function seoHead(locale: Locale): string {
-  const seo = getSeo(locale)
-  const url = `${SITE_URL}/${locale}/`
+function seoHead(locale: Locale, page: SitePage = 'home'): string {
+  const seo = getPageSeo(locale, page)
+  const url = `${SITE_URL}${pagePath(locale, page)}`
   const alternates = [
     ...LOCALES.map(
-      (alt) => `    <link rel="alternate" hreflang="${alt}" href="${SITE_URL}/${alt}/" />`,
+      (alt) =>
+        `    <link rel="alternate" hreflang="${alt}" href="${SITE_URL}${pagePath(alt, page)}" />`,
     ),
-    `    <link rel="alternate" hreflang="x-default" href="${SITE_URL}/${DEFAULT_LOCALE}/" />`,
+    `    <link rel="alternate" hreflang="x-default" href="${SITE_URL}${pagePath(DEFAULT_LOCALE, page)}" />`,
   ].join('\n')
 
   return `<!-- seo:start -->
@@ -73,15 +74,21 @@ function localeHtmlPlugin(): Plugin {
         )
       }
 
-      const htmlFor = (locale: Locale) =>
+      const htmlFor = (locale: Locale, page: SitePage = 'home') =>
         template
           .replace(/<html lang="[^"]*"/, `<html lang="${HTML_LANG[locale] ?? locale}"`)
-          .replace(/<!-- seo:start -->[\s\S]*?<!-- seo:end -->/, seoHead(locale))
+          .replace(/<!-- seo:start -->[\s\S]*?<!-- seo:end -->/, seoHead(locale, page))
 
       // 根路径保留默认语言的 head（SPA 回退时用得到），再为每种语言产出独立目录
       entry.source = htmlFor(DEFAULT_LOCALE)
       for (const locale of LOCALES) {
-        this.emitFile({ type: 'asset', fileName: `${locale}/index.html`, source: htmlFor(locale) })
+        for (const page of SITE_PAGES) {
+          this.emitFile({
+            type: 'asset',
+            fileName: `${pagePath(locale, page).slice(1)}index.html`,
+            source: htmlFor(locale, page),
+          })
+        }
       }
 
       this.info(`已生成多语言 HTML：${LOCALES.map((locale) => `/${locale}/`).join(' ')}`)

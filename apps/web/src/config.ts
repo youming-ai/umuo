@@ -18,8 +18,8 @@ export const SITE_URL = 'https://umuo.app'
 export const CONTACT_EMAIL = 'hello@umuo.app'
 
 /**
- * macOS 安装包地址。V1.0 里程碑 1 尚未发布，所以是 null：
- * Hero 的主按钮此时走「订阅上线通知」，发布后把它换成 DMG 地址即可。
+ * macOS 安装包地址。发布前为 null，下载按钮暂不可点击。
+ * 发布后配置真实 DMG 地址，Header 与首屏会直接提供下载，不再弹上线通知。
  */
 export const MACOS_DOWNLOAD_URL: string | null = null
 
@@ -31,13 +31,14 @@ export const RELEASE = {
 } as const
 
 /** 语言切换顺序与 <html lang> 映射（PRD §11.4） */
-export const LOCALES = ['zh-cn', 'zh-tw', 'en', 'ja'] as const
+export const LOCALES = ['zh-cn', 'zh-tw', 'en', 'ja', 'ko'] as const
 
 export const HTML_LANG: Record<string, string> = {
   'zh-cn': 'zh-Hans',
   'zh-tw': 'zh-Hant',
   en: 'en',
   ja: 'ja',
+  ko: 'ko',
 }
 
 /** 语言切换器里显示的名字（各语言写法固定，不进内容模型） */
@@ -46,4 +47,5 @@ export const LOCALE_LABEL: Record<string, string> = {
   'zh-tw': '繁體中文',
   en: 'English',
   ja: '日本語',
+  ko: '한국어',
 }

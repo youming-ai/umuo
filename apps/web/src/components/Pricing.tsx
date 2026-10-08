@@ -18,12 +18,13 @@ export function Pricing({ content }: { content: SiteContent }) {
   return (
     <Section
       id="pricing"
+      headingLevel="h1"
       title={pricing.title}
       description={pricing.description}
       className="pricing-section"
     >
       <div className="billing-switch flex flex-wrap items-center gap-3">
-        <fieldset className="m-0 inline-flex items-center gap-1 border border-border bg-background-secondary p-1">
+        <fieldset className="m-0 inline-flex items-center gap-1 border border-border p-1">
           <legend className="sr-only">{pricing.billingLabel}</legend>
           {(['monthly', 'yearly'] as const).map((option) => (
             <button

@@ -46,7 +46,7 @@ export function NotifyForm({ content, platformName, onClose }: NotifyFormProps) 
   return (
     <section
       aria-labelledby={titleId}
-      className="card-surface u-accent-border mt-8 bg-background-secondary"
+      className="card-surface u-accent-border mt-8 bg-transparent text-left"
     >
       <div className="flex items-start justify-between gap-4">
         <div>
@@ -83,7 +83,7 @@ export function NotifyForm({ content, platformName, onClose }: NotifyFormProps) 
               value={email}
               onChange={(event) => setEmail(event.target.value)}
               placeholder={content.emailPlaceholder}
-              className="h-12 border border-border bg-background px-4 text-text-primary placeholder:text-text-muted"
+              className="h-12 border border-border bg-transparent px-4 text-text-primary placeholder:text-text-muted"
             />
           </div>
           <button type="submit" className="btn-primary" disabled={status === 'sending'}>

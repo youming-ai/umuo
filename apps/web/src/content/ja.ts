@@ -16,22 +16,8 @@ export const ja: SiteContent = {
     skipToContent: 'メインコンテンツへ移動',
     mainNavLabel: 'メインナビゲーション',
     links: [
-      {
-        kind: 'features',
-        label: '機能',
-      },
-      {
-        kind: 'pricing',
-        label: '料金',
-      },
-      {
-        kind: 'comparison',
-        label: '比較',
-      },
-      {
-        kind: 'faq',
-        label: 'よくある質問',
-      },
+      { kind: 'product', label: '製品' },
+      { kind: 'pricing', label: '料金' },
     ],
     download: 'ダウンロード',
     menuOpen: 'メニューを開く',

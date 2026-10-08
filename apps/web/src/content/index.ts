@@ -1,6 +1,7 @@
 import { LOCALES } from '../config'
 import { en } from './en'
 import { ja } from './ja'
+import { ko } from './ko'
 import type { Locale, SeoContent, SiteContent } from './types'
 import { zhCn } from './zh-cn'
 import { zhTw } from './zh-tw'
@@ -11,6 +12,7 @@ const CONTENT: Record<Locale, SiteContent> = {
   'zh-tw': zhTw,
   en,
   ja,
+  ko,
 }
 
 export function isLocale(value: string): value is Locale {

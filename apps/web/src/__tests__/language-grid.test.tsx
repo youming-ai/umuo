@@ -37,7 +37,7 @@ afterEach(() => {
   document.body.replaceChildren()
 })
 
-describe('多语言首屏背景', () => {
+describe('多语言全屏背景', () => {
   it('预渲染字符固定，装饰层不进入无障碍树', () => {
     const html = renderToString(<LanguageGrid />)
     expect(html).toBe(renderToString(<LanguageGrid />))
@@ -59,6 +59,33 @@ describe('多语言首屏背景', () => {
     act(() => root.unmount())
     move(host)
     expect(frames).toHaveLength(1)
+  })
+
+  it('大视口和窗口缩放都补齐网格，不再限制为 16 列 8 行', () => {
+    vi.stubGlobal('innerWidth', 2560)
+    vi.stubGlobal('innerHeight', 1440)
+    const { grid, root } = mount()
+    expect(grid.style.getPropertyValue('--grid-columns')).toBe('27')
+    expect(grid.querySelectorAll('.language-grid-base span')).toHaveLength(27 * 15)
+    vi.stubGlobal('innerWidth', 390)
+    vi.stubGlobal('innerHeight', 844)
+    act(() => window.dispatchEvent(new Event('resize')))
+    expect(grid.style.getPropertyValue('--grid-columns')).toBe('5')
+    expect(grid.querySelectorAll('.language-grid-base span')).toHaveLength(5 * 9)
+    act(() => root.unmount())
+  })
+
+  it('首屏之外的页面内容也能触发聚光', () => {
+    const { host, grid, root, frames } = mount()
+    const footer = document.createElement('footer')
+    host.append(footer)
+    footer.dispatchEvent(
+      new MouseEvent('pointermove', { bubbles: true, clientX: 240, clientY: 600 }),
+    )
+    frames[0](0)
+    expect(grid.style.getPropertyValue('--grid-y')).toBe('600px')
+    expect(grid.style.getPropertyValue('--grid-active')).toBe('1')
+    act(() => root.unmount())
   })
 
   for (const preference of [{ reduced: true }, { fine: false }]) {

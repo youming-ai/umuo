@@ -15,7 +15,8 @@ export type LinkTarget =
 export type NavTarget = { kind: 'hash'; hash: string }
 
 const NAV_TARGETS: Record<NavLinkKind, NavTarget> = {
-  features: { kind: 'hash', hash: 'features' },
+  product: { kind: 'hash', hash: 'top' },
+  features: { kind: 'hash', hash: 'download' },
   pricing: { kind: 'hash', hash: 'pricing' },
   comparison: { kind: 'hash', hash: 'comparison' },
   faq: { kind: 'hash', hash: 'faq' },

@@ -16,22 +16,8 @@ export const zhTw: SiteContent = {
     skipToContent: '跳到主要內容',
     mainNavLabel: '主導覽',
     links: [
-      {
-        kind: 'features',
-        label: '功能',
-      },
-      {
-        kind: 'pricing',
-        label: '定價',
-      },
-      {
-        kind: 'comparison',
-        label: '比較',
-      },
-      {
-        kind: 'faq',
-        label: '常見問題',
-      },
+      { kind: 'product', label: '產品' },
+      { kind: 'pricing', label: '定價' },
     ],
     download: '下載',
     menuOpen: '開啟選單',

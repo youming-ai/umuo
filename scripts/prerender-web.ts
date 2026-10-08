@@ -21,6 +21,7 @@ import { join } from 'node:path'
 
 import { LOCALES } from '../apps/web/src/config'
 import type { Locale } from '../apps/web/src/content/types'
+import { pagePath, SITE_PAGES, type SitePage } from '../apps/web/src/lib/pages'
 
 const WEB_DIR = join(import.meta.dirname, '..', 'apps/web')
 const DIST = join(WEB_DIR, 'dist')
@@ -30,23 +31,29 @@ const SSR_BUNDLE = join(WEB_DIR, 'dist-ssr/entry-server.js')
 const MOUNT_MARKER = '<div id="root"></div>'
 
 const { render } = (await import(SSR_BUNDLE)) as {
-  render: (locale: Locale) => string
+  render: (locale: Locale, page: SitePage) => string
 }
 
-const targets: Array<{ file: string; locale: Locale }> = [
+const targets: Array<{ file: string; locale: Locale; page: SitePage }> = [
   // 根路径是 SPA 回退的入口，main.tsx 会把它重定向到默认语言，所以按默认语言预渲染
-  { file: join(DIST, 'index.html'), locale: LOCALES[0] },
-  ...LOCALES.map((locale) => ({ file: join(DIST, locale, 'index.html'), locale })),
+  { file: join(DIST, 'index.html'), locale: LOCALES[0], page: 'home' },
+  ...LOCALES.flatMap((locale) =>
+    SITE_PAGES.map((page) => ({
+      file: join(DIST, pagePath(locale, page).slice(1), 'index.html'),
+      locale,
+      page,
+    })),
+  ),
 ]
 
 let done = 0
-for (const { file, locale } of targets) {
+for (const { file, locale, page } of targets) {
   const html = readFileSync(file, 'utf8')
   if (!html.includes(MOUNT_MARKER)) {
     throw new Error(`${file} 里找不到挂载点 ${MOUNT_MARKER}——index.html 或构建插件的产物格式变了`)
   }
 
-  const body = render(locale)
+  const body = render(locale, page)
   // 空正文说明 SSR 静默失败了（比如某个组件在服务端抛错被吞掉）。
   // 不检查的话会产出一个「构建成功但页面全白」的站点——这是最糟的失败形态。
   if (body.trim().length < 1000) {

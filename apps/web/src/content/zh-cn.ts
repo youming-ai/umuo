@@ -16,22 +16,8 @@ export const zhCn: SiteContent = {
     skipToContent: '跳到主要内容',
     mainNavLabel: '主导航',
     links: [
-      {
-        kind: 'features',
-        label: '功能',
-      },
-      {
-        kind: 'pricing',
-        label: '定价',
-      },
-      {
-        kind: 'comparison',
-        label: '对比',
-      },
-      {
-        kind: 'faq',
-        label: '常见问题',
-      },
+      { kind: 'product', label: '产品' },
+      { kind: 'pricing', label: '定价' },
     ],
     download: '下载',
     menuOpen: '打开菜单',

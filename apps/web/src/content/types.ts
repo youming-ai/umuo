@@ -6,10 +6,10 @@
  * 类型不完整时 `tsc --noEmit` 会直接报错。
  */
 
-export type Locale = 'zh-cn' | 'zh-tw' | 'en' | 'ja'
+export type Locale = 'zh-cn' | 'zh-tw' | 'en' | 'ja' | 'ko'
 
 /** 导航与页脚可用的站内锚点 / 外链目标 */
-export type NavLinkKind = 'features' | 'pricing' | 'comparison' | 'faq'
+export type NavLinkKind = 'product' | 'features' | 'pricing' | 'comparison' | 'faq'
 
 export type FooterLinkKind = NavLinkKind | 'privacy' | 'terms' | 'contact' | 'top'
 

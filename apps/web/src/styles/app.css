@@ -1,18 +1,36 @@
-/*
- * 官网视觉：一本双语对照本。
- * 白纸墨字；原文用系统无衬线，你的语言（标题与译文）用宋体 / 明朝；
- * 唯一的颜色是 macOS 的文字选区蓝——「选中文字」正是 umuo 的触发动作。
- * 全部用系统字体：umuo 只做 Mac，零下载，也不依赖在大陆不稳定的字体 CDN。
- */
+/* 全站统一 Open Sans，自托管可变字体；中日韩字形由系统无衬线字体补齐。 */
 @import "tailwindcss";
+
+@font-face {
+  font-family: "Open Sans";
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+  src: url("/fonts/open-sans/open-sans-latin.woff2") format("woff2");
+  unicode-range:
+    U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308,
+    U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: "Open Sans";
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+  src: url("/fonts/open-sans/open-sans-latin-ext.woff2") format("woff2");
+  unicode-range:
+    U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308,
+    U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4,
+    U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
 
 @theme {
   --font-sans:
-    -apple-system, BlinkMacSystemFont, "Helvetica Neue", "PingFang SC", "Hiragino Sans", "Segoe UI",
-    sans-serif;
-  --font-serif:
-    ui-serif, "New York", "Songti SC", "Hiragino Mincho ProN", "Noto Serif CJK SC", serif;
-  --font-heading: var(--font-serif);
+    "Open Sans", -apple-system, BlinkMacSystemFont, "PingFang SC", "PingFang TC", "Hiragino Sans",
+    "Apple SD Gothic Neo", "Malgun Gothic", "Segoe UI", sans-serif;
+  /* 兼容原有组件类名，但标题和译文不再使用宋体 / 明朝。 */
+  --font-serif: var(--font-sans);
+  --font-heading: var(--font-sans);
   --color-background: var(--paper);
   --color-background-secondary: var(--paper);
   --color-background-tertiary: var(--paper-2);
@@ -73,13 +91,6 @@
     --button-text: #000000;
   }
 
-  :lang(zh-Hant) {
-    --font-serif: ui-serif, "New York", "Songti TC", "Hiragino Mincho ProN", serif;
-  }
-  :lang(ja) {
-    --font-serif: ui-serif, "New York", "Hiragino Mincho ProN", "Songti SC", serif;
-  }
-
   html {
     scroll-behavior: smooth;
     scroll-padding-top: 5rem;
@@ -106,6 +117,11 @@
     -webkit-tap-highlight-color: transparent;
   }
 
+  button {
+    background: transparent;
+    color: inherit;
+  }
+
   button:not(:disabled),
   summary {
     cursor: pointer;
@@ -125,6 +141,8 @@
 @layer components {
   /* 横向溢出兜底；用 clip 而非 hidden，以免影响 sticky */
   .landing {
+    position: relative;
+    isolation: isolate;
     overflow-x: clip;
   }
 
@@ -140,15 +158,22 @@
     @apply inline-flex h-11 items-center justify-center gap-2 px-5 text-[0.9375rem] font-medium;
     border: 1px solid transparent;
     border-radius: var(--radius-control);
+    background: transparent;
+    transition: opacity 150ms ease;
   }
 
   .btn-primary {
-    background: var(--button-fill);
-    color: var(--button-text);
+    color: var(--ink);
+    border-color: var(--ink);
   }
 
-  .btn-primary:hover {
-    opacity: 0.85;
+  .btn-primary:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+
+  .btn-primary:hover:not(:disabled) {
+    opacity: 0.72;
   }
 
   .btn-secondary {
@@ -158,7 +183,7 @@
 
   .btn-secondary:hover,
   .btn-ghost:hover {
-    background: var(--paper-2);
+    opacity: 0.72;
   }
 
   .btn-ghost {
@@ -183,7 +208,7 @@
     @apply h-7 min-w-7 px-1.5 text-xs;
   }
 
-  /* —— 字号阶：17 / 21 / 28 / 40 / 60，标题用宋体 —— */
+  /* —— 字号阶：17 / 21 / 28 / 40 / 60，全站使用 Open Sans 字体栈 —— */
   .section-title {
     font-family: var(--font-serif);
     font-size: clamp(1.75rem, 3vw, 2.5rem);
@@ -226,8 +251,58 @@
 
   /* —— 导航 —— */
   .site-nav {
+    top: 1rem;
+    left: 50%;
+    transform: translateX(-50%);
+    width: calc(100% - 2rem);
+    max-width: 73rem;
+    border: 1px solid var(--rule);
+    border-radius: 12px;
     background: color-mix(in srgb, var(--paper) 88%, transparent);
     backdrop-filter: blur(16px);
+    box-shadow: 0 8px 28px -16px rgb(22 24 29 / 0.25);
+  }
+
+  .site-nav a[aria-current="page"] {
+    color: var(--ink);
+    text-decoration: underline;
+    text-underline-offset: 0.4em;
+    text-decoration-color: var(--ink-3);
+  }
+
+  .landing-home {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .landing-home main {
+    display: grid;
+    flex: 1;
+  }
+
+  .hero-stage {
+    display: grid;
+    align-items: center;
+    min-height: calc(100svh - 5rem);
+    padding-top: 5rem;
+  }
+
+  .site-footer {
+    padding-block: 1.5rem;
+  }
+
+  .pricing-page {
+    padding-top: 7rem;
+    min-height: calc(100svh - 5rem);
+  }
+
+  :where(.pricing-page) .pricing-card {
+    background: var(--paper);
+  }
+
+  :where(.pricing-featured) .btn-primary {
+    background: var(--button-fill);
+    color: var(--button-text);
   }
 
   .site-nav > .container-page {
@@ -246,19 +321,16 @@
   /* —— 首屏：多语言网格与指针聚光，文案保持独立的可读层 —— */
   .hero-stage {
     position: relative;
-    isolation: isolate;
     overflow: hidden;
-    background: radial-gradient(ellipse at 50% 0%, var(--paper-2), var(--paper) 75%);
   }
 
   .language-grid {
     --grid-active: 0;
-    position: absolute;
+    position: fixed;
     inset: 0;
     z-index: -1;
     pointer-events: none;
     user-select: none;
-    mask-image: linear-gradient(to bottom, black 65%, transparent);
   }
 
   .language-grid-layer {
@@ -270,11 +342,10 @@
   .language-grid-cells {
     position: absolute;
     top: 0;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 96rem;
+    left: 0;
+    width: max-content;
     display: grid;
-    grid-template-columns: repeat(16, 6rem);
+    grid-template-columns: repeat(var(--grid-columns, 16), 6rem);
   }
 
   .language-grid-cells > span {
@@ -321,7 +392,6 @@
     max-width: 48rem;
     text-align: center;
     border-radius: var(--radius-card);
-    background: radial-gradient(ellipse, var(--paper) 35%, transparent 72%);
   }
 
   .hero-copy .lead {
@@ -331,10 +401,6 @@
   /* 只居中下载按钮行；不能写成 .hero-copy .flex，否则会连上线通知表单里的 flex 一起居中 */
   .hero-actions {
     justify-content: center;
-  }
-
-  .hero-copy:has(form) {
-    background: var(--paper);
   }
 
   .hero-title {

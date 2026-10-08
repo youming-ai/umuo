@@ -72,6 +72,23 @@ export function GlobeIcon({ className }: { className?: string }) {
   )
 }
 
+export function ChevronDownIcon({ className }: { className?: string }) {
+  return (
+    <Svg className={className}>
+      <path d="m6 9 6 6 6-6" />
+    </Svg>
+  )
+}
+
+export function ThemeContrastIcon({ className }: { className?: string }) {
+  return (
+    <Svg className={className}>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 3v18M12 9l4.65-4.65M12 14.3l7.37-7.37M12 19.6l8.85-8.85" />
+    </Svg>
+  )
+}
+
 export function SunIcon({ className }: { className?: string }) {
   return (
     <Svg className={className}>

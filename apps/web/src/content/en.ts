@@ -16,22 +16,8 @@ export const en: SiteContent = {
     skipToContent: 'Skip to main content',
     mainNavLabel: 'Main navigation',
     links: [
-      {
-        kind: 'features',
-        label: 'Features',
-      },
-      {
-        kind: 'pricing',
-        label: 'Pricing',
-      },
-      {
-        kind: 'comparison',
-        label: 'Comparison',
-      },
-      {
-        kind: 'faq',
-        label: 'FAQ',
-      },
+      { kind: 'product', label: 'Product' },
+      { kind: 'pricing', label: 'Pricing' },
     ],
     download: 'Download',
     menuOpen: 'Open menu',

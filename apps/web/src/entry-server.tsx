@@ -2,6 +2,7 @@ import { renderToString } from 'react-dom/server'
 
 import { App } from './App'
 import type { Locale } from './content/types'
+import type { SitePage } from './lib/pages'
 import { setInitialRouteForSsr } from './lib/router'
 
 /**
@@ -14,7 +15,7 @@ import { setInitialRouteForSsr } from './lib/router'
  * 客户端与服务端共用同一个 `App`：语言通过 [`setInitialRouteForSsr`] 注入，
  * 而不是为 SSR 复制一份组件树——两份实现必然漂移。
  */
-export function render(locale: Locale): string {
-  setInitialRouteForSsr({ locale, hash: '' })
+export function render(locale: Locale, page: SitePage = 'home'): string {
+  setInitialRouteForSsr({ locale, hash: '', page })
   return renderToString(<App />)
 }

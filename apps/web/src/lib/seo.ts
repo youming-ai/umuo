@@ -1,6 +1,6 @@
 import { HTML_LANG, LOCALES, SITE_URL } from '../config'
-import { getSeo } from '../content'
 import type { Locale } from '../content/types'
+import { getPageSeo, pagePath, type SitePage } from './pages'
 
 /**
  * 运行时的 head 管理：切换语言后更新 title / description / canonical / hreflang / OG。
@@ -32,9 +32,9 @@ function upsertLink(rel: string, href: string, hrefLang?: string) {
   el.href = href
 }
 
-export function applySeo(locale: Locale) {
-  const seo = getSeo(locale)
-  const url = `${SITE_URL}/${locale}/`
+export function applySeo(locale: Locale, page: SitePage = 'home') {
+  const seo = getPageSeo(locale, page)
+  const url = `${SITE_URL}${pagePath(locale, page)}`
 
   document.documentElement.lang = HTML_LANG[locale] ?? locale
   document.title = seo.title
@@ -43,9 +43,9 @@ export function applySeo(locale: Locale) {
   upsertLink('canonical', url)
 
   for (const alt of LOCALES) {
-    upsertLink('alternate', `${SITE_URL}/${alt}/`, alt)
+    upsertLink('alternate', `${SITE_URL}${pagePath(alt, page)}`, alt)
   }
-  upsertLink('alternate', `${SITE_URL}/${LOCALES[0]}/`, 'x-default')
+  upsertLink('alternate', `${SITE_URL}${pagePath(LOCALES[0], page)}`, 'x-default')
 
   upsertMeta('property', 'og:type', 'website')
   upsertMeta('property', 'og:site_name', 'umuo')

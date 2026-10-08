@@ -1,106 +1,79 @@
 // @vitest-environment happy-dom
 
 import { act } from 'react'
-import { hydrateRoot } from 'react-dom/client'
-import { renderToString } from 'react-dom/server'
+import { hydrateRoot, type Root } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-
 import { App } from '../App'
 import { LOCALES } from '../config'
-import { setInitialRouteForSsr } from '../lib/router'
-
-/**
- * 预渲染产物必须能被 hydrate。
- *
- * 这条测试守的是一个**构建成功但线上出错**的失败形态：预渲染出来的 HTML 与客户端
- * 首次渲染只要有任意一处不同（主题图标、随机 id、读 window 的初始状态……），
- * React 就会在控制台报 hydration 错误，并把整棵树丢掉重渲染——预渲染的意义归零，
- * 而构建日志里一个警告都没有。
- *
- * 用未压缩的 React 跑，是为了让失败时给出**具体哪个元素**不匹配，
- * 而不是线上那条 `Minified React error #418`。
- */
+import { render } from '../entry-server'
+import { pagePath, SITE_PAGES } from '../lib/pages'
 
 declare global {
-  // eslint-disable-next-line no-var
   var IS_REACT_ACT_ENVIRONMENT: boolean
 }
 
+const roots: Root[] = []
+
 beforeEach(() => {
   globalThis.IS_REACT_ACT_ENVIRONMENT = true
-  // happy-dom 不带 matchMedia；主题初始化会用到它
-  if (!window.matchMedia) {
-    Object.defineProperty(window, 'matchMedia', {
-      writable: true,
-      value: (query: string) => ({
-        matches: false,
-        media: query,
-        addEventListener: () => {},
-        removeEventListener: () => {},
-      }),
-    })
-  }
+  vi.stubGlobal('matchMedia', (query: string) => ({
+    matches: false,
+    media: query,
+    addEventListener: () => {},
+    removeEventListener: () => {},
+  }))
   window.localStorage.clear()
   document.documentElement.dataset.theme = 'dark'
 })
 
 afterEach(() => {
+  act(() => {
+    for (const root of roots.splice(0)) root.unmount()
+  })
   document.body.replaceChildren()
+  vi.unstubAllGlobals()
 })
 
-describe('预渲染的页面可以被 hydrate', () => {
+describe('两页的四语言预渲染均可 hydrate', () => {
   for (const locale of LOCALES) {
-    it(`${locale}：hydrate 不产生任何 React 报错`, async () => {
-      // 1) 服务端渲染（与构建期预渲染走的是同一条路径）
-      setInitialRouteForSsr({ locale, hash: '' })
-      const serverHtml = renderToString(<App />)
-      expect(serverHtml.length).toBeGreaterThan(1000)
-
-      // 2) 客户端在同样的 DOM 上 hydrate
-      const container = document.createElement('div')
-      container.innerHTML = serverHtml
-      document.body.append(container)
-
-      const errors: unknown[][] = []
-      const spy = vi.spyOn(console, 'error').mockImplementation((...args: unknown[]) => {
-        errors.push(args)
+    for (const page of SITE_PAGES) {
+      it(`${locale}/${page}：真实 SSR 与客户端结构一致`, async () => {
+        window.history.replaceState(null, '', pagePath(locale, page))
+        const browserWindow = window
+        let html: string
+        // 用实际构建入口，并移除 window，确保测试走真正的 SSR 路由分支。
+        vi.stubGlobal('window', undefined)
+        try {
+          html = render(locale, page)
+        } finally {
+          vi.stubGlobal('window', browserWindow)
+        }
+        const container = document.createElement('div')
+        container.innerHTML = html
+        document.body.append(container)
+        expect(container.querySelectorAll('main > section')).toHaveLength(1)
+        expect(container.querySelectorAll('h1')).toHaveLength(1)
+        expect(container.querySelector('#pricing') !== null).toBe(page === 'pricing')
+        expect(container.querySelector('#download') !== null).toBe(page === 'home')
+        for (const id of ['features', 'comparison', 'faq', 'cta']) {
+          expect(container.querySelector(`#${id}`)).toBeNull()
+        }
+        // 服务端未知访客主题，客户端主题不同也不得重建 DOM。
+        document.documentElement.dataset.theme = 'light'
+        const errors: unknown[][] = []
+        const spy = vi.spyOn(console, 'error').mockImplementation((...args) => errors.push(args))
+        try {
+          await act(async () => {
+            roots.push(hydrateRoot(container, <App />))
+          })
+        } finally {
+          spy.mockRestore()
+        }
+        expect(errors).toEqual([])
+        expect(document.querySelector('link[rel="canonical"]')?.getAttribute('href')).toContain(
+          pagePath(locale, page),
+        )
       })
-
-      try {
-        await act(async () => {
-          hydrateRoot(container, <App />)
-        })
-      } finally {
-        spy.mockRestore()
-      }
-
-      expect(errors).toEqual([])
-    })
-  }
-
-  it('主题不同也不会让 hydrate 报错（构建期不知道访客偏好）', async () => {
-    // 预渲染时用暗色，访客偏好浅色——这是最常见的真实情形，必须不报错。
-    setInitialRouteForSsr({ locale: 'zh-cn', hash: '' })
-    const serverHtml = renderToString(<App />)
-
-    document.documentElement.dataset.theme = 'light'
-    const container = document.createElement('div')
-    container.innerHTML = serverHtml
-    document.body.append(container)
-
-    const errors: unknown[][] = []
-    const spy = vi.spyOn(console, 'error').mockImplementation((...args: unknown[]) => {
-      errors.push(args)
-    })
-
-    try {
-      await act(async () => {
-        hydrateRoot(container, <App />)
-      })
-    } finally {
-      spy.mockRestore()
     }
-
-    expect(errors).toEqual([])
-  })
+  }
 })

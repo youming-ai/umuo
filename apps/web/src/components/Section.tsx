@@ -6,10 +6,19 @@ interface SectionProps {
   description: string
   children: ReactNode
   className?: string
+  headingLevel?: 'h1' | 'h2'
 }
 
 /** 全站统一的区块外壳：像书的章首，左边标题、右边一句描述，下面是内容。标题通过 aria-labelledby 关联。 */
-export function Section({ id, title, description, children, className }: SectionProps) {
+export function Section({
+  id,
+  title,
+  description,
+  children,
+  className,
+  headingLevel = 'h2',
+}: SectionProps) {
+  const Heading = headingLevel
   return (
     <section
       id={id}
@@ -18,9 +27,9 @@ export function Section({ id, title, description, children, className }: Section
     >
       <div className="container-page">
         <header className="section-heading">
-          <h2 id={`${id}-title`} className="section-title">
+          <Heading id={`${id}-title`} className="section-title">
             {title}
-          </h2>
+          </Heading>
           <p className="lead">{description}</p>
         </header>
         <div className="section-body mt-12">{children}</div>
