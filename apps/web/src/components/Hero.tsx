@@ -56,22 +56,41 @@ function HeroDemo({ demo }: { demo: SiteContent['hero']['demo'] }) {
       setModeId(id)
       setSwitched(true)
     }
-    // 单独按一下右 ⌥（中间没按别的键）才算「按住说话」，免得和 ⌥D 等组合键冲突
-    let rightAltAlone = false
+    // 与客户端同一套规则：连按两下 ⌃ 是划词、连按两下 ⌥ 是原地替换——每一下 ≤250ms、
+    // 两下间隔 ≤350ms、同一个物理键、中间没按别的键；单独按住右 ⌥ 超过 250ms 是「按住说话」。
+    let press: { code: string; at: number } | null = null
+    let lastTap: { code: string; at: number } | null = null
     const onKeyDown = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement | null
       if (target?.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(target?.tagName ?? ''))
         return
-      rightAltAlone = event.code === 'AltRight' && !event.repeat
-      if (!event.altKey || event.metaKey || event.ctrlKey) return
-      if (event.code === 'KeyD' && !event.shiftKey) choose('read')
-      else if (event.code === 'KeyT' && event.shiftKey) choose('write')
-      else return
-      event.preventDefault()
+      if (event.repeat) return
+      const held = [event.ctrlKey, event.altKey, event.shiftKey, event.metaKey].filter(Boolean)
+      if (/^(Control|Alt)(Left|Right)$/.test(event.code) && held.length === 1) {
+        if (lastTap && lastTap.code !== event.code) lastTap = null
+        press = { code: event.code, at: performance.now() }
+      } else {
+        press = null
+        lastTap = null
+      }
     }
     const onKeyUp = (event: KeyboardEvent) => {
-      if (event.code === 'AltRight' && rightAltAlone) choose('speak')
-      rightAltAlone = false
+      const now = performance.now()
+      const current = press
+      press = null
+      if (current?.code !== event.code) {
+        lastTap = null
+        return
+      }
+      if (now - current.at > 250) {
+        lastTap = null
+        if (event.code === 'AltRight') choose('speak')
+      } else if (lastTap?.code === event.code && current.at - lastTap.at <= 350) {
+        lastTap = null
+        choose(event.code.startsWith('Control') ? 'read' : 'write')
+      } else {
+        lastTap = { code: event.code, at: now }
+      }
     }
     window.addEventListener('keydown', onKeyDown)
     window.addEventListener('keyup', onKeyUp)
@@ -98,8 +117,9 @@ function HeroDemo({ demo }: { demo: SiteContent['hero']['demo'] }) {
             }}
           >
             <span className="flex gap-1" aria-hidden="true">
-              {item.keys.map((key) => (
-                <kbd key={key} className="keycap keycap-sm">
+              {item.keys.map((key, index) => (
+                // biome-ignore lint/suspicious/noArrayIndexKey: 键帽是静态列表，且连按会出现两个相同的键
+                <kbd key={index} className="keycap keycap-sm">
                   {key}
                 </kbd>
               ))}

@@ -9,7 +9,7 @@ export const zhTw: SiteContent = {
   seo: {
     title: 'umuo — 讀、寫、說，一鍵翻譯 | Mac AI 翻譯軟體',
     description:
-      'umuo 是 macOS 上的 AI 翻譯軟體：⌥D 劃詞翻譯、⌥A 撰寫視窗、⌥⇧T 輸入框原地替換、⌥S 截圖翻譯，按住右 ⌥ 語音輸入。內建免費引擎，不登入也能用；登入後可用 GPT、Claude、Gemini 等模型，也能接自己的金鑰或本機模型。',
+      'umuo 是 macOS 上的 AI 翻譯軟體：⌃⌃ 劃詞翻譯、⌥⌘A 撰寫視窗、⌥⌥ 輸入框原地替換、⌥⌘O 截圖翻譯，按住右 ⌥ 語音輸入。內建免費引擎，不登入也能用；登入後可用 GPT、Claude、Gemini 等模型，也能接自己的金鑰或本機模型。',
     ogLocale: 'zh_TW',
   },
   nav: {
@@ -23,19 +23,19 @@ export const zhTw: SiteContent = {
     subtitle: '選取即譯，寫完一鍵換成外語，也能直接用說的。',
     demo: {
       label: '翻譯預覽',
-      hint: '直接按 ⌥D 試試',
+      hint: '連按兩下 ⌃ 試試',
       modes: [
         {
           id: 'read',
           name: '劃詞翻譯',
-          keys: ['⌥', 'D'],
+          keys: ['⌃', '⌃'],
           before: 'The quick brown fox jumps over the lazy dog.',
           after: '敏捷的棕色狐狸跳過了那隻懶狗。',
         },
         {
           id: 'write',
           name: '原地替換',
-          keys: ['⌥', '⇧', 'T'],
+          keys: ['⌥', '⌥'],
           before: '明天下午三點開會可以嗎？',
           after: 'Does 3 p.m. tomorrow work for the meeting?',
         },

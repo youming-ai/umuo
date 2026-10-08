@@ -34,6 +34,7 @@ afterEach(() => {
   act(() => root.unmount())
   document.body.replaceChildren()
   vi.unstubAllGlobals()
+  vi.restoreAllMocks()
 })
 
 function click(selector: string) {
@@ -68,16 +69,30 @@ describe('首页一屏', () => {
     expect(pressed()).toContain('原地替换')
     const key = (type: string, init: KeyboardEventInit) =>
       act(() => window.dispatchEvent(new KeyboardEvent(type, init)))
-    key('keydown', { code: 'KeyD', altKey: true })
+    let now = 0
+    vi.spyOn(performance, 'now').mockImplementation(() => now)
+    const tap = (code: string, flag: 'ctrlKey' | 'altKey') => {
+      key('keydown', { code, [flag]: true })
+      now += 60
+      key('keyup', { code })
+      now += 100
+    }
+    tap('ControlLeft', 'ctrlKey')
+    tap('ControlLeft', 'ctrlKey')
     expect(pressed()).toContain('划词翻译')
-    key('keydown', { code: 'KeyT', altKey: true, shiftKey: true })
+    tap('AltLeft', 'altKey')
+    tap('AltLeft', 'altKey')
     expect(pressed()).toContain('原地替换')
-    // 单独按一下右 ⌥ 才算「按住说话」；中间按了别的键就不算
+    // 左 ⌃ 接右 ⌃、中间按了别的键，都不算连按
+    tap('ControlLeft', 'ctrlKey')
+    tap('ControlRight', 'ctrlKey')
+    tap('ControlLeft', 'ctrlKey')
+    key('keydown', { code: 'KeyC' })
+    tap('ControlLeft', 'ctrlKey')
+    expect(pressed()).toContain('原地替换')
+    // 按住右 ⌥ 才是「按住说话」
     key('keydown', { code: 'AltRight', altKey: true })
-    key('keydown', { code: 'KeyD', altKey: true })
-    key('keyup', { code: 'AltRight' })
-    expect(pressed()).toContain('划词翻译')
-    key('keydown', { code: 'AltRight', altKey: true })
+    now += 400
     key('keyup', { code: 'AltRight' })
     expect(pressed()).toContain('语音输入')
   })

@@ -9,7 +9,7 @@ export const en: SiteContent = {
   seo: {
     title: 'umuo: AI translator for Mac — read, write and speak',
     description:
-      'umuo translates in any app on your Mac: ⌥D for selected text, ⌥A for a writing window, ⌥⇧T to replace what you typed, ⌥S for screenshots, and hold right ⌥ to dictate. The free built-in engine needs no account; sign in for GPT, Claude and Gemini, or use your own key or a local model.',
+      'umuo translates in any app on your Mac: ⌃⌃ for selected text, ⌥⌘A for a writing window, ⌥⌥ to replace what you typed, ⌥⌘O for screenshots, and hold right ⌥ to dictate. The free built-in engine needs no account; sign in for GPT, Claude and Gemini, or use your own key or a local model.',
     ogLocale: 'en_US',
   },
   nav: {
@@ -23,19 +23,19 @@ export const en: SiteContent = {
     subtitle: 'Select to read, type to replace, or just speak.',
     demo: {
       label: 'Translation preview',
-      hint: 'Try ⌥D right here',
+      hint: 'Tap ⌃ twice to try it here',
       modes: [
         {
           id: 'read',
           name: 'Selection',
-          keys: ['⌥', 'D'],
+          keys: ['⌃', '⌃'],
           before: '敏捷的棕色狐狸跳过了那只懒狗。',
           after: 'The quick brown fox jumps over the lazy dog.',
         },
         {
           id: 'write',
           name: 'Replace',
-          keys: ['⌥', '⇧', 'T'],
+          keys: ['⌥', '⌥'],
           before: 'Could we do the meeting at 3 tomorrow afternoon?',
           after: '明天下午三点开会可以吗？',
         },
