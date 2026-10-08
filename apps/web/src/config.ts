@@ -17,6 +17,9 @@ export const SITE_URL = 'https://umuo.app'
 /** 联系邮箱；PRD 未指定具体地址，暂用域名下的常规邮箱 */
 export const CONTACT_EMAIL = 'hello@umuo.app'
 
+/** 页眉右侧的 GitHub 链接：公开的官网仓库（客户端仓库是私有的） */
+export const GITHUB_URL = 'https://github.com/youming-ai/umuo'
+
 /**
  * macOS 安装包地址。由 Worker 读 R2 里的 macos/latest.json 给出最新版（见 worker/src/releases.ts）；
  * 客户端仓库每次合进 main 都会自动发一个新版本。设回 null 则下载按钮变为不可点。
