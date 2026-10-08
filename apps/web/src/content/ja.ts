@@ -10,7 +10,7 @@ export const ja: SiteContent = {
   seo: {
     title: 'umuo — 読む・書く・話すをワンキーで翻訳 | Mac AI 翻訳',
     description:
-      'umuo は macOS 向けの AI 翻訳アプリ。⌥D で選択範囲を翻訳、⌥A で作文ウィンドウ、⌥⇧T で入力欄をその場で置き換え、⌥S でスクリーンショット翻訳、右 ⌥ を長押しで音声入力。無料エンジン内蔵でログイン不要。ログインすれば GPT、Claude、Gemini などのモデルも使え、自分の API キーやローカルモデルにも対応します。',
+      'umuo は macOS 向けの AI 翻訳アプリ。⌃⌃ で選択範囲を翻訳、⌥⌘A で作文ウィンドウ、⌥⌥ で入力欄をその場で置き換え、⌥⌘O でスクリーンショット翻訳、右 ⌥ を長押しで音声入力。無料エンジン内蔵でログイン不要。ログインすれば GPT、Claude、Gemini などのモデルも使え、自分の API キーやローカルモデルにも対応します。',
     ogLocale: 'ja_JP',
   },
   nav: {
@@ -24,19 +24,19 @@ export const ja: SiteContent = {
     subtitle: '選べば訳文、書けば外国語に。話して入力もできます。',
     demo: {
       label: '翻訳プレビュー',
-      hint: '⌥D でそのまま試せます',
+      hint: '⌃ を 2 回押すとそのまま試せます',
       modes: [
         {
           id: 'read',
           name: '選択翻訳',
-          keys: ['⌥', 'D'],
+          keys: ['⌃', '⌃'],
           before: 'The quick brown fox jumps over the lazy dog.',
           after: 'すばしっこい茶色のキツネが怠け者の犬を飛び越える。',
         },
         {
           id: 'write',
           name: 'その場で置換',
-          keys: ['⌥', '⇧', 'T'],
+          keys: ['⌥', '⌥'],
           before: '明日の午後 3 時に打ち合わせできますか？',
           after: 'Does 3 p.m. tomorrow work for the meeting?',
         },

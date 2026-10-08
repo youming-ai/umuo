@@ -6,7 +6,7 @@ export const ko: SiteContent = {
   seo: {
     title: 'umuo: 읽고 쓰고 말하는 Mac AI 번역기',
     description:
-      'umuo는 macOS용 AI 번역 앱입니다. ⌥D 선택 영역 번역, ⌥A 글쓰기 창, ⌥⇧T 입력란 제자리 교체, ⌥S 스크린샷 번역, 오른쪽 ⌥를 누른 채 음성 입력. 무료 엔진이 기본 제공되어 로그인 없이 쓸 수 있고, 로그인하면 GPT, Claude, Gemini 등의 모델을 사용할 수 있습니다. 내 API 키나 로컬 모델도 연결할 수 있습니다.',
+      'umuo는 macOS용 AI 번역 앱입니다. ⌃⌃ 선택 영역 번역, ⌥⌘A 글쓰기 창, ⌥⌥ 입력란 제자리 교체, ⌥⌘O 스크린샷 번역, 오른쪽 ⌥를 누른 채 음성 입력. 무료 엔진이 기본 제공되어 로그인 없이 쓸 수 있고, 로그인하면 GPT, Claude, Gemini 등의 모델을 사용할 수 있습니다. 내 API 키나 로컬 모델도 연결할 수 있습니다.',
     ogLocale: 'ko_KR',
   },
   nav: {
@@ -20,19 +20,19 @@ export const ko: SiteContent = {
     subtitle: '선택하면 번역, 쓰고 나면 외국어로. 말로 해도 됩니다.',
     demo: {
       label: '번역 미리보기',
-      hint: '⌥D로 바로 해 보세요',
+      hint: '⌃를 두 번 눌러 바로 해 보세요',
       modes: [
         {
           id: 'read',
           name: '선택 번역',
-          keys: ['⌥', 'D'],
+          keys: ['⌃', '⌃'],
           before: 'The quick brown fox jumps over the lazy dog.',
           after: '날쌘 갈색 여우가 게으른 개를 뛰어넘습니다.',
         },
         {
           id: 'write',
           name: '바로 교체',
-          keys: ['⌥', '⇧', 'T'],
+          keys: ['⌥', '⌥'],
           before: '내일 오후 3시에 회의 괜찮으세요?',
           after: 'Does 3 p.m. tomorrow work for the meeting?',
         },
