@@ -19,7 +19,8 @@ export function DownloadButton({
   const classes = `btn-primary ${className}`.trim()
   if (MACOS_DOWNLOAD_URL) {
     return (
-      <a href={MACOS_DOWNLOAD_URL} download className={classes} aria-describedby={describedBy}>
+      // 不加 download 属性：Safari 会拿地址最后一段（macos）当文件名，压过服务器给的 Content-Disposition
+      <a href={MACOS_DOWNLOAD_URL} className={classes} aria-describedby={describedBy}>
         <DownloadIcon className="h-4 w-4" />
         {label}
         <span className="status-tag">{status}</span>

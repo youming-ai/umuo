@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { Env, ReleaseObject } from './env'
 import worker from './index'
-import { LATEST_KEY } from './releases'
+import { downloadName, LATEST_KEY } from './releases'
 
 /** 假的 R2：按 key 放字符串，只实现 Worker 用到的读接口。 */
 function fakeReleases(files: Record<string, string>): Env {
@@ -32,8 +32,16 @@ const manifest = {
 
 const call = (path: string, env: Env) => worker.fetch(new Request(`https://umuo.app${path}`), env)
 
+describe('下载文件名', () => {
+  it('取 R2 key 的最后一段；异常的 key 退回 umuo-<版本>.dmg，不把引号带进响应头', () => {
+    expect(downloadName(manifest)).toBe('umuo-0.1.7-universal.dmg')
+    expect(downloadName({ ...manifest, key: 'macos/evil".dmg' })).toBe('umuo-0.1.7.dmg')
+    expect(downloadName({ ...manifest, key: 'macos/notes.txt' })).toBe('umuo-0.1.7.dmg')
+  })
+})
+
 describe('安装包下载', () => {
-  it('按 latest.json 给出最新版，文件名带版本号、不缓存', async () => {
+  it('按 latest.json 给出最新版，文件名与发布的安装包同名、不缓存', async () => {
     const env = fakeReleases({
       [LATEST_KEY]: JSON.stringify(manifest),
       [manifest.key]: 'DMG!',
@@ -41,7 +49,7 @@ describe('安装包下载', () => {
     const response = await call('/download/macos', env)
     expect(response.status).toBe(200)
     expect(response.headers.get('content-disposition')).toBe(
-      'attachment; filename="umuo-0.1.7.dmg"',
+      'attachment; filename="umuo-0.1.7-universal.dmg"',
     )
     expect(response.headers.get('content-type')).toBe('application/x-apple-diskimage')
     expect(response.headers.get('cache-control')).toBe('no-store')

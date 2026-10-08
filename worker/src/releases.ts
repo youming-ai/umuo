@@ -71,7 +71,10 @@ function notReady(): Response {
   })
 }
 
-/** `/download/macos`：最新版的 .dmg，文件名带版本号。 */
+/**
+ * `/download/macos`：最新版的 .dmg。下载文件名就是发布流程上传的那个文件名
+ * （R2 key 的最后一段，如 `umuo-0.1.2-universal.dmg`），和构建产物同名。
+ */
 export async function handleMacosDownload(env: Env): Promise<Response> {
   const latest = await readLatest(env)
   if (!latest) return notReady()
@@ -82,11 +85,17 @@ export async function handleMacosDownload(env: Env): Promise<Response> {
     headers: {
       'content-type': 'application/x-apple-diskimage',
       'content-length': String(object.size),
-      'content-disposition': `attachment; filename="umuo-${latest.version}.dmg"`,
+      'content-disposition': `attachment; filename="${downloadName(latest)}"`,
       // 地址不变、内容随版本变：不能让任何一层缓存住旧版
       'cache-control': 'no-store',
     },
   })
+}
+
+/** 取 R2 key 的最后一段当文件名；清单里万一不是 .dmg 或带了引号，就退回 `umuo-<版本>.dmg`。 */
+export function downloadName(latest: ReleaseManifest): string {
+  const name = latest.key.split('/').pop() ?? ''
+  return /^[\w.-]+\.dmg$/.test(name) ? name : `umuo-${latest.version}.dmg`
 }
 
 /** `/api/release`：最新版的元数据（版本、大小、校验和），给官网与以后的「检查更新」用。 */
