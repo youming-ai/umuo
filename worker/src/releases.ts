@@ -19,14 +19,23 @@ export interface ReleaseManifest {
   publishedAt: string
 }
 
-/** latest.json 读不出来、或缺字段时返回 null —— 宁可说「还没有」，也不把人引到一个坏链接。 */
+/**
+ * latest.json 读不出来、读取出错、或缺字段时返回 null —— 宁可说「还没有」，
+ * 也不把人引到一个坏链接，或让 /api/release 返回一份残缺的元数据。
+ */
 export async function readLatest(env: Env): Promise<ReleaseManifest | null> {
-  const object = await env.RELEASES.get(LATEST_KEY)
-  if (!object) return null
   try {
+    const object = await env.RELEASES.get(LATEST_KEY)
+    if (!object) return null
     const parsed = JSON.parse(await object.text()) as Partial<ReleaseManifest>
-    if (typeof parsed.version !== 'string' || typeof parsed.key !== 'string') return null
-    return parsed as ReleaseManifest
+    const complete =
+      typeof parsed.version === 'string' &&
+      typeof parsed.key === 'string' &&
+      typeof parsed.size === 'number' &&
+      typeof parsed.sha256 === 'string' &&
+      typeof parsed.commit === 'string' &&
+      typeof parsed.publishedAt === 'string'
+    return complete ? (parsed as ReleaseManifest) : null
   } catch {
     return null
   }
@@ -66,7 +75,8 @@ function notReady(): Response {
 export async function handleMacosDownload(env: Env): Promise<Response> {
   const latest = await readLatest(env)
   if (!latest) return notReady()
-  const object = await env.RELEASES.get(latest.key)
+  // R2 瞬时故障时同样落到「正在准备中」，而不是一个 500
+  const object = await env.RELEASES.get(latest.key).catch(() => null)
   if (!object) return notReady()
   return new Response(object.body, {
     headers: {

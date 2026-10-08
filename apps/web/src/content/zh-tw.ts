@@ -59,7 +59,7 @@ export const zhTw: SiteContent = {
         name: 'macOS 版',
         requirement: 'macOS 13 或更新版本，Apple Silicon 與 Intel 皆可',
         actionLabel: '下載 macOS 版',
-        statusLabel: 'V1.0 開發中',
+        statusLabel: '預覽版',
         note: '預覽版還沒有經過 Apple 公證：首次打開若被攔下，到「系統設定 → 隱私權與安全性」點「仍要打開」即可。',
       },
     ],

@@ -62,6 +62,26 @@ describe('安装包下载', () => {
     expect(response.status).toBe(503)
   })
 
+  it('R2 读取出错时说「正在准备」，而不是 500', async () => {
+    const env = fakeReleases({})
+    env.RELEASES = {
+      get: async () => {
+        throw new Error('R2 unavailable')
+      },
+    }
+    const response = await call('/download/macos', env)
+    expect(response.status).toBe(503)
+  })
+
+  it('latest.json 缺字段时不当作有效版本', async () => {
+    const env = fakeReleases({
+      [LATEST_KEY]: JSON.stringify({ version: '0.1.7', key: manifest.key }),
+      [manifest.key]: 'DMG!',
+    })
+    expect((await call('/download/macos', env)).status).toBe(503)
+    expect((await call('/api/release', env)).status).toBe(404)
+  })
+
   it('latest.json 损坏时不把人引到坏链接', async () => {
     const response = await call('/download/macos', fakeReleases({ [LATEST_KEY]: '{not json' }))
     expect(response.status).toBe(503)
