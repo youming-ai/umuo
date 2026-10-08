@@ -19,11 +19,11 @@ export const zhTw: SiteContent = {
     themeToDark: '切換為深色主題',
   },
   hero: {
-    title: '在任何 App 裡，\n一鍵翻譯',
-    subtitle: '選取外文就看到譯文，用母語寫完一鍵換成外語，也可以直接用說的。',
+    title: '任何 App 裡，\n一鍵翻譯',
+    subtitle: '選取即譯，寫完一鍵換成外語，也能直接用說的。',
     demo: {
       label: '翻譯預覽',
-      hint: '也可以直接按 ⌥D 試試',
+      hint: '直接按 ⌥D 試試',
       modes: [
         {
           id: 'read',
@@ -44,7 +44,7 @@ export const zhTw: SiteContent = {
           name: '語音輸入',
           tag: 'V1.1',
           keys: ['按住右 ⌥'],
-          before: '嗯，那個，幫我問一下會議能不能改到禮拜五',
+          before: '嗯，那個，會議能改到禮拜五嗎',
           after: 'Could we move the meeting to Friday?',
         },
       ],
@@ -52,10 +52,10 @@ export const zhTw: SiteContent = {
     platforms: [
       {
         id: 'macos',
-        requirement: 'macOS 13 或更新版本，Apple Silicon 與 Intel 皆可',
+        requirement: 'macOS 13+，支援 Apple Silicon 與 Intel',
         actionLabel: '下載 macOS 版',
         statusLabel: '預覽版',
-        note: '預覽版還沒有經過 Apple 公證：首次打開若被攔下，到「系統設定 → 隱私權與安全性」點「仍要打開」即可。',
+        note: '預覽版未經 Apple 公證，首次打開若被攔下，到「隱私權與安全性」點「仍要打開」。',
       },
     ],
   },

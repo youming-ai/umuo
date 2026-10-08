@@ -16,12 +16,11 @@ export const ko: SiteContent = {
     themeToDark: '다크 테마로 전환',
   },
   hero: {
-    title: '어떤 앱에서든, 단축키 하나로 번역',
-    subtitle:
-      '외국어를 선택하면 바로 번역이 보이고, 한국어로 쓴 글은 한 번에 외국어로 바뀝니다. 말로 해도 됩니다.',
+    title: '어떤 앱에서든 단축키 하나로 번역',
+    subtitle: '선택하면 번역, 쓰고 나면 외국어로. 말로 해도 됩니다.',
     demo: {
       label: '번역 미리보기',
-      hint: '여기서 ⌥D를 눌러 보세요',
+      hint: '⌥D로 바로 해 보세요',
       modes: [
         {
           id: 'read',
@@ -42,7 +41,7 @@ export const ko: SiteContent = {
           name: '음성 입력',
           tag: 'V1.1',
           keys: ['오른쪽 ⌥ 길게 누르기'],
-          before: '음, 그, 회의를 금요일로 옮길 수 있는지 좀 물어봐 줘',
+          before: '음, 회의 금요일로 옮길 수 있을까',
           after: 'Could we move the meeting to Friday?',
         },
       ],
@@ -50,10 +49,10 @@ export const ko: SiteContent = {
     platforms: [
       {
         id: 'macos',
-        requirement: 'macOS 13 이상, Apple Silicon 또는 Intel',
+        requirement: 'macOS 13 이상, Apple Silicon·Intel 지원',
         actionLabel: 'macOS용 다운로드',
         statusLabel: '프리뷰',
-        note: '프리뷰 버전은 아직 Apple 공증을 받지 않았습니다. 처음 열 때 차단되면 「시스템 설정 → 개인정보 보호 및 보안」에서 「그래도 열기」를 누르세요.',
+        note: '아직 Apple 공증 전인 프리뷰입니다. 차단되면 「개인정보 보호 및 보안」에서 「그래도 열기」를 누르세요.',
       },
     ],
   },
