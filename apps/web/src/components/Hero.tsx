@@ -33,7 +33,7 @@ export function Hero({ content }: { content: SiteContent; locale: Locale }) {
 
           {macos ? (
             <div className="mt-9">
-              <div className="flex flex-wrap items-center gap-3">
+              <div className="hero-actions flex flex-wrap items-center gap-3">
                 {MACOS_DOWNLOAD_URL ? (
                   <a
                     href={MACOS_DOWNLOAD_URL}
@@ -85,7 +85,7 @@ export function Hero({ content }: { content: SiteContent; locale: Locale }) {
           </div>
           <p className="translation-text mt-4">
             <span className="sr-only">{hero.demo.translation}</span>
-            {/* 首屏唯一的动效：译文逐字流式出现。纯 CSS 延迟，服务端与客户端渲染一致；减少动态效果时直接显示全文 */}
+            {/* 首屏唯一的自发动效（网格高光只跟随指针）：译文逐字流式出现。纯 CSS 延迟，服务端与客户端渲染一致；减少动态效果时直接显示全文 */}
             <span aria-hidden="true">
               {[...hero.demo.translation].map((char, index) => (
                 // biome-ignore lint/suspicious/noArrayIndexKey: 字符序列固定，下标就是身份

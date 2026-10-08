@@ -48,13 +48,14 @@ export function LanguageGrid() {
     }
     const move = (event: PointerEvent) => {
       if (!pointer.matches || motion.matches || event.pointerType === 'touch') return
-      const bounds = element.getBoundingClientRect()
-      x = event.clientX - bounds.left
-      y = event.clientY - bounds.top
+      // 只记坐标；读布局放进帧回调里，每帧最多一次，而不是每次 pointermove 都强制回流
+      x = event.clientX
+      y = event.clientY
       if (frame) return
       frame = requestAnimationFrame(() => {
-        element.style.setProperty('--grid-x', `${x}px`)
-        element.style.setProperty('--grid-y', `${y}px`)
+        const bounds = element.getBoundingClientRect()
+        element.style.setProperty('--grid-x', `${x - bounds.left}px`)
+        element.style.setProperty('--grid-y', `${y - bounds.top}px`)
         element.style.setProperty('--grid-active', '1')
         frame = 0
       })

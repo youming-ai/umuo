@@ -328,7 +328,8 @@
     margin-inline: auto;
   }
 
-  .hero-copy .flex {
+  /* 只居中下载按钮行；不能写成 .hero-copy .flex，否则会连上线通知表单里的 flex 一起居中 */
+  .hero-actions {
     justify-content: center;
   }
 
