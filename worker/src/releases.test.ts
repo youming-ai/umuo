@@ -6,6 +6,7 @@ import { downloadName, LATEST_KEY } from './releases'
 /** 假的 R2：按 key 放字符串，只实现 Worker 用到的读接口。 */
 function fakeReleases(files: Record<string, string>): Env {
   return {
+    ASSETS: { fetch: async () => new Response(null, { status: 404 }) },
     NOTIFY_KV: { get: async () => null, put: async () => {} },
     RELEASES: {
       async get(key): Promise<ReleaseObject | null> {

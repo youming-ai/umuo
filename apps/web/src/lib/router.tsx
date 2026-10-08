@@ -6,8 +6,9 @@ import { pageFromPath, pagePath, type SitePage } from './pages'
 type Route = { locale: Locale; hash: string; page: SitePage }
 
 /**
- * 极简路径前缀路由：`/zh-cn/`、`/zh-tw/`、`/en/`、`/ja/`，其余路径一律回到默认语言。
- * 保留站内锚点；页面清单见 ./pages。
+ * 极简路由：地址永远是 `/`，语言不进 URL。
+ * 当前语言写在 `<html data-locale>` 上——预渲染时写好，Worker 按 cookie / 浏览器语言挑对应的那份；
+ * 切换语言时写 cookie 并就地换内容，下次访问 Worker 就会直接给这种语言。页面清单见 ./pages。
  */
 
 export const DEFAULT_LOCALE: Locale = 'zh-cn'
@@ -29,22 +30,25 @@ export function localeHref(locale: Locale, hash?: string, page: SitePage = 'home
   return hash ? `${path}#${hash}` : path
 }
 
-function notifyRouteChange() {
-  window.dispatchEvent(new Event('umuo:route'))
+/** Worker 读这个 cookie 决定 `/` 返回哪种语言（见 worker/src/locale.ts） */
+export const LOCALE_COOKIE = 'umuo-lang'
+
+/** 页面当前的语言：预渲染 / Worker 写在 <html data-locale> 上 */
+function documentLocale(): Locale | null {
+  const value = document.documentElement.dataset.locale ?? ''
+  return (LOCALES as readonly string[]).includes(value) ? (value as Locale) : null
 }
 
-/**
- * 客户端跳转：改 URL、重新渲染、滚到目标锚点。
- * 不用整页刷新，所以静态托管只要把各语言目录指到同一份 HTML 就能用。
- */
-export function navigateTo(href: string, hash?: string) {
-  window.history.pushState(null, '', href)
+/** 就地切换语言：记进 cookie（一年），更新 <html data-locale>，地址不变 */
+export function switchLocale(locale: Locale) {
+  // biome-ignore lint/suspicious/noDocumentCookie: Worker 只能读 cookie，localStorage 它看不到
+  document.cookie = `${LOCALE_COOKIE}=${locale}; path=/; max-age=31536000; samesite=lax`
+  document.documentElement.dataset.locale = locale
   notifyRouteChange()
-  if (hash) {
-    requestAnimationFrame(() => document.getElementById(hash)?.scrollIntoView({ block: 'start' }))
-    return
-  }
-  window.scrollTo({ top: 0 })
+}
+
+function notifyRouteChange() {
+  window.dispatchEvent(new Event('umuo:route'))
 }
 
 /** 从当前 URL 读出路由状态；放在组件外，避免 effect 依赖每次渲染新建的函数 */
@@ -55,7 +59,7 @@ function readRoute(): Route {
     return ssrInitialRoute ?? { locale: DEFAULT_LOCALE, hash: '', page: 'home' }
   }
   return {
-    locale: localeFromPath(window.location.pathname) ?? DEFAULT_LOCALE,
+    locale: documentLocale() ?? DEFAULT_LOCALE,
     hash: currentHash(),
     page: pageFromPath(window.location.pathname),
   }
@@ -99,37 +103,30 @@ export function useRoute(): Route {
 
 interface LocaleLinkProps {
   locale: Locale
-  hash: string
   children: ReactNode
   className?: string
   current?: boolean
   onNavigate?: () => void
 }
 
-/** 语言切换链接：保留当前锚点，切语言后停在同一个位置 */
-export function LocaleLink({
-  locale,
-  hash,
-  children,
-  className,
-  current,
-  onNavigate,
-}: LocaleLinkProps) {
-  const { page } = useRoute()
-  const href = localeHref(locale, hash, page)
+/**
+ * 语言切换链接。点击时就地切换（地址不变、停在原位）；
+ * `href` 指向 `/<locale>/`，给中键 / 禁用 JS 的情况兜底——Worker 会记住语言再跳回 `/`。
+ */
+export function LocaleLink({ locale, children, className, current, onNavigate }: LocaleLinkProps) {
   const handleClick = (event: MouseEvent<HTMLAnchorElement>) => {
     if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey)
       return
     event.preventDefault()
-    navigateTo(href, hash)
+    switchLocale(locale)
     onNavigate?.()
   }
 
   return (
     <a
-      href={href}
+      href={`/${locale}/`}
+      lang={locale}
       className={className}
-      hrefLang={locale}
       aria-current={current ? 'true' : undefined}
       onClick={handleClick}
     >

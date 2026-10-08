@@ -25,7 +25,14 @@ export interface ReleaseStore {
   get(key: string): Promise<ReleaseObject | null>
 }
 
+/** 静态资源绑定的最小可用子集：Worker 用它取各语言的预渲染页面 */
+export interface AssetFetcher {
+  fetch(request: Request): Promise<Response>
+}
+
 export interface Env {
+  /** 官网静态产物（wrangler.toml 的 [assets] binding） */
+  ASSETS: AssetFetcher
   /** 上线通知的邮箱列表（KV namespace: umuo-notify，见 docs/DEPLOY.md） */
   NOTIFY_KV: NotifyStore
   /** 客户端安装包（R2 桶 umuo-releases，由私有仓库的 Release 工作流写入，见 docs/DEPLOY.md） */

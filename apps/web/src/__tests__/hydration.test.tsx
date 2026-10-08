@@ -39,6 +39,8 @@ describe('五种语言的预渲染均可 hydrate', () => {
     for (const page of SITE_PAGES) {
       it(`${locale}/${page}：真实 SSR 与客户端结构一致`, async () => {
         window.history.replaceState(null, '', pagePath(locale, page))
+        // 线上由 Worker 返回的预渲染页在 <html> 上带着 data-locale
+        document.documentElement.dataset.locale = locale
         const browserWindow = window
         let html: string
         // 用实际构建入口，并移除 window，确保测试走真正的 SSR 路由分支。

@@ -8,13 +8,11 @@ import { ThemeToggle } from './ThemeToggle'
 export function Footer({
   content,
   locale,
-  hash,
   theme,
   onToggleTheme,
 }: {
   content: SiteContent
   locale: Locale
-  hash: string
   theme: Theme
   onToggleTheme: () => void
 }) {
@@ -28,12 +26,7 @@ export function Footer({
             {footer.contact}
           </a>
           <div className="flex items-center gap-1">
-            <LanguageMenu
-              locale={locale}
-              hash={hash}
-              label={footer.languageLabel}
-              placement="top"
-            />
+            <LanguageMenu locale={locale} label={footer.languageLabel} placement="top" />
             <ThemeToggle theme={theme} onToggleTheme={onToggleTheme} labels={content.nav} />
           </div>
         </div>

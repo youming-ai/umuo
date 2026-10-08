@@ -10,7 +10,7 @@ import { useTheme } from './lib/theme'
 
 /** 首页只有一屏：页眉 logo、首屏、页脚，垫在全屏字符网格上。 */
 export function App() {
-  const { locale, hash, page } = useRoute()
+  const { locale, page } = useRoute()
   const { theme, toggleTheme } = useTheme()
   const content = getContent(locale)
 
@@ -34,13 +34,7 @@ export function App() {
       <main id="main">
         <Hero content={content} locale={locale} />
       </main>
-      <Footer
-        content={content}
-        locale={locale}
-        hash={hash}
-        theme={theme}
-        onToggleTheme={toggleTheme}
-      />
+      <Footer content={content} locale={locale} theme={theme} onToggleTheme={toggleTheme} />
     </div>
   )
 }
