@@ -63,7 +63,7 @@ describe('首页地址', () => {
   })
 
   it('带语言前缀的旧地址记住语言后 301 回 /，查询参数保留', async () => {
-    for (const path of ['/ko/', '/ko', '/en/pricing/']) {
+    for (const path of ['/ko/', '/ko', '/en/faq/']) {
       const response = await worker.fetch(request(path), fakeEnv())
       expect(response.status, path).toBe(301)
       expect(response.headers.get('location')).toBe('https://umuo.app/')

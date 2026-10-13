@@ -46,7 +46,7 @@ const NOT_FOUND_HTML = `<!doctype html>
 /**
  * umuo.app 的 Worker。
  *
- * `/`、`/terms`、`/privacy`（按语言挑预渲染页）、语言前缀的旧地址、`/api/*` 与 `/download/*` 由这里处理；
+ * `/`、`/pricing`、`/terms`、`/privacy`（按语言挑预渲染页）、语言前缀的旧地址、`/api/*` 与 `/download/*` 由这里处理；
  * 其余路径命中静态资源时不进 Worker，没命中时才会到这里
  * （见上面的 NOT_FOUND_HTML）。
  */

@@ -46,7 +46,8 @@ describe('首页一屏', () => {
   it('地址永远是 /，不带语言前缀', () => {
     expect(pagePath('en')).toBe('/')
     expect(localeHref('ja', 'download')).toBe('/#download')
-    expect(pageFromPath('/zh-cn/pricing')).toBe('home')
+    expect(pageFromPath('/zh-cn/faq')).toBe('home')
+    expect(pageFromPath('/zh-cn/pricing')).toBe('pricing')
     expect(pageFromPath('/en/')).toBe('home')
     expect(pagePath('ja', 'terms')).toBe('/terms')
     expect(pageFromPath('/privacy')).toBe('privacy')
@@ -59,14 +60,16 @@ describe('首页一屏', () => {
     expect(hrefs).toContain('/privacy')
   })
 
-  it('页眉左边 logo、右边 GitHub，没有导航链接和下载按钮', () => {
+  it('页眉左边 logo、右边定价与 GitHub，没有下载按钮', () => {
     const links = [...(host.querySelector('header')?.querySelectorAll('a') ?? [])]
     expect(links.map((link) => link.getAttribute('href'))).toEqual([
       '/',
+      '/pricing',
       'https://github.com/youming-ai/umuo',
     ])
-    expect(links[1]?.getAttribute('target')).toBe('_blank')
-    expect(links[1]?.getAttribute('rel')).toBe('noreferrer')
+    expect(links[1]?.textContent).toBe('定价')
+    expect(links[2]?.getAttribute('target')).toBe('_blank')
+    expect(links[2]?.getAttribute('rel')).toBe('noreferrer')
     expect(host.querySelector('header button')).toBeNull()
   })
 
