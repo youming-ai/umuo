@@ -116,6 +116,17 @@ describe('官网内容完整性', () => {
     }
   })
 
+  it('条款、隐私政策与定价里没有未替换的模板占位符', () => {
+    // Waffo 审核会因为 [LEGAL NAME] 这类方括号占位符直接打回
+    for (const locale of LOCALES) {
+      const { legal, pricing } = getContent(locale)
+      const strings: Array<[string, string]> = []
+      collectStrings({ legal, pricing }, locale, strings)
+      const left = strings.filter(([, value]) => /\[[^\]]*\]/.test(value)).map(([path]) => path)
+      expect(left, `${locale} 还有占位符`).toEqual([])
+    }
+  })
+
   it('未发布的平台不提供假下载链接', () => {
     // 里程碑 1 只有 macOS 在开发中；Windows / Linux 必须是「订阅上线通知」。
     for (const locale of LOCALES) {
