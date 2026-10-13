@@ -4,6 +4,7 @@ import { Hero } from './components/Hero'
 import { LanguageGrid } from './components/LanguageGrid'
 import { LegalPage } from './components/LegalPage'
 import { Nav } from './components/Nav'
+import { PricingPage } from './components/PricingPage'
 import { getContent } from './content'
 import { useRoute } from './lib/router'
 import { applySeo } from './lib/seo'
@@ -35,6 +36,8 @@ export function App() {
       <main id="main">
         {page === 'home' ? (
           <Hero content={content} locale={locale} />
+        ) : page === 'pricing' ? (
+          <PricingPage pricing={content.pricing} />
         ) : (
           <LegalPage doc={content.legal[page]} />
         )}

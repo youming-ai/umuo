@@ -19,7 +19,7 @@ export const LOCALE_COOKIE = 'umuo-lang'
 const ONE_YEAR = 60 * 60 * 24 * 365
 
 /** 首页以外的页面，地址是 `/<page>`；与 apps/web/src/lib/pages.ts 的 SITE_PAGES 保持一致 */
-export const PAGES = ['terms', 'privacy'] as const
+export const PAGES = ['pricing', 'terms', 'privacy'] as const
 export type Page = (typeof PAGES)[number]
 
 /** `/terms`、`/terms/` → 'terms'；其他路径 null */

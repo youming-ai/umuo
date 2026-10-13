@@ -72,6 +72,65 @@ export const en: SiteContent = {
     copyright: '© 2026 umuo',
     languageLabel: 'Language',
   },
+  pricing: {
+    title: 'Pricing',
+    description:
+      'umuo pricing: monthly and annual prices for the Free, Pro and Pro + Advanced AI plans, allowances, free trial, cancellation and refunds.',
+    lead: 'The app is free to download. Bring your own key (BYOK), local models and the no-key web route are unlimited and need no account. Subscribe when you want included AI usage.',
+    plans: [
+      {
+        name: 'Free account',
+        tagline: 'Try it out',
+        monthly: '$0',
+        yearly: 'Free forever',
+        features: [
+          '300K fast tokens / month',
+          'umuo account required',
+          'Unlimited BYOK, local models and no-key web route',
+        ],
+      },
+      {
+        name: 'Pro',
+        tagline: 'Enough for daily work',
+        monthly: '$5.99 / month',
+        yearly: 'or $46.99 / year, about 35% off',
+        features: [
+          '3M fast tokens / month',
+          'Includes the Free account allowance',
+          '1-day trial monthly, 3-day trial yearly; cancel free during the trial',
+        ],
+      },
+      {
+        name: 'Pro + Advanced AI',
+        tagline: 'Higher quality',
+        monthly: '$11.99 / month',
+        yearly: 'or $93.99 / year, about 35% off',
+        features: [
+          'Includes the Pro allowance',
+          'Higher-quality models',
+          '10M advanced tokens / month',
+        ],
+      },
+    ],
+    notes: [
+      {
+        heading: 'How to buy',
+        body: 'Sign in inside the umuo app and subscribe. Your plan renews automatically each month or year, depending on the period you chose. Payments are processed by Waffo Pancake.',
+      },
+      {
+        heading: 'Prices and taxes',
+        body: 'Prices are in US dollars and exclude applicable taxes, which are calculated for your location and shown at checkout. Existing subscribers are notified by email before any change to prices or allowances.',
+      },
+      {
+        heading: 'Cancellation',
+        body: `Cancel any time in the app’s Account Settings or by emailing ${CONTACT_EMAIL}. You keep access until the end of the current period and are not charged again.`,
+      },
+      {
+        heading: 'Refunds',
+        body: 'Refunds within 7 days on monthly and 30 days on annual plans, no questions asked. For Pro + Advanced AI, the cost of advanced quota already used in the period is deducted. See Section 7 of the Terms of Service.',
+      },
+    ],
+  },
   legal: {
     terms: {
       title: 'Terms of Service',
@@ -116,7 +175,7 @@ export const en: SiteContent = {
         {
           heading: '4. Subscription Plans',
           body: [
-            'umuo’s basic features are free. Paid features are offered through monthly and annual subscription plans. Current plan details and pricing are shown in the umuo app.',
+            `umuo’s basic features are free. Paid features are offered through monthly and annual subscription plans. Prices and billing periods for each plan are published at ${SITE_URL}/pricing.`,
             'We may change plan features or introduce new plans at any time. Price changes follow Section 5.1.',
           ],
         },
@@ -126,6 +185,7 @@ export const en: SiteContent = {
             { heading: '5.1 Auto-renewal authorization' },
             `By providing a payment method and subscribing to a paid plan, you expressly authorize ${LEGAL_NAME} to charge your payment method the applicable subscription fee on a recurring basis (monthly or annually, depending on your plan). This authorization remains in effect until you cancel under Section 6.`,
             'Your subscription renews automatically at the end of each billing period unless you cancel. We send a reminder email 7 days before an annual subscription renews. Price changes are notified by email before the next billing period begins.',
+            'Free trial: the Pro plan includes a 1-day free trial when billed monthly and a 3-day free trial when billed annually. Cancel during the trial and you will not be charged; otherwise the trial converts to a paid subscription and is billed for the period you chose.',
             { heading: '5.2 Payment processing' },
             'Payments are processed by our payment processor, Waffo Pancake.',
             { heading: '5.3 Taxes' },
@@ -157,7 +217,7 @@ export const en: SiteContent = {
             'Because our digital service is intangible and delivered instantly, subscription fees are generally non-refundable, except as set out below.',
             { heading: '7.2 Eligible refunds' },
             [
-              '7-day guarantee for new subscribers: first-time subscribers may request a full refund within 7 days of the first charge, provided usage has not exceeded 20% of the plan’s quota.',
+              'Refund window: you may request a refund, no questions asked, within 7 days of any charge on a monthly plan or within 30 days of any charge on an annual plan. For Pro + Advanced AI, the cost of advanced quota already used in the current period is deducted.',
               'Duplicate charges: duplicate charges caused by a billing error are refunded in full.',
               'Verified service outage (over 72 hours): for an extended outage caused by us, we provide a pro-rata refund or an extension.',
               'Statutory rights: any right of withdrawal or refund granted by applicable law (such as the 14-day cooling-off period in the EU/UK) is preserved.',
@@ -167,7 +227,7 @@ export const en: SiteContent = {
             { heading: '7.4 Non-refundable items' },
             [
               'Fees for subscription periods already used (except as in Section 7.2).',
-              'Refund requests for annual subscriptions made more than 30 days after the initial purchase.',
+              'Refund requests made after the window in Section 7.2 (7 days for monthly, 30 days for annual plans).',
               'Accounts closed for violating these Terms or the acceptable use policy.',
             ],
           ],
