@@ -48,6 +48,15 @@ describe('首页一屏', () => {
     expect(localeHref('ja', 'download')).toBe('/#download')
     expect(pageFromPath('/zh-cn/pricing')).toBe('home')
     expect(pageFromPath('/en/')).toBe('home')
+    expect(pagePath('ja', 'terms')).toBe('/terms')
+    expect(pageFromPath('/privacy')).toBe('privacy')
+    expect(pageFromPath('/en/terms/')).toBe('terms')
+  })
+
+  it('页脚链到服务条款与隐私政策', () => {
+    const hrefs = [...host.querySelectorAll('footer a')].map((link) => link.getAttribute('href'))
+    expect(hrefs).toContain('/terms')
+    expect(hrefs).toContain('/privacy')
   })
 
   it('页眉左边 logo、右边 GitHub，没有导航链接和下载按钮', () => {
