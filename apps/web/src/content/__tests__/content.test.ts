@@ -101,6 +101,21 @@ describe('官网内容完整性', () => {
     expect(HTML_LANG['zh-tw']).toBe('zh-Hant')
   })
 
+  it('各语言的条款与隐私政策章节结构一致', () => {
+    const shape = (locale: (typeof LOCALES)[number]) => {
+      const { terms, privacy } = getContent(locale).legal
+      return [terms, privacy].map((doc) =>
+        doc.sections.map((section) =>
+          section.body.map((block) => (Array.isArray(block) ? block.length : typeof block)),
+        ),
+      )
+    }
+    for (const locale of LOCALES) {
+      expect(shape(locale), `${locale} 的法律文本结构与简体中文不一致`).toEqual(shape('zh-cn'))
+      expect(getContent(locale).legal.terms.sections, locale).toHaveLength(16)
+    }
+  })
+
   it('未发布的平台不提供假下载链接', () => {
     // 里程碑 1 只有 macOS 在开发中；Windows / Linux 必须是「订阅上线通知」。
     for (const locale of LOCALES) {

@@ -17,6 +17,17 @@ export const SITE_URL = 'https://umuo.app'
 /** 联系邮箱；PRD 未指定具体地址，暂用域名下的常规邮箱 */
 export const CONTACT_EMAIL = 'hello@umuo.app'
 
+/**
+ * 服务条款与隐私政策里的经营者。个人经营者只需法律名称与所在国家/地区（不写地址）。
+ * TODO: 上线前换成真实信息——Waffo 审核要求法律名称，品牌名不够。
+ */
+export const LEGAL_NAME = '[LEGAL NAME]'
+export const LEGAL_COUNTRY = '[COUNTRY]'
+
+/** 条款版本与生效日期；改条款时一起改，重大变更需提前 14 天邮件通知现有用户 */
+export const LEGAL_VERSION = '1.0'
+export const LEGAL_EFFECTIVE = '2026-10-13'
+
 /** 页眉右侧的 GitHub 链接：公开的官网仓库（客户端仓库是私有的） */
 export const GITHUB_URL = 'https://github.com/youming-ai/umuo'
 

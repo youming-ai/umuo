@@ -75,10 +75,27 @@ export interface FooterContent {
   languageLabel: string
 }
 
+/** 法律文本的正文块：字符串是段落，字符串数组是列表，`{ heading }` 是小节标题 */
+export type LegalBlock = string | string[] | { heading: string }
+
+export interface LegalDoc {
+  /** 页面 h1，也是页脚链接文字 */
+  title: string
+  /** meta description */
+  description: string
+  /** 版本号与生效日期，显示在标题下（Waffo 要求两者一起存档） */
+  meta: string
+  /** 第 1 节之前的引言段落 */
+  intro?: string[]
+  sections: Array<{ heading: string; body: LegalBlock[] }>
+}
+
 export interface SiteContent {
   locale: Locale
   seo: SeoContent
   nav: NavContent
   hero: HeroContent
   footer: FooterContent
+  /** 服务条款与隐私政策（按 Waffo Pancake 的 V1 订阅模板） */
+  legal: { terms: LegalDoc; privacy: LegalDoc }
 }

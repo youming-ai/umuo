@@ -1,17 +1,19 @@
 import { StrictMode } from 'react'
 import { createRoot, hydrateRoot } from 'react-dom/client'
 import { App } from './App'
+import { pageFromPath, pagePath } from './lib/pages'
 import { localeFromPath, switchLocale } from './lib/router'
 import './styles/app.css'
 
 /**
  * 地址里不保留语言前缀。线上 Worker 会把 `/en/` 这类旧地址 301 到 `/`；
- * 没有 Worker 的情况（本地开发、纯静态托管）在这里兜底：记住语言，再把地址换回 `/`。
+ * 没有 Worker 的情况（本地开发、纯静态托管）在这里兜底：记住语言，再把地址换回 `/`（或 `/terms`、`/privacy`）。
  */
 const pathLocale = localeFromPath(window.location.pathname)
 if (pathLocale) {
   switchLocale(pathLocale)
-  window.history.replaceState(null, '', `/${window.location.search}${window.location.hash}`)
+  const path = pagePath(pathLocale, pageFromPath(window.location.pathname))
+  window.history.replaceState(null, '', `${path}${window.location.search}${window.location.hash}`)
 }
 
 const container = document.getElementById('root')
