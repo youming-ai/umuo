@@ -18,11 +18,18 @@ export const SITE_URL = 'https://umuo.app'
 export const CONTACT_EMAIL = 'hello@umuo.app'
 
 /**
- * 服务条款与隐私政策里的经营者。个人经营者只需法律名称与所在国家/地区（不写地址）。
- * TODO: 上线前换成真实信息——Waffo 审核要求法律名称，品牌名不够。
+ * 服务条款与隐私政策里的经营者。个人经营者只需法律名称与所在国家/地区（不写地址）；
+ * Waffo 审核要求法律名称，品牌名不够。名称保持证件上的拼写，不随语言翻译；国家名按语言写。
+ * 韩语文案里名称后的助词按「탕」的收音写成 은 / 이，换名称时要一起看。
  */
-export const LEGAL_NAME = '[LEGAL NAME]'
-export const LEGAL_COUNTRY = '[COUNTRY]'
+export const LEGAL_NAME = 'Youming Tang'
+export const LEGAL_COUNTRY = {
+  'zh-cn': '日本',
+  'zh-tw': '日本',
+  en: 'Japan',
+  ja: '日本',
+  ko: '일본',
+} as const
 
 /** 条款版本与生效日期；改条款时一起改，重大变更需提前 14 天邮件通知现有用户 */
 export const LEGAL_VERSION = '1.0'

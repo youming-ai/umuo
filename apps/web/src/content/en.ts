@@ -141,7 +141,7 @@ export const en: SiteContent = {
         {
           heading: '1. Introduction & Acceptance of Terms',
           body: [
-            `Welcome to umuo. umuo is provided by ${LEGAL_NAME} ("we" / "us" / "our"), an individual / sole trader operating under the laws of ${LEGAL_COUNTRY}. These Terms of Service ("Terms") govern your access to and use of umuo, including the macOS app, the related online translation and account services, and the website ${SITE_URL} (together, the "Service").`,
+            `Welcome to umuo. umuo is provided by ${LEGAL_NAME} ("we" / "us" / "our"), an individual / sole trader operating under the laws of ${LEGAL_COUNTRY.en}. These Terms of Service ("Terms") govern your access to and use of umuo, including the macOS app, the related online translation and account services, and the website ${SITE_URL} (together, the "Service").`,
             'By creating an account, subscribing to any plan, or otherwise using the Service, you confirm that you: (a) are at least 18 years of age; (b) have read, understood, and agree to be bound by these Terms; (c) agree to our Privacy Policy; and (d) are authorized to enter into this agreement on behalf of yourself or any organization you represent.',
             '⚠️ Important: If you do not agree to these Terms, you may not use the Service. Continued use after any update constitutes acceptance of the revised Terms.',
           ],
@@ -303,7 +303,7 @@ export const en: SiteContent = {
         {
           heading: '14. Governing Law & Dispute Resolution',
           body: [
-            `These Terms are governed by the laws of ${LEGAL_COUNTRY}. Before starting formal proceedings, please email ${CONTACT_EMAIL} to try to resolve the matter informally.`,
+            `These Terms are governed by the laws of ${LEGAL_COUNTRY.en}. Before starting formal proceedings, please email ${CONTACT_EMAIL} to try to resolve the matter informally.`,
           ],
         },
         {
@@ -337,7 +337,7 @@ export const en: SiteContent = {
           body: [
             'The data controller for the Service is:',
             [
-              `Name: ${LEGAL_NAME} (individual / sole trader, ${LEGAL_COUNTRY})`,
+              `Name: ${LEGAL_NAME} (individual / sole trader, ${LEGAL_COUNTRY.en})`,
               `Privacy contact: ${CONTACT_EMAIL}`,
               'Data Protection Officer: not appointed',
             ],

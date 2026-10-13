@@ -136,7 +136,7 @@ export const zhCn: SiteContent = {
         {
           heading: '1. 条款接受',
           body: [
-            `欢迎使用 umuo。umuo 由 ${LEGAL_NAME}（以下简称"我们"）提供，${LEGAL_NAME} 是依据 ${LEGAL_COUNTRY} 法律经营的个人经营者。本服务条款（"条款"）规范您对 umuo 的访问和使用，包括 macOS 应用、配套的在线翻译与账户服务，以及网站 ${SITE_URL}（合称"服务"）。`,
+            `欢迎使用 umuo。umuo 由 ${LEGAL_NAME}（以下简称"我们"）提供，${LEGAL_NAME} 是依据${LEGAL_COUNTRY['zh-cn']}法律经营的个人经营者。本服务条款（"条款"）规范您对 umuo 的访问和使用，包括 macOS 应用、配套的在线翻译与账户服务，以及网站 ${SITE_URL}（合称"服务"）。`,
             '建立账户、订阅方案或以其他方式使用本服务，即表示您：（a）已年满 18 周岁；（b）已阅读、理解并同意受本条款约束；（c）同意我们的隐私政策；以及（d）有权代表自身或所属机构签署本协议。',
             '⚠️ 重要提示：如不同意本条款，请停止使用本服务。条款更新后继续使用即表示接受修订后的条款。',
           ],
@@ -298,7 +298,7 @@ export const zhCn: SiteContent = {
         {
           heading: '14. 适用法律与争议解决',
           body: [
-            `本条款受 ${LEGAL_COUNTRY} 法律管辖。提起正式程序前，请先发邮件至 ${CONTACT_EMAIL} 尝试非正式解决。`,
+            `本条款受${LEGAL_COUNTRY['zh-cn']}法律管辖。提起正式程序前，请先发邮件至 ${CONTACT_EMAIL} 尝试非正式解决。`,
           ],
         },
         {
@@ -332,7 +332,7 @@ export const zhCn: SiteContent = {
           body: [
             '本服务的数据控制者为：',
             [
-              `名称：${LEGAL_NAME}（个人经营者，${LEGAL_COUNTRY}）`,
+              `名称：${LEGAL_NAME}（个人经营者，${LEGAL_COUNTRY['zh-cn']}）`,
               `隐私联系邮箱：${CONTACT_EMAIL}`,
               '数据保护负责人（DPO）：暂未设立',
             ],
