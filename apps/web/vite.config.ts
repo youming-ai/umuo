@@ -3,7 +3,7 @@ import react from '@vitejs/plugin-react'
 import { defineConfig, type Plugin } from 'vite'
 import { HTML_LANG, LOCALES, SITE_URL } from './src/config'
 import type { Locale } from './src/content/types'
-import { getPageSeo, localeDir, pagePath, type SitePage } from './src/lib/pages'
+import { getPageSeo, localeDir, pagePath, SITE_PAGES, type SitePage } from './src/lib/pages'
 
 const DEFAULT_LOCALE: Locale = 'zh-cn'
 
@@ -37,7 +37,7 @@ function seoHead(locale: Locale, page: SitePage = 'home'): string {
 }
 
 /**
- * 多语言静态产物：dist/zh-cn/index.html、dist/en/index.html …
+ * 多语言静态产物：dist/zh-cn/index.html、dist/zh-cn/terms/index.html、dist/en/index.html …
  *
  * 这些是**内部文件**：访客的地址永远是 `/`，由 Worker 按 cookie / 浏览器语言挑一份返回
  * （见 worker/src/locale.ts）。每份的 `<html>` 带 `lang` 与 `data-locale`，客户端靠后者
@@ -77,14 +77,16 @@ function localeHtmlPlugin(): Plugin {
       // 根路径保留默认语言（Worker 不在时的兜底），再为每种语言产出一份内部文件
       entry.source = htmlFor(DEFAULT_LOCALE)
       for (const locale of LOCALES) {
-        this.emitFile({
-          type: 'asset',
-          fileName: `${localeDir(locale)}index.html`,
-          source: htmlFor(locale),
-        })
+        for (const page of SITE_PAGES) {
+          this.emitFile({
+            type: 'asset',
+            fileName: `${localeDir(locale, page)}index.html`,
+            source: htmlFor(locale, page),
+          })
+        }
       }
 
-      this.info(`已生成多语言 HTML：${LOCALES.map((locale) => localeDir(locale)).join(' ')}`)
+      this.info(`已生成多语言 HTML：${LOCALES.length} 种语言 × ${SITE_PAGES.join(' / ')}`)
     },
   }
 }

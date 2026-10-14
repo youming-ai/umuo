@@ -75,10 +75,51 @@ export interface FooterContent {
   languageLabel: string
 }
 
+/** 法律文本的正文块：字符串是段落，字符串数组是列表，`{ heading }` 是小节标题 */
+export type LegalBlock = string | string[] | { heading: string }
+
+export interface LegalDoc {
+  /** 页面 h1，也是页脚链接文字 */
+  title: string
+  /** meta description */
+  description: string
+  /** 版本号与生效日期，显示在标题下（Waffo 要求两者一起存档） */
+  meta: string
+  /** 第 1 节之前的引言段落 */
+  intro?: string[]
+  sections: Array<{ heading: string; body: LegalBlock[] }>
+}
+
+/** 定价页的一个方案 */
+export interface PricingPlan {
+  name: string
+  tagline: string
+  /** 月付价格，例如「$5.99 / 月」；免费方案写「$0」 */
+  monthly: string
+  /** 年付价格，例如「或 $46.99 / 年」；免费方案写「永久免费」 */
+  yearly: string
+  features: string[]
+}
+
+export interface PricingContent {
+  /** 页面 h1，也是页眉链接文字 */
+  title: string
+  /** meta description */
+  description: string
+  lead: string
+  plans: PricingPlan[]
+  /** 方案下面的说明：怎么买、试用、税费、取消、退款 */
+  notes: Array<{ heading: string; body: string }>
+}
+
 export interface SiteContent {
   locale: Locale
   seo: SeoContent
   nav: NavContent
   hero: HeroContent
   footer: FooterContent
+  /** 定价页：Waffo 审核要求下单前就能在网站上看到价格与计费周期 */
+  pricing: PricingContent
+  /** 服务条款与隐私政策（按 Waffo Pancake 的 V1 订阅模板） */
+  legal: { terms: LegalDoc; privacy: LegalDoc }
 }

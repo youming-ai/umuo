@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import { LOCALES as WEB_LOCALES } from '../../apps/web/src/config'
+import { SITE_PAGES } from '../../apps/web/src/lib/pages'
 import type { Env } from './env'
 import worker from './index'
-import { LOCALES, pickLocale } from './locale'
+import { LOCALES, PAGES, pickLocale } from './locale'
 
 /** 假的静态资源：/<locale>/ 返回写着语言名的 HTML，记下被请求的路径 */
 function fakeEnv(requested: string[] = []): Env {
@@ -62,14 +63,32 @@ describe('首页地址', () => {
   })
 
   it('带语言前缀的旧地址记住语言后 301 回 /，查询参数保留', async () => {
-    for (const path of ['/ko/', '/ko', '/en/pricing/']) {
+    for (const path of ['/ko/', '/ko', '/en/faq/']) {
       const response = await worker.fetch(request(path), fakeEnv())
       expect(response.status, path).toBe(301)
       expect(response.headers.get('location')).toBe('https://umuo.app/')
       expect(response.headers.get('set-cookie')).toContain(`umuo-lang=${path.split('/')[1]}`)
     }
+    const legal = await worker.fetch(request('/en/terms/'), fakeEnv())
+    expect(legal.headers.get('location')).toBe('https://umuo.app/terms')
     const tagged = await worker.fetch(request('/ja/?utm_source=x'), fakeEnv())
     expect(tagged.headers.get('location')).toBe('https://umuo.app/?utm_source=x')
+  })
+
+  it('/terms、/privacy 也按语言返回预渲染页', async () => {
+    expect(['home', ...PAGES]).toEqual([...SITE_PAGES])
+    for (const [path, asset] of [
+      ['/terms', '/ja/terms/'],
+      ['/privacy/', '/ja/privacy/'],
+    ]) {
+      const requested: string[] = []
+      const response = await worker.fetch(
+        request(path, { cookie: 'umuo-lang=ja' }),
+        fakeEnv(requested),
+      )
+      expect(response.status, path).toBe(200)
+      expect(requested).toEqual([asset])
+    }
   })
 
   it('/index.html 301 回 /，不留第二个首页地址', async () => {

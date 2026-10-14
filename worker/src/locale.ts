@@ -18,6 +18,16 @@ export const LOCALE_COOKIE = 'umuo-lang'
 
 const ONE_YEAR = 60 * 60 * 24 * 365
 
+/** 首页以外的页面，地址是 `/<page>`；与 apps/web/src/lib/pages.ts 的 SITE_PAGES 保持一致 */
+export const PAGES = ['pricing', 'terms', 'privacy'] as const
+export type Page = (typeof PAGES)[number]
+
+/** `/terms`、`/terms/` → 'terms'；其他路径 null */
+export function pageFromPath(pathname: string): Page | null {
+  const slug = pathname.replace(/^\/|\/$/g, '')
+  return (PAGES as readonly string[]).includes(slug) ? (slug as Page) : null
+}
+
 function isLocale(value: string | undefined): value is Locale {
   return (LOCALES as readonly string[]).includes(value ?? '')
 }
@@ -67,22 +77,32 @@ export function pickLocale(request: Request): Locale {
 }
 
 /** 取某种语言的预渲染页；绑定出错或文件缺失时返回 null */
-async function localePage(locale: Locale, request: Request, env: Env): Promise<Response | null> {
+async function localePage(
+  locale: Locale,
+  page: Page | null,
+  request: Request,
+  env: Env,
+): Promise<Response | null> {
   try {
-    const asset = await env.ASSETS.fetch(new Request(new URL(`/${locale}/`, request.url)))
+    const path = page ? `/${locale}/${page}/` : `/${locale}/`
+    const asset = await env.ASSETS.fetch(new Request(new URL(path, request.url)))
     return asset.ok ? asset : null
   } catch {
     return null
   }
 }
 
-/** `/`：返回挑中语言的预渲染页面；那份取不到时退回简体中文，再不行才报错 */
-export async function handleHome(request: Request, env: Env): Promise<Response> {
+/** `/` 与 `/<page>`：返回挑中语言的预渲染页面；那份取不到时退回简体中文，再不行才报错 */
+export async function handlePage(
+  request: Request,
+  env: Env,
+  page: Page | null = null,
+): Promise<Response> {
   let locale = pickLocale(request)
-  let asset = await localePage(locale, request, env)
+  let asset = await localePage(locale, page, request, env)
   if (!asset && locale !== DEFAULT_LOCALE) {
     locale = DEFAULT_LOCALE
-    asset = await localePage(locale, request, env)
+    asset = await localePage(locale, page, request, env)
   }
   if (!asset) {
     return new Response('Service temporarily unavailable', {
@@ -100,7 +120,7 @@ export async function handleHome(request: Request, env: Env): Promise<Response> 
 
 /**
  * 首页的别名地址：`/index.html` 301 回 `/`（只留一个首页地址）；
- * `/en/`、`/ja` 这类带语言前缀的旧地址记住语言后 301 回 `/`。查询参数（如 utm）原样保留。
+ * `/en/`、`/ja` 这类带语言前缀的旧地址记住语言后 301 回 `/`，`/en/terms` 回 `/terms`。查询参数（如 utm）原样保留。
  */
 export function localeRedirect(pathname: string, url: string): Response | null {
   const target = new URL(url)
@@ -112,8 +132,10 @@ export function localeRedirect(pathname: string, url: string): Response | null {
       headers: { location: target.toString(), 'cache-control': 'no-store' },
     })
   }
-  const segment = pathname.split('/').filter(Boolean)[0]
+  const [segment, ...rest] = pathname.split('/').filter(Boolean)
   if (!isLocale(segment)) return null
+  const page = pageFromPath(rest.join('/'))
+  if (page) target.pathname = `/${page}`
   return new Response(null, {
     status: 301,
     headers: {

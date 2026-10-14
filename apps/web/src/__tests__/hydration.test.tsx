@@ -54,9 +54,17 @@ describe('五种语言的预渲染均可 hydrate', () => {
         container.innerHTML = html
         document.body.append(container)
         expect(container.querySelectorAll('h1')).toHaveLength(1)
-        // 首页只有一屏：main 里只有首屏
-        expect(container.querySelectorAll('main > section')).toHaveLength(1)
-        expect(container.querySelector('#download')).not.toBeNull()
+        if (page === 'home') {
+          // 首页只有一屏：main 里只有首屏
+          expect(container.querySelectorAll('main > section')).toHaveLength(1)
+          expect(container.querySelector('#download')).not.toBeNull()
+        } else if (page === 'pricing') {
+          // Waffo 要求下单前在网站上看到各方案价格与计费周期
+          expect(container.querySelector('main')?.textContent).toContain('$5.99')
+        } else {
+          // 条款与隐私政策：Waffo 要求的支付处理方必须写明
+          expect(container.querySelector('main article')?.textContent).toContain('Waffo Pancake')
+        }
         // 服务端未知访客主题，客户端主题不同也不得重建 DOM。
         document.documentElement.dataset.theme = 'light'
         const errors: unknown[][] = []
