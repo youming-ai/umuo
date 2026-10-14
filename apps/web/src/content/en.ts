@@ -17,7 +17,7 @@ export const en: SiteContent = {
   seo: {
     title: 'umuo: AI translator for Mac — read, write and speak',
     description:
-      'umuo translates in any app on your Mac: ⌃⌃ for selected text, ⌥⌘A for a writing window, ⌥⌥ to replace what you typed, ⌥⌘O for screenshots, and hold right ⌥ to dictate. The free built-in engine needs no account; sign in for GPT, Claude and Gemini, or use your own key or a local model.',
+      'umuo translates in any app on your Mac: ⌃⌃ for selected text, ⌥⌘A for a writing window, ⌥⌥ to replace what you typed, ⌥⌘O for screenshots. Use your own key (GPT, Claude, Gemini and more) or a local model, no account needed. Voice input and included AI usage are coming soon.',
     ogLocale: 'en_US',
   },
   nav: {
@@ -76,7 +76,7 @@ export const en: SiteContent = {
     title: 'Pricing',
     description:
       'umuo pricing: monthly and annual prices for the Free, Pro and Pro + Advanced AI plans, allowances, free trial, cancellation and refunds.',
-    lead: 'The app is free to download. Bring your own key (BYOK), local models and the no-key web route are unlimited and need no account. Subscribe when you want included AI usage.',
+    lead: 'The app is free to download. Bring your own key (BYOK) and local models are unlimited and need no account. Included AI usage and in-app subscriptions are not live yet; the plans below are what will be offered at launch.',
     plans: [
       {
         name: 'Free account',
@@ -86,7 +86,7 @@ export const en: SiteContent = {
         features: [
           '300K fast tokens / month',
           'umuo account required',
-          'Unlimited BYOK, local models and no-key web route',
+          'Unlimited BYOK and local models',
         ],
       },
       {
@@ -115,7 +115,7 @@ export const en: SiteContent = {
     notes: [
       {
         heading: 'How to buy',
-        body: 'Sign in inside the umuo app and subscribe. Your plan renews automatically each month or year, depending on the period you chose. Payments are processed by Waffo Pancake.',
+        body: 'In-app subscriptions are not live yet, so plans can’t be purchased in the current version. Once they launch, sign in inside the umuo app and subscribe. Your plan renews automatically each month or year, depending on the period you chose. Payments are processed by Waffo Pancake.',
       },
       {
         heading: 'Prices and taxes',

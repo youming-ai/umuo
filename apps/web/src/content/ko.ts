@@ -14,7 +14,7 @@ export const ko: SiteContent = {
   seo: {
     title: 'umuo: 읽고 쓰고 말하는 Mac AI 번역기',
     description:
-      'umuo는 macOS용 AI 번역 앱입니다. ⌃⌃ 선택 영역 번역, ⌥⌘A 글쓰기 창, ⌥⌥ 입력란 제자리 교체, ⌥⌘O 스크린샷 번역, 오른쪽 ⌥를 누른 채 음성 입력. 무료 엔진이 기본 제공되어 로그인 없이 쓸 수 있고, 로그인하면 GPT, Claude, Gemini 등의 모델을 사용할 수 있습니다. 내 API 키나 로컬 모델도 연결할 수 있습니다.',
+      'umuo는 macOS용 AI 번역 앱입니다. ⌃⌃ 선택 영역 번역, ⌥⌘A 글쓰기 창, ⌥⌥ 입력란 제자리 교체, ⌥⌘O 스크린샷 번역. 내 API 키(GPT, Claude, Gemini 등)나 로컬 모델을 연결하면 계정 없이 바로 쓸 수 있습니다. 음성 입력과 기본 제공 AI 사용량은 곧 지원됩니다.',
     ogLocale: 'ko_KR',
   },
   nav: {
@@ -73,18 +73,14 @@ export const ko: SiteContent = {
     title: '요금',
     description:
       'umuo 요금: 무료, Pro, Pro + 고급 AI 플랜의 월간 및 연간 가격, 제공 사용량, 무료 체험, 해지와 환불 안내.',
-    lead: '앱은 무료로 다운로드할 수 있습니다. 자체 API 키(BYOK), 로컬 모델, 키 없는 웹 번역은 무제한이며 계정도 필요 없습니다. 기본 제공 AI 사용량이 필요할 때 구독하세요.',
+    lead: '앱은 무료로 다운로드할 수 있습니다. 자체 API 키(BYOK)와 로컬 모델은 무제한이며 계정도 필요 없습니다. 기본 제공 AI 사용량과 앱 내 구독은 아직 시작되지 않았으며, 아래는 출시 시 제공될 플랜과 가격입니다.',
     plans: [
       {
         name: '무료 계정',
         tagline: '가볍게 시작하세요',
         monthly: '$0',
         yearly: '계속 무료',
-        features: [
-          '월 300K 고속 토큰',
-          'umuo 계정 필요',
-          'BYOK, 로컬 모델, 키 없는 웹 번역 무제한',
-        ],
+        features: ['월 300K 고속 토큰', 'umuo 계정 필요', 'BYOK, 로컬 모델 무제한'],
       },
       {
         name: 'Pro',
@@ -108,7 +104,7 @@ export const ko: SiteContent = {
     notes: [
       {
         heading: '구매 방법',
-        body: 'umuo 앱에서 로그인한 뒤 구독하세요. 선택한 주기(매월 또는 매년)에 따라 자동으로 갱신됩니다. 결제는 Waffo Pancake가 처리합니다.',
+        body: '앱 내 구독은 아직 시작되지 않아 현재 버전에서는 구매할 수 없습니다. 출시 후 umuo 앱에서 로그인한 뒤 구독하세요. 선택한 주기(매월 또는 매년)에 따라 자동으로 갱신됩니다. 결제는 Waffo Pancake가 처리합니다.',
       },
       {
         heading: '가격과 세금',

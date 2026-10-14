@@ -17,7 +17,7 @@ export const zhCn: SiteContent = {
   seo: {
     title: 'umuo — 读、写、说，一键翻译 | macOS AI 翻译',
     description:
-      'umuo 是 macOS 上的 AI 翻译工具：⌃⌃ 划词翻译、⌥⌘A 撰写窗、⌥⌥ 输入框原地替换、⌥⌘O 截图翻译，按住右 ⌥ 语音输入。内置免费引擎，不登录也能用；登录后可用 GPT、Claude、Gemini 等模型，也能接自己的 Key 或本地模型。',
+      'umuo 是 macOS 上的 AI 翻译工具：⌃⌃ 划词翻译、⌥⌘A 撰写窗、⌥⌥ 输入框原地替换、⌥⌘O 截图翻译。接上自己的 Key（GPT、Claude、Gemini 等）或本地模型即可使用，无需账号；语音输入与官方额度即将推出。',
     ogLocale: 'zh_CN',
   },
   nav: {
@@ -76,18 +76,14 @@ export const zhCn: SiteContent = {
     title: '定价',
     description:
       'umuo 定价：Free、Pro、Pro + 高级 AI 三个方案的月付与年付价格、额度、免费试用、取消与退款说明。',
-    lead: '客户端免费下载。自带 Key（BYOK）、本地模型与免 Key 通道不限量，无需账号；需要官方额度时再订阅。',
+    lead: '客户端免费下载。自带 Key（BYOK）与本地模型不限量，无需账号。官方额度与应用内订阅尚未上线，以下是上线后的方案与价格。',
     plans: [
       {
         name: 'Free 账号',
         tagline: '轻量体验',
         monthly: '$0',
         yearly: '永久免费',
-        features: [
-          '快速档 30 万 Token / 月',
-          '需要 umuo 账号',
-          'BYOK / 本地模型 / 免 Key 通道不限量',
-        ],
+        features: ['快速档 30 万 Token / 月', '需要 umuo 账号', 'BYOK / 本地模型不限量'],
       },
       {
         name: 'Pro',
@@ -111,7 +107,7 @@ export const zhCn: SiteContent = {
     notes: [
       {
         heading: '怎么购买',
-        body: '在 umuo 应用内登录后订阅，按所选周期（每月或每年）自动续费。支付由 Waffo Pancake 处理。',
+        body: '应用内订阅尚未上线，当前版本还不能购买。上线后在 umuo 应用内登录订阅，按所选周期（每月或每年）自动续费。支付由 Waffo Pancake 处理。',
       },
       {
         heading: '价格与税费',
