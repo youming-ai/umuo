@@ -1,46 +1,37 @@
-# Dependencies
+# 依赖
 node_modules/
 
-# Build artifacts (Vite / TanStack Start)
-.output/
-.tanstack/
-.next/
+# 构建产物
+dist/
+# 官网预渲染用的服务端 bundle（构建末尾会删除，失败时可能残留）
+dist-ssr/
+target/
+*.tsbuildinfo
 
-# Environment
+# Tauri 生成物
+apps/desktop/src-tauri/gen/
+apps/desktop/src-tauri/target/
+
+# wrangler 的本地状态（历史遗留，可能含测试邮箱，永远不提交）
+.wrangler/
+
+# 环境变量（本仓库不需要任何服务端密钥；BYOK 的 key 存在系统凭据存储里）
 .env
 .env.local
 .env.*.local
-.dev.vars
-.dev.vars.*
 
-# Build
-.wrangler/
-dist/
-*.tsbuildinfo
-
-# Testing
+# 测试
 coverage/
 
-# Logs
+# 日志
 *.log
 
-# IDE
+# 编辑器 / 系统
 .vscode/
 .idea/
-
-# OS
 .DS_Store
 
-# Temp
-.cache/
-
-# Other package managers (project uses Bun — bun.lock IS tracked)
+# 其它包管理器（本仓库用 Bun；bun.lock 与 Cargo.lock 都提交）
 package-lock.json
 yarn.lock
 pnpm-lock.yaml
-
-# superpowers brainstorm artifacts
-.superpowers/
-
-# Keep the example file tracked
-!.dev.vars.example

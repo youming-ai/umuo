@@ -1,0 +1,99 @@
+name: Release
+
+# 每次合进 main 就出一个新版本：编通用二进制（Apple Silicon + Intel）的 .dmg，
+# 传到 Cloudflare R2 的 umuo-releases 桶；官网的 /download/macos 由 Worker 读
+# macos/latest.json 指向最新的那一个。版本号 = 0.1.<本工作流的运行序号>，只增不减。
+#
+# 需要三个仓库 secret（R2 的「对象读写」API Token，只授权给 umuo-releases 这一个桶）：
+#   R2_ACCESS_KEY_ID / R2_SECRET_ACCESS_KEY / R2_ENDPOINT（https://<account_id>.r2.cloudflarestorage.com）
+#
+# 目前**没有** Apple 开发者签名与公证：下载后首次打开会被 Gatekeeper 拦下，
+# 要在「系统设置 → 隐私与安全性」里点「仍要打开」。官网下载处写明了这一点。
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# 连着合几个 PR 时只发最后一个：前面的构建取消掉，省得旧版本晚到、覆盖新版本。
+concurrency:
+  group: release
+  cancel-in-progress: true
+
+jobs:
+  macos:
+    name: Build & publish macOS
+    runs-on: macos-14
+    timeout-minutes: 60
+    env:
+      VERSION: 0.1.${{ github.run_number }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin,x86_64-apple-darwin
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: release-universal
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      # 版本号写进 Tauri 配置（安装包与 Info.plist）与 Cargo 工作区（关于页显示的 CARGO_PKG_VERSION），
+      # 只在 CI 的工作副本里改，不提交回仓库。
+      - name: Stamp version ${{ env.VERSION }}
+        run: |
+          conf=apps/desktop/src-tauri/tauri.conf.json
+          jq --arg v "$VERSION" '.version = $v' "$conf" > "$conf.tmp" && mv "$conf.tmp" "$conf"
+          sed -i '' -E '/^\[workspace.package\]/,/^\[/ s/^version = ".*"/version = "'"$VERSION"'"/' Cargo.toml
+          grep -n '^version' Cargo.toml
+          jq -r .version "$conf"
+
+      - name: Build universal app
+        working-directory: apps/desktop
+        run: bunx tauri build --target universal-apple-darwin --bundles app,dmg
+
+      - name: Keep the build as a workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: umuo-${{ env.VERSION }}-universal
+          path: target/universal-apple-darwin/release/bundle/dmg/*.dmg
+          retention-days: 14
+
+      # 只有 main 上的构建才发布到官网：手动在别的分支上跑，只留工作流产物，不覆盖正式版本。
+      - name: Publish to R2
+        if: github.ref == 'refs/heads/main'
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: auto
+          # R2 不认新版 AWS CLI 默认附带的校验和头
+          AWS_REQUEST_CHECKSUM_CALCULATION: when_required
+          AWS_RESPONSE_CHECKSUM_VALIDATION: when_required
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
+        run: |
+          set -euo pipefail
+          if [ -z "${R2_ENDPOINT:-}" ] || [ -z "${AWS_ACCESS_KEY_ID:-}" ] || [ -z "${AWS_SECRET_ACCESS_KEY:-}" ]; then
+            echo "::warning::没有配置 R2 secret，跳过发布（安装包仍作为工作流产物保留）"
+            exit 0
+          fi
+          dmg=$(ls target/universal-apple-darwin/release/bundle/dmg/*.dmg | head -1)
+          key="macos/umuo-${VERSION}-universal.dmg"
+          size=$(stat -f%z "$dmg")
+          sha=$(shasum -a 256 "$dmg" | cut -d' ' -f1)
+          aws s3 cp "$dmg" "s3://umuo-releases/$key" --endpoint-url "$R2_ENDPOINT" \
+            --content-type application/x-apple-diskimage
+          jq -n --arg version "$VERSION" --arg key "$key" --argjson size "$size" --arg sha256 "$sha" \
+            --arg commit "$GITHUB_SHA" --arg publishedAt "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            '{version: $version, key: $key, size: $size, sha256: $sha256, commit: $commit, publishedAt: $publishedAt}' \
+            > latest.json
+          cat latest.json
+          # latest.json 最后写：Worker 以它为准，安装包没传完之前不会指过去。
+          aws s3 cp latest.json s3://umuo-releases/macos/latest.json --endpoint-url "$R2_ENDPOINT" \
+            --content-type application/json --cache-control no-cache
+

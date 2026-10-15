@@ -1,19 +1,10 @@
-# Shadowing Learning
+# umuo
 
 <div align="center">
 
-**面向语言学习者的影子跟读练习应用 / AI-powered shadowing practice for language learners**
+**系统级 AI 翻译客户端 —— 用你自己的 Key，在任意 App 里读、写、看都能即时翻译**
 
-[![Bun](https://img.shields.io/badge/Bun-1.2-000000.svg?logo=bun)](https://bun.sh/)
-[![Vite](https://img.shields.io/badge/Vite-8-646cff.svg?logo=vite)](https://vite.dev/)
-[![Cloudflare Workers](https://img.shields.io/badge/Cloudflare%20Workers-F38020.svg?logo=cloudflare&logoColor=white)](https://workers.cloudflare.com/)
-[![Hono](https://img.shields.io/badge/Hono-4-e36002.svg?logo=hono&logoColor=white)](https://hono.dev/)
-[![React](https://img.shields.io/badge/React-19-61dafb.svg?logo=react)](https://react.dev/)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.9-3178c6.svg?logo=typescript)](https://www.typescriptlang.org/)
-[![Biome](https://img.shields.io/badge/Biome-2-60a5fa.svg?logo=biome)](https://biomejs.dev/)
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-
-[架构](./docs/ARCHITECTURE.md) · [开发](./docs/DEVELOPMENT.md) · [数据流](./docs/DATA-FLOW.md) · [Git 流程](./docs/GIT-WORKFLOW.md)
+macOS 13+ · Tauri 2 · Rust 共享核心 · BYOK 优先 · 闭源
 
 </div>
 
@@ -21,228 +12,130 @@
 
 ## 这是什么
 
-[影子跟读（Shadowing）](https://en.wikipedia.org/wiki/Shadowing_(psycholinguistics)) 是一种通过紧跟原音模仿来训练听说能力的语言学习方法。本项目是一个 Web 应用：
+umuo 是一个常驻菜单栏、快捷键驱动的桌面翻译客户端。它不是浏览器插件，也不是语言学习 App——
+目标只有一个：**把翻译塞进你已有的工作流里，一次按键就出结果。**
 
-1. **导入**：粘贴一个 YouTube 链接
-2. **获取字幕**：抓取视频的官方字幕轨
-3. **后处理**：LLM 翻译与标注（Groq LLM，分块增量写入）
-4. **同步播放**：字幕随媒体高亮，支持逐句循环、可调速度、逐句录音对比，专注跟读练习
+| | 能力 |
+| --- | --- |
+| **读** | 划词 / 划句翻译、单词词卡、多模型对比翻译 |
+| **写** | 撰写窗（输入翻译）、输入框原地替换（静默翻译） |
+| **看** | 截图 OCR 翻译、静默 OCR |
+| **模型** | BYOK：OpenAI / Azure OpenAI / Anthropic / Gemini / DeepSeek / 通义 / 智谱 / Moonshot / OpenRouter / Ollama / LM Studio / 任意 OpenAI 兼容端点 |
+| **账本** | 翻译历史与检索、Token 用量与费用统计 |
 
-支持中文（简/繁）、英语、日语、韩语，UI 与翻译目标语言可独立切换。
+三条不可动摇的产品原则：
 
-## 特性
+1. **BYOK 优先**——粘贴自己的 Key 就能用，不需要注册账号。Key 存系统 Keychain，请求由本机直连厂商。
+2. **快捷键驱动**——所有核心功能都能在两次按键内触发，浮窗不抢焦点、不打断当前工作。
+3. **成本透明**——每次翻译记录 Token 与预估费用，厂商返回什么就显示什么，估算值明确标注「估算」。
 
-- **客户端优先**：除少量服务端 API 调用（Groq 后处理、YouTube 字幕抓取）外，所有数据（媒体、字幕、片段）都存放在浏览器的 IndexedDB（Dexie），无后端数据库
-- **多语言**：UI 与翻译目标支持 5 种语言，可独立切换
-- **PWA**：可安装、支持离线降级（Service Worker 注册）
-- **主题系统**：浅色 / 深色 / 跟随系统 / 高对比度，CSS 变量驱动
-- **类型安全**：严格 TypeScript + Zod 校验 API 边界
-- **测试**：Vitest + happy-dom + fake-indexeddb
+完整需求见 **[docs/PRD.md](docs/PRD.md)**。
 
-## 技术栈
+## 当前状态
 
-| 类别       | 选型                                           |
-| ---------- | ---------------------------------------------- |
-| 运行时     | Bun ≥1.2（运行时 + 包管理器，lockfile `bun.lock`） |
-| 框架       | Vite 8 SPA + TanStack Router（文件路由，无 SSR） |
-| 视图       | React 19, Tailwind CSS v4, Radix UI, lucide-react |
-| 状态       | TanStack Query（服务态） + React Context（UI 态） |
-| 持久化     | Dexie / IndexedDB（v5 schema：media / subtitles / segments） |
-| AI         | Groq SDK（LLM 翻译 / 标注后处理） |
-| 校验       | Zod                                            |
-| 通知       | sonner                                         |
-| 工具链     | Biome 2（lint + format）, Vitest               |
-| 服务端     | Cloudflare Workers + Hono 4（API + 静态资源）  |
-| 限流       | Cloudflare KV（`RATE_LIMIT_KV`，按 IP 滑动窗口） |
-| 部署       | `wrangler deploy`（Cloudflare Workers）        |
+**里程碑 1 已交付**：仓库重建为 umuo，并打通了「全局快捷键 → 辅助功能取词 → BYOK 流式翻译 → 非激活浮窗」这条垂直切片。官网已迁到公开仓库 [youming-ai/umuo](https://github.com/youming-ai/umuo)。
 
-## 架构
+| 模块 | 状态 |
+| --- | --- |
+| 仓库骨架（Bun workspace + Cargo workspace + CI） | ✅ |
+| Rust 共享内核 `crates/umuo-core` + 平台层 + 存储层（单元测试覆盖） | ✅ 见下表的已实现能力 |
+| macOS 平台适配：Accessibility 取词 / 剪贴板降级 / Keychain | ✅ |
+| Tauri 2 外壳：菜单栏托盘、**七个**全局快捷键（含连按修饰键）、非激活浮窗 + 六个功能窗 | ✅ 快捷键全部可在设置里改 |
+| 输入框原地替换（静默翻译，⌥⌥） | ✅ 含「目标应用已切换就不写回」的保护 |
+| 撰写窗（⌥⌘A）：上方写、下方实时出译文，⌘Enter 复制 | ✅ |
+| 多模型对比（⌥P）：并发发给最多 4 个模型，卡片横排 | ✅ 含「选它」偏好统计 |
+| 翻译历史与检索 + 收藏 + 按日/按月用量与费用（本机 SQLite） | ✅ 可设保留天数、可完全关闭历史 |
+| 单词词卡（音标 / 释义 / 词形 / 例句） | ✅ 选一个词即出卡片；JSON 解析失败自动降级为纯文本 |
+| 截图 OCR（⌥⌘O）：框选 → 本机 Vision 识别 → 翻译 | ✅ 用系统框选；自绘浮层与「覆盖模式」列为后续项 |
+| 静默 OCR（⌥⇧O）：框选 → 只识别并复制原文 | ✅ 成功时不弹任何窗口 |
+| 自定义 OpenAI 兼容端点 | ✅ 可填 Base URL；没填会被明确拦下 |
+| 发音朗读 + 音标 / 拼音 | ✅ 系统语音合成；发音人按机器实际安装情况挑选 |
+| 自定义翻译风格预设 | ✅ 系统 Prompt（含变量）、温度、few-shot 示例、是否附解释 |
+| 按供应商设月度费用上限 | ✅ 超限可只提醒或自动切到未超限的供应商 |
+| 术语表（PRD §5.8）：按语言对生效、CSV/TSV 导入导出 | ✅ 只注入命中的术语，整表多大都不影响单次费用 |
+| 分场景模型 + 备用顺序（PRD §6.3） | ✅ 六个场景各自指定供应商与模型；跨供应商的备用顺序真的会重试 |
+| 账号 / 订阅 / 官方额度 | ⬜ 服务端不在此仓库（PRD §9.6，本仓库范围外） |
+| 免 Key 兜底通道（有道 / Bing / Google 网页通道、DeepL） | ⬜ 未实现：上游实现硬编码了逆向签名密钥，有 ToS 风险，待定 |
+| 多模态识图翻译、覆盖模式（PRD §5.5 可选项） | ⬜ 未实现（V1.1） |
+| 对比窗超限供应商的提示 | ⚠️ 超限的供应商会被排除出对比，但界面只显示卡片变少，没有说明为什么 |
 
-```
-                 ┌──────────────────────────── Cloudflare Worker (Hono) ───┐
-┌──────────────┐ │ ┌──────────────────┐     ┌──────────────────┐          │
-│ 浏览器 SPA    │─┼▶│ /api/postprocess  │ ──▶ │ Groq LLM         │          │
-│ (React 19 +  │ │ ├──────────────────┤     ├──────────────────┤          │
-│  TanStack    │─┼▶│ /api/youtube/*    │ ──▶ │ youtubei.js      │          │
-│  Router)     │ │ ├──────────────────┤     └──────────────────┘          │
-│              │◀┼─│ ASSETS (dist/)    │  ← 其余路径 SPA 回退               │
-└──────┬───────┘ │ └──────────────────┘     ┌──────────────────┐          │
-       │         │   rateLimit 中间件 ─────▶ │ RATE_LIMIT_KV    │          │
-       │         └──────────────────────────┴──────────────────┴──────────┘
-       ▼
-┌──────────────────────────────────────────┐
-│ IndexedDB (Dexie v5)                      │
-│   media / subtitles / segments            │
-└──────┬───────────────────────────────────┘
-       ▼
-┌──────────────────────────────────────────┐
-│ TanStack Query 缓存 + 字幕同步播放器        │
-└──────────────────────────────────────────┘
-```
+`crates/umuo-core` 里已经能用的能力：12 家 Provider（含 Azure OpenAI）的数据驱动目录、按 Key 前缀推测供应商、
+四种协议的请求构造（OpenAI 兼容 / Anthropic / Gemini / Azure）、**SSE 流式解析**（跨分片多字节安全）、
+7 个翻译风格预设、术语表命中注入、长文本按上下文切分、故障转移策略、Token 与费用计量、
+语言判断与目标切换、单词模式判定与词卡解析。
 
-详细架构与数据流见 [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md) 与 [docs/DATA-FLOW.md](./docs/DATA-FLOW.md)。
+> **范围诚实声明**：本仓库只包含**客户端**（官网在公开仓库 youming-ai/umuo）。PRD §9.6 里的账号、订阅、模型网关是闭源服务端、独立部署，
+> 客户端只通过公开 API 调用它，仓库中不包含服务端实现。
+>
+> **尚未在真机上人工验证的部分**：浮窗的「不抢焦点」目前用 Tauri 的 `focused(false)` 实现，
+> 与 PRD 要求的非激活 NSPanel 仍有差距；浮窗按鼠标位置摆放，不是精确锚定选区。
+> 详见 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) 的「已知边界」。
 
 ## 快速开始
 
-### 环境要求
-
-- [Bun](https://bun.sh/) ≥ 1.2.0（同时作为运行时与包管理器；**不要用 npm/pnpm/yarn/node**）
-- 一个 [Groq API key](https://console.groq.com/keys)（免费层即可）
-- 一个 Cloudflare 账号（`wrangler` 已作为 devDependency 安装）
-
-### 安装
-
 ```bash
-git clone https://github.com/youming-ai/shadowing-learning.git
-cd shadowing-learning
-bun install
-echo "GROQ_API_KEY=your_key" > .dev.vars
+bun install          # JS 依赖（Bun workspace）
+cargo fetch          # Rust 依赖
 
-# 终端 A：Worker（API + dist 资源）→ :8787
-bun run build        # 首次必需：dist/ 未入版本库，wrangler 的 ASSETS 绑定指向它
-bun run dev
-
-# 终端 B：前端 HMR → :3000，/api 代理到 :8787
-bun run dev:client
+bun run dev:desktop  # 桌面客户端 → Tauri 窗口（需要 Xcode Command Line Tools）
 ```
 
-日常开发用 **两个终端**，浏览器打开 [http://localhost:3000](http://localhost:3000)：Vite 提供 HMR，API 交给 Worker。
+## 开发命令
 
-只想跑 Worker（不改前端）时，打开 [http://localhost:8787](http://localhost:8787) 即可 —— 但 `wrangler dev` **不会**重新构建前端，改动 `src/` 后需重新 `bun run build`。
+| 命令 | 作用 |
+| --- | --- |
+| `bun run dev:desktop` | 桌面客户端开发（Tauri，热重载前端 + Rust 增量编译） |
+| `bun run build:desktop` | 打包 `.app` / `.dmg`（macOS 签名与公证另配） |
+| `bun run icons` | 重新生成图标资产（`scripts/make-icons.ts`，加 `--preview` 可在终端自检形状） |
+| `bun run lint` / `bun run format` | Biome 检查 / 格式化 |
+| `bun run type-check` | 全部 TypeScript 项目类型检查 |
+| `bun run test:run` | Vitest（客户端 UI 的纯逻辑） |
+| `bun run test:rust` | `cargo test --workspace`（翻译内核） |
+| `bun run verify` | 上面全部串一遍——**提交前跑这个** |
 
-### 环境变量
+### 跑通划词翻译需要一次系统授权
 
-| 变量名                      | 位置 | 必填 | 说明                                     |
-| --------------------------- | ---- | ---- | ---------------------------------------- |
-| `GROQ_API_KEY`              | 本地 `.dev.vars`；线上 `wrangler secret put` | ✓ | Groq LLM 后处理调用（Worker 内） |
-| `RATE_LIMIT_KV`             | `wrangler.jsonc` 绑定 | ✗ | 限流计数用的 KV namespace（可选；未绑定时限流自动关闭，Worker 仍可正常部署/运行） |
+启动客户端后，先在**设置 → 模型**里填一个供应商的 API Key，然后到
+**系统设置 → 隐私与安全性 → 辅助功能**里勾上 `umuo`（开发模式下是运行它的终端或 IDE）。
+没有这个权限，客户端读不到你选中的文字——浮窗会直接告诉你这件事，而不是静默失败。
 
+之后在任意 App 里选中文字、连按两下 **⌃**（⌃⌃），译文会以流式方式出现在鼠标附近的浮窗里。
 
-切勿将 `.dev.vars` 或 `.env*` 提交到仓库。
-
-## 脚本
-
-```bash
-# 开发
-bun run dev            # wrangler dev：完整 Worker（API + dist 资源）→ :8787
-bun run dev:client     # 仅前端 Vite → :3000，/api 代理到 :8787
-bun run build          # vite build → dist/（纯客户端资源）
-bun run deploy         # build + wrangler deploy
-bun run clean          # 清理 dist / 缓存 / .wrangler
-
-# 质量
-bun run lint           # Biome check
-bun run format         # Biome format --write
-bun run type-check     # tsc --noEmit
-
-# 测试（Vitest；不要用 bun test）
-bun run test           # 监视模式
-bun run test:run       # 单次执行
-bun run test:coverage  # 覆盖率
-```
-
-## 项目结构
+## 仓库结构
 
 ```
-worker/                        # Cloudflare Worker（API + 资源分发）
-├── index.ts                   # Hono app：cors → rateLimit → 路由 → ASSETS 回退
-├── routes/                    # postprocess / youtube
-├── lib/                       # groq-client / youtube-captions / api-response
-└── middleware/                # cors / rate-limit（KV 支撑）
-
-src/
-├── routes/                    # TanStack Router 文件路由
-│   ├── __root.tsx             # 根布局 + Provider 栈
-│   ├── index.tsx              # 首页（在线内容库）
-│   ├── watch.$mediaId.tsx     # 观看 / 播放器页面
-│   ├── settings.tsx           # 设置
-│   └── account.tsx            # 账户
-├── main.tsx                   # SPA 入口
-├── router.tsx                 # createRouter
-├── routeTree.gen.ts           # 自动生成的路由树（勿手改）
-├── components/
-│   ├── ui/                    # 基础组件（Radix 包装 + sonner）
-│   ├── features/              # watch / player / library / settings 业务模块
-│   └── layout/                # Context（Theme / I18n / TranscriptionLanguage）+ Providers
-├── hooks/
-│   ├── media/                 # useSubtitlePipeline / useMediaImport
-│   ├── player/                # 播放器与跟读状态
-│   └── db/                    # IndexedDB 读写
-├── lib/
-│   ├── db/                    # Dexie schema 与 DBUtils
-│   ├── player/                # shadowing-machine / active-segment
-│   ├── subtitles/             # 分块后处理
-│   ├── youtube/               # error-messages
-│   ├── config/                # 路由常量
-│   ├── i18n/                  # 多语种翻译字典
-│   └── utils/                 # error-handler / logger 等
-├── styles/app.css             # Tailwind v4 + CSS 变量主题（@theme 块）
-├── types/                     # api / db / ui 类型
-└── __tests__/setup.ts         # 测试全局 setup（happy-dom / fake-indexeddb）
+apps/desktop/        桌面客户端
+  src/               前端 UI（React，跑在 Tauri WebView 里）
+    panel.tsx          划词浮窗
+    settings.tsx       设置窗外壳（侧边栏 + 改了就存）；各分区页在 settings/
+  src-tauri/         Tauri 2 外壳：托盘、全局快捷键、窗口、IPC 命令
+    src/translator.rs  划词链路编排
+crates/umuo-core/    共享翻译内核：Provider 目录、Prompt 引擎、流式解析、路由、计量
+crates/umuo-platform/      平台能力 trait（取词、写回、剪贴板、凭据存储）
+crates/umuo-platform-macos/ macOS 实现（Accessibility FFI、Keychain）
+crates/umuo-store/   本机 SQLite：翻译历史、收藏、用量
+packages/tokens/     设计令牌（客户端的 CSS 变量与 @theme 映射）
+scripts/make-icons.ts 图标生成（手写 PNG/ICNS 编码器，无图形库依赖）
+docs/PRD.md          产品需求文档
+docs/ARCHITECTURE.md 架构与已知边界
+docs/research/       竞品拆解与 luca-translate 复用审计
 ```
 
-## 部署
+## 架构原则
 
-部署目标是 **Cloudflare Workers**：同一个 Worker 既处理 `/api/*`，也通过 `ASSETS` 绑定分发 `dist/` 里的 SPA。
+1. **翻译逻辑全部在 `umuo-core`**，且不依赖任何操作系统 API——因此可以在 Linux/macOS CI 上直接 `cargo test`。
+2. **凡是跟操作系统打交道的能力都下沉到平台适配层**：取词、写回、截图 OCR、全局快捷键、凭据存储。
+   V1 只有 macOS 实现（`umuo-platform-macos`），Windows（V1.1）与 Omarchy（V2）按同一组 trait 补齐，不改内核。
+3. **Provider 是数据不是分支**：新增一家供应商 = 往目录里加一条数据，而不是到处加 `if`。
+4. **全部请求流式输出**：首字延迟是这类工具的核心体验指标，等整段返回再渲染是不可接受的。
+5. **Key 只存系统凭据存储**，不进配置文件、不进日志、不进翻译历史。
 
-```bash
-wrangler secret put GROQ_API_KEY   # 首次配置密钥
-bun run deploy                     # build + wrangler deploy
-```
+## 隐私
 
-> 本地开发请在 `.dev.vars` 中配置 `GROQ_API_KEY`（可从 [`.dev.vars.example`](./.dev.vars.example) 复制）。本项目没有 Docker/Dokploy 部署路径。
+- BYOK 模式下，请求只发往你自己配置的端点；umuo 的服务器收不到你的内容，也收不到你的 Key。
+- 翻译历史与收藏存在本机 SQLite，可设置保留天数，也可完全关闭。
+- 默认不开启内容遥测。
 
-> 限流基于 Cloudflare KV，跨 colo 最终一致，属于成本护栏而非强一致配额。`RATE_LIMIT_KV` 是**可选**绑定：`wrangler.jsonc` 默认不声明 KV namespace，限流中间件在未绑定时自动放行（关闭限流），因此开箱即可 `bun run deploy`。需要启用限流时，在 `wrangler.jsonc` 中添加：
->
-> ```bash
-> bunx wrangler kv namespace create RATE_LIMIT_KV   # 拿到返回的 namespace id
-> ```
->
-> ```jsonc
-> "kv_namespaces": [{ "binding": "RATE_LIMIT_KV", "id": "<返回的 id>" }]
-> ```
+## 许可
 
-## 测试
-
-- 运行器：**Vitest**（[vitest.config.ts](./vitest.config.ts)）。**不要用 `bun test`** —— 它会忽略 vitest 配置并因缺少 DOM 而失败，且仓库中没有 `bunfig.toml`。
-- 环境：happy-dom + `fake-indexeddb`
-- 测试与源代码就近（`__tests__/` 子目录）
-- 全局 setup：[`src/__tests__/setup.ts`](./src/__tests__/setup.ts)，由 `vitest.config.ts` 的 `setupFiles` 加载（含 jest-dom 匹配器、router/sonner mock）
-
-```bash
-bun run test:run         # 全量
-bun run test:coverage    # 覆盖率
-```
-
-## SEO
-
-- 文档 head 集中在 [`index.html`](./index.html)（SPA shell）：title / description / OG / Twitter 卡片
-- `robots.txt` 与 `sitemap.xml` 为 [`public/`](./public/) 下的静态文件
-- PWA：`manifest.json` + Service Worker 注册
-
-## 贡献
-
-1. Fork & 新建分支：`git checkout -b feat/your-feature`
-2. 修改后跑通：`bun run lint && bun run type-check && bun run test:run`
-3. 遵循 [Conventional Commits](https://www.conventionalcommits.org/) 提交信息
-4. 推送并开 PR（参考 [docs/GIT-WORKFLOW.md](./docs/GIT-WORKFLOW.md)）
-
-详细约定见 [CLAUDE.md](./CLAUDE.md)。
-
-## 许可证
-
-[MIT](./LICENSE)
-
-## 致谢
-
-[Bun](https://bun.sh/) · [Vite](https://vite.dev/) · [Cloudflare Workers](https://workers.cloudflare.com/) · [Hono](https://hono.dev/) · [React](https://react.dev/) · [TanStack Router](https://tanstack.com/router) · [Radix UI](https://www.radix-ui.com/) · [Tailwind CSS](https://tailwindcss.com/) · [Dexie](https://dexie.org/) · [TanStack Query](https://tanstack.com/query) · [Groq](https://groq.com/) · [Biome](https://biomejs.dev/)
-
----
-
-<div align="center">
-
-如果项目对你有帮助，欢迎 Star ⭐
-
-[Issue](https://github.com/youming-ai/shadowing-learning/issues) · [Discussions](https://github.com/youming-ai/shadowing-learning/discussions)
-
-</div>
+专有软件，保留所有权利（见 [LICENSE](LICENSE)）。官网与官网 Worker 在公开仓库 [youming-ai/umuo](https://github.com/youming-ai/umuo)。参考与复用的第三方实现记在 [THIRD_PARTY_NOTICES](THIRD_PARTY_NOTICES)。

@@ -3,13 +3,12 @@
     "ignoreUnknown": true,
     "includes": [
       "**",
-      "!**/coverage",
-      "!**/drizzle",
-      "!**/.output",
-      "!**/.next",
-      "!**/dist",
       "!**/node_modules",
-      "!**/routeTree.gen.ts"
+      "!**/dist",
+      "!**/target",
+      "!**/coverage",
+      "!**/gen",
+      "!**/*.gen.ts"
     ]
   },
   "formatter": {

@@ -1,0 +1,12 @@
+[package]
+name = "umuo-platform"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+description = "umuo 平台能力 trait 定义：取词、写回、剪贴板、凭据存储、屏幕捕获与 OCR"
+
+[dependencies]
+# 只为让 Region / DisplayInfo 能跨 IPC 传给框选浮层——纯数据 derive，不引入平台耦合。
+serde.workspace = true
+thiserror.workspace = true

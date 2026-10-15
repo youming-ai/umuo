@@ -1,29 +1,13 @@
-import { dirname, resolve } from 'node:path'
-import { fileURLToPath } from 'node:url'
 import { defineConfig } from 'vitest/config'
 
-const __dirname = dirname(fileURLToPath(import.meta.url))
-
+/**
+ * 只跑 TypeScript 侧的测试：桌面端 UI 的状态机与请求构造等。
+ * 翻译内核在 Rust（`crates/umuo-core`，由 `cargo test --workspace` 负责）。
+ */
 export default defineConfig({
-  resolve: {
-    alias: {
-      '~': resolve(__dirname, './src'),
-      '~shared': resolve(__dirname, './shared'),
-    },
-  },
   test: {
     globals: true,
-    environment: 'happy-dom',
-    setupFiles: ['./src/__tests__/setup.ts'],
-    include: [
-      'src/**/*.{test,spec}.{ts,tsx}',
-      'shared/**/*.{test,spec}.{ts,tsx}',
-      // Worker 也纳入测试：请求校验与响应信封现在有真实逻辑值得守
-      'worker/**/*.{test,spec}.{ts,tsx}',
-    ],
-    coverage: {
-      provider: 'v8',
-      reporter: ['text', 'html'],
-    },
+    environment: 'node',
+    include: ['apps/*/src/**/*.{test,spec}.{ts,tsx}', 'packages/*/src/**/*.{test,spec}.ts'],
   },
 })

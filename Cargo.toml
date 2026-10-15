@@ -1,0 +1,37 @@
+[workspace]
+resolver = "2"
+members = ["crates/*", "apps/desktop/src-tauri"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "LicenseRef-umuo-proprietary"
+publish = false
+
+[workspace.dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "2"
+# rustls 而非 native-tls：客户端要在三端（含未来的 Linux）用同一套 TLS 栈，
+# 且不需要链接系统 OpenSSL——CI 上少一类"本地能编、CI 编不过"的失败。
+reqwest = { version = "0.12", default-features = false, features = [
+    "json",
+    "stream",
+    "rustls-tls",
+    # PRD §8 的代理支持。两者都不是默认开的（我们关了 default-features）：
+    # `system-proxy` 让 macOS 上自动沿用系统代理设置，`socks` 才认 socks5://。
+    "system-proxy",
+    "socks",
+] }
+futures-util = "0.3"
+tokio = { version = "1", features = ["rt", "macros", "time", "sync"] }
+urlencoding = "2"
+rusqlite = { version = "0.32", features = ["bundled"] }
+
+# 发布产物体积是明确的产品指标（PRD §8：安装包 ≤ 30 MB），
+# 这里先把 LTO 与符号剥离打开，避免上线前才发现包体超标。
+[profile.release]
+lto = true
+codegen-units = 1
+strip = true
+opt-level = "s"

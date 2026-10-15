@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "umuo 客户端默认能力。刻意只给最小集：所有供应商请求、凭据读写、取词都发生在 Rust 侧，前端拿不到也不需要额外的系统能力。每个窗口都必须列在这里：前端的 listen() 走的是插件命令，不在名单里的窗口收不到任何事件（撰写窗的流式译文、历史窗「再次编辑」的 compose://prefill 都靠它）。start_dragging 给浮窗的 data-tauri-drag-region 用，core:default 不含它。",
+  "windows": ["panel", "settings", "compose", "compare", "history", "onboarding", "quick"],
+  "permissions": ["core:default", "core:window:allow-start-dragging"]
+}
