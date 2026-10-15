@@ -17,7 +17,7 @@ export const zhTw: SiteContent = {
   seo: {
     title: 'umuo — 讀、寫、說，一鍵翻譯 | Mac AI 翻譯軟體',
     description:
-      'umuo 是 macOS 上的 AI 翻譯軟體：⌃⌃ 劃詞翻譯、⌥⌘A 撰寫視窗、⌥⌥ 輸入框原地替換、⌥⌘O 截圖翻譯，按住右 ⌥ 語音輸入。內建免費引擎，不登入也能用；登入後可用 GPT、Claude、Gemini 等模型，也能接自己的金鑰或本機模型。',
+      'umuo 是 macOS 上的 AI 翻譯軟體：⌃⌃ 劃詞翻譯、⌥⌘A 撰寫視窗、⌥⌥ 輸入框原地替換、⌥⌘O 截圖翻譯。接上自己的金鑰（GPT、Claude、Gemini 等）或本機模型即可使用，不需帳號；語音輸入與官方額度即將推出。',
     ogLocale: 'zh_TW',
   },
   nav: {
@@ -76,18 +76,14 @@ export const zhTw: SiteContent = {
     title: '定價',
     description:
       'umuo 定價：Free、Pro、Pro + 進階 AI 三個方案的月付與年付價格、額度、免費試用、取消與退款說明。',
-    lead: '用戶端免費下載。自帶金鑰（BYOK）、本機模型與免金鑰通道不限量，不需帳號；需要官方額度時再訂閱。',
+    lead: '用戶端免費下載。自帶金鑰（BYOK）與本機模型不限量，不需帳號。官方額度與應用程式內訂閱尚未上線，以下是上線後的方案與價格。',
     plans: [
       {
         name: 'Free 帳號',
         tagline: '輕量體驗',
         monthly: '$0',
         yearly: '永久免費',
-        features: [
-          '快速檔 30 萬 Token / 月',
-          '需要 umuo 帳號',
-          'BYOK / 本機模型 / 免金鑰通道不限量',
-        ],
+        features: ['快速檔 30 萬 Token / 月', '需要 umuo 帳號', 'BYOK / 本機模型不限量'],
       },
       {
         name: 'Pro',
@@ -111,7 +107,7 @@ export const zhTw: SiteContent = {
     notes: [
       {
         heading: '如何購買',
-        body: '在 umuo 應用程式內登入後訂閱，依所選週期（每月或每年）自動續訂。付款由 Waffo Pancake 處理。',
+        body: '應用程式內訂閱尚未上線，目前版本還不能購買。上線後在 umuo 應用程式內登入訂閱，依所選週期（每月或每年）自動續訂。付款由 Waffo Pancake 處理。',
       },
       {
         heading: '價格與稅費',
