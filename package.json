@@ -25,7 +25,11 @@
     "test": "vitest",
     "test:run": "vitest run",
     "test:rust": "cargo test --workspace",
-    "verify": "bun run lint && bun run type-check && bun run test:run && bun run fmt:rust && bun run clippy && bun run test:rust && bun run build:desktop-ui"
+    "verify:macos": "sh apps/macos/scripts/verify.sh",
+    "release:local": "sh scripts/release-local.sh",
+    "bundle:macos": "sh apps/macos/scripts/bundle.sh",
+    "release:swift": "sh scripts/release-swift-local.sh",
+    "verify": "bun run lint && bun run type-check && bun run test:run && bun run fmt:rust && bun run clippy && bun run test:rust && bun run build:desktop-ui && bun run verify:macos"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.3",

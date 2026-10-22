@@ -128,6 +128,11 @@ const LOCALIZED_FILES = [
   'apps/desktop/src/components/StylePresets.tsx',
   'apps/desktop/src/components/GlossaryManager.tsx',
   'apps/desktop/src/components/LanguageSelect.tsx',
+  'apps/desktop/src/components/WordCard.tsx',
+  // 纯函数里产出界面文案的模块也在防线内（审查 L24）：它们曾经绕过清单留着中文。
+  'apps/desktop/src/lib/compare-state.ts',
+  'apps/desktop/src/lib/onboarding.ts',
+  'apps/desktop/src/lib/scene-routing.ts',
 ]
 
 /** 逐行找「代码里的中文」——注释不算。 */
@@ -163,6 +168,15 @@ describe('已国际化的窗口里没有硬编码文案', () => {
       }
     }
     expect(problems, `这些行还有硬编码中文：\n${problems.join('\n')}`).toEqual([])
+  })
+
+  it('每个界面组件（.tsx）都在清单里，新文件不能悄悄绕过这道防线', async () => {
+    // WordCard.tsx 就是这样漏掉的（审查 L24）：清单是手写的，新组件没人记得加。
+    const { globSync } = await import('node:fs')
+    const missing = globSync('apps/desktop/src/**/*.tsx').filter(
+      (file) => !LOCALIZED_FILES.includes(file),
+    )
+    expect(missing, `这些组件不在 LOCALIZED_FILES 里：\n${missing.join('\n')}`).toEqual([])
   })
 
   it('这条规则本身能抓到问题（否则它只是装饰）', () => {

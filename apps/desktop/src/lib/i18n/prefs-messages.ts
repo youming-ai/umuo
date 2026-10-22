@@ -7,7 +7,8 @@
 
 export const PREFS_ZH_CN = {
   'prefs.about.checkUpdates': '检查更新',
-  'prefs.about.checkUpdatesHint': '还没有自动更新。新版本请到官网下载，覆盖安装不会丢设置和历史。',
+  'prefs.about.checkUpdatesHint':
+    '启动时会自动检查并在后台装好新版，菜单栏图标里出现「重启以更新」时点一下即可；也可以从那里手动检查。',
   'prefs.about.data': '你的数据',
   'prefs.about.dataLocal': '都在这台电脑上',
   'prefs.about.dataLocalHint':
@@ -48,6 +49,7 @@ export const PREFS_ZH_CN = {
   'prefs.advanced.usage': '用量与上限',
   'prefs.advanced.usageThisMonth': '本月用量',
   'prefs.attention': '这里需要处理',
+  'prefs.invalidNumber': '不是有效的数字，没有保存。',
   'prefs.engine.apiKey': 'API Key',
   'prefs.engine.azureEndpoint': '资源终结点',
   'prefs.engine.azureEndpointHint': '从 Azure 门户复制，填到 .openai.azure.com 为止。',
@@ -88,6 +90,11 @@ export const PREFS_ZH_CN = {
   'prefs.general.importPath': '文件路径',
   'prefs.general.imported':
     '已导入（格式 v{version}）：自建风格 {styles} 条，术语表 {glossaries} 个。',
+  'prefs.general.importedBlacklistAdded': '取词黑名单新增：{list}。',
+  'prefs.general.importedBlacklistRemoved':
+    '取词黑名单移除：{list}。这些应用里选中的文字以后会被读取并发给翻译服务。',
+  'prefs.general.importedEndpointDefault': '内置地址',
+  'prefs.general.importedEndpoints': '请求地址已更改（API Key 会发到这里）：{list}。',
   'prefs.general.nativeLang': '母语',
   'prefs.general.nativeLangHint': '文字太短、认不出语言时，就当作是你的母语。',
   'prefs.general.nativeLangUnset': '不指定',
@@ -190,6 +197,7 @@ export const PREFS_ZH_CN = {
   'prefs.scene.composeHint': '长段落、需要好文笔时用。',
   'prefs.scene.custom': '已单独设置',
   'prefs.scene.default': '默认',
+  'prefs.scene.useDefaultModel': '用默认模型',
   'prefs.scene.fallback': '备用顺序',
   'prefs.scene.fallbackEmpty': '还没有备用模型，首选失败时会直接报错。',
   'prefs.scene.fallbackHint': '首选超时、被限流或额度不足时，按这个顺序依次重试。',
@@ -276,7 +284,7 @@ export const PREFS_ZH_CN = {
 export const PREFS_ZH_TW: Record<keyof typeof PREFS_ZH_CN, string> = {
   'prefs.about.checkUpdates': '檢查更新',
   'prefs.about.checkUpdatesHint':
-    '還沒有自動更新。新版本請到官網下載，覆蓋安裝不會遺失設定與歷史。',
+    '啟動時會自動檢查並在背景裝好新版，之後在選單列圖示的選單裡點一下重新啟動即可；也可以從那裡手動檢查。',
   'prefs.about.data': '你的資料',
   'prefs.about.dataLocal': '都在這台電腦上',
   'prefs.about.dataLocalHint':
@@ -317,6 +325,7 @@ export const PREFS_ZH_TW: Record<keyof typeof PREFS_ZH_CN, string> = {
   'prefs.advanced.usage': '用量與上限',
   'prefs.advanced.usageThisMonth': '本月用量',
   'prefs.attention': '這裡需要處理',
+  'prefs.invalidNumber': '不是有效的數字，沒有儲存。',
   'prefs.engine.apiKey': 'API Key',
   'prefs.engine.azureEndpoint': '資源端點',
   'prefs.engine.azureEndpointHint': '從 Azure 入口網站複製，填到 .openai.azure.com 為止。',
@@ -357,6 +366,11 @@ export const PREFS_ZH_TW: Record<keyof typeof PREFS_ZH_CN, string> = {
   'prefs.general.importPath': '檔案路徑',
   'prefs.general.imported':
     '已匯入（格式 v{version}）：自建風格 {styles} 條，詞彙表 {glossaries} 個。',
+  'prefs.general.importedBlacklistAdded': '取詞黑名單新增：{list}。',
+  'prefs.general.importedBlacklistRemoved':
+    '取詞黑名單移除：{list}。這些應用程式裡選取的文字之後會被讀取並送到翻譯服務。',
+  'prefs.general.importedEndpointDefault': '內建位址',
+  'prefs.general.importedEndpoints': '請求位址已變更（API Key 會送到這裡）：{list}。',
   'prefs.general.nativeLang': '母語',
   'prefs.general.nativeLangHint': '文字太短、認不出語言時，就當作是你的母語。',
   'prefs.general.nativeLangUnset': '不指定',
@@ -459,6 +473,7 @@ export const PREFS_ZH_TW: Record<keyof typeof PREFS_ZH_CN, string> = {
   'prefs.scene.composeHint': '長段落、需要好文筆時用。',
   'prefs.scene.custom': '已單獨設定',
   'prefs.scene.default': '預設',
+  'prefs.scene.useDefaultModel': '用預設模型',
   'prefs.scene.fallback': '備用順序',
   'prefs.scene.fallbackEmpty': '還沒有備用模型，首選失敗時會直接報錯。',
   'prefs.scene.fallbackHint': '首選逾時、被限流或額度不足時，依這個順序依次重試。',
@@ -545,7 +560,7 @@ export const PREFS_ZH_TW: Record<keyof typeof PREFS_ZH_CN, string> = {
 export const PREFS_EN: Record<keyof typeof PREFS_ZH_CN, string> = {
   'prefs.about.checkUpdates': 'Check for updates',
   'prefs.about.checkUpdatesHint':
-    'There’s no automatic update yet. Download new versions from the website; installing over the old one keeps your settings and history.',
+    'umuo checks for updates at launch and installs them in the background; restart from the menu bar icon’s menu to finish. You can also check by hand from that menu.',
   'prefs.about.data': 'Your data',
   'prefs.about.dataLocal': 'All on this Mac',
   'prefs.about.dataLocalHint':
@@ -591,6 +606,7 @@ export const PREFS_EN: Record<keyof typeof PREFS_ZH_CN, string> = {
   'prefs.advanced.usage': 'Usage and limits',
   'prefs.advanced.usageThisMonth': 'This month',
   'prefs.attention': 'Needs attention',
+  'prefs.invalidNumber': 'That’s not a valid number, so it wasn’t saved.',
   'prefs.engine.apiKey': 'API key',
   'prefs.engine.azureEndpoint': 'Resource endpoint',
   'prefs.engine.azureEndpointHint': 'Copy it from the Azure portal, ending at .openai.azure.com.',
@@ -635,6 +651,12 @@ export const PREFS_EN: Record<keyof typeof PREFS_ZH_CN, string> = {
   'prefs.general.importPath': 'File path',
   'prefs.general.imported':
     'Imported (format v{version}): {styles} custom styles, {glossaries} glossaries.',
+  'prefs.general.importedBlacklistAdded': 'Added to the selection blocklist: {list}.',
+  'prefs.general.importedBlacklistRemoved':
+    'Removed from the selection blocklist: {list}. Text selected in these apps will now be read and sent for translation.',
+  'prefs.general.importedEndpointDefault': 'built-in address',
+  'prefs.general.importedEndpoints':
+    'Request addresses changed (your API keys are sent here): {list}.',
   'prefs.general.nativeLang': 'Native language',
   'prefs.general.nativeLangHint':
     'When a text is too short to detect, umuo assumes it is in your native language.',
@@ -745,6 +767,7 @@ export const PREFS_EN: Record<keyof typeof PREFS_ZH_CN, string> = {
   'prefs.scene.composeHint': 'For longer writing where wording matters.',
   'prefs.scene.custom': 'Set separately',
   'prefs.scene.default': 'Default',
+  'prefs.scene.useDefaultModel': 'Use the default model',
   'prefs.scene.fallback': 'Fallback order',
   'prefs.scene.fallbackEmpty': 'No fallbacks yet; a failure is reported as is.',
   'prefs.scene.fallbackHint':
@@ -838,7 +861,7 @@ export const PREFS_EN: Record<keyof typeof PREFS_ZH_CN, string> = {
 export const PREFS_JA: Record<keyof typeof PREFS_ZH_CN, string> = {
   'prefs.about.checkUpdates': 'アップデートを確認',
   'prefs.about.checkUpdatesHint':
-    '自動アップデートはまだありません。新しい版はサイトから入手してください。上書きしても設定と履歴は残ります。',
+    '起動時に自動で確認し、新しい版をバックグラウンドで入れておきます。メニューバーのアイコンのメニューから再起動すると完了します。そこから手動でも確認できます。',
   'prefs.about.data': 'あなたのデータ',
   'prefs.about.dataLocal': 'すべてこの Mac に',
   'prefs.about.dataLocalHint':
@@ -880,6 +903,7 @@ export const PREFS_JA: Record<keyof typeof PREFS_ZH_CN, string> = {
   'prefs.advanced.usage': '利用量と上限',
   'prefs.advanced.usageThisMonth': '今月の利用量',
   'prefs.attention': '対応が必要です',
+  'prefs.invalidNumber': '有効な数値ではないため、保存していません。',
   'prefs.engine.apiKey': 'API キー',
   'prefs.engine.azureEndpoint': 'リソースのエンドポイント',
   'prefs.engine.azureEndpointHint':
@@ -925,6 +949,12 @@ export const PREFS_JA: Record<keyof typeof PREFS_ZH_CN, string> = {
   'prefs.general.importPath': 'ファイルのパス',
   'prefs.general.imported':
     '読み込みました（形式 v{version}）：カスタムスタイル {styles} 件、用語集 {glossaries} 件。',
+  'prefs.general.importedBlacklistAdded': '取得しないアプリに追加：{list}。',
+  'prefs.general.importedBlacklistRemoved':
+    '取得しないアプリから削除：{list}。これらのアプリで選択したテキストは今後読み取られ、翻訳サービスへ送られます。',
+  'prefs.general.importedEndpointDefault': '既定のアドレス',
+  'prefs.general.importedEndpoints':
+    'リクエスト先が変わりました（API キーはここへ送られます）：{list}。',
   'prefs.general.nativeLang': '母語',
   'prefs.general.nativeLangHint': '短すぎて言語を判定できないとき、母語の文章として扱います。',
   'prefs.general.nativeLangUnset': '指定しない',
@@ -1033,6 +1063,7 @@ export const PREFS_JA: Record<keyof typeof PREFS_ZH_CN, string> = {
   'prefs.scene.composeHint': '長文や、言い回しにこだわるとき。',
   'prefs.scene.custom': '個別に設定済み',
   'prefs.scene.default': '既定',
+  'prefs.scene.useDefaultModel': '既定のモデルを使う',
   'prefs.scene.fallback': '予備の順番',
   'prefs.scene.fallbackEmpty': '予備のモデルはありません。失敗したらそのままエラーになります。',
   'prefs.scene.fallbackHint':

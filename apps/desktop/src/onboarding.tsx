@@ -1,10 +1,13 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import { LanguageSelect } from './components/LanguageSelect'
 import { hotkeyParts } from './lib/hotkey-format'
 import { useT } from './lib/i18n'
 import { api, type ProviderInfo, type Settings } from './lib/ipc'
 import {
+  type EngineChoice,
+  engineForLocalModel,
+  engineForSavedKey,
   hasUsableEngine,
   isStepSatisfied,
   nextStep,
@@ -14,6 +17,7 @@ import {
   STEPS,
   type StepId,
 } from './lib/onboarding'
+import { createSettingsQueue, type SettingsQueue } from './lib/settings-queue'
 import { initUi } from './lib/ui-bootstrap'
 import './styles/app.css'
 
@@ -41,6 +45,17 @@ function Onboarding() {
   const [screenGranted, setScreenGranted] = useState<boolean | null>(null)
   const [practiced, setPracticed] = useState(false)
   const [notice, setNotice] = useState<string | null>(null)
+  const queue = useRef<SettingsQueue<Settings> | null>(null)
+  // 最近一次保存。队列逐个执行，等它落定就等于等全部落定——结束引导前要等，
+  // 否则窗口关掉时最后一次改动可能还在路上。
+  const saving = useRef<Promise<void>>(Promise.resolve())
+
+  // 引导里改的语言与引擎都要真的写进设置（审查 H6）。与设置窗同一条队列：
+  // 逐个保存，每次叠在后端此刻的值上，失败时界面退回存好的值。
+  const commit = useCallback((patch: Partial<Settings>) => {
+    if (!queue.current) return
+    saving.current = queue.current.commit(patch).catch((error: unknown) => setNotice(String(error)))
+  }, [])
 
   useEffect(() => {
     void (async () => {
@@ -52,6 +67,11 @@ function Onboarding() {
         ])
         // `t` 只在上面那行错误提示里用，但 biome 要求依赖一致——照做。
         setProviders(catalog)
+        queue.current = createSettingsQueue(
+          current,
+          async (patch) => api.saveSettings({ ...(await api.getSettings()), ...patch }),
+          setSettings,
+        )
         setSettings(current)
         setTrusted(trustedNow)
         setKeyConfigured(await api.keyStatus(current.providerId))
@@ -84,6 +104,7 @@ function Onboarding() {
 
   const finish = async () => {
     try {
+      await saving.current
       await api.finishOnboarding()
     } catch (error) {
       setNotice(String(error))
@@ -113,7 +134,7 @@ function Onboarding() {
                 isStepSatisfied(item.id, state) && i !== index ? 'text-text-secondary' : '',
               ].join(' ')}
             >
-              {item.title}
+              {t(item.titleKey)}
               {isStepSatisfied(item.id, state) ? ' ✓' : ''}
             </li>
           ))}
@@ -122,15 +143,27 @@ function Onboarding() {
 
       <main className="flex-1 overflow-auto px-6 py-5">
         {step === 'welcome' && <Welcome settings={settings} />}
-        {step === 'languages' && <Languages settings={settings} onChange={setSettings} />}
+        {step === 'languages' && <Languages settings={settings} onChange={commit} />}
         {step === 'model' && (
           <ModelStep
             providers={providers}
             settings={settings}
             keyConfigured={keyConfigured}
             localModel={localModel}
-            onKeySaved={() => setKeyConfigured(true)}
-            onLocalModel={setLocalModel}
+            onKeySaved={(engine) => {
+              setKeyConfigured(true)
+              commit(engine)
+            }}
+            onLocalModel={(model) => {
+              setLocalModel(model)
+              const primary = {
+                keyConfigured,
+                requiresKey:
+                  providers.find((item) => item.id === settings.providerId)?.requiresKey ?? true,
+              }
+              const engine = model === null ? null : engineForLocalModel(model, primary)
+              if (engine) commit(engine)
+            }}
             onNotice={setNotice}
           />
         )}
@@ -247,7 +280,7 @@ function Languages({
   onChange,
 }: {
   settings: Settings
-  onChange: (next: Settings) => void
+  onChange: (patch: Partial<Settings>) => void
 }) {
   const t = useT()
   return (
@@ -259,7 +292,7 @@ function Languages({
           <LanguageSelect
             id="umuo-onboarding-target"
             value={settings.targetLang}
-            onChange={(targetLang) => onChange({ ...settings, targetLang })}
+            onChange={(targetLang) => onChange({ targetLang })}
           />
         </div>
       </label>
@@ -269,7 +302,7 @@ function Languages({
           <LanguageSelect
             id="umuo-onboarding-secondary"
             value={settings.secondaryTargetLang}
-            onChange={(secondaryTargetLang) => onChange({ ...settings, secondaryTargetLang })}
+            onChange={(secondaryTargetLang) => onChange({ secondaryTargetLang })}
           />
         </div>
       </label>
@@ -291,7 +324,7 @@ function ModelStep({
   settings: Settings
   keyConfigured: boolean
   localModel: string | null
-  onKeySaved: () => void
+  onKeySaved: (engine: EngineChoice) => void
   onLocalModel: (model: string | null) => void
   onNotice: (message: string | null) => void
 }) {
@@ -346,7 +379,7 @@ function ModelStep({
               .saveApiKey(providerId, apiKey.trim())
               .then(() => {
                 setApiKey('')
-                onKeySaved()
+                onKeySaved(engineForSavedKey(providerId, provider?.defaultModel))
                 onNotice(t('onboarding.keySaved', { provider: provider?.label ?? providerId }))
               })
               .catch((error: unknown) => onNotice(String(error)))

@@ -1,8 +1,8 @@
 import { useState } from 'react'
 
 import { LanguageSelect } from '../components/LanguageSelect'
-import { LOCALES } from '../lib/i18n'
-import { api } from '../lib/ipc'
+import { LOCALES, type Translate } from '../lib/i18n'
+import { api, type ImportSummary } from '../lib/ipc'
 import { LANGUAGES } from '../lib/languages'
 import { THEME_CHOICES } from '../lib/theme'
 import type { PageProps } from './types'
@@ -196,13 +196,7 @@ export function GeneralPage({
                     .importConfig(configPath.trim())
                     .then(async (summary) => {
                       await onImported()
-                      setConfigNotice(
-                        t('prefs.general.imported', {
-                          version: summary.bundleVersion,
-                          styles: summary.customStyleCount,
-                          glossaries: summary.glossaryCount,
-                        }),
-                      )
+                      setConfigNotice(importNotice(summary, t))
                     })
                     .catch((error: unknown) => setConfigNotice(String(error)))
                 }
@@ -215,4 +209,35 @@ export function GeneralPage({
       </Group>
     </div>
   )
+}
+
+/**
+ * 导入结果的说明。端点与取词黑名单的变化单独列出：前者决定 API Key 发往哪里，
+ * 后者决定哪些应用里的选中内容会被读取——一份别人分享的配置不该悄悄改掉它们。
+ */
+function importNotice(summary: ImportSummary, t: Translate): string {
+  const parts = [
+    t('prefs.general.imported', {
+      version: summary.bundleVersion,
+      styles: summary.customStyleCount,
+      glossaries: summary.glossaryCount,
+    }),
+  ]
+  if (summary.endpointChanges.length > 0) {
+    const list = summary.endpointChanges
+      .map(([id, url]) => `${id} → ${url || t('prefs.general.importedEndpointDefault')}`)
+      .join(', ')
+    parts.push(t('prefs.general.importedEndpoints', { list }))
+  }
+  if (summary.blacklistAdded.length > 0) {
+    parts.push(
+      t('prefs.general.importedBlacklistAdded', { list: summary.blacklistAdded.join(', ') }),
+    )
+  }
+  if (summary.blacklistRemoved.length > 0) {
+    parts.push(
+      t('prefs.general.importedBlacklistRemoved', { list: summary.blacklistRemoved.join(', ') }),
+    )
+  }
+  return parts.join(' ')
 }

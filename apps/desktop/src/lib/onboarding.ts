@@ -6,20 +6,22 @@
  * 把人卡在第四步只会让他卸载，而不是让他去系统设置里点一下。
  */
 
+import type { MessageKey } from './i18n/messages'
+
 export type StepId = 'welcome' | 'languages' | 'model' | 'permissions' | 'practice'
 
 export interface StepDef {
   id: StepId
-  title: string
-  hint: string
+  /** 步骤标题在文案表里（审查 L24）：这里写死中文，其它界面语言的用户也只能看到中文。 */
+  titleKey: MessageKey
 }
 
 export const STEPS: StepDef[] = [
-  { id: 'welcome', title: '欢迎', hint: 'umuo 是常驻菜单栏的系统级翻译客户端' },
-  { id: 'languages', title: '语言', hint: '你主要翻译成哪种语言' },
-  { id: 'model', title: '模型', hint: '自带 Key（BYOK），或直接用本机模型' },
-  { id: 'permissions', title: '权限', hint: '取词需要辅助功能；截图需要屏幕录制' },
-  { id: 'practice', title: '试一试', hint: '当场翻一句，看看浮窗长什么样' },
+  { id: 'welcome', titleKey: 'onboarding.step.welcome' },
+  { id: 'languages', titleKey: 'onboarding.step.languages' },
+  { id: 'model', titleKey: 'onboarding.step.model' },
+  { id: 'permissions', titleKey: 'onboarding.step.permissions' },
+  { id: 'practice', titleKey: 'onboarding.step.practice' },
 ]
 
 export interface OnboardingState {
@@ -90,4 +92,43 @@ export function progressOf(state: OnboardingState): Progress {
  */
 export function hasUsableEngine(state: OnboardingState): boolean {
   return state.keyConfigured || state.localModelFound
+}
+
+/** 引导要写进设置的默认引擎（供应商 + 模型）。 */
+export interface EngineChoice {
+  providerId: string
+  model: string
+}
+
+/**
+ * 在引导里保存 Key 之后的默认引擎：首选换成这家，模型用它的默认模型。
+ *
+ * 只存 Key 不改首选的话，新用户填好 Anthropic 的 Key，第一次划词却仍走出厂的
+ * OpenAI，报「缺少 Key」（审查 H6）。模型必须跟着换——沿用上一家的模型名会 404。
+ */
+export function engineForSavedKey(
+  providerId: string,
+  defaultModel: string | undefined,
+): EngineChoice {
+  return { providerId, model: defaultModel ?? '' }
+}
+
+/** 当前首选引擎此刻能不能用。 */
+export interface PrimaryEngine {
+  /** 首选供应商在钥匙串里有 Key。本机供应商永远是 `false`——它们不存 Key。 */
+  keyConfigured: boolean
+  /** 首选供应商需不需要 Key；Ollama / LM Studio 不需要。查不到供应商时按需要算。 */
+  requiresKey: boolean
+}
+
+/**
+ * 探测到本机模型后的默认引擎；`null` 表示不改。
+ *
+ * 首选已经能用时不抢：有 Key 的云端引擎是用户刚配好的，本机模型断网时本来
+ * 就会被自动回落用上；首选本来就是本机供应商（从设置里重新打开引导的老用户），
+ * 他自己挑的模型不能被探测到的第一个模型覆盖。
+ */
+export function engineForLocalModel(model: string, primary: PrimaryEngine): EngineChoice | null {
+  const usable = primary.keyConfigured || !primary.requiresKey
+  return usable ? null : { providerId: 'ollama', model }
 }

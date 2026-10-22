@@ -9,34 +9,54 @@
 ┌──────────────────────── 客户端进程（Tauri 2） ────────────────────────┐
 │                                                                       │
 │  apps/desktop/src/            前端（React 19 + Tailwind v4），7 个窗口 │
-│    panel 划词浮窗 · settings 设置 · compose 撰写 · compare 对比        │
-│    history 历史与收藏 · onboarding 首次引导 · quick 菜单栏快捷面板     │
+│    panel 划词浮窗 · settings 设置 · compose 撰写 · compare 对比       │
+│    history 历史与收藏 · onboarding 首次引导 · quick 菜单栏快捷面板    │
 │         │  invoke（应用命令）/ listen（事件，需在 capabilities 里授权）│
 │         ▼                                                             │
-│  apps/desktop/src-tauri/      Tauri 外壳：窗口、托盘、快捷键、命令      │
-│    main.rs        建窗口 / 建托盘 / 注册快捷键 / 组装依赖              │
+│  apps/desktop/src-tauri/      Tauri 外壳：窗口、托盘、快捷键、命令    │
+│    main.rs        建窗口 / 建托盘 / 注册快捷键 / 组装依赖 / 看门狗    │
 │    double_tap.rs  连按修饰键（⌃⌃、⌥⌥、右⌘⌘）的接线                    │
-│    translator.rs  划词链路编排：取词 → 定位 → 流式翻译 → 事件推送       │
-│    compare / screenshot / budget / history / glossaries / settings …  │
-│    commands.rs    IPC 命令（不含业务逻辑）                             │
+│    translator.rs  划词的触发、取词线程、浮窗的显示与归属              │
+│    compare.rs     对比的触发与开窗 · screenshot.rs 截图 OCR 的触发    │
+│    host_mac.rs    Host 的 macOS 实现（转给 umuo-platform-macos）      │
+│    sink.rs        应用层事件 → translate:// compare:// webview 事件   │
+│    commands.rs    IPC 命令：参数转发 + 调 umuo-app + 窗口操作         │
+│         │                                                             │
+│         ▼                                                             │
+│  crates/umuo-app/             应用层（不依赖 Tauri，两端共用，§2.1）  │
+│    core（AppCore）/ host（Host，4 个方法）/ event（事件与 Sink）      │
+│    translate 翻译流水线 · compare 多模型对比 · ops 命令的业务部分     │
+│    settings / settings_patch / glossaries / stats / config_io         │
+│    persist / requests / history / budget / paths                      │
 │         │                                                             │
 │         ▼                                                             │
 │  crates/umuo-core/            共享翻译内核（平台无关，可在 Linux 测试） │
 │    provider / key_detect / wire / prompt / glossary / chunk / proxy   │
 │    router / usage / budget / lang / word_card / hotkey / transport    │
-│         │                                                             │
-│         ▼  通过 trait 调用                                            │
-│  crates/umuo-platform/        能力边界（trait，无平台依赖）            │
+│                                                                       │
+│  crates/umuo-store/           SQLite：历史、收藏、用量                │
+│                                                                       │
+│  crates/umuo-platform/        外壳用的能力边界（trait，无平台依赖）   │
 │    SelectionReader / Clipboard / SecretStore / Capture / Ocr /        │
 │    Speech / ModifierMonitor                                           │
 │         │                                                             │
 │         ▼                                                             │
 │  crates/umuo-platform-macos/  macOS 实现                              │
 │    ax.rs 手写 AX FFI · key_event.rs CGEvent · selection.rs AX 优先    │
-│    secret.rs Keychain · ocr.rs Vision · speech.rs say ·              │
+│    secret.rs Keychain · ocr.rs Vision · speech.rs say ·               │
 │    modifier_tap.rs 只读 CGEventTap · capture.rs · clipboard.rs        │
-│                                                                       │
-│  crates/umuo-store/           SQLite：历史、收藏、用量                 │
+└───────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────── SwiftUI 客户端（迁移中，见 SWIFTUI-MIGRATION.md）──┐
+│  apps/macos/                  SwiftPM 包；目前只有 --selftest，无界面 │
+│         │  UniFFI 生成的 Swift 绑定（scripts/build-core.sh）          │
+│         ▼                                                             │
+│  crates/umuo-ffi/             导出层：只做换型，不写业务逻辑          │
+│    engine.rs Engine / RequestHandle · event.rs 事件镜像与两个 sink    │
+│    host.rs HostBridge（Swift 实现的宿主）→ BridgeHost 接到 Host 上    │
+│         │                                                             │
+│         ▼                                                             │
+│  crates/umuo-app/  ← 与 Tauri 外壳用的是同一份                        │
 └───────────────────────────────────────────────────────────────────────┘
 
 packages/tokens/  客户端设计令牌：CSS 变量 + Tailwind v4 @theme 映射
@@ -47,11 +67,100 @@ packages/tokens/  客户端设计令牌：CSS 变量 + Tailwind v4 @theme 映射
 | 规则 | 为什么 |
 | --- | --- |
 | `umuo-core` 不依赖任何平台 API，也不依赖 Tauri | 它必须能在 Linux 上 `cargo test`。翻译逻辑的正确性不该需要一台 Mac 才能验证 |
-| 和操作系统打交道的能力全部走 `umuo-platform` 的 trait | Windows（V1.1）与 Omarchy（V2）接入时只加一个实现，内核零改动 |
-| Tauri 命令里不写业务逻辑 | 命令只做参数校验与内核调用；否则逻辑会被锁死在 IPC 边界里，无法单测 |
+| `umuo-app` 不依赖 Tauri、uniffi 或 `umuo-platform*` | 两个客户端共用它；CI 的 `app-core-linux` 在 Linux 上跑 `cargo test -p umuo-app -p umuo-core` 守着这条 |
+| 流水线中途要的平台能力只走 `umuo_app::Host`（§2.1）；其余平台能力（取词、截图、OCR、语音、快捷键、窗口）留在宿主里 | 应用层只认 4 个方法，宿主换成 Swift 时一行流水线都不改。Tauri 外壳自己的平台能力走 `umuo-platform` 的 trait，迁移完成后随外壳删除 |
+| Tauri 命令与 FFI 导出里不写业务逻辑 | 命令只做参数转发、调 `umuo-app` 与窗口操作；`umuo-ffi` 只做换型。否则逻辑会被锁死在 IPC / FFI 边界里，无法单测，两个客户端各有一份还会漂移 |
 | 前端不持有 Key、不发供应商请求 | 见 §5 |
 | 每个窗口都列进 `capabilities/default.json` | 应用命令不受 capability 限制，但 `listen()` 是插件命令：不在名单里的窗口收不到任何事件。浏览器夹具（假 `__TAURI_INTERNALS__`）绕过权限检查，这类问题只有真机能发现 |
+| 窗口专属事件只用 `getCurrentWebviewWindow().listen()` 订阅（`ipc.ts::listenHere`） | 裸 `listen()` 的 target 是 Any，Tauri 对 Any 直接放行，`emit_to` 的定向会失效：撰写窗收到浮窗的译文，反之亦然。只有设置变更这类真广播才用 `listen()` |
+| 每次请求一个 id 与独立取消标志（`requests.rs`），按窗口登记 | 新请求顶掉同一窗口的旧请求；Esc 只取消发起它的窗口；事件带 id，前端丢弃不属于当前请求的增量，旧流不会和新流交错 |
 | Provider 是数据不是分支 | 新增供应商 = 加一条数据。只有协议本身不同（OpenAI 兼容 / Anthropic / Gemini）才动 `wire` |
+
+## 2.1 应用层 `umuo-app` 与宿主
+
+`umuo-app` 是内核之上、界面之下的一层：两个客户端都要、又和窗口系统无关的东西都在这里，
+只写一份。Tauri 外壳与 SwiftUI 客户端（经 `umuo-ffi`）是它的两个**宿主**。
+
+| 模块 | 内容 |
+| --- | --- |
+| `core` | `AppCore`：配置目录、设置、统计、术语表、历史库、HTTP 客户端、请求登记、`Arc<dyn Host>`。`AppCore::open` 里是启动规则：代理设置坏了按「跟随系统」、历史库打不开也照常启动 |
+| `host` | `Host` trait 与 `FocusSource`，见下表 |
+| `event` | 发给界面的事件与载荷、`TranslateSink` / `CompareSink`，见 §2.2 |
+| `translate` | 翻译流水线：规划、故障转移、离线回落、分片、记账、写回守卫、事件。`AppCore::start_translation` / `translate::run` |
+| `compare` | 多模型对比：`plan_candidates` 与并发扇出 `run` |
+| `ops` | 界面命令的业务部分：历史、用量、收藏、术语表、导入导出、Key 状态、对比偏好、模型列表。返回的 DTO 就是 IPC 契约 |
+| `panel` | 浮窗的纯规则：看门狗的 `should_auto_hide`、「替换原文」的 `plan_replace` 与写回守卫文案、取词黑名单的提示（SwiftUI 用；Tauri 外壳冻结前的原件留在 `translator.rs`） |
+| `settings` / `settings_patch` | 设置结构与校验；`AppCore::apply_settings_patch`（顶层 patch，§4） |
+| `glossaries` / `stats` / `config_io` / `persist` / `requests` / `history` / `budget` | 术语表与统计文件、导入导出包、原子写、每窗口的请求登记、历史写入、月度上限执行点 |
+| `paths` | `BUNDLE_ID` 与 `config_dir_for(home)`：两个客户端必须指向同一个配置目录 |
+
+宿主自己负责、**不进** `umuo-app` 的：取词（AX 与 ⌘C 降级）、截图与 OCR、朗读、全局快捷键与连按修饰键、
+窗口与浮窗定位、看门狗、托盘、自启动、更新。
+
+Tauri 外壳的 `AppState` 是 `{ core: Arc<AppCore>, 平台单元与窗口状态… }`，并实现了 `Deref<Target = AppCore>`
+（`state.settings` 就是 `state.core.settings`）。这是迁移期的拐杖，随 Tauri 外壳一起删除。
+
+### Host：流水线中途向宿主要的东西
+
+原则：能提前取的值由宿主先取好再传进来（例如静默翻译写回守卫用的前台标识，触发时由宿主取好、作 `guard` 传入），
+**流水线中途必须现取的才走 `Host`**。四个方法全部同步，在流水线所在的工作线程上调用（§2.3）。
+
+| 方法 | 谁在什么时候调 | Tauri（`host_mac.rs` 的 `MacHost`） | Swift（`umuo-ffi` 的 `HostBridge`） |
+| --- | --- | --- | --- |
+| `api_key(provider_id)` | 首选与每个候选各取一次、月度上限找备选时看「有没有 Key」、对比的每一路、`ops` 的 Key 状态与模型列表。所以不能由宿主一次预取 | `MacSecretStore`（Keychain：service `app.umuo.desktop`，account = 供应商 id） | 同一个 Keychain 条目，Security.framework 直接读（`apps/macos` 的 `SwiftHost` / `Keychain.swift`：SecItem 查旧文件 Keychain，**不设** `kSecUseDataProtectionKeychain`，服务名取 FFI 的 `bundleId()`） |
+| `frontmost_app_name()` | 记历史时取「来源应用」（取值时机与迁移前相同：记账时）；按 App 记忆目标语言或风格里写了 `{app_name}` 时 | `MacSelection` 的 AX 查询 | 读加锁缓存（`FrontmostApp.swift`，NSWorkspace 激活通知维护，取 `localizedName`）：只用来标注历史与按 App 记忆，晚一拍无害 |
+| `frontmost_app_token()` | 只在写回守卫里用：写回前与 `guard` 比对（§3.3） | AX 现查：系统级 `AXFocusedApplication` 的 pid（`ax::frontmost_pid`） | **必须调用时现查，不能读缓存**：与 Tauri 同一来源（AX 系统级 `AXFocusedApplication` 的 pid），触发时取 `guardToken` 也用它。NSWorkspace 的激活通知经主线程 run loop 晚到，用户刚切走时缓存还是旧 pid，守卫会放行、把译文写进新应用 |
+| `write_back(source, original, text)` | 静默翻译**成功且守卫放行后**调一次；没有 ⌘V 兜底，写不进去就报 `WriteBackFailed` | `replace_focus_text` | AX 写回（`AXWriteBack.swift`，照搬 `replace_focus_text` 的可写与原文检查、错误文案逐字一致）。AX 是线程安全的 C API，直接在工作线程上调，不切主线程。**不要** `DispatchQueue.main.sync`（§2.3）：主线程可能正在同步调用 Engine、等着这个回调返回，会死锁；聚焦的是 umuo 自己的窗口时，AX 请求本身也要主线程 run loop 来应答 |
+
+迁移计划里写过的 `AppIdentity` / `HostError` / async `write_back` 没有采用：没有调用方需要它们。
+`write_back` 保持同步，是因为它在流水线的 future 里直接调用，做成 async 就得在运行时里 `block_on`
+（理由也写在 `crates/umuo-ffi/src/host.rs` 的模块文档里）。
+
+## 2.2 事件协议
+
+流水线只认 `umuo_app::event` 里的事件，经 sink 发出，不碰任何窗口系统。
+
+| | 事件 | 语义 |
+| --- | --- | --- |
+| `TranslateEvent`（浮窗 / 撰写窗） | `Start` | 开始；**同一请求 id 再来一次 Start = 故障转移换了候选**，界面整体重置译文、保持流式状态 |
+| | `Delta` | 增量，只追加 |
+| | `Card` | 单词词卡，与 `Delta` 互斥：词卡模式下增量被抑制，整段解析成结构后一次推送（§4.7） |
+| | `Done` / `Error` | 结束。`Done.warning` 是成功附带的提醒（例如月度上限），不是错误；`Error.source` 带原文供「重试」 |
+| `CompareEvent`（对比窗） | `Start` / `Delta` / `Done` / `Error` | 每个载荷带 `run_id` 与卡片下标 `index`，N 路增量按下标归位 |
+| | `Notice` | 整窗级提示（没有卡片时也要显示） |
+
+翻译事件旁边还有一个 `Route { surface, request_id, back }`：发往哪个窗口、属于哪一次请求、是不是撰写窗的回译。
+界面**只认自己正在显示的那个 `request_id` / `run_id`**，被顶掉的旧请求迟到的事件一律丢掉。
+不经流水线的提示（取词失败、黑名单、缺权限、截图识别不到文字）由宿主自己发：Tauri 外壳用同一个 `Error` 事件
+（`translator::emit_notice`：新登记一次请求 id，并把浮窗弹出来）。
+
+同一组事件有两种线上编码：
+
+- **Tauri**（`sink.rs` 的 `TauriSink`）：事件名取 `TranslateEvent::name()`（`translate://start` 等），
+  翻译载荷外面套一层 `{ requestId, back, …载荷 }`，`emit_to` 发给 `route.surface` 那个窗口；对比事件就是载荷本身。
+  载荷的字段名与顺序就是前端契约，`sink.rs` 的黄金快照逐字节守着。
+- **FFI**（`crates/umuo-ffi/src/event.rs`）：镜像成 `uniffi::Enum`，`Route` 是单独的 Record，
+  Swift 实现 `TranslateSink.onEvent(route, event)` / `CompareSink.onEvent(event)`。只做换型（`&'static str` → `String`、
+  `usize` → `u32`），`From` 一律用不带 `..` 的解构：`umuo-app` 的载荷加了字段，这里当场编译失败。
+
+## 2.3 线程约定
+
+| | Tauri 外壳 | SwiftUI（经 `umuo-ffi`） |
+| --- | --- | --- |
+| 取词 | `std::thread::spawn`：取词是阻塞的，不能放在主线程（§3） | Swift 自己决定，不经过 Rust |
+| 流水线跑在哪 | `tauri::async_runtime`。请求登记在调用时同步完成，返回的 future 交给运行时 | `Engine` 自建的多线程 tokio 运行时（线程名 `umuo-engine`，工作线程数取默认）。**不开** uniffi 的 `tokio` feature：reqwest 的连接池只活在这一个运行时里 |
+| `Host` 回调 | 在 tokio 工作线程上同步调用 | 同左；`BridgeHost` 每次回调包在 `block_in_place` 里，回调慢了也不占住工作线程、不拖停其他流和取消轮询 |
+| sink | 同步调用，`emit_to` 立即返回 | 同步调用，**只把事件 `yield` 进 `AsyncStream` 就返回**（保证增量按顺序到达；多个 `Task { @MainActor }` 不保证先后）。禁止 `DispatchQueue.main.sync`：主线程可能正等着 Engine 的同步方法 |
+| 取消 | Esc / 新请求置位本窗口这次请求的取消标志 | 流式请求不做成 `async fn`（UniFFI 0.32 的 Swift 绑定传不进取消）：同步启动、立即返回 `RequestHandle`，取消显式调 `cancel()`（幂等），Swift 在 `onTermination` 里调。丢掉句柄**不会**取消 |
+
+两端共同的：
+
+- 传输层每 100 ms 看一次取消标志，取消后不再有增量。
+- 设置的 `MutexGuard` 不跨 `await`：每次请求开头 clone 一份设置，锁只活在那一个语句里（否则 future 不是 `Send`）。
+- Engine 的同步方法（设置、SQLite）与 `Engine.open` 从后台调用，不放在 MainActor 上，不阻塞菜单栏出现。
+- `Engine` 释放时只发关闭信号（`shutdown_background`），不等工作线程：最后一个引用可能在主线程或运行时自己的线程上释放，等的话前者互相卡死、后者 tokio 直接 panic。
+
+这些约定的权威写法在 `crates/umuo-ffi/src/lib.rs` 与 `engine.rs` / `host.rs` / `event.rs` 的文档注释里，改了要两处一起改。
 
 ## 3. 一次划词翻译的完整链路
 
@@ -67,15 +176,18 @@ packages/tokens/  客户端设计令牌：CSS 变量 + Tailwind v4 @theme 映射
   │         ├─ MacSelection::read_selection()
   │         │    ① Accessibility：AXUIElementCreateSystemWide → AXFocusedUIElement
   │         │       → AXSelectedText（只读、无副作用）
-  │         │    ② 失败才降级：清空剪贴板 → 合成 ⌘C → 轮询 → **恢复原剪贴板内容**
+  │         │    ② 失败才降级（全程独占剪贴板，连按不互相踩）：快照剪贴板的**全部 item 与类型**
+  │         │       → 清空 → 合成 ⌘C → 按 changeCount 轮询 → **原样恢复**（合成失败也先恢复）
+  │         │       → 超时则再盯 600ms，慢应用迟到的复制盖上来就再恢复一次
   │         │
   │         ├─ show_panel_near_cursor()：按鼠标位置摆放浮窗并显示
   │         │
-  │         └─ tauri::async_runtime::spawn(translator::run)
+  │         └─ tauri::async_runtime::spawn(umuo_app::translate::run)
+  │              （SwiftUI 版经 Engine::translate 走同一个函数；事件经 sink 发出，§2.2）
   │              │
   │              ├─ 读设置（settings.json）
-  │              ├─ 读 Key（Keychain，仅此一处）
-  │              ├─ lang::detect  → 源语言
+  │              ├─ 读 Key（`Host::api_key` → Keychain；每个候选各取一次）
+  │              ├─ lang::detect  → 源语言（按书写系统；拉丁字母再用变音字母与虚词粗分欧洲语言，英文是强默认，至少两条线索且比英文多两条才改判）
   │              │  lang::pick_target → 源==第一目标语言时改用第二目标语言
   │              ├─ prompt::find_style + build_translation_request → ChatRequest
   │              ├─ router::build_plan → 候选模型序列（首选 + 备用，目前备用为空）
@@ -90,12 +202,12 @@ packages/tokens/  客户端设计令牌：CSS 变量 + Tailwind v4 @theme 映射
   │                   ├─ 成功 → emit translate://done（含用量、费用、首字延迟）
   │                   └─ 失败且 router::next_after_failure 有下一个 → 换模型重试
   │
-  └─ 前端 reducer 更新浮窗；Esc 置位取消标志，流在下一个分片处停下
+  └─ 前端 reducer 更新浮窗（只认当前请求 id 的事件）；Esc 置位**本窗口**这次请求的取消标志，传输层让取消与读取竞争（每 100 ms 看一次标志），不必等下一个分片
 ```
 
 ### 3.1 三条触发路径，同一条链路
 
-三个功能共用 `translator::translate()`。差异收敛在 `Mode` 一个枚举里
+三个功能共用 `umuo_app::translate` 的同一条流水线。差异收敛在 `Mode` 一个枚举里
 （`surface()` / `scene()` / `write_back()` 都由它派生），流水线本身不再有分支：
 
 | | 划词翻译 ⌃⌃ | 原地替换 ⌥⌥ | 撰写窗 ⌥⌘A |
@@ -132,7 +244,7 @@ packages/tokens/  客户端设计令牌：CSS 变量 + Tailwind v4 @theme 映射
 译文会被打进另一个应用的输入框里——这是本产品能造成的最糟糕的破坏。
 
 做法：取词前记下前台应用的标识（macOS 上是 `AXFocusedApplication` 的 pid），
-写回前再取一次比对，见 `translator.rs::target_still_matches`。三种情形的取舍：
+写回前经 `Host::frontmost_app_token` 再取一次比对，见 `umuo_app::translate::target_still_matches`（`translate/plan.rs`）。三种情形的取舍：
 
 - 前后都拿得到 → 相等才写；
 - **之前拿得到、现在拿不到 → 按「已切换」处理，放弃写回**；
@@ -143,7 +255,7 @@ packages/tokens/  客户端设计令牌：CSS 变量 + Tailwind v4 @theme 映射
 
 ### 3.4 多模型对比（PRD §5.6）
 
-`compare.rs` 与其它三个功能最大的结构性差别：它**并发**发起 N 路请求，
+`umuo_app::compare` 与其它三个功能最大的结构性差别：它**并发**发起 N 路请求，
 每路都是一次真实计费调用。三个必须做对的点：
 
 1. **候选先去重再截断**（`router::compare_candidates`，最多 4 个）。
@@ -179,18 +291,45 @@ packages/tokens/  客户端设计令牌：CSS 变量 + Tailwind v4 @theme 映射
 | 翻译历史与用量 | `history.db`（SQLite，`crates/umuo-store`） | PRD §5.9 / §5.10。本机文件，不上传 |
 | 收藏（词 / 句） | 同上，`favorites` 表 | 用户**显式**标记，因此不参与保留天数清理 |
 
-`settings.json` 解析失败时会备份成 `settings.json.corrupt` 再回落默认值——
-用户手改坏一个字符，不该连原内容都看不到。
+`settings.json`、`glossaries.json` 共用 `persist.rs` 的读写（`stats.json` 只共用写，丢了无所谓）：
+**写**是临时文件 + `sync_all` + `rename`，断电后不会只剩半截；**读**只有「文件不存在」才静默回落默认值，
+读不动（编码不对、权限）或解析失败都先挪成 `<文件名>.corrupt-<时间戳>` 再回落——
+用户手改坏一个字符，不该连原内容都看不到，备份带时间戳也不会被第二次损坏覆盖。
+
+保存设置与导入配置走同一个 `AppCore::apply_settings_patch`（`crates/umuo-app/src/settings_patch.rs`）：
+JSON 顶层逐键覆盖在**最新**的设置上（settings.json 的 mtime 变了先重载，缩小两个客户端互相覆盖的窗口；
+嵌套对象整体替换、不做深合并，与 `settings-queue.ts` 一致），`Settings::prepare_for_save` 做规范化、
+代理校验和端点校验，通过才写盘；失败时内存和文件都不变。副作用由宿主执行：
+Tauri 的 `save_settings` 把前端传来的整份对象当全键 patch，再由 `run_settings_effects` 在 `SettingsEffects.hotkeys`
+为真时重注册快捷键，并广播主题 / 语言 / 缩放、应用托盘样式；Swift 经 `Engine.applySettingsPatch` 只交自己改的键，**不自己解析这个文件**。
+**自定义端点与需要 Key 的供应商覆盖只接受 `https://`**（`localhost` / `127.0.0.1` / `[::1]` 例外）：这些地址会收到明文的 Bearer Key。本机模型类供应商（Ollama / LM Studio）不发 Key，局域网 http 地址也放行。
+只校验这次改动了的端点，老配置里已有的局域网 `http://` 地址不会让用户从此改不了任何设置。
+导入先在内存里校验整份设置，不合法就整份拒绝、一个文件都不写；摘要列出端点与取词黑名单的变化。
+
+**本版本不认识的字段原样保留**（`umuo_core::UnknownFields`，`#[serde(flatten)] extra`）：`Settings`、`Glossaries`、`Stats`、导出包，
+以及嵌套的自建预设、月度上限、场景模型、术语表与术语条目都有。新版本（SwiftUI 版）写的字段，用户回到旧版本保存一次不会丢。
+会**重建**这些结构的代码要把 `extra` 带过去：自建预设的规范化沿用原值；术语表在设置页保存（整表转 CSV 再导入）时按原文匹配，带上旧条目的。
+导入（`config_io::prepare_import`）对设置与术语表**顶层**的 `extra` 按键合并、文件优先、本地独有的保留；嵌套列表随文件整份替换。
+导出时设置 `extra` 里名字像凭据的键（含 apikey / secret / token / password / credential）一律去掉。
 
 ### 4.1 历史库（`umuo-store`）
 
 - **迁移走 `PRAGMA user_version`**，脚本按版本递进放在 `MIGRATIONS` 里。
   **已发布的迁移不要改**：用户的库只会执行比它当前版本高的那些，改旧迁移对既有库完全无效，
   只会让新库与旧库的形状悄悄分叉。要改就加新一版。
-- **打开失败不让客户端起不来**：`AppState.store` 是 `Option`，`None` 时历史命令
+- **打开失败不让客户端起不来**：`AppCore.store` 是 `Option`，`None` 时历史命令
   返回失败原因给 UI 显示，翻译功能完全不受影响。历史不可用不该拖垮翻译工具。
 - **写历史失败绝不冒泡**：一次成功的翻译不该因为「历史没写进去」而看起来失败。
 - **关闭历史时一条都不写**（PRD §5.9）。用户关掉它不是因为嫌列表长，而是因为不想留下记录。
+- **用量账本独立于历史**（v2，`usage` 表）：只存时间、供应商、模型、token 与费用，没有原文译文。
+  每次成功翻译都记，**不看**历史开关与隐私模式，清空历史与保留期清理也不删它——
+  月度上限与「本月用量」都从这张表读，否则关掉历史就等于关掉上限。v2 迁移从历史表回填，
+  月中升级的用户本月已花的钱不会归零。记账是单独的 `history::record_usage`，在厂商返回成功后、
+  静默替换写回之前调用：写回失败（中途切了窗口）不记历史，但已计费的用量照样进账本。
+- **库损坏时自动挪开重建**：`Store::open_recovering` 只在 `is_corruption()` 时把 `history.db`
+  （连同 `-wal` / `-shm`）挪成 `history.db.corrupt-<时间戳>` 再建新库；保留期清理失败只打日志、库照用。
+- **拒绝打开更高版本的库**：`user_version` 高于程序认识的版本（用户装回旧版）时返回
+  `SchemaTooNew`，不当成损坏、不挪文件，历史在这次会话里不可用。
 
 #### 为什么用 `LIKE` 而不是 FTS5
 
@@ -253,6 +392,15 @@ spawn 需要 `'static`；在同一个任务里并发轮询既满足「同时推�
 
 用量按片相加，`estimated` 取「或」——只要有一片是估的，整体就不能声称精确。
 
+**④ 预算还要看输出上限。** 每片的原文量取「上下文 70%」与「输出上限 ÷ 膨胀系数 2」的较小者
+（`chunk::char_budget`，输出上限即 `wire::DEFAULT_MAX_OUTPUT_TOKENS` = 8192）。
+只看上下文的话，2 万字对 200k 窗口是「一次就发」，译文却在输出上限处被截断。
+
+**⑤ 截断要识别出来。** 传输层读各协议的停止原因（OpenAI `finish_reason: length / content_filter`、
+Anthropic `stop_reason: max_tokens`、Gemini `finishReason: MAX_TOKENS`；Gemini 的 `SAFETY` 等按错误处理），
+既没有结束哨兵也没有停止原因就 EOF 的也算截断。截断结果标 `StreamOutcome.truncated`：
+浮窗照常显示并附提醒、不进历史，静默翻译拒绝写回（`CoreError::Truncated`），任何一片截断整篇都算截断。
+
 ## 4.3 分场景模型与备用顺序：每个候选各自解析供应商
 
 `ModelRef` 里带着 `provider_id`，所以**分场景模型与备用顺序都允许指向另一家供应商**。
@@ -264,6 +412,7 @@ spawn 需要 `'static`；在同一个任务里并发轮询既满足「同时推�
 - **没配 Key 的候选直接跳过**。拿空 Key 去请求只会得到 401，而它并不是这次失败的真正原因。
 - **自定义端点没填地址的候选跳过**，并把它记成 `last_error`。
 - 计价与历史记录都用**候选自己的** `provider_id`，不是首选的。
+- 长文本的分片路径走同一套候选循环，按整批故障转移（不逐片重试），每个候选按自己的上下文窗口重新切分。
 
 全部候选被跳过时兜底错误从 `NoEngine` 改成 `MissingKey`：
 用户明明配了引擎、只是这次没用上，`NoEngine` 是误导。
@@ -321,8 +470,10 @@ RFC 4180 允许引号字段里含换行。第一版实现先按行切再解析�
 
 1. `umuo_core::budget` —— **纯计算**：给定「本月已花」与「上限」，判断是否超限、
    该换成谁（`decide`）。没有数据库、没有网络，23 个用例覆盖。
-2. `umuo-store::usage_by_provider` —— 数据来源，按供应商聚合本月的花费。
-3. `apps/desktop/src-tauri/src/budget.rs` —— 执行点：取数、拼候选清单、按决定换人。
+2. `umuo-store::usage_by_provider` —— 数据来源，按供应商聚合本月的花费（读独立的用量账本，见 4.1）。
+3. `crates/umuo-app/src/budget.rs` —— 执行点：取数、拼候选清单、按决定换人。
+   没给当前供应商设上限就直接放行，不查库；没超限也不读其它供应商的 Keychain——
+   只有超限且设成自动切换时才去找备选。
 
 ### 三条刻意的规则
 
@@ -395,7 +546,10 @@ Anthropic 只接受到 1，所以在 Anthropic 分支单独 `.min(1.0)`。
    增量被抑制了，不补的话界面会是一片空白，用户以为翻译没出结果。
 
 判定「是不是一个词」的规则只有一处：`umuo_core::word_card::is_word_mode`。
+连续的中日文只算一个词，所以另有两道保护：中日韩文字超过 8 个、或汉字后紧跟 を/は/が
+（「本を読む」）时按句子处理（审查 M10）。术语表对词卡同样生效，命中的术语会写进词卡 Prompt。
 前端不重复实现它（`favorite_kind_for` 也复用它来区分「词」与「句」）。
+规则改过，所以星标的查询与取消只按文本匹配（`is_text_favorited`），不看 kind——旧规则下存成「词」的收藏仍然认得。
 
 ## 4.8 自定义端点的地址覆盖
 
@@ -418,6 +572,10 @@ Anthropic 只接受到 1，所以在 Anthropic 分支单独 `.min(1.0)`。
 知道」的那类问题。`say` 是独立进程：有没有在说话、能不能停，都可用 `Child` 观测。
 
 代价是每次朗读起一个进程（几十毫秒），以及依赖 `/usr/bin/say`（macOS 自带，路径固定）。
+
+文本前一定有 `--`：以 `-` 开头的译文（Markdown 列表）不加的话会被当成选项，
+选中「-o/路径」朗读还会把那个文件覆盖成空录音。「停上一段 → 起新的 → 存起来」在同一把锁里做完，
+并发朗读不会叠音、也不会留下停不掉的进程。
 
 ### 发音人是查出来的，不是猜出来的
 
@@ -544,7 +702,7 @@ PRD §7.4 的五步引导。两条产品规则落在实现里：
 | 浮窗锚定位置 | 按鼠标位置摆放 | 不是精确贴在选区旁；需要 `AXBoundsForRange` |
 | 截图 OCR 的选区 | 用系统框选，**没有自绘浮层** | 因此拿不到选区坐标，「覆盖模式」（译文贴回原位置）做不了 |
 | 截图 OCR 的识图翻译 | 只做本机 Vision 文字识别 | 「多模态模型直接识图」（PRD §5.5 可选）未做 |
-| 剪贴板降级只恢复文本 | 图片/文件类剪贴板内容无法恢复 | AX 路径不受影响；降级路径才有此限制 |
+| 剪贴板降级的延迟类型 | 降级会存下所有 item 的所有类型原样恢复；但只以「延迟提供」挂着、读取时已取不到数据的类型（例如源应用已退出的文件承诺）恢复不了 | AX 路径不受影响；降级路径才有此限制 |
 | 对比窗没有收藏入口 | 浮窗与历史窗可以收藏，对比窗的卡片上没有 | 要收藏对比结果得先绕到历史窗 |
 | 翻译历史无导出 | 只有列表与检索 | PRD 未要求；用户迟早会想要 |
 | 对比卡片不能单独重试 | 失败了只能整轮重来 | — |
@@ -563,26 +721,26 @@ PRD §7.4 的五步引导。两条产品规则落在实现里：
 
 | PRD 小节 | 落点 |
 | --- | --- |
-| §5.2 划词 / 划句翻译 | `translator.rs` 全链路 + `apps/desktop/src/panel.tsx` |
-| §5.4 输入框原地替换（静默翻译） | `translator.rs::Mode::SilentReplace` + `write_back`；平台侧 `read_focus_text` / `replace_selection` |
+| §5.2 划词 / 划句翻译 | `crates/umuo-app/src/translate/`（流水线）+ 外壳 `translator.rs`（触发与取词）+ `apps/desktop/src/panel.tsx` |
+| §5.4 输入框原地替换（静默翻译） | `umuo_app::translate::Mode::SilentReplace` + 写回守卫 + `Host::write_back`；平台侧 `read_focus_text` / `replace_selection` |
 | §5.3 撰写窗 | `apps/desktop/src/compose.tsx` + `lib/compose-queue.ts`；Rust 侧 `Mode::Compose` 与 `compose_*` 命令 |
 | §6.3 分场景模型与备用顺序 | `umuo_core::router`（`SceneModels` / `build_plan`）+ `Settings::scene_models` / `fallback_models` + 设置页的「模型路由」 |
-| §5.8 术语表 | `umuo_core::glossary`（筛选 / 命中 / 渲染 / CSV）+ `apps/desktop/src-tauri/src/glossaries.rs`（存储与注入块） |
-| §5.10 月度上限 | `umuo_core::budget`（纯决策）+ `umuo-store` 的按供应商月汇总 + `apps/desktop/src-tauri/src/budget.rs`（执行点） |
+| §5.8 术语表 | `umuo_core::glossary`（筛选 / 命中 / 渲染 / CSV）+ `crates/umuo-app/src/glossaries.rs`（存储与注入块） |
+| §5.10 月度上限 | `umuo_core::budget`（纯决策）+ `umuo-store` 的按供应商月汇总 + `crates/umuo-app/src/budget.rs`（执行点） |
 | §5.7 翻译风格预设 | `umuo_core::prompt`（`StyleSpec` / `CustomStyle` / 模板渲染）+ 设置页的预设编辑器 |
 | §5.1 发音朗读 | `umuo_platform::Speech`（trait）+ `umuo-platform-macos` 的 `say` 实现 + 浮窗/词卡的朗读按钮 |
 | §5.2 单词词卡 | `umuo_core::word_card`（判定 + Prompt + 解析）+ 浮窗/撰写窗的 `WordCardView` |
 | §5.5 截图 OCR | `crates/umuo-platform{,-macos}` 的 `capture` / `ocr` + `apps/desktop/src-tauri/src/screenshot.rs` |
-| §5.6 多模型对比 | `apps/desktop/src-tauri/src/compare.rs`（并发扇出）+ `lib/compare-state.ts`（N 路增量归位）+ `stats.rs`（偏好统计） |
+| §5.6 多模型对比 | `crates/umuo-app/src/compare.rs`（候选规划与并发扇出）+ `apps/desktop/src-tauri/src/compare.rs`（触发与开窗）+ `lib/compare-state.ts`（N 路增量归位）+ `stats.rs`（偏好统计） |
 | §5.9 翻译历史 | `crates/umuo-store`（SQLite）+ `history.rs`（写入适配）+ 历史窗（历史 / 收藏两页） |
-| §5.10 用量与费用 | `umuo-store::{usage_this_month, usage_by_day}` + 历史窗顶部的按日柱状图 + 设置页的「本月」一行 |
+| §5.10 用量与费用 | `umuo-store::{usage_this_month, usage_by_day}`（读 `usage` 账本）+ 历史窗顶部的按日柱状图 + 设置页的「本月」一行 |
 | §5.2 单词模式 | `umuo-core::word_card::is_word_mode` + 浮窗与撰写窗的 `WordCardView` |
 | §5.7 翻译风格 | `umuo-core::prompt`（7 个内置预设）+ 设置页风格选择 |
 | §6.1 Provider 接入 | `umuo-core::provider::PROVIDERS`（12 条数据，含 Azure OpenAI） |
 | §6.2 配置流程 | `umuo-core::key_detect` + `list_models` 命令（用真实 Key 拉模型列表） |
-| §6.3 模型路由与故障转移 | `umuo-core::router` + `translator.rs` 的候选循环 |
+| §6.3 模型路由与故障转移 | `umuo-core::router` + `umuo_app::translate` 的候选循环 |
 | §6.4 Key 安全 | `umuo-platform-macos::secret` + `wire` 的 body 断言 |
 | §6.5 Prompt 规范 | `umuo-core::prompt::BASE_RULES` |
 | §8 首字延迟 | `transport::StreamOutcome::first_token_ms`（浮窗结果显示） |
 | §5.10 费用 | `umuo-core::usage`（内置价格表 + 估算标记） |
-| §11 官网 | 公开仓库 `youming-ai/umuo`（不在本仓库） |
+| §11 官网 | `site/`（独立的 Bun 项目，见 `site/AGENTS.md`） |

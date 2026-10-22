@@ -43,9 +43,10 @@ export function EnginePage({
     setKeyError(null)
     setModels([])
     setModelNotice(null)
-    await commit({ providerId, model: next?.defaultModel ?? '' })
-    const configured = await api.keyStatus(providerId)
-    if (active.current === providerId) onKeyConfigured(configured, providerId)
+    // Key 状态由 SettingsApp 监听 providerId 统一重查（审查 L27）。
+    // 保存失败时 commit 已把原因显示在页面顶部；这里吞掉 rejection，
+    // 免得 `void switchProvider(...)` 变成未处理的 rejection（审查 L28）。
+    await commit({ providerId, model: next?.defaultModel ?? '' }).catch(() => {})
   }
 
   const fetchModels = async () => {

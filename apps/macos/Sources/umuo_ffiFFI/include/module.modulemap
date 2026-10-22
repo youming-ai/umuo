@@ -1,0 +1,4 @@
+module umuo_ffiFFI {
+    header "umuo_ffiFFI.h"
+    export *
+}

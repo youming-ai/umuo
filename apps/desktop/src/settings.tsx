@@ -165,6 +165,33 @@ function SettingsApp() {
     return () => window.removeEventListener('focus', onFocus)
   }, [recheckPermissions])
 
+  // 供应商一变就重查 Key 状态，不管是从哪里改的：引擎页的下拉、翻译页的「常用组合」、
+  // 还是别的窗口改了设置后聚焦刷新。之前只有引擎页自己查，常用组合换了供应商后
+  // 侧栏的提示点还停在旧供应商上（审查 L27）。
+  const activeProviderId = settings?.providerId
+  useEffect(() => {
+    if (activeProviderId === undefined) return
+    // 本机模型不需要 Key：与首次载入时同一条规则。
+    if (!(providers.find((p) => p.id === activeProviderId)?.requiresKey ?? true)) {
+      setKeyConfigured(true)
+      return
+    }
+    // 结果回来时供应商可能又换了：只认最后一次。
+    let stale = false
+    api
+      .keyStatus(activeProviderId)
+      .then((configured) => {
+        if (!stale) setKeyConfigured(configured)
+      })
+      // 查不到时置为「不知道」，而不是留着上一个供应商的结论（审查 L28）。
+      .catch(() => {
+        if (!stale) setKeyConfigured(null)
+      })
+    return () => {
+      stale = true
+    }
+  }, [activeProviderId, providers])
+
   if (!settings || !tab) {
     return (
       <main className="space-y-2 p-6 text-sm">
@@ -249,7 +276,14 @@ function SettingsApp() {
               autostart={autostart}
               onAutostart={async (enabled) => {
                 // 磁盘写得成不成功只有 Rust 侧知道，以它返回的状态为准。
-                const actual = await api.setAutostart(enabled)
+                // 被拒绝时（例如从磁盘映像里运行）要把原因摆出来，不能只是开关弹回去。
+                let actual: boolean
+                try {
+                  actual = await api.setAutostart(enabled)
+                } catch (error) {
+                  setSaveError(String(error))
+                  return
+                }
                 setAutostart(actual)
                 await commit({ launchAtLogin: actual })
               }}

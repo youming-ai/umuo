@@ -49,6 +49,24 @@ impl Default for MacSpeech {
     }
 }
 
+/// `say` 的参数。文本前面一定要有 `--`：译文常以 `-` 开头（Markdown 列表「- 第一点」），
+/// 不加的话 `say` 会把它当成选项——轻则报 invalid option 不出声，
+/// 重则选中「-o/路径」按 ⌥R 会把那个文件覆盖成一段空录音。抽成纯函数是为了能测。
+fn say_args(voice: Option<&str>, spoken: &str) -> Vec<String> {
+    let mut args = Vec::new();
+    if let Some(voice) = voice {
+        args.extend(["-v".to_string(), voice.to_string()]);
+    }
+    args.extend(["--".to_string(), spoken.to_string()]);
+    args
+}
+
+/// 停掉一个朗读进程。kill 之后再 wait：不 wait 会留下僵尸进程。
+fn reap(mut child: Child) {
+    let _ = child.kill();
+    let _ = child.wait();
+}
+
 impl Speech for MacSpeech {
     fn speak(&self, text: &str, language: Option<&str>) -> Result<(), PlatformError> {
         let spoken = to_speech_text(text);
@@ -57,30 +75,29 @@ impl Speech for MacSpeech {
             return Ok(());
         }
 
+        // 「停上一段 → 起新的一段 → 存起来」在同一把锁里做完：分开做的话，两次并发的朗读
+        // 都能在对方存入之前停掉「上一段」，结果两段叠着念，而且先起的那段再也停不掉。
+        let mut current = self.child.lock().expect("朗读锁不应中毒");
         // 先停掉上一段：两段声音叠在一起比「后一次没生效」更让人烦躁。
-        self.stop()?;
+        if let Some(previous) = current.take() {
+            reap(previous);
+        }
 
-        let mut command = Command::new("/usr/bin/say");
         // 按系统**实际装了**的发音人来挑，而不是按一张硬编码的名字表——
         // 本机实测那张表里 8 个有 3 个没装，猜错的结果是「按了没反应」。
-        if let Some(voice) = language.and_then(|code| pick_voice(installed_voices(), code)) {
-            command.args(["-v", voice]);
-        }
-        let child = command
-            .arg(&spoken)
+        let voice = language.and_then(|code| pick_voice(installed_voices(), code));
+        let child = Command::new("/usr/bin/say")
+            .args(say_args(voice, &spoken))
             .spawn()
             .map_err(|e| PlatformError::Other(format!("无法启动朗读：{e}")))?;
 
-        *self.child.lock().expect("朗读锁不应中毒") = Some(child);
+        *current = Some(child);
         Ok(())
     }
 
     fn stop(&self) -> Result<(), PlatformError> {
-        let mut guard = self.child.lock().expect("朗读锁不应中毒");
-        if let Some(mut child) = guard.take() {
-            // kill 之后再 wait：不 wait 会留下僵尸进程。
-            let _ = child.kill();
-            let _ = child.wait();
+        if let Some(child) = self.child.lock().expect("朗读锁不应中毒").take() {
+            reap(child);
         }
         Ok(())
     }
@@ -90,9 +107,8 @@ impl Drop for MacSpeech {
     fn drop(&mut self) {
         // 客户端退出时若还在朗读，`say` 会变成一个被遗弃的进程继续说话。
         if let Ok(mut guard) = self.child.lock() {
-            if let Some(mut child) = guard.take() {
-                let _ = child.kill();
-                let _ = child.wait();
+            if let Some(child) = guard.take() {
+                reap(child);
             }
         }
     }
@@ -108,6 +124,16 @@ mod tests {
         let speech = MacSpeech::new();
         assert!(speech.stop().is_ok());
         assert!(speech.stop().is_ok());
+    }
+
+    #[test]
+    fn text_starting_with_a_dash_is_never_read_as_an_option() {
+        // 「-o/路径」不加 `--` 会被 say 当成「输出到文件」。
+        assert_eq!(say_args(None, "-o/tmp/x"), ["--", "-o/tmp/x"]);
+        assert_eq!(
+            say_args(Some("Tingting"), "- 第一点"),
+            ["-v", "Tingting", "--", "- 第一点"]
+        );
     }
 
     #[test]

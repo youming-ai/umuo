@@ -155,6 +155,9 @@ pub struct CustomStyle {
     pub few_shot: Vec<FewShotExample>,
     #[serde(default)]
     pub explain: bool,
+    /// 本版本不认识的字段，见 [`crate::UnknownFields`]。
+    #[serde(flatten)]
+    pub extra: crate::UnknownFields,
 }
 
 fn default_temperature() -> f32 {
@@ -306,6 +309,21 @@ pub fn render_template(template: &str, vars: &PromptVars<'_>, text: Option<&str>
     out
 }
 
+/// 渲染风格指令里的变量（审查 L10：设置页列出的变量以前会原样发给模型）。
+///
+/// 与 [`render_template`] 的区别在于缺值时的处理：指令是一句给模型读的话，
+/// 留下 `{source_lang}` 字面量只会让模型困惑，所以已知变量缺值时换成中性说法。
+/// `{text}` 不展开成正文——正文只放在 user 消息里，指令里写「原文」即可。
+pub fn render_instruction(instruction: &str, vars: &PromptVars<'_>) -> String {
+    let filled = PromptVars {
+        source_lang: Some(vars.source_lang.unwrap_or("原文的语言")),
+        target_lang: vars.target_lang,
+        glossary: Some(vars.glossary.unwrap_or("")),
+        app_name: Some(vars.app_name.unwrap_or("当前应用")),
+    };
+    render_template(instruction, &filled, Some("原文"))
+}
+
 /// 组装系统 Prompt：基础规则 + 语言信息 + 风格指令 + 术语表。
 pub fn build_system_prompt(style: &StyleSpec, vars: &PromptVars<'_>) -> String {
     let mut parts: Vec<String> = vec![BASE_RULES.to_string()];
@@ -315,7 +333,10 @@ pub fn build_system_prompt(style: &StyleSpec, vars: &PromptVars<'_>) -> String {
         lang.push_str(&format!("\n原文语言：{source}"));
     }
     parts.push(lang);
-    parts.push(format!("翻译风格：{}", style.instruction));
+    parts.push(format!(
+        "翻译风格：{}",
+        render_instruction(&style.instruction, vars)
+    ));
 
     if let Some(glossary) = vars.glossary {
         if !glossary.trim().is_empty() {
@@ -371,6 +392,16 @@ pub fn build_from_template(template: &str, vars: &PromptVars<'_>, text: &str) ->
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn unknown_fields_of_a_customstyle_survive_a_json_round_trip() {
+        // 新版本加的字段，旧版本读进来再写出去不能丢
+        let raw = r#"{"id":"s","label":"L","futureKnob":3}"#;
+        let value: CustomStyle = serde_json::from_str(raw).unwrap();
+        let back: serde_json::Value = serde_json::to_value(&value).unwrap();
+        let original: serde_json::Value = serde_json::from_str(raw).unwrap();
+        assert_eq!(back["futureKnob"], original["futureKnob"]);
+    }
 
     fn vars<'a>(target: &'a str) -> PromptVars<'a> {
         PromptVars {
@@ -449,6 +480,31 @@ mod tests {
     }
 
     #[test]
+    fn variables_in_a_custom_instruction_are_rendered() {
+        // 审查 L10：自建预设写的 {source_lang} 等变量以前原样发给模型。
+        let style = custom(
+            "mine",
+            "我的",
+            "把{source_lang}译成{target_lang}，语气贴合{app_name}，保留 {name}",
+        )
+        .validated()
+        .unwrap();
+        let mut known = vars("English");
+        known.source_lang = Some("中文");
+        known.app_name = Some("Slack");
+        let system = build_system_prompt(&style, &known);
+        assert!(system.contains("把中文译成English，语气贴合Slack，保留 {name}"));
+
+        // 缺值的已知变量换成中性说法，而不是留下花括号。
+        let missing = PromptVars {
+            source_lang: None,
+            ..vars("English")
+        };
+        let system = build_system_prompt(&style, &missing);
+        assert!(system.contains("把原文的语言译成English，语气贴合当前应用"));
+    }
+
+    #[test]
     fn unterminated_brace_is_left_alone_instead_of_being_dropped() {
         let out = render_template("前缀 {target_lang 后缀", &vars("English"), None);
         assert_eq!(out, "前缀 {target_lang 后缀");
@@ -477,6 +533,7 @@ mod tests {
 
     fn custom(id: &str, label: &str, instruction: &str) -> CustomStyle {
         CustomStyle {
+            extra: Default::default(),
             id: id.to_string(),
             label: label.to_string(),
             instruction: instruction.to_string(),

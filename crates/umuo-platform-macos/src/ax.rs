@@ -11,6 +11,7 @@
 use std::ffi::c_void;
 
 use core_foundation::base::TCFType;
+use core_foundation::boolean::CFBoolean;
 use core_foundation::string::{CFString, CFStringRef};
 
 /// Accessibility 元素句柄。
@@ -23,6 +24,7 @@ pub const AX_ERROR_API_DISABLED: i32 = -25211;
 #[link(name = "ApplicationServices", kind = "framework")]
 extern "C" {
     fn AXUIElementCreateSystemWide() -> AXUIElementRef;
+    fn AXUIElementCreateApplication(pid: i32) -> AXUIElementRef;
     fn AXUIElementCopyAttributeValue(
         element: AXUIElementRef,
         attribute: CFStringRef,
@@ -32,6 +34,11 @@ extern "C" {
         element: AXUIElementRef,
         attribute: CFStringRef,
         value: *const c_void,
+    ) -> i32;
+    fn AXUIElementIsAttributeSettable(
+        element: AXUIElementRef,
+        attribute: CFStringRef,
+        settable: *mut u8,
     ) -> i32;
     fn AXIsProcessTrusted() -> bool;
     fn AXUIElementGetPid(element: AXUIElementRef, pid: *mut i32) -> i32;
@@ -154,12 +161,53 @@ pub fn frontmost_pid() -> Option<i32> {
     }
 }
 
-/// 用 AX 直接改写选区内容。成功返回 true。
-pub fn set_selected_text(text: &str) -> bool {
+/// 把进程号为 `pid` 的应用切回前台（设它的 `AXFrontmost`）。请求被接受返回 true。
+///
+/// 浮窗「替换原文」用：用户点浮窗时 umuo 自己被激活了，要先把焦点还给源应用，
+/// 写回才会落到源应用的输入框里。走 AX 而不是 `NSRunningApplication`：
+/// 不为这一处多引一个 AppKit 绑定。返回 true 只表示系统接受了请求，
+/// 焦点真正回来要由调用方再看前台 pid 确认。
+pub fn activate_pid(pid: i32) -> bool {
+    if pid <= 0 {
+        return false;
+    }
+    let application = unsafe { AXUIElementCreateApplication(pid) };
+    if application.is_null() {
+        return false;
+    }
+    let key = CFString::new("AXFrontmost");
+    let error = unsafe {
+        AXUIElementSetAttributeValue(
+            application,
+            key.as_concrete_TypeRef(),
+            CFBoolean::true_value().as_CFTypeRef(),
+        )
+    };
+    unsafe { release(application) };
+    error == AX_ERROR_SUCCESS
+}
+
+/// 聚焦元素的某个属性是否可写。
+///
+/// 返回 `None` 表示**问不出来**（没有聚焦元素、该 App 不支持这个属性）——
+/// 与「明确不可写」不同：Electron 一类 App 常常问不出来，却能接受粘贴。
+pub fn is_settable(attribute: &str) -> Option<bool> {
+    let element = focused_element()?;
+    let key = CFString::new(attribute);
+    let mut settable: u8 = 0;
+    let error = unsafe {
+        AXUIElementIsAttributeSettable(element, key.as_concrete_TypeRef(), &mut settable)
+    };
+    unsafe { release(element) };
+    (error == AX_ERROR_SUCCESS).then_some(settable != 0)
+}
+
+/// 把聚焦元素的一个字符串属性设成 `text`。成功返回 true。
+fn set_string_attribute(attribute: &str, text: &str) -> bool {
     let Some(element) = focused_element() else {
         return false;
     };
-    let attribute = CFString::new("AXSelectedText");
+    let attribute = CFString::new(attribute);
     let value = CFString::new(text);
     let error = unsafe {
         AXUIElementSetAttributeValue(
@@ -170,6 +218,18 @@ pub fn set_selected_text(text: &str) -> bool {
     };
     unsafe { release(element) };
     error == AX_ERROR_SUCCESS
+}
+
+/// 用 AX 直接改写选区内容。成功返回 true。
+///
+/// 选区长度为 0 时，这等于在光标处**插入**——要替换整个输入框请用 [`set_focused_value`]。
+pub fn set_selected_text(text: &str) -> bool {
+    set_string_attribute("AXSelectedText", text)
+}
+
+/// 用 AX 把聚焦元素的整个值换成 `text`（整框替换）。成功返回 true。
+pub fn set_focused_value(text: &str) -> bool {
+    set_string_attribute("AXValue", text)
 }
 
 /// 把一个 +1 的 CFString 转成 Rust 字符串并释放它。

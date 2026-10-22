@@ -6,6 +6,6 @@
 
 三个最容易踩的点，先记住：
 
-1. **翻译逻辑在 Rust 内核 `crates/umuo-core`**，不在 TypeScript 里；改完跑 `bun run test:rust`。
+1. **翻译逻辑在 Rust**（内核 `crates/umuo-core`，编排 `crates/umuo-app`），不在 TypeScript 或 Swift 里；改完跑 `bun run test:rust`。
 2. **API Key 不能出现在前端、日志、配置文件或历史库里**——走系统 Keychain。
 3. **不要做浏览器扩展**（PRD §3.3 明确列为非目标）。

@@ -1,0 +1,54 @@
+# Agent Instructions
+
+本文件是本仓库对 AI agent 的唯一指令来源，`CLAUDE.md` 只做指针。
+
+## 仓库范围
+
+这里是 umuo 仓库的 `site/`：**umuo.app 官网（`apps/web`）与它的 Worker（`worker`）**，下文路径都相对 `site/`。
+它是独立的 Bun 项目，命令都在 `site/` 里跑；客户端代码在仓库根目录（`apps/`、`crates/`），不要搬进来。
+客户端闭源，官网文案不要写「开源 / MIT / 自行编译」之类的宣称。
+
+## 常用命令
+
+```bash
+bun install
+bun run dev:web        # 官网
+bun run dev:worker     # Worker（wrangler dev，本地 KV）
+bun run verify         # 提交前门禁：lint + type-check + vitest + build:web
+```
+
+正在从 wrangler 迁到 Void，**线上仍是 `wrangler deploy`**。Worker 的路由只有一份 `worker/src/dispatch.ts`：wrangler 入口 `worker/src/index.ts`
+与 Void 的中间件 `middleware/01.legacy.ts` 都只是调它。根目录的 `vite.config.ts` / `void.config.ts` 只给 Void 构建用
+（`bun run build:web && mise exec node@24 -- bunx vite build`，Void 要 Node ≥ 24.21），不要在这里跑 `void deploy`。
+**眼下这条 Void 构建会直接报错**「Run `void migrate` …」：void@1.2.1 的 voidPlugin 发现根目录同时有 `void.config.ts` 与 `wrangler.jsonc` 就拒绝构建
+（`void/dist/cloudflare-config-*.mjs` 的 `materializeCloudflareConfig`），要等迁移 PR 4 把配置并进 `void.config.ts` 才恢复；
+在那之前要试 Void 构建，就在临时目录里删掉 `wrangler.jsonc` 再跑。不要为此在仓库里跑 `void migrate`，它会把线上部署用的 `wrangler.jsonc` 挪走。
+`void-staging/` 是 staging Worker `umuo-app-void-staging` 的第二份 Void 配置（Void 只认 cwd 下的 `void.config.ts`，只能分目录），
+绑预览资源、不挂域名；除 `cloudflare` 与 `worker.vars` 外要与根 `void.config.ts` 一致（`scripts/void-config.test.ts`）。
+迁移的部署、验证与回滚命令都在 `docs/VOID-MIGRATION.md`，只由负责人执行。
+`wrangler` 在 `devDependencies` 里钉死确切版本，`bunx wrangler deploy`（线上部署命令）用的就是它；升 `void` 时一起核对（见 `docs/DEPLOY.md`）。
+Worker 配置是 `wrangler.jsonc`（Void 不认 TOML，别再加回 `wrangler.toml`）；域名、workers.dev、Preview URL、日志都按控制台现状显式写着，
+改它们就是改线上。`vars` 每项独占一行：`scripts/waffo-setup.ts` 按行改写、保留注释。
+
+## 官网的硬约束
+
+- **文案只有一个来源**：`apps/web/src/content/<locale>.ts`，五种语言（zh-cn / zh-tw / en / ja / ko）结构一致；新增文案五种语言都要写，
+  `content.test.ts` 会拦空串与漏翻。组件不写死句子。
+- **预渲染必须能 hydrate**：渲染期不读 `window`、不用随机数和计时器，副作用放进 effect（`hydration.test.tsx` 守着）。
+- **不放假下载链接**：`MACOS_DOWNLOAD_URL` 指向 Worker 的 `/download/macos`（读 R2 最新版）；设回 `null` 时下载按钮变为不可点。
+- 目前站点是首页一屏，外加 `/pricing`（定价，页眉右侧链接）与页脚链接的 `/terms`（服务条款）、`/privacy`（隐私政策）三张长文页。页眉左边 logo（蓝底、从水里探出头的小水獭，`LogoMark` 与 `public/favicon.svg` 是同一张图），右边定价（仓库是私有的，不放 GitHub 链接）。页面清单在 `apps/web/src/lib/pages.ts`，Worker 的 `PAGES`（`worker/src/locale.ts`）要同步。
+- **只宣称已发布客户端做得到的事**：语音输入、免 Key 通道、账号与应用内订阅目前都还没有，只能写成「即将推出 / 尚未上线」。改首页或定价文案前，先对一遍仓库根目录的 `docs/PRD-CONFORMANCE.md`。
+- **定价页必须在网站上写清各方案价格与计费周期**（Waffo 审核要求，不能只写在应用内）；价格、试用、退款改动时，定价页与条款第 4、5、7 条要一起改。
+- **条款与隐私政策按 Waffo Pancake 的 V1（订阅）模板写**，支付处理方必须写作 `Waffo Pancake`；经营者名称、国家与版本 / 生效日期集中在 `config.ts` 的 `LEGAL_*`。改条款时更新版本与日期，重大变更提前 14 天邮件通知。
+- **地址不带语言前缀**：只有 `umuo.app/`。Worker（`worker/src/locale.ts`）按 cookie `umuo-lang` → `Accept-Language` → 简体中文挑一份 `dist/<locale>/index.html` 返回；页面上切换语言只写 cookie、就地换内容；`/en/` 这类旧地址 301 回 `/`。
+
+## 视觉方向：「对照本」
+
+官网排成一本双语对照本，这是定过的方向，别退回通用的 landing 模板：
+
+- **首页只有一屏、不滚动**：左边标题与下载，右边可切换读 / 写 / 说的演示；改动后用 1280×720 与 390×844 量一下 `scrollHeight`。
+- 白纸墨字，全站自托管 Open Sans（中日韩回落系统字体）；唯一的颜色是 macOS 文字选区蓝（logo 是例外：它是满底色的彩色图标，别按这条规则去色）。
+- 左对齐，但页面网格居中并铺满（最宽约 76rem）；区块头像书的章首，标题左、描述右。
+- 字体只用自托管或系统字体，不引 Google Fonts 等外部服务（大陆访问不稳且阻塞首屏）。
+- **不要加回**：深色光晕 / 渐变、胶囊形 eyebrow 标签、标题里单个渐变词、`A · B · C` 式中间点、千篇一律的圆角卡片墙、无意义的 01/02/03 编号。
+- 全页只有一处自发动效：首屏译文逐字流式出现（尊重 reduced-motion）；切换演示模式时重新流出，属于访客触发。

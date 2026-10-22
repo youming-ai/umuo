@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest'
 
+import { tFor } from './i18n'
+
 import {
+  engineForLocalModel,
+  engineForSavedKey,
   hasUsableEngine,
   isStepSatisfied,
   nextStep,
@@ -31,11 +35,13 @@ describe('步骤顺序', () => {
     ])
   })
 
-  it('每一步都有说明，用户不必回 PRD 查', () => {
+  it('每一步的标题都走文案表，界面语言切换后跟着变（审查 L24）', () => {
+    const en = tFor('en')
     for (const step of STEPS) {
-      expect(step.title.length).toBeGreaterThan(0)
-      expect(step.hint.length).toBeGreaterThan(0)
+      // 文案表里缺这条时 t() 返回 key 本身
+      expect(en(step.titleKey)).not.toBe(step.titleKey)
     }
+    expect(en(STEPS[0].titleKey)).toBe('Welcome')
   })
 
   it('第一步没有上一步，最后一步没有下一步', () => {
@@ -101,5 +107,33 @@ describe('有没有能用的引擎', () => {
   it('任一存在即可用', () => {
     expect(hasUsableEngine({ ...fresh, keyConfigured: true })).toBe(true)
     expect(hasUsableEngine({ ...fresh, localModelFound: true })).toBe(true)
+  })
+})
+
+describe('引导写进设置的默认引擎', () => {
+  it('保存 Key 后首选换成这家，模型用它的默认模型', () => {
+    expect(engineForSavedKey('anthropic', 'claude-3-5-haiku-latest')).toEqual({
+      providerId: 'anthropic',
+      model: 'claude-3-5-haiku-latest',
+    })
+  })
+
+  it('只有本机模型时首选换成 Ollama 与探测到的模型', () => {
+    expect(engineForLocalModel('qwen2.5:7b', { keyConfigured: false, requiresKey: true })).toEqual({
+      providerId: 'ollama',
+      model: 'qwen2.5:7b',
+    })
+  })
+
+  it('首选已有 Key 时探测本机模型不改首选', () => {
+    expect(engineForLocalModel('qwen2.5:7b', { keyConfigured: true, requiresKey: true })).toBeNull()
+  })
+
+  it('首选已是本机供应商时不覆盖用户挑的模型', () => {
+    // 本机供应商不存 Key，keyStatus 永远是 false；从设置里重新打开引导时，
+    // 不能因此把 llama3:70b 换成探测到的第一个模型。
+    expect(
+      engineForLocalModel('qwen2.5:7b', { keyConfigured: false, requiresKey: false }),
+    ).toBeNull()
   })
 })

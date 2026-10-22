@@ -14,6 +14,10 @@ pub enum PlatformError {
     #[error("没有检测到选中的文本")]
     NoSelection,
 
+    /// 聚焦的元素不可写（只读文本、终端缓冲区等），或写入被拒绝。
+    #[error("当前位置不可写入：{detail}")]
+    NotWritable { detail: &'static str },
+
     #[error("剪贴板不可用：{0}")]
     Clipboard(String),
 

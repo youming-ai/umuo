@@ -2,14 +2,20 @@ name: CI
 
 # 两条门禁：TS 侧（客户端 UI）与 Rust 侧（翻译内核 + 平台适配）。
 # 客户端只承诺 macOS，所以 Rust 作业跑在 macOS runner 上——否则编译不了平台适配层。
+# 只改官网（site/）时不跑客户端门禁
 on:
   push:
     branches: [main]
+    paths-ignore: ['site/**', '.github/workflows/site.yml']
   pull_request:
     branches: [main]
+    paths-ignore: ['site/**', '.github/workflows/site.yml']
+  # Release 工作流先调用这一整套门禁，全部通过才构建与发布
+  workflow_call:
 
+# 被 Release 调用时 github.workflow 是 "Release"：与 push 触发的那次 CI 分在不同的组，互不取消
 concurrency:
-  group: ci-${{ github.ref }}
+  group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -17,13 +23,13 @@ jobs:
     name: Desktop UI (lint / types / tests / build)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       - name: Set up Bun
-        uses: oven-sh/setup-bun@v2
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
         with:
-          # 不写死小版本：仓库要求 bun >=1.2，写死一个本地版本在 CI 上可能并不存在
-          bun-version: latest
+          # 与 package.json 的 packageManager 一致，本地与 CI 用同一个 bun
+          bun-version-file: package.json
 
       - name: Install dependencies
         # lockfile 与 package.json 不一致时直接失败，而不是悄悄改锁文件
@@ -41,18 +47,36 @@ jobs:
       - name: Build desktop UI
         run: bun run build:desktop-ui
 
-  rust:
-    name: Rust (fmt / clippy / tests)
-    runs-on: macos-14
+  # 应用层与内核必须不依赖平台：在 Linux 上编译并测试，谁不小心引入 Tauri / AppKit 就在这里红。
+  app-core-linux:
+    name: umuo-app + umuo-core on Linux
+    runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
         with:
+          toolchain: stable
+
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
+
+      - name: Tests
+        run: cargo test -p umuo-app -p umuo-core
+
+  rust:
+    name: Rust (fmt / clippy / tests)
+    runs-on: macos-15  # macos-14 镜像 2026-11-02 退役（actions/runner-images#13518）
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
+        with:
+          toolchain: stable
           components: rustfmt, clippy
 
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
 
       - name: Format check
         run: cargo fmt --all -- --check
@@ -62,3 +86,38 @@ jobs:
 
       - name: Tests
         run: cargo test --workspace
+
+  macos-app:
+    # SwiftUI 客户端（apps/macos）。swift-tools-version 6.0 要 Xcode 16，所以用 macos-15，
+    # 不和上面的 Rust job 共用 macos-14。--selftest 从 Swift 逐项调用 Rust 内核并校验结果。
+    name: macOS app (SwiftUI + umuo-core)
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
+        with:
+          toolchain: stable
+
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
+
+      - name: Build core and Swift bindings
+        run: PROFILE=debug apps/macos/scripts/build-core.sh
+
+      - name: Build app
+        working-directory: apps/macos
+        run: swift build
+
+      # 视图模型与纯规则（Swift Testing）。完整 Xcode 自己找得到 TestingMacros；只装 CLT 的本机见 verify.sh
+      - name: Swift tests (view models and rules)
+        working-directory: apps/macos
+        run: swift test
+
+      - name: Self-test (Swift → Rust)
+        working-directory: apps/macos
+        run: .build/debug/Umuo --selftest
+
+      # 打包冒烟：同一份 debug 产物组装成 ad-hoc 签名的 umuo.app，验签名、Info.plist 与资源包位置，再从 .app 里跑 --selftest
+      - name: Bundle smoke (umuo.app)
+        run: sh apps/macos/scripts/bundle.sh --quick

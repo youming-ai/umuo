@@ -167,6 +167,7 @@ export function DraftInput({
   list,
   label,
   onError,
+  badInputMessage,
 }: {
   id?: string
   value: string
@@ -178,6 +179,8 @@ export function DraftInput({
   list?: string
   label?: string
   onError?: (message: string | null) => void
+  /** 数字框里填了浏览器认不出的内容（如「10,5」）时显示的提示。 */
+  badInputMessage?: string
 }) {
   const [draft, setDraft] = useState(value)
   const field = useRef<HTMLInputElement & HTMLTextAreaElement>(null)
@@ -189,6 +192,12 @@ export function DraftInput({
 
   // 提交时读输入框此刻的内容，而不是 state 里的草稿：不依赖「失焦前 React 已经重新渲染过」。
   const commit = (next: string) => {
+    // 数字框填了「10,5」这类内容时，浏览器给出的 value 是空串——直接提交会被当成「清空」，
+    // 月度上限就这样被悄悄删掉了。认不出来就拒绝提交、说明原因，草稿留着让用户改。
+    if (type === 'number' && field.current?.validity.badInput) {
+      onError?.(badInputMessage ?? null)
+      return
+    }
     if (next === value) return
     onError?.(null)
     const pending = onCommit(next)

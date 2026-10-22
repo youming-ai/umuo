@@ -167,13 +167,6 @@ pub fn cost_since(entries: &[LedgerEntry], now: i64, days: i64) -> f64 {
         .sum()
 }
 
-/// 是否已经超出月度上限（PRD §5.10「支持按 Provider 设月度上限」）。
-///
-/// 上限为 `None` 表示用户没设，永远不超。
-pub fn over_cap(spent_usd: f64, cap_usd: Option<f64>) -> bool {
-    matches!(cap_usd, Some(cap) if cap > 0.0 && spent_usd >= cap)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -242,7 +235,7 @@ mod tests {
 
     /// 「翻译 1,000 句约 $0.04」的推导（PRD §11.2）：gpt-4o-mini、每句 40 输入 + 60 输出 token。
     ///
-    /// 官网（公开仓库 youming-ai/umuo）首页收成一屏后已不展示这个费用示例；
+    /// 官网（`site/`）首页收成一屏后已不展示这个费用示例；
     /// 以后放回去时按这里的推导写。牌价一变这条测试就会失败，届时官网文案与这里的常数一起改。
     #[test]
     fn the_website_cost_example_matches_the_price_table() {
@@ -296,14 +289,5 @@ mod tests {
         ];
         assert!((cost_since(&entries, now, 30) - 0.001).abs() < 1e-9);
         assert!(cost_since(&entries, now, 60) > 99.0);
-    }
-
-    #[test]
-    fn cap_is_only_exceeded_when_one_is_set() {
-        assert!(!over_cap(1_000_000.0, None), "没设上限就不该拦");
-        assert!(over_cap(5.0, Some(5.0)), "达到上限即视为超出");
-        assert!(over_cap(6.0, Some(5.0)));
-        assert!(!over_cap(4.99, Some(5.0)));
-        assert!(!over_cap(10.0, Some(0.0)), "0 表示不限制，而不是立刻拦下");
     }
 }

@@ -41,6 +41,9 @@ function Compose() {
   const [providers, setProviders] = useState<ProviderInfo[]>([])
   const [styles, setStyles] = useState<StyleInfo[]>([])
   const [state, dispatch] = useReducer(reduce, initialState)
+  // 回译单独一份状态：它与主译文共用同一套事件，混在一起的话回译结果会覆盖主译文，
+  // ⌘Enter 提交出去的就成了原语言（审查 M16）。
+  const [back, backDispatch] = useReducer(reduce, initialState)
   const [notice, setNotice] = useState<string | null>(null)
 
   // 调度状态放在 ref 里：它参与的是时序决策，不需要触发渲染。
@@ -60,10 +63,13 @@ function Compose() {
           dispatch({
             type: 'error',
             payload: {
+              // 命令在登记请求之前就失败了，没有 id：算作当前这次的结果。
+              requestId: null,
               message: String(error),
               actions: [],
               needsPermission: false,
               permission: null,
+              source: null,
             },
           })
           // 命令直接失败（例如文本为空）时不会收到 done/error 事件，
@@ -74,6 +80,10 @@ function Compose() {
     },
     [sourceLang, targetLang, providerId, styleId],
   )
+  // 事件回调通过 ref 调最新的 send：订阅只建一次。若把 send 放进订阅的依赖，
+  // 每改一次下拉都会退订再重订，间隙里到达的 done 被丢掉，队列就永远卡在 streaming（审查 L22）。
+  const sendRef = useRef(send)
+  sendRef.current = send
 
   useEffect(() => {
     const textarea = document.querySelector('textarea')
@@ -113,21 +123,25 @@ function Compose() {
     let dispose: (() => void) | undefined
     let cancelled = false
     void onTranslationEvents({
-      onStart: (payload) => dispatch({ type: 'start', payload }),
-      onDelta: (text) => dispatch({ type: 'delta', text }),
+      onStart: (payload) => {
+        dispatch({ type: 'start', payload })
+        // 主译文换了，旧的回译就不再对应它；比这次更早的回译事件也一并作废。
+        backDispatch({ type: 'reset', requestId: payload.requestId })
+      },
+      onDelta: (requestId, text) => dispatch({ type: 'delta', requestId, text }),
       // 撰写窗里打一个单词也会出词卡——它和划词走的是同一条判定规则。
-      onCard: (payload) => dispatch({ type: 'card', payload }),
+      onCard: (requestId, payload) => dispatch({ type: 'card', requestId, payload }),
       onDone: (payload) => {
         dispatch({ type: 'done', payload })
         const decision = onSettled(queueRef.current)
         queueRef.current = decision.queue
-        if (decision.start) send(decision.start)
+        if (decision.start) sendRef.current(decision.start)
       },
       onError: (payload) => {
         dispatch({ type: 'error', payload })
         const decision = onSettled(queueRef.current)
         queueRef.current = decision.queue
-        if (decision.start) send(decision.start)
+        if (decision.start) sendRef.current(decision.start)
       },
     }).then((unlisten) => {
       if (cancelled) unlisten()
@@ -137,7 +151,30 @@ function Compose() {
       cancelled = true
       dispose?.()
     }
-  }, [send])
+  }, [])
+
+  // 回译那条道：只更新回译区，不碰主译文，也不推动撰写的调度队列。
+  useEffect(() => {
+    let dispose: (() => void) | undefined
+    let cancelled = false
+    void onTranslationEvents(
+      {
+        onStart: (payload) => backDispatch({ type: 'start', payload }),
+        onDelta: (requestId, text) => backDispatch({ type: 'delta', requestId, text }),
+        onCard: (requestId, payload) => backDispatch({ type: 'card', requestId, payload }),
+        onDone: (payload) => backDispatch({ type: 'done', payload }),
+        onError: (payload) => backDispatch({ type: 'error', payload }),
+      },
+      'back',
+    ).then((unlisten) => {
+      if (cancelled) unlisten()
+      else dispose = unlisten
+    })
+    return () => {
+      cancelled = true
+      dispose?.()
+    }
+  }, [])
 
   // 防抖：停止输入 500ms 后才把文本交给调度器。
   useEffect(() => {
@@ -153,7 +190,8 @@ function Compose() {
   const commit = useCallback(
     async (paste: boolean) => {
       const text = state.translation
-      if (!text.trim()) return
+      // 流式中途不提交：半截译文被粘进聊天框，撰写窗还随之收起（审查 M18）。
+      if (state.status !== 'done' || !text.trim()) return
       try {
         await api.composeCommit(text, paste)
         setNotice(paste ? t('compose.copiedPasted') : t('compose.copied'))
@@ -162,7 +200,7 @@ function Compose() {
       }
     },
     // `t` 要在依赖里：它随界面语言变化，提示文案得跟着换。
-    [t, state.translation],
+    [t, state.translation, state.status],
   )
 
   // ⌘Enter 复制并关闭；⌘⇧Enter 复制并粘贴回上一个 App；Esc 收起。
@@ -180,6 +218,10 @@ function Compose() {
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [commit])
+
+  // 只有完成的译文才能提交或回译。回译与主译文同在撰写窗这一个窗口上，
+  // 流式中途发起回译会把还没翻完的主译文顶掉。
+  const settled = state.status === 'done' && state.translation.trim() !== ''
 
   const backTranslate = () => {
     void api
@@ -306,21 +348,36 @@ function Compose() {
           )}
         </div>
 
+        {back.status !== 'idle' && (
+          <div className="max-h-24 overflow-auto border-t border-border-secondary px-3 py-2">
+            <p className="text-[11px] text-text-muted">{t('compose.backTranslate')}</p>
+            {back.status === 'streaming' && !back.translation && (
+              <p className="text-xs text-text-tertiary">{t('compose.translating')}</p>
+            )}
+            {back.translation && (
+              <p className="whitespace-pre-wrap text-xs leading-relaxed text-text-secondary">
+                {back.translation}
+              </p>
+            )}
+            {back.status === 'error' && <p className="text-xs text-error">{back.error}</p>}
+          </div>
+        )}
+
         <footer className="flex items-center justify-between gap-2 border-t border-border-secondary px-3 py-2">
           <div className="flex gap-1">
             <FooterButton
               label={t('compose.copy')}
-              disabled={!state.translation}
+              disabled={!settled}
               onClick={() => void commit(false)}
             />
             <FooterButton
               label={t('compose.copyPaste')}
-              disabled={!state.translation}
+              disabled={!settled}
               onClick={() => void commit(true)}
             />
             <FooterButton
               label={t('compose.backTranslate')}
-              disabled={!state.translation || !state.source}
+              disabled={!settled || !state.source}
               onClick={backTranslate}
             />
           </div>

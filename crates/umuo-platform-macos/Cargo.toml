@@ -21,6 +21,9 @@ keyring = { version = "3", features = ["apple-native"] }
 # Vision（本机 OCR）与它需要的 Objective-C 运行时。
 objc2 = "0.6"
 objc2-foundation = "0.3"
+# NSPasteboard：⌘C 取词降级要把剪贴板上**所有** item 与类型（图片、文件、富文本）原样存下再还回去，
+# arboard 只能读写纯文本。版本与 Tauri 依赖的那份相同，不引入新版本。
+objc2-app-kit = { version = "0.3", default-features = false, features = ["std", "NSPasteboard", "NSPasteboardItem"] }
 objc2-core-graphics = "0.3"
 objc2-vision = "0.3"
 # 解码 `screencapture` 写出的 PNG。纯 Rust，无系统依赖；

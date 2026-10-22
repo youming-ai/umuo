@@ -24,6 +24,13 @@ export type PanelStatus = 'idle' | 'streaming' | 'done' | 'error'
 
 export interface PanelState {
   status: PanelStatus
+  /**
+   * 正在显示的是哪一次请求。0 = 还没有过请求（后端的 id 从 1 起）。
+   *
+   * 增量、词卡、完成只认这个 id；被顶掉的旧请求迟到的事件一律丢掉——
+   * 否则换模型重译时两路译文会交错拼在一起（审查 M1）。
+   */
+  requestId: number
   /** 原文（用于对照与小字展示）。 */
   source: string
   /** 已累计的译文。 */
@@ -53,6 +60,7 @@ export interface PanelState {
 
 export const initialState: PanelState = {
   status: 'idle',
+  requestId: 0,
   source: '',
   translation: '',
   provider: '',
@@ -73,18 +81,25 @@ export const initialState: PanelState = {
 
 export type PanelAction =
   | { type: 'start'; payload: StartPayload }
-  | { type: 'delta'; text: string }
-  | { type: 'card'; payload: WordCard }
+  | { type: 'delta'; requestId: number; text: string }
+  | { type: 'card'; requestId: number; payload: WordCard }
   | { type: 'done'; payload: DonePayload }
   | { type: 'error'; payload: ErrorPayload }
-  | { type: 'reset' }
+  /**
+   * 清空回初始状态。`requestId` 是新的下限：id 不大于它的事件都算过期。
+   * 不给就沿用当前的——清空不该让已经被顶掉的旧请求重新「复活」。
+   */
+  | { type: 'reset'; requestId?: number }
 
 export function reduce(state: PanelState, action: PanelAction): PanelState {
   switch (action.type) {
     case 'start':
+      // 比当前还旧的 start：那次请求在发出 start 之前就已经被新请求顶掉了。
+      if (action.payload.requestId < state.requestId) return state
       // 每次 start 都整体重置：上一次翻译的译文绝不能残留进这一次。
       return {
         ...initialState,
+        requestId: action.payload.requestId,
         status: 'streaming',
         source: action.payload.text,
         provider: action.payload.provider,
@@ -97,16 +112,16 @@ export function reduce(state: PanelState, action: PanelAction): PanelState {
     case 'delta':
       // 只在 streaming 状态下追加：完成或报错之后迟到的增量必须被丢掉，
       // 否则用户会看到「译文在报错信息后面又冒出来一截」。
-      if (state.status !== 'streaming') return state
+      if (action.requestId !== state.requestId || state.status !== 'streaming') return state
       return { ...state, translation: state.translation + action.text }
 
     case 'card':
       // 词卡与增量互斥（后端在词卡模式下抑制了 delta），所以直接覆盖。
-      if (state.status !== 'streaming') return state
+      if (action.requestId !== state.requestId || state.status !== 'streaming') return state
       return { ...state, card: action.payload }
 
     case 'done':
-      if (state.status !== 'streaming') return state
+      if (action.payload.requestId !== state.requestId || state.status !== 'streaming') return state
       return {
         ...state,
         status: 'done',
@@ -119,18 +134,31 @@ export function reduce(state: PanelState, action: PanelAction): PanelState {
         metrics: action.payload,
       }
 
-    case 'error':
+    case 'error': {
+      const requestId = action.payload.requestId ?? state.requestId
+      // 被顶掉的旧请求报的错（典型是「已取消」）：用户已经在看新的那次了。
+      if (requestId < state.requestId) return state
+      // 当前这次出错：保留已经流出来的半段译文，它对用户仍有价值。
+      // 更新的请求在 start 之前就失败了（取词失败、黑名单、缺 Key…）：先清空，
+      // 否则上一次的原文和译文还挂在下面，「替换原文」会把旧译文写进新的应用（审查 M15）。
+      // 原文换成出错的这次请求自己的（有的话），「重试」才有东西可翻。
+      const base =
+        requestId === state.requestId
+          ? state
+          : { ...initialState, requestId, source: action.payload.source ?? '' }
       return {
-        ...state,
+        ...base,
         status: 'error',
         error: action.payload.message,
         errorActions: action.payload.actions,
         needsPermission: action.payload.needsPermission,
         permission: action.payload.permission,
       }
+    }
 
     case 'reset':
-      return initialState
+      // 下限只升不降：一个迟到的旧 start 触发的 reset 不能把已经作废的请求放回来。
+      return { ...initialState, requestId: Math.max(state.requestId, action.requestId ?? 0) }
   }
 }
 
@@ -172,4 +200,24 @@ export function replaceNotice(state: PanelState, t: Translate): string | null {
   if (state.status === 'done') return state.replaced ? t('panel.sourceReplaced') : null
   // 出错时不显示「已替换」：写回失败或目标已变都不会改动原文。
   return null
+}
+
+/**
+ * 重试 / 换模型 / 换风格要带上的模式。
+ *
+ * 只有 ocr 需要保住：OCR 结果窗的原文可编辑（PRD §5.5），丢了模式就退回 selection，
+ * 原文立刻变回只读（审查 L21）。其余模式交给后端默认值（selection）——
+ * 静默替换、撰写都有自己的入口，不该从浮窗重放。
+ */
+export function retranslateMode(state: PanelState): 'ocr' | null {
+  return state.mode === 'ocr' ? 'ocr' : null
+}
+
+/**
+ * 收藏时要存的译文。流式中途不让收藏（半截译文），词卡模式没有纯文本译文——
+ * 两种情况都存 null，而不是存空串或半截（审查 L23）：历史窗「复制」会把空串原样写进剪贴板。
+ */
+export function favoriteTranslation(state: PanelState): string | null {
+  if (state.status === 'streaming') return null
+  return state.translation || null
 }

@@ -1,0 +1,5 @@
+.build/
+.core/
+# 由 scripts/build-core.sh 生成
+Sources/umuo_ffiFFI/include/umuo_ffiFFI.h
+Sources/UmuoCore/umuo_ffi.swift

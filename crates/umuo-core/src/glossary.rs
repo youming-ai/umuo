@@ -11,6 +11,9 @@ use serde::{Deserialize, Serialize};
 pub struct GlossaryEntry {
     pub source: String,
     pub target: String,
+    /// 本版本不认识的字段，见 [`crate::UnknownFields`]。
+    #[serde(flatten)]
+    pub extra: crate::UnknownFields,
 }
 
 /// 一张术语表。按语言对生效（PRD §5.8）。
@@ -26,6 +29,9 @@ pub struct Glossary {
     pub target_lang: String,
     #[serde(default)]
     pub entries: Vec<GlossaryEntry>,
+    /// 本版本不认识的字段，见 [`crate::UnknownFields`]。
+    #[serde(flatten)]
+    pub extra: crate::UnknownFields,
 }
 
 /// 这张表是否该用在当前语言对上。
@@ -46,7 +52,9 @@ pub fn applies_to(glossary: &Glossary, source_lang: Option<&str>, target_lang: &
 /// 匹配规则：
 /// - 大小写不敏感（`Transformer` 与 `transformer` 是同一条）。
 /// - **纯 ASCII 术语要求词边界**：否则 `cat` 会命中 `concatenate`，
-///   用户会看到完全莫名其妙的强制译法。
+///   用户会看到完全莫名其妙的强制译法。边界只看 ASCII 字母数字——
+///   中日文字符的 `is_alphanumeric` 也是 true，按它判断的话「调用API接口」里的
+///   `API` 永远匹配不上（审查 M9）。
 /// - 中日韩术语按子串匹配（中文没有词边界这回事）。
 pub fn matches<'a>(glossary: &'a Glossary, text: &str) -> Vec<&'a GlossaryEntry> {
     let haystack = text.to_lowercase();
@@ -106,17 +114,19 @@ fn contains_term(haystack_lower: &str, needle_lower: &str) -> bool {
             let left_ok = haystack_lower[..start]
                 .chars()
                 .next_back()
-                .map(|c| !c.is_alphanumeric())
+                .map(|c| !c.is_ascii_alphanumeric())
                 .unwrap_or(true);
             let right_ok = haystack_lower[end..]
                 .chars()
                 .next()
-                .map(|c| !c.is_alphanumeric())
+                .map(|c| !c.is_ascii_alphanumeric())
                 .unwrap_or(true);
             if left_ok && right_ok {
                 return true;
             }
-            search_from = end;
+            // 从下一个字符接着找，而不是从 end：多词术语的命中可能与这次失败的位置重叠，
+            // 例如在「ba a a」里找「a a」（审查 L12）。`start` 处是 ASCII，`+1` 仍在字符边界上。
+            search_from = start + 1;
         }
         false
     } else {
@@ -152,9 +162,10 @@ impl Delimiter {
     /// 按「第一行里哪个分隔符出现得多」判断。两者都没有时按逗号处理——
     /// 单列文本在两种解析下都会得到同样的错误结果，选哪个都一样。
     pub fn sniff(text: &str) -> Self {
+        // 注释行不参与判断：注释里的逗号不说明数据用的是逗号。
         let first_line = text
             .lines()
-            .find(|line| !line.trim().is_empty())
+            .find(|line| !line.trim().is_empty() && !line.trim_start().starts_with('#'))
             .unwrap_or("");
         // 引号里的分隔符不算：`"a,b"\tc` 只有一个制表符。
         let mut commas = 0;
@@ -223,15 +234,16 @@ pub fn parse_delimited(text: &str) -> Vec<GlossaryEntry> {
         if record.iter().all(|f| f.trim().is_empty()) {
             return;
         }
+        // 注释行：`# ...` 只有一个字段。必须先于表头判定丢掉，
+        // 否则开头的注释会占掉「首行」，真正的表头被当成一条术语导入（审查 L11）。
+        if record.len() == 1 && record[0].trim_start().starts_with('#') {
+            return;
+        }
         if *first_record {
             *first_record = false;
             if looks_like_header(&record) {
                 return;
             }
-        }
-        // 注释行：`# ...` 只有一个字段。
-        if record.len() == 1 && record[0].trim_start().starts_with('#') {
-            return;
         }
         let source = record
             .first()
@@ -244,7 +256,11 @@ pub fn parse_delimited(text: &str) -> Vec<GlossaryEntry> {
         if source.is_empty() || target.is_empty() {
             return;
         }
-        entries.push(GlossaryEntry { source, target });
+        entries.push(GlossaryEntry {
+            extra: Default::default(),
+            source,
+            target,
+        });
     };
 
     let mut chars = text.chars().peekable();
@@ -306,8 +322,29 @@ pub fn to_csv(entries: &[GlossaryEntry]) -> String {
 mod tests {
     use super::*;
 
+    #[test]
+    fn unknown_fields_of_a_glossary_survive_a_json_round_trip() {
+        // 新版本加的字段，旧版本读进来再写出去不能丢
+        let raw = r#"{"id":"g","name":"G","futureTag":[1]}"#;
+        let value: Glossary = serde_json::from_str(raw).unwrap();
+        let back: serde_json::Value = serde_json::to_value(&value).unwrap();
+        let original: serde_json::Value = serde_json::from_str(raw).unwrap();
+        assert_eq!(back["futureTag"], original["futureTag"]);
+    }
+
+    #[test]
+    fn unknown_fields_of_a_glossaryentry_survive_a_json_round_trip() {
+        // 新版本加的字段，旧版本读进来再写出去不能丢
+        let raw = r#"{"source":"a","target":"b","futureNote":"x"}"#;
+        let value: GlossaryEntry = serde_json::from_str(raw).unwrap();
+        let back: serde_json::Value = serde_json::to_value(&value).unwrap();
+        let original: serde_json::Value = serde_json::from_str(raw).unwrap();
+        assert_eq!(back["futureNote"], original["futureNote"]);
+    }
+
     fn entry(source: &str, target: &str) -> GlossaryEntry {
         GlossaryEntry {
+            extra: Default::default(),
             source: source.into(),
             target: target.into(),
         }
@@ -315,6 +352,7 @@ mod tests {
 
     fn glossary(entries: Vec<GlossaryEntry>) -> Glossary {
         Glossary {
+            extra: Default::default(),
             id: "g1".into(),
             name: "技术术语".into(),
             source_lang: "en".into(),
@@ -332,6 +370,25 @@ mod tests {
             matches(&g, "concatenate the strings").is_empty(),
             "不该命中 concatenate"
         );
+    }
+
+    #[test]
+    fn ascii_terms_match_when_glued_to_cjk_text() {
+        // 审查 M9：中日文里的英文术语两侧通常没有空格。
+        let g = glossary(vec![entry("API", "接口"), entry("Transformer", "变换器")]);
+        assert_eq!(matches(&g, "调用API接口").len(), 1);
+        assert_eq!(matches(&g, "Transformerモデル").len(), 1);
+        // 词边界仍然只对 ASCII 字母数字生效。
+        assert!(matches(&g, "rapid").is_empty());
+        assert!(matches(&g, "API2").is_empty());
+    }
+
+    #[test]
+    fn a_failed_match_does_not_skip_an_overlapping_hit() {
+        // 审查 L12：「ba a a」里第一处「a a」左边紧贴 b，失败后若从 end 继续，
+        // 就跳过了从第二个 a 开始的那次命中。
+        let g = glossary(vec![entry("a a", "x")]);
+        assert_eq!(matches(&g, "ba a a").len(), 1);
     }
 
     #[test]
@@ -383,6 +440,7 @@ mod tests {
     #[test]
     fn wildcard_language_fields_make_a_glossary_universal() {
         let universal = Glossary {
+            extra: Default::default(),
             id: "g".into(),
             name: "通用".into(),
             source_lang: String::new(),
@@ -474,6 +532,15 @@ mod tests {
     fn blank_lines_comments_and_single_column_rows_are_dropped() {
         let entries = parse_delimited("# 这是注释\n\nTransformer,变换器\n只有一列\n");
         assert_eq!(entries.len(), 1, "实际解析出：{entries:?}");
+    }
+
+    #[test]
+    fn a_leading_comment_does_not_hide_the_header_row() {
+        // 审查 L11：注释占了「首行」时，后面的表头会被当成一条术语导入。
+        let entries = parse_delimited("# 从 Excel 导出\n原文,译文\nTransformer,变换器\n");
+        assert_eq!(entries, vec![entry("Transformer", "变换器")]);
+        let entries = parse_delimited("# 注释\nsource\ttarget\nTransformer\t变换器\n");
+        assert_eq!(entries, vec![entry("Transformer", "变换器")]);
     }
 
     #[test]

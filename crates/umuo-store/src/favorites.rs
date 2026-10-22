@@ -132,6 +132,27 @@ impl Store {
         )? != 0)
     }
 
+    /// 这段文本是否以任一类型被收藏过。
+    ///
+    /// 星标按钮只认文本：「单词 / 句子」的判定规则会变（审查 M10 收紧了中日文词卡），
+    /// 旧规则下存成 Word 的收藏，在新规则下要是只按 Sentence 去查，就会显示成未收藏，
+    /// 再点一次还会多出一条重复收藏。
+    pub fn is_text_favorited(&self, text: &str) -> Result<bool, StoreError> {
+        Ok(self.connection().query_row(
+            "SELECT EXISTS(SELECT 1 FROM favorites WHERE text = ?1)",
+            [text],
+            |row| row.get::<_, i64>(0),
+        )? != 0)
+    }
+
+    /// 按文本取消收藏，不论当初存成哪种类型。理由同 [`Store::is_text_favorited`]。
+    pub fn remove_favorites_by_text_any_kind(&self, text: &str) -> Result<bool, StoreError> {
+        let affected = self
+            .connection()
+            .execute("DELETE FROM favorites WHERE text = ?1", [text])?;
+        Ok(affected > 0)
+    }
+
     pub fn favorites(&self, limit: u32, offset: u32) -> Result<Vec<Favorite>, StoreError> {
         let sql = format!("SELECT {COLUMNS} FROM favorites ORDER BY id DESC LIMIT ?1 OFFSET ?2");
         let mut stmt = self.connection().prepare(&sql)?;
@@ -223,6 +244,18 @@ mod tests {
         assert!(store
             .remove_favorite_by_text(FavoriteKind::Word, "b")
             .unwrap());
+        assert_eq!(store.favorite_count().unwrap(), 0);
+    }
+
+    #[test]
+    fn text_lookup_finds_favorites_saved_under_an_older_kind_rule() {
+        // 「本を読む」在旧规则下是 Word，新规则下判成 Sentence；星标仍要认得它。
+        let store = Store::open_in_memory().unwrap();
+        store.add_favorite(&favorite("本を読む", 1)).unwrap();
+        assert!(store.is_text_favorited("本を読む").unwrap());
+        assert!(!store.is_text_favorited("本").unwrap());
+        assert!(store.remove_favorites_by_text_any_kind("本を読む").unwrap());
+        assert!(!store.is_text_favorited("本を読む").unwrap());
         assert_eq!(store.favorite_count().unwrap(), 0);
     }
 

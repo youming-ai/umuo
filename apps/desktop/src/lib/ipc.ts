@@ -6,7 +6,8 @@
  */
 
 import { invoke } from '@tauri-apps/api/core'
-import { listen, type UnlistenFn } from '@tauri-apps/api/event'
+import { type EventCallback, listen, type UnlistenFn } from '@tauri-apps/api/event'
+import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow'
 
 export interface Settings {
   providerId: string
@@ -147,6 +148,8 @@ export interface StyleInfo {
 }
 
 export interface StartPayload {
+  /** 请求 id（全局单调递增，从 1 起）。窗口只认自己正在显示的那一次请求。 */
+  requestId: number
   text: string
   provider: string
   model: string
@@ -175,6 +178,7 @@ export interface ProviderLimit {
 }
 
 export interface DonePayload {
+  requestId: number
   model: string
   inputTokens: number
   outputTokens: number
@@ -202,10 +206,17 @@ export type SuggestedAction =
 export type PermissionKind = 'accessibility' | 'screenRecording'
 
 export interface ErrorPayload {
+  /**
+   * 这条错误属于哪次请求。后端发来的一律带 id；`null` 只出现在前端自己构造的错误上
+   * （命令直接失败、还没走到后端登记），表示「属于当前这次」。
+   */
+  requestId: number | null
   message: string
   actions: SuggestedAction[]
   needsPermission: boolean
   permission: PermissionKind | null
+  /** 出错的这次请求要翻的原文；取词失败这类还没拿到原文的为 `null`。 */
+  source: string | null
 }
 
 // ---------------------------------------------------------------- 多模型对比（PRD §5.6）
@@ -218,17 +229,21 @@ export interface CompareCard {
 }
 
 export interface CompareStart {
+  /** 这一轮对比的 id。只认最新一轮，上一轮迟到的事件一律丢掉。 */
+  runId: number
   text: string
   targetLang: string
   cards: CompareCard[]
 }
 
 export interface CompareDelta {
+  runId: number
   index: number
   text: string
 }
 
 export interface CompareDone {
+  runId: number
   index: number
   model: string
   totalMs: number
@@ -237,10 +252,19 @@ export interface CompareDone {
   outputTokens: number
   estimated: boolean
   costUsd: number | null
+  /** 译文不完整：输出触到长度上限，或连接在结束信号前断开。 */
+  truncated: boolean
 }
 
 export interface CompareError {
+  runId: number
   index: number
+  message: string
+}
+
+/** 整窗级的提示（没有可用模型、取词失败）。不属于任何一张卡片。 */
+export interface CompareNotice {
+  runId: number
   message: string
 }
 
@@ -321,6 +345,10 @@ export interface ImportSummary {
   customStyleCount: number
   glossaryCount: number
   bundleVersion: number
+  /** 改动了的端点：`[供应商 id, 新地址]`，自定义端点记作 `custom`，空串 = 回到内置地址。 */
+  endpointChanges: [string, string][]
+  blacklistAdded: string[]
+  blacklistRemoved: string[]
 }
 
 /** 撰写窗的本次临时选择（PRD §5.3）。全部可选，空值 = 用设置里的默认。 */
@@ -521,30 +549,45 @@ export const api = {
   favoriteRemove: (id: number) => invoke<boolean>('favorite_remove', { id }),
 }
 
-/** 订阅对比窗的四个事件，返回统一的反订阅函数。 */
 /** 快捷键重注册完成（设置里改了快捷键、或录键结束）。设置窗据此重新读注册失败清单。 */
 export function onHotkeysRegistered(handler: () => void): Promise<UnlistenFn> {
   return listen('hotkeys://registered', () => handler())
 }
 
+/**
+ * 只收**发给本窗口**的事件。
+ *
+ * 裸的 `listen()` 默认 target 是 Any，Tauri 遇到 Any 直接放行，Rust 侧 `emit_to` 的定向
+ * 就白做了：撰写窗会收到浮窗的译文，反过来也一样（审查 H2）。窗口专属的事件一律走这里；
+ * 设置变更、快捷键重注册这类本来就是广播的，仍用 `listen()`。
+ *
+ * `getCurrentWebviewWindow()` 放在调用时取：它读的是 Tauri 注入的窗口元数据，
+ * 模块加载时就取的话，没有这份元数据的测试环境一 import 就会抛错。
+ */
+function listenHere<T>(event: string, handler: EventCallback<T>): Promise<UnlistenFn> {
+  return getCurrentWebviewWindow().listen<T>(event, handler)
+}
+
+/** 订阅对比窗的五个事件，返回统一的反订阅函数。 */
 export async function onCompareEvents(handlers: {
   onStart: (payload: CompareStart) => void
   onDelta: (payload: CompareDelta) => void
   onDone: (payload: CompareDone) => void
   onError: (payload: CompareError) => void
+  onNotice: (payload: CompareNotice) => void
 }): Promise<UnlistenFn> {
   const unlisteners = await Promise.all([
-    listen<CompareStart>('compare://start', (e) => handlers.onStart(e.payload)),
-    listen<CompareDelta>('compare://delta', (e) => handlers.onDelta(e.payload)),
-    listen<CompareDone>('compare://done', (e) => handlers.onDone(e.payload)),
-    listen<CompareError>('compare://error', (e) => handlers.onError(e.payload)),
+    listenHere<CompareStart>('compare://start', (e) => handlers.onStart(e.payload)),
+    listenHere<CompareDelta>('compare://delta', (e) => handlers.onDelta(e.payload)),
+    listenHere<CompareDone>('compare://done', (e) => handlers.onDone(e.payload)),
+    listenHere<CompareError>('compare://error', (e) => handlers.onError(e.payload)),
+    listenHere<CompareNotice>('compare://notice', (e) => handlers.onNotice(e.payload)),
   ])
   return () => {
     for (const unlisten of unlisteners) unlisten()
   }
 }
 
-/** 订阅浮窗需要的四个事件，返回一个统一的反订阅函数。 */
 /**
  * 撰写窗的预填事件（浮窗的「在撰写窗打开」，PRD §5.2）。
  *
@@ -573,24 +616,51 @@ export async function onLocaleChanged(handler: (locale: string) => void): Promis
 export async function onComposePrefill(
   handler: (payload: { text: string; translation: string | null }) => void,
 ): Promise<UnlistenFn> {
-  return listen<{ text: string; translation: string | null }>('compose://prefill', (event) =>
+  return listenHere<{ text: string; translation: string | null }>('compose://prefill', (event) =>
     handler(event.payload),
   )
 }
 
-export async function onTranslationEvents(handlers: {
-  onStart: (payload: StartPayload) => void
-  onDelta: (text: string) => void
-  onCard: (payload: WordCard) => void
-  onDone: (payload: DonePayload) => void
-  onError: (payload: ErrorPayload) => void
-}): Promise<UnlistenFn> {
+/** 每个 translate:// 事件上都有的两个字段（Rust 侧 `translator::Tagged`）。 */
+interface Tag {
+  requestId: number
+  /** 撰写窗的回译。 */
+  back: boolean
+}
+
+/**
+ * 翻译事件分两条道：`main` 是正常的译文，`back` 是撰写窗的回译。
+ * 回译的结果不能覆盖主译文（审查 M16），所以在这里就按道分开，reducer 看不到另一条道的事件。
+ */
+export type TranslationLane = 'main' | 'back'
+
+export async function onTranslationEvents(
+  handlers: {
+    onStart: (payload: StartPayload) => void
+    onDelta: (requestId: number, text: string) => void
+    onCard: (requestId: number, payload: WordCard) => void
+    onDone: (payload: DonePayload) => void
+    onError: (payload: ErrorPayload) => void
+  },
+  lane: TranslationLane = 'main',
+): Promise<UnlistenFn> {
+  const mine = (tag: Tag) => tag.back === (lane === 'back')
   const unlisteners = await Promise.all([
-    listen<StartPayload>('translate://start', (e) => handlers.onStart(e.payload)),
-    listen<{ text: string }>('translate://delta', (e) => handlers.onDelta(e.payload.text)),
-    listen<WordCard>('translate://card', (e) => handlers.onCard(e.payload)),
-    listen<DonePayload>('translate://done', (e) => handlers.onDone(e.payload)),
-    listen<ErrorPayload>('translate://error', (e) => handlers.onError(e.payload)),
+    listenHere<StartPayload & Tag>('translate://start', (e) => {
+      if (mine(e.payload)) handlers.onStart(e.payload)
+    }),
+    listenHere<{ text: string } & Tag>('translate://delta', (e) => {
+      if (mine(e.payload)) handlers.onDelta(e.payload.requestId, e.payload.text)
+    }),
+    listenHere<WordCard & Tag>('translate://card', (e) => {
+      if (mine(e.payload)) handlers.onCard(e.payload.requestId, e.payload)
+    }),
+    listenHere<DonePayload & Tag>('translate://done', (e) => {
+      if (mine(e.payload)) handlers.onDone(e.payload)
+    }),
+    listenHere<ErrorPayload & Tag>('translate://error', (e) => {
+      if (mine(e.payload)) handlers.onError(e.payload)
+    }),
   ])
   return () => {
     for (const unlisten of unlisteners) unlisten()

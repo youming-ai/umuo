@@ -82,6 +82,12 @@ pub enum CoreError {
     #[error("写回原文失败：{detail}")]
     WriteBackFailed { detail: String },
 
+    /// 译文没说完（触到输出上限或连接中断），静默翻译拒绝拿它替换原文（审查 M4）。
+    ///
+    /// 只在写回路径上出现：浮窗照常显示半截译文并附一条提醒，用户自己判断。
+    #[error("译文不完整（输出被截断），已放弃替换原文")]
+    Truncated,
+
     /// 选了「自定义端点」却没填 Base URL。
     ///
     /// 单独一个变体是必要的：不拦的话请求会打到一个空 URL，
@@ -138,6 +144,8 @@ impl CoreError {
             // 写回失败不给「重试」：再点一次会重新翻译一遍再写一次，
             // 而在「目标已变」的情况下那正是我们要避免的行为。
             CoreError::WriteTargetChanged | CoreError::WriteBackFailed { .. } => vec![],
+            // 截断多半是输出上限太小：换个模型最可能管用；连接中断的话重试也行。
+            CoreError::Truncated => vec![SuggestedAction::SwitchModel, SuggestedAction::Retry],
             CoreError::CustomEndpointMissing
             | CoreError::AzureEndpointMissing
             | CoreError::NoEngine => {
@@ -174,15 +182,32 @@ pub fn classify_http_error(status: u16, body: &str, retry_after: Option<Duration
     let lower = body.to_ascii_lowercase();
     let has = |needle: &str| lower.contains(needle);
 
-    // 先看 body 再看状态码：429 配 "insufficient_quota" 是余额问题而非限流，
+    // 5xx 最先判（审查 M6）：网关错误页里什么词都可能有（"balance" 出现在负载均衡的
+    // 报错里），按关键词会把一次「等一下就好」的故障判成不可重试。
+    if (500..600).contains(&status) {
+        return CoreError::ServerError { status };
+    }
+
+    // 余额不足只认**明确的错误码**：429 配 "insufficient_quota" 是余额问题而非限流，
     // 两者的用户动作完全不同（一个是去充值，一个是等一下）。
+    // 不认 "exceeded your current quota" 与裸的 "balance"：前者也是 Gemini 免费档
+    // 每分钟限流的原话（RESOURCE_EXHAUSTED），后者太宽，误判后既不重试也不转移。
+    // "credit balance is too low" 是 Anthropic 余额不足的固定文案（它没有专门的错误码）；
+    // Moonshot 余额不足回 429 + `exceeded_current_quota_error`；
+    // "arrear" 同时覆盖 arrears 与通义的 `Arrearage`。
     if has("insufficient_quota")
         || has("insufficient_balance")
-        || has("exceeded your current quota")
-        || has("balance")
-        || has("arrears")
+        || has("insufficient balance")
+        || has("credit balance is too low")
+        || has("exceeded_current_quota_error")
+        || has("arrear")
     {
         return CoreError::InsufficientBalance;
+    }
+
+    // Gemini 的配额与限流都是 RESOURCE_EXHAUSTED，等一下或换个模型就能好。
+    if status == 429 || has("resource_exhausted") {
+        return CoreError::RateLimited { retry_after };
     }
 
     if has("invalid_api_key")
@@ -227,13 +252,11 @@ pub fn classify_http_error(status: u16, body: &str, retry_after: Option<Duration
         408 => CoreError::Timeout {
             after: Duration::from_secs(0),
         },
-        429 => CoreError::RateLimited { retry_after },
         451 => CoreError::RegionBlocked,
         // 400 且没匹配到任何已知关键词：多半是参数/模型名问题。
         400 => CoreError::BadResponse {
             detail: summarize(body),
         },
-        s if (500..600).contains(&s) => CoreError::ServerError { status: s },
         _ => CoreError::BadResponse {
             detail: format!("HTTP {status}：{}", summarize(body)),
         },
@@ -316,6 +339,68 @@ mod tests {
             err.actions(),
             vec![SuggestedAction::Retry, SuggestedAction::SwitchModel]
         );
+    }
+
+    #[test]
+    fn gemini_free_tier_quota_on_429_is_a_rate_limit_not_a_balance_problem() {
+        // 审查 M6：Gemini 免费档一分钟内连发几次就是这句话，等几秒就好。
+        let body = r#"{"error":{"code":429,"message":"You exceeded your current quota, please check your plan and billing details.","status":"RESOURCE_EXHAUSTED"}}"#;
+        let err = classify_http_error(429, body, None);
+        assert!(matches!(err, CoreError::RateLimited { .. }), "{err:?}");
+        assert!(err.is_failover_worthy());
+    }
+
+    #[test]
+    fn a_gateway_error_page_mentioning_balance_is_a_server_error() {
+        let body = "<html><body>502 Bad Gateway: load balancer upstream unavailable</body></html>";
+        let err = classify_http_error(502, body, None);
+        assert_eq!(err, CoreError::ServerError { status: 502 });
+        assert!(err.is_failover_worthy());
+        // 非 5xx 也不能因为一个裸词就判成余额不足。
+        let err = classify_http_error(
+            400,
+            r#"{"error":{"message":"balance field is invalid"}}"#,
+            None,
+        );
+        assert!(!matches!(err, CoreError::InsufficientBalance), "{err:?}");
+    }
+
+    #[test]
+    fn explicit_balance_codes_still_win() {
+        for (status, body) in [
+            (
+                402,
+                r#"{"error":{"message":"Insufficient Balance","type":"unknown_error"}}"#,
+            ),
+            (
+                400,
+                r#"{"type":"error","error":{"type":"invalid_request_error","message":"Your credit balance is too low to access the Anthropic API."}}"#,
+            ),
+            (429, r#"{"error":{"code":"insufficient_balance"}}"#),
+            (
+                429,
+                r#"{"error":{"type":"exceeded_current_quota_error","message":"Your account is suspended"}}"#,
+            ),
+            (
+                400,
+                r#"{"code":"Arrearage","message":"Access denied, please make sure your account is in good standing."}"#,
+            ),
+        ] {
+            assert_eq!(
+                classify_http_error(status, body, None),
+                CoreError::InsufficientBalance,
+                "{body}"
+            );
+        }
+    }
+
+    #[test]
+    fn a_truncated_translation_never_triggers_failover() {
+        // 截断是在「成功」之后才判的：钱已经花了、文本已经显示了，不该再换模型自动重来。
+        assert!(!CoreError::Truncated.is_failover_worthy());
+        assert!(CoreError::Truncated
+            .actions()
+            .contains(&SuggestedAction::SwitchModel));
     }
 
     #[test]

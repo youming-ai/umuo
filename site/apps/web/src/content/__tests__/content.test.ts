@@ -1,0 +1,164 @@
+import { describe, expect, it } from 'vitest'
+
+import { HTML_LANG, LOCALES } from '../../config'
+import { getContent } from '../index'
+
+/**
+ * 官网内容的回归保护。
+ *
+ * 类型系统只能保证「四种语言结构一致」，保证不了「都写了」——空字符串与漏翻
+ * （把中文原样复制到 ja）在类型上完全合法。这两类问题恰恰最容易发生：
+ * 加一段新文案时只填了一种语言，构建照样通过，页面上却是一块空白。
+ */
+
+function collectStrings(value: unknown, path: string, out: Array<[string, string]>): void {
+  if (typeof value === 'string') {
+    out.push([path, value])
+    return
+  }
+  if (Array.isArray(value)) {
+    value.forEach((item, index) => {
+      collectStrings(item, `${path}[${index}]`, out)
+    })
+    return
+  }
+  if (value && typeof value === 'object') {
+    for (const [key, nested] of Object.entries(value)) {
+      collectStrings(nested, `${path}.${key}`, out)
+    }
+  }
+}
+
+/**
+ * 显示宽度（半角为单位）。
+ *
+ * 标题与元描述的长度限制本质上是**像素**限制，而 CJK 字符的宽度约等于两个半角字符。
+ * 按 `String.length` 度量会把「32 个汉字」误判成和「32 个字母」一样长，
+ * 于是对中日文给出错误结论——这个测试的第一版就犯了这个错。
+ */
+function displayWidth(text: string): number {
+  let width = 0
+  for (const char of text) {
+    const code = char.codePointAt(0) ?? 0
+    const wide =
+      (code >= 0x1100 && code <= 0x115f) ||
+      (code >= 0x2e80 && code <= 0xa4cf) ||
+      (code >= 0xac00 && code <= 0xd7a3) ||
+      (code >= 0xf900 && code <= 0xfaff) ||
+      (code >= 0xfe30 && code <= 0xfe6f) ||
+      (code >= 0xff00 && code <= 0xff60) ||
+      (code >= 0xffe0 && code <= 0xffe6)
+    width += wide ? 2 : 1
+  }
+  return width
+}
+
+describe('官网内容完整性', () => {
+  it('每种语言都没有空白文案', () => {
+    for (const locale of LOCALES) {
+      const strings: Array<[string, string]> = []
+      collectStrings(getContent(locale), locale, strings)
+
+      expect(strings.length, `${locale} 的内容为空`).toBeGreaterThan(30)
+
+      const empty = strings.filter(([, value]) => value.trim().length === 0).map(([path]) => path)
+      expect(empty, `${locale} 里存在空文案`).toEqual([])
+    }
+  })
+
+  it('没有漏翻：每条文案都比对，而不只是标题', () => {
+    // 漏翻的典型形态：新加一段时把中文原样复制进其他语言，构建与类型检查都照样通过。
+    // 繁简之间很多句子本来就同形（「月付 $2.99」），所以只查：日文与任一中文版一字不差、英文与韩文里出现汉字。
+    const han = /[\u3400-\u9fff]/
+    const leaves = (locale: (typeof LOCALES)[number]) => {
+      const strings: Array<[string, string]> = []
+      collectStrings(getContent(locale), '', strings)
+      return strings
+    }
+    const chinese = new Set(
+      [...leaves('zh-cn'), ...leaves('zh-tw')].map(([path, value]) => `${path}\u0000${value}`),
+    )
+    const copied = leaves('ja')
+      .filter(
+        ([path, value]) =>
+          // 至少 4 个汉字才算「句子」：「$2.99 / 月」这种日中同形的短串不算漏翻
+          (value.match(/[\u3400-\u9fff]/g)?.length ?? 0) >= 4 &&
+          chinese.has(`${path}\u0000${value}`),
+      )
+      .map(([path]) => path)
+    expect(copied, 'ja 里有与中文版一模一样的句子').toEqual([])
+    for (const locale of ['en', 'ko'] as const) {
+      // 首屏演示的原文 / 译文本来就是中日文的例句，不算漏翻
+      const withHan = leaves(locale)
+        .filter(([path, value]) => han.test(value) && !path.startsWith('.hero.demo.modes'))
+        .map(([path]) => path)
+      expect(withHan, `${locale} 里出现了汉字`).toEqual([])
+    }
+  })
+
+  it('SEO 标题与描述都落在合理宽度内', () => {
+    for (const locale of LOCALES) {
+      const { title, description, ogLocale } = getContent(locale).seo
+
+      // 标题会被搜索结果**肉眼截断**，所以用较紧的上限（约 600px）。
+      expect(displayWidth(title), `${locale}: title 过宽会被截断（${title}）`).toBeLessThanOrEqual(
+        60,
+      )
+      expect(title.toLowerCase(), `${locale}: 标题里应出现品牌名`).toContain('umuo')
+
+      // 描述被截断的后果轻得多（搜索引擎经常自己重写），只拦明显失控的长度。
+      expect(displayWidth(description), `${locale}: description 过宽`).toBeLessThanOrEqual(320)
+      expect(displayWidth(description), `${locale}: description 过短`).toBeGreaterThan(40)
+
+      expect(ogLocale, `${locale}: OG locale 格式不对`).toMatch(/^[a-z]{2}_[A-Z]{2}$/)
+    }
+
+    const ogLocales = LOCALES.map((locale) => getContent(locale).seo.ogLocale)
+    expect(new Set(ogLocales).size).toBe(LOCALES.length)
+  })
+
+  it('每种语言都有 <html lang> 映射，且用 BCP-47 的 Hans/Hant 区分简繁', () => {
+    for (const locale of LOCALES) {
+      expect(HTML_LANG[locale], `${locale} 缺 html lang 映射`).toBeTruthy()
+    }
+    expect(HTML_LANG['zh-cn']).toBe('zh-Hans')
+    expect(HTML_LANG['zh-tw']).toBe('zh-Hant')
+  })
+
+  it('各语言的条款与隐私政策章节结构一致', () => {
+    const shape = (locale: (typeof LOCALES)[number]) => {
+      const { terms, privacy } = getContent(locale).legal
+      return [terms, privacy].map((doc) =>
+        doc.sections.map((section) =>
+          section.body.map((block) => (Array.isArray(block) ? block.length : typeof block)),
+        ),
+      )
+    }
+    for (const locale of LOCALES) {
+      expect(shape(locale), `${locale} 的法律文本结构与简体中文不一致`).toEqual(shape('zh-cn'))
+      expect(getContent(locale).legal.terms.sections, locale).toHaveLength(16)
+    }
+  })
+
+  it('条款、隐私政策与定价里没有未替换的模板占位符', () => {
+    // Waffo 审核会因为 [LEGAL NAME] 这类方括号占位符直接打回
+    for (const locale of LOCALES) {
+      const { legal, pricing } = getContent(locale)
+      const strings: Array<[string, string]> = []
+      collectStrings({ legal, pricing }, locale, strings)
+      const left = strings.filter(([, value]) => /\[[^\]]*\]/.test(value)).map(([path]) => path)
+      expect(left, `${locale} 还有占位符`).toEqual([])
+    }
+  })
+
+  it('只提供 macOS 下载：客户端只做 macOS，不承诺其他平台', () => {
+    for (const locale of LOCALES) {
+      const platforms = getContent(locale).hero.platforms
+      expect(
+        platforms.map((platform) => platform.id),
+        locale,
+      ).toEqual(['macos'])
+      expect(platforms[0]?.actionLabel.trim(), `${locale}: 按钮文案为空`).toBeTruthy()
+    }
+  })
+})

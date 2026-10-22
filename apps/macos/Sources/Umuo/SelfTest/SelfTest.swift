@@ -1,0 +1,62 @@
+import Foundation
+import UmuoCore
+
+/// 第 0 阶段验证：四种绑定形态（字符串、布尔、列表、回调）都能从 Swift 调通 Rust 内核；
+/// 阶段 1 起再加上 Engine：打开配置目录、设置往返、经本地 SSE 桩跑一次翻译与取消（见 `EngineSelfTest`）；
+/// 阶段 2 起加上正式宿主 `SwiftHost`：Keychain 往返（独立的测试服务名）、前台应用、写回的拒绝路径（见 `HostSelfTest`）。
+/// 取词：AX 取词的权限拒绝，⌘C 降级整段事务在私有剪贴板上跑（见 `SelectionSelfTest`）。
+/// 快捷键：解析与分流、Carbon 注册与失败上报（只用没人用的组合）、暂停与录键、修饰键对账与连按判定（见 `HotkeySelfTest`）。
+/// 截图 OCR：OcrResult 规则、PNG 解码、临时目录、编排文案，Vision 识别内存里画出的已知文字；框选本身不跑（见 `CaptureSelfTest`）。
+/// 浮窗：替换原文的 ⌘V 兜底（私有剪贴板、假的 ⌘V）与权限拒绝、看门狗与替换计划的 Rust 规则（见 `PanelSelfTest`）。
+/// 历史窗 / 快捷面板 / 首次引导：带筛选的查询、柱状图与用量一行、快捷面板状态、引导写的 patch、删除与清空（见 `DataSelfTest`）。
+/// 设置窗：交给 Rust 的 patch 形状过得了校验，嵌套对象里的未知字段留得住（见 `SettingsSelfTest`）。
+/// 打包：资源包（文案表、菜单栏图标）从哪里读到；scripts/bundle.sh 在 .app 里跑这一项，断言读的是 Contents/Resources。
+/// 朗读：挑发音人（四层优先级、避开趣味音）与文本清理同 Rust 的夹具，本机发音人按语言挑一遍；不出声（见 `SpeechSelfTest`）。
+enum SelfTest {
+    /// 收集 Rust 推回来的增量。回调可能来自任意线程，所以加锁。
+    final class Collector: DeltaSink, @unchecked Sendable {
+        private let lock = NSLock()
+        private(set) var deltas: [String] = []
+        private(set) var full = ""
+        func onDelta(text: String) { lock.withLock { deltas.append(text) } }
+        func onDone(fullText: String) { lock.withLock { full = fullText } }
+    }
+
+    @MainActor
+    static func run() -> Bool {
+        var ok = true
+        func check(_ name: String, _ passed: Bool, _ detail: String) {
+            print("\(passed ? "✓" : "✗") \(name): \(detail)")
+            ok = ok && passed
+        }
+
+        // 资源包找不到时 Bundle.module 直接 fatalError：在 .app 里跑到这里就说明 Contents/Resources 的布局对
+        let trayIcons = ["template", "brand", "black"].allSatisfy { TrayIcon.url($0) != nil }
+        check("resources", !StringCatalog.main.entries.isEmpty && trayIcons,
+              "\(Bundle.module.bundlePath)（\(Bundle.main.bundleIdentifier ?? "裸二进制，无 Bundle ID")）")
+
+        let lang = detectLanguage(text: "今天天气很好")
+        check("detectLanguage", lang == "zh", "今天天气很好 → \(lang ?? "nil")")
+
+        check("isWordMode", isWordMode(text: "serendipity") && !isWordMode(text: "This is a whole sentence here."),
+              "单词 → true，整句 → false")
+
+        let providers = providerCatalog()
+        check("providerCatalog", providers.count == 12 && providers.first?.id == "openai",
+              "\(providers.count) 家：\(providers.map(\.id).joined(separator: ", "))")
+
+        let collector = Collector()
+        demoStream(text: "你好 umuo", sink: collector)
+        check("demoStream", collector.deltas.count == 7 && collector.full == "你好 umuo",
+              "\(collector.deltas.count) 个增量 → \(collector.full)")
+
+        EngineSelfTest.run(check)
+        HostSelfTest.run(check)
+        SelectionSelfTest.run(check)
+        HotkeySelfTest.run(check)
+        CaptureSelfTest.run(check)
+        SpeechSelfTest.run(check)
+        PanelSelfTest.run(check)
+        return ok
+    }
+}

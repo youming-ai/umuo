@@ -7,18 +7,23 @@
 //! 浮窗要配一堆 macOS 特有的属性（透明、置顶、不进任务栏、不抢焦点），
 //! 运行时代码比 JSON 更能把这些意图写清楚。
 
+// 与窗口系统无关的应用层已搬进 `umuo-app`（Tauri 与以后的 SwiftUI 客户端共用）。
+// 重新导出后 `crate::settings::…` 这类路径照旧可用，外壳代码不用改。
+pub use umuo_app::{budget, config_io, glossaries, history, persist, requests, settings, stats};
+
 mod autostart;
-mod budget;
 mod commands;
 mod compare;
-mod config_io;
 mod double_tap;
-mod glossaries;
-mod history;
+mod host_mac;
+#[cfg(test)]
+mod pipeline_tests;
 mod screenshot;
-mod settings;
-mod stats;
+#[cfg(test)]
+mod settings_hotkey_test;
+mod sink;
 mod translator;
+mod updater;
 
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -29,19 +34,16 @@ use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent}
 use tauri::{Emitter, Manager, WebviewUrl, WebviewWindowBuilder};
 use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Modifiers, Shortcut, ShortcutState};
 
-use umuo_core::transport;
 use umuo_platform::SelectionReader;
 use umuo_platform_macos::{MacOcr, MacScreenCapture, MacSecretStore, MacSelection, MacSpeech};
-use umuo_store::Store;
 
-use glossaries::Glossaries;
 use settings::Settings;
-use stats::Stats;
 
-pub const PANEL_LABEL: &str = "panel";
+// 浮窗与撰写窗的标签由翻译流水线决定事件发往哪里，所以以 `umuo-app` 为准，这里只取别名。
+pub const PANEL_LABEL: &str = umuo_app::translate::PANEL_SURFACE;
 pub const SETTINGS_LABEL: &str = "settings";
 /// 撰写窗（PRD §5.3）。三个功能共用同一套事件协议，靠窗口标签区分收件人。
-pub const COMPOSE_LABEL: &str = "compose";
+pub const COMPOSE_LABEL: &str = umuo_app::translate::COMPOSE_SURFACE;
 /// 多模型对比窗（PRD §5.6）。
 pub const COMPARE_LABEL: &str = "compare";
 /// 翻译历史窗（PRD §5.9）。
@@ -53,21 +55,9 @@ pub const QUICK_LABEL: &str = "quick";
 
 /// 全局状态：所有命令与翻译流程共享的东西。
 pub struct AppState {
-    pub settings: Mutex<Settings>,
-    /// 对比偏好的本地统计（PRD §5.6）。与设置分开存，理由见 `stats.rs`。
-    pub stats: Mutex<Stats>,
-    /// 翻译历史与用量的 SQLite 库（PRD §5.9）。
-    ///
-    /// `None` = 打开失败。**这时客户端照常启动**——历史不可用不该让整个翻译工具打不开，
-    /// 失败原因留在 `store_error` 里给 UI 显示。
-    pub store: Mutex<Option<Store>>,
-    pub store_error: Option<String>,
-    pub config_dir: PathBuf,
-    /// 复用一个 HTTP 客户端，让连接池与 TLS 会话能跨请求复用——
-    /// 每次翻译新建客户端会白白多付一次 TLS 握手的延迟。
-    pub client: reqwest::Client,
-    /// 轮询式取消标志（用户按 Esc）。
-    pub cancel: Arc<AtomicBool>,
+    /// 两个客户端共用的那一半（设置、术语表、统计、历史库、HTTP 客户端、请求登记）。
+    /// 经 `Deref` 直接访问：`state.settings` 就是 `state.core.settings`。
+    pub core: Arc<umuo_app::AppCore>,
     pub selection: MacSelection,
     pub secrets: MacSecretStore,
     /// 屏幕捕获与 OCR（PRD §5.5）。两个都是无状态单元结构体。
@@ -77,12 +67,13 @@ pub struct AppState {
     pub speech: MacSpeech,
     /// 修饰键监听（连按两下快捷键用）；只在设了连按快捷键时才启动。
     pub modifier_monitor: umuo_platform_macos::MacModifierMonitor,
-    /// 术语表（PRD §5.8）。单独一个文件，不塞进 settings.json。
-    pub glossaries: Mutex<Glossaries>,
     /// 浮窗是否被钉住（PRD §7.1「可钉住」）。钉住时用户切走也不自动收起。
     pub panel_pinned: Arc<AtomicBool>,
     /// 当前浮窗里那次翻译「属于」哪个前台应用——看门狗据此判断用户是否切走。
     pub panel_owner: Mutex<Option<String>>,
+    /// 唤出撰写窗时的前台应用：⌘⇧Enter 只往它里面粘贴。`None` = 是从 umuo 自己的窗口唤出的，
+    /// 没有可以粘回去的外部应用。
+    pub compose_owner: Mutex<Option<String>>,
     /// 暂停：暂停期间所有全局快捷键都不响应（PRD §7.1 快捷面板的「暂停/恢复」）。
     ///
     /// 场景是「我要用这个组合键干别的」——比如在游戏里、或临时和别的应用抢键位。
@@ -98,64 +89,44 @@ pub struct AppState {
     pub recording_until: Mutex<Option<std::time::Instant>>,
 }
 
+// 过渡用：外壳里大量 `state.settings` / `state.store` 不必逐处改成 `state.core.…`。
+// Tauri 外壳删除时（迁移阶段 6）这个 impl 随之删除。
+impl std::ops::Deref for AppState {
+    type Target = umuo_app::AppCore;
+    fn deref(&self) -> &Self::Target {
+        &self.core
+    }
+}
+
+/// 取应用层状态。给只拿得到 `AppHandle` 的地方用（`history::*`、`budget::resolve` 等）。
+pub fn core(app: &tauri::AppHandle) -> Arc<umuo_app::AppCore> {
+    app.state::<AppState>().core.clone()
+}
+
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .setup(|app| {
             let handle = app.handle().clone();
             let config_dir = handle
                 .path()
                 .app_config_dir()
                 .unwrap_or_else(|_| PathBuf::from("."));
-            let settings = Settings::load(&config_dir);
-            let stats = Stats::load(&config_dir);
-            let glossaries = Glossaries::load(&config_dir);
-            // 客户端按设置里的代理意图构建一次（PRD §8）。改代理需要重启——
-            // 重建客户端要换掉所有已发出的连接，运行中做这件事的复杂度
-            // 远大于它带来的便利（设置里已写明）。
-            // 代理设置有问题**不能让应用起不来**：它是网络配置，不是核心数据。
-            // （设置页保存时会当场拦下，所以这条只会被手改过的配置文件触发。）
-            let proxy = match settings.proxy_choice() {
-                Ok(choice) => choice,
-                Err(error) => {
-                    eprintln!("umuo: 代理设置有问题，这次按「跟随系统」处理：{error}");
-                    umuo_core::proxy::ProxyChoice::System
-                }
-            };
-            let client = transport::build_client_with(&proxy).map_err(|e| e.to_string())?;
-
-            // 打开历史库并按保留天数清理。失败只记录原因，不让启动失败。
-            let (store, store_error) =
-                match history::open_and_prune(&config_dir, settings.history_retention_days) {
-                    Ok((store, pruned)) => {
-                        if pruned > 0 {
-                            println!("umuo: 按保留策略清理了 {pruned} 条历史");
-                        }
-                        (Some(store), None)
-                    }
-                    Err(error) => {
-                        eprintln!("umuo: 历史数据库不可用（翻译功能不受影响）：{error}");
-                        (None, Some(error))
-                    }
-                };
+            let core = umuo_app::AppCore::open(config_dir, Arc::new(host_mac::MacHost))?;
+            let settings = core.settings.lock().expect("设置锁不应中毒").clone();
 
             app.manage(AppState {
-                settings: Mutex::new(settings.clone()),
-                stats: Mutex::new(stats),
-                store: Mutex::new(store),
-                store_error,
-                config_dir,
-                client,
-                cancel: Arc::new(AtomicBool::new(false)),
+                core: Arc::new(core),
                 selection: MacSelection,
                 secrets: MacSecretStore,
                 capture: MacScreenCapture,
                 ocr: MacOcr,
                 speech: MacSpeech::new(),
                 modifier_monitor: umuo_platform_macos::MacModifierMonitor::new(),
-                glossaries: Mutex::new(glossaries),
                 panel_pinned: Arc::new(AtomicBool::new(false)),
                 panel_owner: Mutex::new(None),
+                compose_owner: Mutex::new(None),
                 paused: Arc::new(AtomicBool::new(false)),
                 hotkey_failures: Mutex::new(Vec::new()),
                 recording_until: Mutex::new(None),
@@ -172,6 +143,7 @@ fn main() {
             build_tray(&handle, &settings)?;
             register_hotkeys(&handle, &settings);
             spawn_panel_watcher(&handle);
+            updater::spawn_startup_check(&handle);
 
             // 首次启动引导（PRD §7.4）。**错开 400 ms**：托盘图标、快捷键、
             // 浮动窗都还在初始化，抢在前面弹窗会显得客户端「一启动就弹东西」。
@@ -307,7 +279,12 @@ fn spawn_panel_watcher(app: &tauri::AppHandle) {
             .expect("浮窗归属锁不应中毒")
             .clone();
         let current = state.selection.frontmost_app_token();
-        if translator::should_auto_hide(pinned, owner.as_deref(), current) {
+        if translator::should_auto_hide(
+            pinned,
+            owner.as_deref(),
+            current,
+            &translator::own_app_token(),
+        ) {
             let _ = panel.hide();
         }
     });
@@ -340,6 +317,7 @@ fn build_compose(app: &tauri::AppHandle) -> tauri::Result<()> {
 ///
 /// 「在撰写窗打开」要的是**显示**而不是切换：用户从浮窗点过来时，
 /// 撰写窗如果已经开着，切换会把它收起来——正好相反。
+/// 粘贴目标由调用方 `open_compose_with` 按来源重新计算，这里不记。
 pub fn show_compose(app: &tauri::AppHandle) {
     let Some(window) = app.get_webview_window(COMPOSE_LABEL) else {
         return;
@@ -347,6 +325,41 @@ pub fn show_compose(app: &tauri::AppHandle) {
     let _ = window.center();
     let _ = window.show();
     let _ = window.set_focus();
+}
+
+/// 唤出撰写窗**之前**记下前台应用：⌘⇧Enter 要粘回的是它。撰写窗收起后接过焦点的
+/// 可能是 umuo 自己的历史窗或设置窗，不记的话译文会被粘进那里的输入框。
+fn remember_compose_owner(app: &tauri::AppHandle) {
+    let Some(state) = app.try_state::<AppState>() else {
+        return;
+    };
+    let owner = compose_owner(state.selection.frontmost_app_token(), std::process::id());
+    *state.compose_owner.lock().expect("撰写窗目标锁不应中毒") = owner;
+}
+
+/// 前台是 umuo 自己（从历史窗「再次编辑」等）时没有外部目标。抽成纯函数是为了能测。
+pub(crate) fn compose_owner(token: Option<String>, own_pid: u32) -> Option<String> {
+    token.filter(|token| *token != own_pid.to_string())
+}
+
+/// `open_compose_with` 用：每次都按**这一次**的来源重新算粘贴目标，不保留旧值——
+/// 撰写窗置顶、失焦不收起，一直开着时旧值可能是很早以前唤出它的无关应用。
+/// - 调用方是浮窗：原文来自浮窗归属的应用，优先粘回那里；归属是 umuo 自己
+///   （截图翻译等）时才退回当前前台。
+/// - 其他 umuo 窗口（历史窗「再次编辑」等）：只认当前前台的外部应用，通常为 `None`。
+///   浮窗归属在浮窗收起后不会清掉，可能早已过时，不能拿来用。
+pub(crate) fn compose_owner_for_caller(
+    frontmost: Option<String>,
+    caller_label: &str,
+    panel_owner: Option<String>,
+    own_pid: u32,
+) -> Option<String> {
+    let frontmost = compose_owner(frontmost, own_pid);
+    if caller_label == PANEL_LABEL {
+        compose_owner(panel_owner, own_pid).or(frontmost)
+    } else {
+        frontmost
+    }
 }
 
 /// ⌥A 与托盘共用：可见就收起，不可见就居中唤出并聚焦。
@@ -358,6 +371,7 @@ pub fn toggle_compose(app: &tauri::AppHandle) {
         let _ = window.hide();
         return;
     }
+    remember_compose_owner(app);
     // 每次唤出都重新居中：用户可能刚把窗口拖到别的屏幕。
     let _ = window.center();
     let _ = window.show();
@@ -439,6 +453,13 @@ fn build_tray(app: &tauri::AppHandle, settings: &Settings) -> tauri::Result<()> 
     let settings_item = MenuItem::with_id(app, "settings", "设置…", true, None::<&str>)?;
     let history_item = MenuItem::with_id(app, "history", "翻译历史", true, None::<&str>)?;
     let separator = PredefinedMenuItem::separator(app)?;
+    let update_item = MenuItem::with_id(
+        app,
+        updater::MENU_ID,
+        updater::IDLE_TEXT,
+        true,
+        None::<&str>,
+    )?;
     let quit = MenuItem::with_id(app, "quit", "退出 umuo", true, None::<&str>)?;
     let menu = Menu::with_items(
         app,
@@ -453,9 +474,12 @@ fn build_tray(app: &tauri::AppHandle, settings: &Settings) -> tauri::Result<()> 
             &quick_item,
             &history_item,
             &settings_item,
+            &update_item,
             &quit,
         ],
     )?;
+
+    app.manage(updater::UpdateMenu::new(update_item));
 
     TrayIconBuilder::with_id("umuo-tray")
         .icon(tray_icon_image(settings)?)
@@ -478,6 +502,7 @@ fn build_tray(app: &tauri::AppHandle, settings: &Settings) -> tauri::Result<()> 
             "settings" => {
                 let _ = commands::open_settings(app.clone());
             }
+            updater::MENU_ID => updater::on_click(app),
             "quit" => app.exit(0),
             _ => {}
         })
@@ -658,5 +683,48 @@ fn register_one(
                 .expect("快捷键失败锁不应中毒")
                 .push(label.to_string());
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn compose_has_no_paste_target_when_umuo_itself_was_in_front() {
+        // 从历史窗「再次编辑」唤出：前台是 umuo 自己，⌘⇧Enter 不该往那里粘贴。
+        assert_eq!(compose_owner(Some("42".into()), 42), None);
+        assert_eq!(compose_owner(None, 42), None);
+        assert_eq!(compose_owner(Some("7".into()), 42), Some("7".into()));
+    }
+
+    #[test]
+    fn compose_target_is_recomputed_from_caller_each_time() {
+        let target = compose_owner_for_caller;
+        // 浮窗点「在撰写窗打开」激活了 umuo：用浮窗归属的应用。
+        assert_eq!(
+            target(Some("42".into()), PANEL_LABEL, Some("7".into()), 42),
+            Some("7".into())
+        );
+        // 撰写窗一直开着、当初由 A(9) 唤出，用户在 B(7) 划词后从浮窗打开：目标应为 B，
+        // 前台是别的外部应用时也以浮窗归属为准。
+        assert_eq!(
+            target(Some("9".into()), PANEL_LABEL, Some("7".into()), 42),
+            Some("7".into())
+        );
+        // 浮窗归属是 umuo 自己（截图翻译等）：退回当前前台的外部应用，没有就没有目标。
+        assert_eq!(
+            target(Some("9".into()), PANEL_LABEL, Some("42".into()), 42),
+            Some("9".into())
+        );
+        assert_eq!(
+            target(Some("42".into()), PANEL_LABEL, Some("42".into()), 42),
+            None
+        );
+        // 历史窗「再次编辑」：浮窗归属可能早已过时，不能拿来当粘贴目标；前台是 umuo 自己时没有目标。
+        assert_eq!(
+            target(Some("42".into()), HISTORY_LABEL, Some("7".into()), 42),
+            None
+        );
     }
 }

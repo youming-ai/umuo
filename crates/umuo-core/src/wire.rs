@@ -18,7 +18,10 @@ use crate::provider::{Auth, Protocol, Provider};
 /// Anthropic 要求显式声明版本。
 const ANTHROPIC_VERSION: &str = "2023-06-01";
 /// Anthropic 的 `max_tokens` 是必填项。给小了会把长段落截断成非法 JSON。
-const ANTHROPIC_DEFAULT_MAX_TOKENS: u32 = 8192;
+///
+/// 公开出去是给分片预算用的（[`crate::chunk::char_budget`]）：一次请求的输出上限
+/// 也要算进「这一片能放多少原文」，两边各写一个数迟早会漂开。
+pub const DEFAULT_MAX_OUTPUT_TOKENS: u32 = 8192;
 
 /// 中立的对话请求。传输层负责把它映射成各家线上格式。
 #[derive(Debug, Clone, PartialEq)]
@@ -38,7 +41,7 @@ impl ChatRequest {
             user: user.into(),
             temperature: 0.2,
             json_mode: false,
-            max_tokens: ANTHROPIC_DEFAULT_MAX_TOKENS,
+            max_tokens: DEFAULT_MAX_OUTPUT_TOKENS,
         }
     }
 
@@ -79,6 +82,12 @@ pub enum StreamEvent {
     Usage(TokenUsage),
     /// 正常结束。
     Done,
+    /// 厂商报告了停止原因（审查 M4）。`truncated` = 输出没说完就停了：
+    /// 触到输出上限（`length` / `max_tokens` / `MAX_TOKENS`）。
+    ///
+    /// 与 [`StreamEvent::Done`] 分开：OpenAI 的 `finish_reason` 块**之后**还有用量块与
+    /// `[DONE]`，在这里就停会把用量丢掉；它只记状态，不结束读取。
+    Finished { truncated: bool },
     /// 厂商在流里回了一个错误对象。
     Error(CoreError),
 }
@@ -283,6 +292,13 @@ pub fn build_models_request_at(
     }
     let mut headers: Vec<(String, String)> = Vec::new();
     apply_auth(&mut headers, provider, api_key);
+    // 与对话请求一致：Anthropic 的每个请求都要声明版本（审查 M7）。
+    if provider.protocol == Protocol::Anthropic {
+        headers.push((
+            "anthropic-version".to_string(),
+            ANTHROPIC_VERSION.to_string(),
+        ));
+    }
     let url = match provider.protocol {
         // Azure 的模型列表也在 /openai 前缀下，并且要带 api-version。
         Protocol::AzureOpenAi => azure_models_url(base_url),
@@ -361,78 +377,105 @@ pub fn parse_full_response(
     }
 }
 
-/// 从流式事件里取出增量。`data` 是 SSE 的 payload（已去掉 `data: ` 前缀）。
+/// 从流式事件里取出增量与用量。`data` 是 SSE 的 payload（已去掉 `data: ` 前缀）。
 ///
 /// 三家都把事件类型写在 payload 的 `type` 字段里，所以不需要 SSE 的 `event:` 行。
-pub fn parse_stream_event(protocol: Protocol, data: &str) -> Option<StreamEvent> {
+///
+/// 返回多个事件：同一个 payload 里可能**同时**有文本和用量（Gemini 每块都带
+/// `usageMetadata`；DeepSeek 的末块是 `content:""` 加 usage）。只返回其中一个，
+/// 另一个就丢了——用量丢了的结果是历史里记成 0 token、$0，上限也跟着失明。
+pub fn parse_stream_event(protocol: Protocol, data: &str) -> Vec<StreamEvent> {
     let data = data.trim();
     if data.is_empty() {
-        return None;
+        return Vec::new();
     }
     // OpenAI 系的结束哨兵。收不到它而只是连接关闭时，调用方按「正常结束但可能截断」处理。
     if data == "[DONE]" {
-        return Some(StreamEvent::Done);
+        return vec![StreamEvent::Done];
     }
 
     let value: serde_json::Value = match serde_json::from_str(data) {
         Ok(v) => v,
         // 单条事件解析失败不废掉整条流：跳过它，后面的增量照样能显示。
-        Err(_) => return None,
+        Err(_) => return Vec::new(),
+    };
+
+    // 文本在前、用量在后：顺序不影响累计结果，但让首字延迟按文本到达时刻算。
+    let text_and_usage = |text: Option<&str>, usage: TokenUsage| {
+        let mut events = Vec::new();
+        if let Some(text) = text.filter(|s| !s.is_empty()) {
+            events.push(StreamEvent::Delta(text.to_string()));
+        }
+        if usage.input_tokens > 0 || usage.output_tokens > 0 {
+            events.push(StreamEvent::Usage(usage));
+        }
+        events
     };
 
     match protocol {
         Protocol::OpenAi | Protocol::AzureOpenAi => {
             if let Some(message) = value.pointer("/error/message").and_then(|v| v.as_str()) {
-                return Some(StreamEvent::Error(CoreError::BadResponse {
+                return vec![StreamEvent::Error(CoreError::BadResponse {
                     detail: message.to_string(),
-                }));
+                })];
             }
-            let usage = usage_from_openai(&value);
-            if usage.input_tokens > 0 || usage.output_tokens > 0 {
-                // 带用量的 chunk 通常没有文本；先报用量，文本仍按需返回。
-                if value
+            let mut events = text_and_usage(
+                value
                     .pointer("/choices/0/delta/content")
-                    .and_then(|v| v.as_str())
-                    .is_none()
-                {
-                    return Some(StreamEvent::Usage(usage));
-                }
-            }
-            value
-                .pointer("/choices/0/delta/content")
+                    .and_then(|v| v.as_str()),
+                usage_from_openai(&value),
+            );
+            // `content_filter` 也是没说完：被过滤掉的那部分不会再来。
+            match value
+                .pointer("/choices/0/finish_reason")
                 .and_then(|v| v.as_str())
-                .filter(|s| !s.is_empty())
-                .map(|s| StreamEvent::Delta(s.to_string()))
+            {
+                Some("length" | "content_filter") => {
+                    events.push(StreamEvent::Finished { truncated: true })
+                }
+                Some(_) => events.push(StreamEvent::Finished { truncated: false }),
+                None => {}
+            }
+            events
         }
         Protocol::Anthropic => match value.get("type").and_then(|v| v.as_str()) {
             Some("content_block_delta") => value
                 .pointer("/delta/text")
                 .and_then(|v| v.as_str())
                 .filter(|s| !s.is_empty())
-                .map(|s| StreamEvent::Delta(s.to_string())),
+                .map(|s| vec![StreamEvent::Delta(s.to_string())])
+                .unwrap_or_default(),
             Some("message_start") => {
                 let usage = usage_from_anthropic(value.get("message").unwrap_or(&value));
-                Some(StreamEvent::Usage(usage))
+                vec![StreamEvent::Usage(usage)]
             }
+            // 输出用量与停止原因在同一个 message_delta 里，两个都要。
             Some("message_delta") => {
                 let usage = usage_from_anthropic(&value);
-                Some(StreamEvent::Usage(usage))
+                let mut events = vec![StreamEvent::Usage(usage)];
+                if let Some(reason) = value.pointer("/delta/stop_reason").and_then(|v| v.as_str()) {
+                    // `refusal` 是模型中途拒绝继续，同样没说完。
+                    events.push(StreamEvent::Finished {
+                        truncated: matches!(reason, "max_tokens" | "refusal"),
+                    });
+                }
+                events
             }
-            Some("message_stop") => Some(StreamEvent::Done),
-            Some("error") => Some(StreamEvent::Error(CoreError::BadResponse {
+            Some("message_stop") => vec![StreamEvent::Done],
+            Some("error") => vec![StreamEvent::Error(CoreError::BadResponse {
                 detail: value
                     .pointer("/error/message")
                     .and_then(|v| v.as_str())
                     .unwrap_or("流式响应中返回错误")
                     .to_string(),
-            })),
-            _ => None,
+            })],
+            _ => Vec::new(),
         },
         Protocol::Gemini => {
             if let Some(message) = value.pointer("/error/message").and_then(|v| v.as_str()) {
-                return Some(StreamEvent::Error(CoreError::BadResponse {
+                return vec![StreamEvent::Error(CoreError::BadResponse {
                     detail: message.to_string(),
-                }));
+                })];
             }
             if let Some(prompt_feedback) = value.get("promptFeedback") {
                 if prompt_feedback
@@ -441,23 +484,34 @@ pub fn parse_stream_event(protocol: Protocol, data: &str) -> Option<StreamEvent>
                     .is_some()
                 {
                     // 被安全策略拦下时没有 candidates，必须显式报错而不是静默空结果。
-                    return Some(StreamEvent::Error(CoreError::BadResponse {
+                    return vec![StreamEvent::Error(CoreError::BadResponse {
                         detail: "请求被 Gemini 安全策略拦截".to_string(),
-                    }));
+                    })];
                 }
             }
-            let usage = usage_from_gemini(&value);
-            if let Some(text) = value
-                .pointer("/candidates/0/content/parts/0/text")
+            let mut events = text_and_usage(
+                value
+                    .pointer("/candidates/0/content/parts/0/text")
+                    .and_then(|v| v.as_str()),
+                usage_from_gemini(&value),
+            );
+            // Gemini 没有结束哨兵，停止原因写在最后一块的 finishReason 里。
+            match value
+                .pointer("/candidates/0/finishReason")
                 .and_then(|v| v.as_str())
-                .filter(|s| !s.is_empty())
             {
-                return Some(StreamEvent::Delta(text.to_string()));
+                Some("STOP") => events.push(StreamEvent::Finished { truncated: false }),
+                Some("MAX_TOKENS") => events.push(StreamEvent::Finished { truncated: true }),
+                // 其余（SAFETY、RECITATION、PROHIBITED_CONTENT……）多是被策略拦下：
+                // 半截译文不能当成功，按失败报出来。
+                Some(reason) if reason != "FINISH_REASON_UNSPECIFIED" => {
+                    events.push(StreamEvent::Error(CoreError::BadResponse {
+                        detail: format!("Gemini 中止了输出（{reason}）"),
+                    }))
+                }
+                _ => {}
             }
-            if usage.input_tokens > 0 || usage.output_tokens > 0 {
-                return Some(StreamEvent::Usage(usage));
-            }
-            None
+            events
         }
     }
 }
@@ -895,17 +949,17 @@ mod tests {
     fn openai_done_sentinel_and_delta_are_distinguished() {
         assert_eq!(
             parse_stream_event(Protocol::OpenAi, "[DONE]"),
-            Some(StreamEvent::Done)
+            vec![StreamEvent::Done]
         );
         assert_eq!(
             parse_stream_event(
                 Protocol::OpenAi,
                 r#"{"choices":[{"delta":{"content":"你"}}]}"#
             ),
-            Some(StreamEvent::Delta("你".to_string()))
+            vec![StreamEvent::Delta("你".to_string())]
         );
         // 无法解析的事件被跳过，而不是让整条流中断。
-        assert_eq!(parse_stream_event(Protocol::OpenAi, "{oops"), None);
+        assert!(parse_stream_event(Protocol::OpenAi, "{oops").is_empty());
     }
 
     #[test]
@@ -914,12 +968,55 @@ mod tests {
             Protocol::OpenAi,
             r#"{"choices":[],"usage":{"prompt_tokens":10,"completion_tokens":20}}"#,
         );
-        match event {
-            Some(StreamEvent::Usage(u)) => {
+        match event.as_slice() {
+            [StreamEvent::Usage(u)] => {
                 assert_eq!((u.input_tokens, u.output_tokens), (10, 20));
             }
             other => panic!("期望 Usage，实际 {other:?}"),
         }
+    }
+
+    fn usage(input: u32, output: u32) -> StreamEvent {
+        StreamEvent::Usage(TokenUsage {
+            input_tokens: input,
+            output_tokens: output,
+            estimated: false,
+        })
+    }
+
+    #[test]
+    fn deepseek_final_chunk_with_empty_content_still_reports_usage() {
+        // DeepSeek 的末块是 `content:""` 加 usage：空文本要丢，用量要留。
+        let events = parse_stream_event(
+            Protocol::OpenAi,
+            r#"{"choices":[{"delta":{"content":""}}],"usage":{"prompt_tokens":10,"completion_tokens":20}}"#,
+        );
+        assert_eq!(events, vec![usage(10, 20)]);
+    }
+
+    #[test]
+    fn openai_chunk_with_text_and_usage_yields_both() {
+        let events = parse_stream_event(
+            Protocol::OpenAi,
+            r#"{"choices":[{"delta":{"content":"好"}}],"usage":{"prompt_tokens":3,"completion_tokens":4}}"#,
+        );
+        assert_eq!(
+            events,
+            vec![StreamEvent::Delta("好".to_string()), usage(3, 4)]
+        );
+    }
+
+    #[test]
+    fn gemini_chunk_with_text_keeps_its_usage_metadata() {
+        // Gemini 每块都带 usageMetadata；只看文本的话用量永远是 0。
+        let events = parse_stream_event(
+            Protocol::Gemini,
+            r#"{"candidates":[{"content":{"parts":[{"text":"你好"}]}}],"usageMetadata":{"promptTokenCount":7,"candidatesTokenCount":8}}"#,
+        );
+        assert_eq!(
+            events,
+            vec![StreamEvent::Delta("你好".to_string()), usage(7, 8)]
+        );
     }
 
     #[test]
@@ -929,16 +1026,90 @@ mod tests {
                 Protocol::Anthropic,
                 r#"{"type":"content_block_delta","delta":{"type":"text_delta","text":"译"}}"#
             ),
-            Some(StreamEvent::Delta("译".to_string()))
+            vec![StreamEvent::Delta("译".to_string())]
         );
         assert_eq!(
             parse_stream_event(Protocol::Anthropic, r#"{"type":"message_stop"}"#),
-            Some(StreamEvent::Done)
+            vec![StreamEvent::Done]
+        );
+        assert!(parse_stream_event(Protocol::Anthropic, r#"{"type":"ping"}"#).is_empty());
+    }
+
+    #[test]
+    fn stop_reasons_are_read_from_every_protocol() {
+        // 审查 M4：触到输出上限的译文不能当完整结果。
+        let finished = |truncated| StreamEvent::Finished { truncated };
+        assert_eq!(
+            parse_stream_event(
+                Protocol::OpenAi,
+                r#"{"choices":[{"delta":{},"finish_reason":"length"}]}"#
+            ),
+            vec![finished(true)]
         );
         assert_eq!(
-            parse_stream_event(Protocol::Anthropic, r#"{"type":"ping"}"#),
-            None
+            parse_stream_event(
+                Protocol::OpenAi,
+                r#"{"choices":[{"delta":{"content":"完"},"finish_reason":"stop"}]}"#
+            ),
+            vec![StreamEvent::Delta("完".to_string()), finished(false)]
         );
+        assert_eq!(
+            parse_stream_event(
+                Protocol::Anthropic,
+                r#"{"type":"message_delta","delta":{"stop_reason":"max_tokens"},"usage":{"output_tokens":8192}}"#
+            ),
+            vec![usage(0, 8192), finished(true)]
+        );
+        assert_eq!(
+            parse_stream_event(
+                Protocol::Anthropic,
+                r#"{"type":"message_delta","delta":{"stop_reason":"end_turn"},"usage":{"output_tokens":5}}"#
+            ),
+            vec![usage(0, 5), finished(false)]
+        );
+        assert_eq!(
+            parse_stream_event(
+                Protocol::Gemini,
+                r#"{"candidates":[{"content":{"parts":[{"text":"半"}]},"finishReason":"MAX_TOKENS"}]}"#
+            ),
+            vec![StreamEvent::Delta("半".to_string()), finished(true)]
+        );
+        assert_eq!(
+            parse_stream_event(
+                Protocol::Gemini,
+                r#"{"candidates":[{"content":{"parts":[{"text":"全"}]},"finishReason":"STOP"}]}"#
+            ),
+            vec![StreamEvent::Delta("全".to_string()), finished(false)]
+        );
+    }
+
+    #[test]
+    fn a_gemini_safety_stop_is_an_error_even_after_some_text() {
+        let events = parse_stream_event(
+            Protocol::Gemini,
+            r#"{"candidates":[{"content":{"parts":[{"text":"半"}]},"finishReason":"SAFETY"}]}"#,
+        );
+        assert!(matches!(
+            events.as_slice(),
+            [StreamEvent::Delta(_), StreamEvent::Error(_)]
+        ));
+    }
+
+    #[test]
+    fn the_anthropic_models_request_declares_the_api_version() {
+        // 审查 M7：只带 Key 不带版本头，拉模型列表可能被拒。
+        let anthropic = crate::provider::find_provider("anthropic").unwrap();
+        let wire = build_models_request(anthropic, "sk-ant").unwrap();
+        assert!(wire
+            .headers
+            .iter()
+            .any(|(name, value)| name == "anthropic-version" && value == ANTHROPIC_VERSION));
+        let openai = crate::provider::find_provider("openai").unwrap();
+        let wire = build_models_request(openai, "sk").unwrap();
+        assert!(!wire
+            .headers
+            .iter()
+            .any(|(name, _)| name == "anthropic-version"));
     }
 
     #[test]
@@ -948,7 +1119,7 @@ mod tests {
             Protocol::Gemini,
             r#"{"promptFeedback":{"blockReason":"SAFETY"}}"#,
         );
-        assert!(matches!(event, Some(StreamEvent::Error(_))));
+        assert!(matches!(event.as_slice(), [StreamEvent::Error(_)]));
     }
 
     #[test]
@@ -998,6 +1169,7 @@ mod tests {
         let odd = ChatRequest::new("s", "u").temperature(f32::NAN);
         // 走的是「用户自建预设」那条路：先经过 StyleSpec 规范化。
         let style = crate::prompt::CustomStyle {
+            extra: Default::default(),
             id: "mine".into(),
             label: "标签".into(),
             instruction: "x".into(),

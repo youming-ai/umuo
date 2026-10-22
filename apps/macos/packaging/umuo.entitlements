@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  hardened runtime 的权利（bundle.sh 签名时以 hardened runtime 选项带上这个文件）。
+
+  刻意是空的：
+  - 不开 App Sandbox（com.apple.security.app-sandbox）：沙盒禁止对其他 App 用辅助功能、禁止 CGEvent.post，
+    划词与原地替换做不了，这也是不上 Mac App Store 的原因。
+  - 不要 JIT / 未签名可执行内存 / 关库校验：Rust 内核是静态链进来的，没有第三方动态库，也没有 JIT。
+  - 不要 apple-events：没有用 AppleScript 控制别的应用。辅助功能、输入监控、屏幕录制是 TCC 授权，不是权利。
+  以后加了需要权利的能力（例如麦克风：com.apple.security.device.audio-input），在这里加上并写明为什么。
+-->
+<plist version="1.0">
+<dict>
+</dict>
+</plist>

@@ -11,8 +11,12 @@ use crate::wire::ChatRequest;
 
 /// 超过这个词数就不再是「查词」，而是「翻译句子」。
 pub const WORD_MODE_MAX_WORDS: usize = 3;
-/// 再长也不像单个词条了（防止一段没有空格的日语被当成一个「词」）。
+/// 再长也不像单个词条了（拉丁文字的长复合词、长专名在这之内都算词）。
 pub const WORD_MODE_MAX_CHARS: usize = 40;
+/// 中日韩文字的上限。连续的中日文只算「一个词」，没有它的话
+/// 「我们需要在下周之前完成这个项目」会得到一张以整句为词条的词卡（审查 M10）。
+/// 8 字覆盖「机器学习」「自然言語処理」这类复合词，常见的成句都超过它。
+pub const WORD_MODE_MAX_CJK_CHARS: usize = 8;
 
 /// 判断一段选区是否该走词卡模式。
 pub fn is_word_mode(text: &str) -> bool {
@@ -27,7 +31,25 @@ pub fn is_word_mode(text: &str) -> bool {
     {
         return false;
     }
+    if trimmed.chars().filter(|c| is_cjk_char(*c)).count() > WORD_MODE_MAX_CJK_CHARS {
+        return false;
+    }
+    // 日文的格助词夹在汉字后面时，说明这是一个短句（「本を読む」），不是词条。
+    // 只看 を/は/が：の 出现在「機械学習の基礎」这类名词短语里，不能据此判成句子。
+    if has_particle_after_han(trimmed) {
+        return false;
+    }
     word_count(trimmed) <= WORD_MODE_MAX_WORDS
+}
+
+/// 汉字后面紧跟 を/は/が，且助词后面还有内容。
+fn has_particle_after_han(text: &str) -> bool {
+    let chars: Vec<char> = text.chars().collect();
+    chars.windows(3).any(|w| {
+        matches!(w[0] as u32, 0x4E00..=0x9FFF)
+            && matches!(w[1], 'を' | 'は' | 'が')
+            && is_cjk_char(w[2])
+    })
 }
 
 /// 数词。中日韩按「连续的表意文字块算一个词」，其余按空白分词。
@@ -112,6 +134,14 @@ pub fn build_request(word: &str, vars: &PromptVars<'_>) -> ChatRequest {
         vars.source_lang.unwrap_or("多语言"),
         target = vars.target_lang,
     );
+    // 术语表对词卡同样生效（审查 L13）：划选 Transformer 时，释义与例句译文
+    // 都得用术语表里的强制译法，否则词卡和整句翻译给出两种说法。
+    let system = match vars.glossary.filter(|g| !g.trim().is_empty()) {
+        Some(glossary) => {
+            format!("{system}\n\n术语表（必须遵守，释义与例句译文都按它翻译）：\n{glossary}")
+        }
+        None => system,
+    };
     ChatRequest::new(system, word.to_string())
         .json()
         .temperature(0.3)
@@ -197,6 +227,31 @@ mod tests {
         // PRD 写的是「≤ 3 个词」。
         assert!(is_word_mode("one two three"));
         assert!(!is_word_mode("one two three four"));
+    }
+
+    #[test]
+    fn a_short_cjk_sentence_without_punctuation_is_not_a_word() {
+        // 审查 M10：连续中日文只算一个词，40 字的上限挡不住一整句。
+        assert!(!is_word_mode("我们需要在下周之前完成这个项目"));
+        assert!(!is_word_mode("本を読む"));
+        assert!(!is_word_mode("今日は天気"));
+        // 复合词与名词短语仍是词卡。
+        assert!(is_word_mode("自然言語処理"));
+        assert!(is_word_mode("機械学習の基礎"));
+        assert!(is_word_mode("ありがとう"));
+        assert!(is_word_mode("인공지능"));
+    }
+
+    #[test]
+    fn the_word_card_prompt_carries_the_glossary_when_there_are_hits() {
+        // 审查 L13：词卡分支以前完全忽略术语表。
+        let mut with = vars("简体中文");
+        with.glossary = Some("- Transformer → 变换器");
+        let request = build_request("Transformer", &with);
+        assert!(request.system.contains("- Transformer → 变换器"));
+
+        let request = build_request("Transformer", &vars("简体中文"));
+        assert!(!request.system.contains("术语表"));
     }
 
     #[test]

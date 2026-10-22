@@ -28,5 +28,11 @@
       "icons/icon.png",
       "icons/icon.icns"
     ]
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDRBMkU2M0Q1OTlENUY1NEYKUldSUDlkV1oxV011U2dsdHhCYlIyRkdhL25GSnM4VDE5dVBncmN4d2FMbVpTckpRQ0taenE2dFgK",
+      "endpoints": ["https://umuo.app/download/macos/update.json"]
+    }
   }
 }

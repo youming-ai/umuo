@@ -54,9 +54,19 @@ function Compare() {
         setPicked(null)
         dispatch({ type: 'start', payload })
       },
-      onDelta: (payload) => dispatch({ type: 'delta', index: payload.index, text: payload.text }),
+      onDelta: (payload) =>
+        dispatch({
+          type: 'delta',
+          runId: payload.runId,
+          index: payload.index,
+          text: payload.text,
+        }),
       onDone: (payload) => dispatch({ type: 'done', payload }),
       onError: (payload) => dispatch({ type: 'error', payload }),
+      onNotice: (payload) => {
+        setPicked(null)
+        dispatch({ type: 'notice', payload })
+      },
     }).then((unlisten) => {
       if (cancelled) unlisten()
       else dispose = unlisten
@@ -67,7 +77,7 @@ function Compare() {
       if (event.key === 'Escape') {
         // 先取消再收起：对比窗背后是最多 4 路并发的真实计费请求，
         // 只把窗口藏起来的话，用户会继续为一个自己看不见的结果付费。
-        // 取消标志是所有翻译流程共用的一个，所以这一下会把 4 路一起停掉。
+        // 取消只作用于对比窗自己这一轮：4 路一起停，浮窗与撰写窗的翻译不受影响。
         void api.cancelTranslation()
         void api.hideCompare()
       }
@@ -134,7 +144,7 @@ function Compare() {
                 <br />
               </>
             )}
-            {t('compare.needTwoKeys')}
+            {state.notice ?? t('compare.needTwoKeys')}
           </p>
         </main>
       ) : (
@@ -203,7 +213,7 @@ function Card({
   onMove: (direction: 'left' | 'right') => void
 }) {
   const t = useT()
-  const metrics = cardMetrics(card)
+  const metrics = cardMetrics(card, t)
   return (
     <section className="flex min-w-[240px] flex-1 flex-col overflow-hidden rounded-card border border-border bg-background-surface">
       <header className="flex items-center justify-between gap-2 border-b border-border-secondary px-3 py-2">
@@ -254,6 +264,9 @@ function Card({
         )}
         {card.status === 'streaming' && !card.text && (
           <p className="text-sm text-text-tertiary">{t('compare.translating')}</p>
+        )}
+        {card.metrics?.truncated && (
+          <p className="mt-2 text-xs text-warning">{t('compare.truncated')}</p>
         )}
         {card.error && (
           <div className="mt-2 rounded-control border border-error-border bg-error-surface px-2 py-1.5">

@@ -4,7 +4,7 @@
 
 **系统级 AI 翻译客户端 —— 用你自己的 Key，在任意 App 里读、写、看都能即时翻译**
 
-macOS 13+ · Tauri 2 · Rust 共享核心 · BYOK 优先 · 闭源
+macOS 专用 · SwiftUI（迁移中，见 docs/SWIFTUI-MIGRATION.md）· Rust 共享核心 · BYOK 优先 · 闭源
 
 </div>
 
@@ -33,7 +33,7 @@ umuo 是一个常驻菜单栏、快捷键驱动的桌面翻译客户端。它不
 
 ## 当前状态
 
-**里程碑 1 已交付**：仓库重建为 umuo，并打通了「全局快捷键 → 辅助功能取词 → BYOK 流式翻译 → 非激活浮窗」这条垂直切片。官网已迁到公开仓库 [youming-ai/umuo](https://github.com/youming-ai/umuo)。
+**里程碑 1 已交付**：仓库重建为 umuo，并打通了「全局快捷键 → 辅助功能取词 → BYOK 流式翻译 → 非激活浮窗」这条垂直切片。官网在 [`site/`](site/)。
 
 | 模块 | 状态 |
 | --- | --- |
@@ -64,7 +64,7 @@ umuo 是一个常驻菜单栏、快捷键驱动的桌面翻译客户端。它不
 7 个翻译风格预设、术语表命中注入、长文本按上下文切分、故障转移策略、Token 与费用计量、
 语言判断与目标切换、单词模式判定与词卡解析。
 
-> **范围诚实声明**：本仓库只包含**客户端**（官网在公开仓库 youming-ai/umuo）。PRD §9.6 里的账号、订阅、模型网关是闭源服务端、独立部署，
+> **范围诚实声明**：客户端之外只有官网（[`site/`](site/)）。PRD §9.6 里的账号、订阅、模型网关是闭源服务端、独立部署，
 > 客户端只通过公开 API 调用它，仓库中不包含服务端实现。
 >
 > **尚未在真机上人工验证的部分**：浮窗的「不抢焦点」目前用 Tauri 的 `focused(false)` 实现，
@@ -138,4 +138,4 @@ docs/research/       竞品拆解与 luca-translate 复用审计
 
 ## 许可
 
-专有软件，保留所有权利（见 [LICENSE](LICENSE)）。官网与官网 Worker 在公开仓库 [youming-ai/umuo](https://github.com/youming-ai/umuo)。参考与复用的第三方实现记在 [THIRD_PARTY_NOTICES](THIRD_PARTY_NOTICES)。
+专有软件，保留所有权利（见 [LICENSE](LICENSE)）。官网与官网 Worker 在 [`site/`](site/)。参考与复用的第三方实现记在 [THIRD_PARTY_NOTICES](THIRD_PARTY_NOTICES)。

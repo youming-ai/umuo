@@ -5,6 +5,7 @@
  * 原地改动会让 React 看不到变化，也会把「取消编辑」变成做不到的事。
  */
 
+import type { Translate } from './i18n'
 import type { ModelRef, SceneModels } from './ipc'
 
 /** 可以单独配模型的场景。顺序即设置页的展示顺序。 */
@@ -51,8 +52,8 @@ export function setSceneModel(
 }
 
 /** 显示用的一行文字。 */
-export function modelLabel(ref: ModelRef | null): string {
-  return isComplete(ref) ? `${ref.providerId} · ${ref.model}` : '用默认模型'
+export function modelLabel(ref: ModelRef | null, t: Translate): string {
+  return isComplete(ref) ? `${ref.providerId} · ${ref.model}` : t('prefs.scene.useDefaultModel')
 }
 
 function same(a: ModelRef, b: ModelRef): boolean {

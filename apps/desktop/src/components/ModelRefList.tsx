@@ -48,7 +48,7 @@ export function ModelRefList({
         {value.map((ref, index) => (
           <li key={`${ref.providerId}:${ref.model}`} className="flex items-center gap-2">
             {ordered && <span className="text-[11px] text-text-muted">{index + 1}.</span>}
-            <span className="text-xs text-text-primary">{modelLabel(ref)}</span>
+            <span className="text-xs text-text-primary">{modelLabel(ref, t)}</span>
             {ordered && (
               <>
                 <button

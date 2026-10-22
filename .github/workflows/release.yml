@@ -1,17 +1,21 @@
 name: Release
 
-# 每次合进 main 就出一个新版本：编通用二进制（Apple Silicon + Intel）的 .dmg，
+# 手动触发才出新版本（Actions → Release → Run workflow，选 main）：编通用二进制（Apple Silicon + Intel）的 .dmg，
 # 传到 Cloudflare R2 的 umuo-releases 桶；官网的 /download/macos 由 Worker 读
 # macos/latest.json 指向最新的那一个。版本号 = 0.1.<本工作流的运行序号>，只增不减。
 #
 # 需要三个仓库 secret（R2 的「对象读写」API Token，只授权给 umuo-releases 这一个桶）：
 #   R2_ACCESS_KEY_ID / R2_SECRET_ACCESS_KEY / R2_ENDPOINT（https://<account_id>.r2.cloudflarestorage.com）
 #
+# 自动更新（tauri-plugin-updater）另需 secret TAURI_SIGNING_PRIVATE_KEY（`tauri signer generate`
+# 生成的私钥，无口令；公钥在 tauri.conf.json）。**缺了直接失败**：只发 .dmg 会让 latest.json
+# 前进而 update.json 停在旧版，已装用户静默收不到更新。本地 `bun run build:desktop` 不需要它。
+#
 # 目前**没有** Apple 开发者签名与公证：下载后首次打开会被 Gatekeeper 拦下，
 # 要在「系统设置 → 隐私与安全性」里点「仍要打开」。官网下载处写明了这一点。
+# 不再「合进 main 就发版」：发出去的版本会被自动更新静默装到所有用户机器上，
+# 只改文档或 CI 也发版、几个 PR 连着合时没有人工把关——发版必须是有意的一步。
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
 
 # 连着合几个 PR 时只发最后一个：前面的构建取消掉，省得旧版本晚到、覆盖新版本。
@@ -20,24 +24,30 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # 门禁：与 PR 上同一套 CI（ci.yml）。全部通过才构建——发布出去的版本会被自动更新静默装到所有用户机器上。
+  ci:
+    uses: ./.github/workflows/ci.yml
+
   macos:
     name: Build & publish macOS
-    runs-on: macos-14
+    needs: ci
+    runs-on: macos-15  # macos-14 镜像 2026-11-02 退役（actions/runner-images#13518）
     timeout-minutes: 60
     env:
       VERSION: 0.1.${{ github.run_number }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
-      - uses: oven-sh/setup-bun@v2
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
         with:
-          bun-version: latest
+          bun-version-file: package.json
 
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
         with:
+          toolchain: stable
           targets: aarch64-apple-darwin,x86_64-apple-darwin
 
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
         with:
           key: release-universal
 
@@ -47,19 +57,30 @@ jobs:
       # 版本号写进 Tauri 配置（安装包与 Info.plist）与 Cargo 工作区（关于页显示的 CARGO_PKG_VERSION），
       # 只在 CI 的工作副本里改，不提交回仓库。
       - name: Stamp version ${{ env.VERSION }}
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
         run: |
           conf=apps/desktop/src-tauri/tauri.conf.json
           jq --arg v "$VERSION" '.version = $v' "$conf" > "$conf.tmp" && mv "$conf.tmp" "$conf"
           sed -i '' -E '/^\[workspace.package\]/,/^\[/ s/^version = ".*"/version = "'"$VERSION"'"/' Cargo.toml
           grep -n '^version' Cargo.toml
           jq -r .version "$conf"
+          # 每个版本都必须带更新包，否则已装用户收不到它
+          if [ -z "${TAURI_SIGNING_PRIVATE_KEY:-}" ]; then
+            echo "::error::没有配置 TAURI_SIGNING_PRIVATE_KEY：不产出自动更新包的版本不发"
+            exit 1
+          fi
+          jq '.bundle.createUpdaterArtifacts = true' "$conf" > "$conf.tmp" && mv "$conf.tmp" "$conf"
 
       - name: Build universal app
         working-directory: apps/desktop
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ""
         run: bunx tauri build --target universal-apple-darwin --bundles app,dmg
 
       - name: Keep the build as a workflow artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: umuo-${{ env.VERSION }}-universal
           path: target/universal-apple-darwin/release/bundle/dmg/*.dmg
@@ -82,6 +103,12 @@ jobs:
             echo "::warning::没有配置 R2 secret，跳过发布（安装包仍作为工作流产物保留）"
             exit 0
           fi
+          # 重跑一次旧的运行不能把线上版本退回去：线上已经是同版或更新的版本就不覆盖
+          current=$(aws s3 cp s3://umuo-releases/macos/latest.json - --endpoint-url "$R2_ENDPOINT" 2>/dev/null | jq -r '.version // empty' || true)
+          if [ -n "$current" ] && [ "$(printf '%s\n' "$current" "$VERSION" | sort -V | tail -1)" = "$current" ]; then
+            echo "::warning::线上已是 $current，不用 $VERSION 覆盖"
+            exit 0
+          fi
           dmg=$(ls target/universal-apple-darwin/release/bundle/dmg/*.dmg | head -1)
           key="macos/umuo-${VERSION}-universal.dmg"
           size=$(stat -f%z "$dmg")
@@ -93,6 +120,23 @@ jobs:
             '{version: $version, key: $key, size: $size, sha256: $sha256, commit: $commit, publishedAt: $publishedAt}' \
             > latest.json
           cat latest.json
+          # 自动更新：先传更新包，再写 update.json 指向它（与 latest.json 同理，不会指向半个文件）。
+          # 通用二进制里每个架构各自按 darwin-<arch> 查清单，两项指向同一个包。
+          bundle=target/universal-apple-darwin/release/bundle/macos
+          if [ -f "$bundle/umuo.app.tar.gz" ]; then
+            update_key="macos/umuo-${VERSION}-universal.app.tar.gz"
+            aws s3 cp "$bundle/umuo.app.tar.gz" "s3://umuo-releases/$update_key" --endpoint-url "$R2_ENDPOINT" \
+              --content-type application/gzip
+            jq -n --arg version "$VERSION" --arg url "https://umuo.app/download/$update_key" \
+              --arg signature "$(cat "$bundle/umuo.app.tar.gz.sig")" --arg pub_date "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+              '{version: $version, pub_date: $pub_date, platforms: {
+                 "darwin-aarch64": {url: $url, signature: $signature},
+                 "darwin-x86_64": {url: $url, signature: $signature}}}' \
+              > update.json
+            cat update.json
+            aws s3 cp update.json s3://umuo-releases/macos/update.json --endpoint-url "$R2_ENDPOINT" \
+              --content-type application/json --cache-control no-cache
+          fi
           # latest.json 最后写：Worker 以它为准，安装包没传完之前不会指过去。
           aws s3 cp latest.json s3://umuo-releases/macos/latest.json --endpoint-url "$R2_ENDPOINT" \
             --content-type application/json --cache-control no-cache

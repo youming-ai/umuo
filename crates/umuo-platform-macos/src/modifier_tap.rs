@@ -8,6 +8,7 @@
 //! 自动停用监听（TapDisabledByTimeout / ByUserInput），收到这两个通知时立刻重新启用——
 //! 否则连按快捷键会在某次卡顿后悄悄失灵，而且没有任何报错。
 
+use std::cell::RefCell;
 use std::ffi::c_void;
 use std::ptr;
 use std::sync::atomic::{AtomicPtr, Ordering};
@@ -75,6 +76,52 @@ pub fn modifier_event(keycode: u16, flags: u64) -> Option<ModifierEvent> {
     })
 }
 
+/// 按设备相关位算出现在按着的所有物理修饰键。
+fn held_keys(flags: u64) -> Vec<PhysicalModifier> {
+    MODIFIER_KEYS
+        .iter()
+        .filter(|(.., bit)| flags & bit != 0)
+        .map(|(_, kind, side, _)| PhysicalModifier {
+            kind: *kind,
+            side: *side,
+        })
+        .collect()
+}
+
+/// 一次 FlagsChanged → 喂给判定器的事件，以及之后「按着的键」。
+///
+/// 只报 keycode 那一个键的话，丢一次松开事件（⌃⌘Q 锁屏、切到安全输入框、监听被系统停用期间）
+/// 判定器就会以为那个键一直按着，之后所有连按都被当成「组合」——直到用户碰巧再按一次那个键。
+/// 所以每次都按事件里的**完整** flags 对一遍账：上次记着按下、这次已经不在的，补发松开；
+/// 反过来补发按下。keycode 自己的那次变化放在最后。纯函数，便于测试。
+pub fn reconcile(
+    previous: &[PhysicalModifier],
+    keycode: u16,
+    flags: u64,
+) -> (Vec<ModifierEvent>, Vec<PhysicalModifier>) {
+    let now = held_keys(flags);
+    let own = modifier_event(keycode, flags);
+    let is_own = |key: &PhysicalModifier| matches!(own, Some(ModifierEvent::Down(k) | ModifierEvent::Up(k)) if k == *key);
+    let mut events: Vec<ModifierEvent> = previous
+        .iter()
+        .filter(|key| !now.contains(key) && !is_own(key))
+        .map(|key| ModifierEvent::Up(*key))
+        .collect();
+    events.extend(
+        now.iter()
+            .filter(|key| !previous.contains(key) && !is_own(key))
+            .map(|key| ModifierEvent::Down(*key)),
+    );
+    // 修饰键不会自动重复：记着按下的键又来一次「按下」，说明它的松开丢了，先补上。
+    if let Some(ModifierEvent::Down(key)) = own {
+        if previous.contains(&key) {
+            events.push(ModifierEvent::Up(key));
+        }
+    }
+    events.extend(own);
+    (events, now)
+}
+
 fn start_tap(on_event: Box<dyn Fn(ModifierEvent) + Send + 'static>) -> Result<(), PlatformError> {
     let (ready, outcome) = mpsc::channel::<Result<(), PlatformError>>();
     std::thread::Builder::new()
@@ -83,6 +130,8 @@ fn start_tap(on_event: Box<dyn Fn(ModifierEvent) + Send + 'static>) -> Result<()
             // 回调里要能拿到监听本身的端口来重新启用它，而端口在创建之后才有：用一个原子指针中转。
             let port: Arc<AtomicPtr<c_void>> = Arc::new(AtomicPtr::new(ptr::null_mut()));
             let port_in_callback = Arc::clone(&port);
+            // 上一次看到的「按着的键」，用来对账（见 [`reconcile`]）。回调只在这个线程上跑。
+            let held: RefCell<Vec<PhysicalModifier>> = RefCell::new(Vec::new());
             let tap = CGEventTap::new(
                 CGEventTapLocation::Session,
                 CGEventTapPlacement::HeadInsertEventTap,
@@ -102,13 +151,20 @@ fn start_tap(on_event: Box<dyn Fn(ModifierEvent) + Send + 'static>) -> Result<()
                                 // SAFETY: raw 是这个监听自己的 CFMachPort，在监听线程存活期间一直有效。
                                 unsafe { CGEventTapEnable(raw as CFMachPortRef, true) };
                             }
+                            // 停用期间的松开事件都丢了：把记着的键全部当作松开，下一次
+                            // FlagsChanged 会按真实的 flags 再对一遍。
+                            for key in held.take() {
+                                on_event(ModifierEvent::Up(key));
+                            }
                         }
                         CGEventType::FlagsChanged => {
                             let keycode = event
                                 .get_integer_value_field(EventField::KEYBOARD_EVENT_KEYCODE)
                                 as u16;
-                            if let Some(change) = modifier_event(keycode, event.get_flags().bits())
-                            {
+                            let (changes, now) =
+                                reconcile(&held.borrow(), keycode, event.get_flags().bits());
+                            *held.borrow_mut() = now;
+                            for change in changes {
                                 on_event(change);
                             }
                         }
@@ -176,6 +232,47 @@ mod tests {
                 side: ModifierSide::Right
             }))
         );
+    }
+
+    const LCTRL: PhysicalModifier = PhysicalModifier {
+        kind: ModifierKind::Ctrl,
+        side: ModifierSide::Left,
+    };
+    const LCMD: PhysicalModifier = PhysicalModifier {
+        kind: ModifierKind::Cmd,
+        side: ModifierSide::Left,
+    };
+
+    #[test]
+    fn a_lost_release_is_made_up_from_the_full_flags() {
+        // ⌃⌘Q 锁屏：⌘ 的松开没送到，上次记着 [左⌃, 左⌘]。解锁后按左 ⌃，
+        // flags 里只有左 ⌃ 的位——要先补一个「左 ⌘ 松开」，判定器才不会以为还在组合。
+        let (events, now) = reconcile(&[LCMD], 0x3B, 0x0004_0001);
+        assert_eq!(
+            events,
+            [ModifierEvent::Up(LCMD), ModifierEvent::Down(LCTRL)]
+        );
+        assert_eq!(now, [LCTRL]);
+    }
+
+    #[test]
+    fn pressing_a_key_that_is_still_remembered_as_held_releases_it_first() {
+        // 左 ⌃ 的松开丢了，再按左 ⌃：先补松开再报按下，这一下就能算数。
+        let (events, _) = reconcile(&[LCTRL], 0x3B, 0x0004_0001);
+        assert_eq!(
+            events,
+            [ModifierEvent::Up(LCTRL), ModifierEvent::Down(LCTRL)]
+        );
+    }
+
+    #[test]
+    fn an_ordinary_change_reports_just_that_key() {
+        let (events, now) = reconcile(&[], 0x3B, 0x0004_0001);
+        assert_eq!(events, [ModifierEvent::Down(LCTRL)]);
+        assert_eq!(now, [LCTRL]);
+        let (events, now) = reconcile(&now, 0x3B, 0);
+        assert_eq!(events, [ModifierEvent::Up(LCTRL)]);
+        assert!(now.is_empty());
     }
 
     #[test]

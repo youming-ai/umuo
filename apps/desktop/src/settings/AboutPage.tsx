@@ -6,7 +6,7 @@ import { Group, LinkRowButton, Row } from './ui'
 const SITE_URL = 'https://umuo.app'
 const FEEDBACK_URL = 'mailto:hello@umuo.app'
 
-/** 关于：版本、更新方式、外链。客户端还没有自动更新，如实说「去官网下载」。 */
+/** 关于：版本、更新方式、外链。更新由菜单栏图标里的条目负责（`updater.rs`），这里只说清它怎么工作。 */
 export function AboutPage({ t, appVersion }: { t: Translate; appVersion: string | null }) {
   return (
     <div className="space-y-6">

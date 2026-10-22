@@ -5,23 +5,36 @@
 ## 项目是什么
 
 **umuo**：macOS 系统级 AI 翻译客户端（PRD 见 `docs/PRD.md`），核心卖点是「系统级随处翻译 + 自带 API Key（BYOK）」。
-Tauri 2 外壳 + Rust 共享内核 + 平台适配层。**本仓库私有、客户端闭源**；官网与它的 Worker 在公开仓库 `youming-ai/umuo`，不在这里。
+现有客户端是 Tauri 2 外壳 + Rust 共享内核 + 平台适配层，**正在迁移到 SwiftUI**（见下）。**本仓库私有、客户端闭源**。官网与它的 Worker 在 `site/`：独立的 Bun 项目（自己的 package.json、lint、测试与 `site/AGENTS.md`），不进根目录的 workspace；只改 `site/` 时客户端 CI 与发版都不触发。
 
 **里程碑 1 已完成**，PRD 的 P0 功能也已实现（详见 `docs/PRD-CONFORMANCE.md` 的已对齐表）。
-**当前方向**（2026-10-08 用户决定）：客户端功能按 Trancy Air 的设置结构逐块对齐——听写、跟读、朗读，
-以及账号与订阅。`docs/PRD.md` 已是 v0.3，§5.12 账号与订阅为 P0；服务端不在本仓库，
-客户端的登录 / 订阅入口还没做（对齐表的「未对齐」里有专节），动手前先把它拆成可验收的条目。
-**跟读与 PRD §3.3 冲突**（非目标写着「不做语言学习体系（单词本复习、跟读评测）」），做之前先请用户拍板。第一步「设置窗重排为分区侧边栏 + 改了就存」已完成：分区定义在
-`apps/desktop/src/lib/settings-tabs.ts`，保存队列在 `apps/desktop/src/lib/settings-queue.ts`，
-各页在 `apps/desktop/src/settings/`。进度与缺口见 `docs/PRD-CONFORMANCE.md`，
+**当前方向**（2026-10-19 用户决定，见 `docs/PRD.md` 开头的方向调整）：只做 macOS；客户端从 Tauri 迁到
+**SwiftUI**，`umuo-core` 经 UniFFI（`crates/umuo-ffi`）保留；官网直装 + Homebrew 分发，**不上 Mac App Store**
+（沙盒禁止跨 App 辅助功能）；Pro 是功能解锁许可证（仍 BYOK），收款在官网 Worker（Waffo Pancake）。
+账号、官方额度与模型网关暂缓。**跟读与 PRD §3.3 冲突**（「不做语言学习体系（单词本复习、跟读评测）」），做之前先请用户拍板。
+迁移的阶段、目录与必须守住的兼容性（Bundle ID、`settings.json`、`history.db`）见 `docs/SWIFTUI-MIGRATION.md`；
+功能验收仍以 `docs/PRD-CONFORMANCE.md` 为准，
 **不要凭印象判断「做完了没有」**。
+
+**Tauri 客户端已冻结**（2026-10-21 用户决定「开始换 SwiftUI」）：`apps/desktop`、`packages/tokens` 与
+`apps/desktop/src-tauri` 只接受安全、数据丢失、崩溃修复，不加功能、不升大版本依赖。新功能做在 SwiftUI 版。**收费（Premium 许可证、客户端门控、打开 `CHECKOUT_ENABLED`）暂缓**：
+先把 App 与官网做好再做，期间不要往客户端加许可证代码。可复用的逻辑放 `crates/umuo-app`（迁移文档第 1 阶段已把编排逻辑搬过去），Swift 经 `umuo-ffi` 调它，而不是在 Swift 里重写。
+**发版是手动的**：Actions → Release → Run workflow（main），或本机 `bun run release:local`。合进 main 不会再自动推给用户。
+**GitHub Actions 用不了时**（2026-10-21 起账单问题，CI 与 Release 都起不来）：合并前在本机跑 `bun run verify`
+（它覆盖 CI 的全部检查，外加 SwiftUI 构建与 selftest），PR 描述里写明本机门禁结果；
+发版用 `bun run release:local`（`scripts/release-local.sh`：本机门禁 → 通用二进制 + 更新签名 → 经 wrangler 传 R2，
+产物与上传顺序和 `release.yml` 一致；`DRY_RUN=1` 只构建不上传）。
+SwiftUI 版的打包是 `bun run bundle:macos -- --version X.Y.Z`（`apps/macos/scripts/bundle.sh`，只产出文件），
+经现有更新通道桥接发布是 `bun run release:swift X.Y.Z [--publish]`（默认不上传）；**发桥接版之前先读迁移文档「阶段 5」**——
+Swift 版还没有应用内更新，发出去之后也不能再用 `release:local` 发 Tauri 版。
 
 **范围边界**：本仓库只有客户端。账号 / 订阅 / 模型网关是闭源服务端（PRD §9.6），不在本仓库，不要在这里实现它。
 
 ## 前置条件
 
 - **Bun >= 1.2**（JS 侧唯一的包管理器与脚本运行器；不要用 npm/pnpm/yarn）
-- **Rust stable**（内核与 Tauri 外壳；`cargo` 必须可用）
+- **Rust stable**（内核、FFI 导出层与 Tauri 外壳；`cargo` 必须可用）
+- **Swift 6**（SwiftUI 客户端 `apps/macos`；只有 Command Line Tools 也能 `swift build`，见 `docs/SWIFTUI-MIGRATION.md`）
 - **Xcode Command Line Tools**（macOS 客户端编译）
 - 本地没有也不需要任何服务端密钥：BYOK 的 key 由用户在应用内填写，存系统 Keychain
 
@@ -43,13 +56,16 @@ bun run format             # biome format . --write
 bun run type-check         # 根 + 客户端 UI 的 tsc
 bun run test:run           # vitest run（TS 侧）
 bun run test:rust          # cargo test --workspace（翻译内核）
-bun run verify             # 提交前的完整门禁：lint + type-check + vitest + **cargo fmt --check** + **clippy -D warnings** + cargo test + 客户端前端构建
+bun run verify             # 提交前的完整门禁：lint + type-check + vitest + **cargo fmt --check** + **clippy -D warnings** + cargo test + 客户端前端构建 + verify:macos
+bun run verify:macos       # SwiftUI 一环：编内核与绑定 → swift build → swift test → Umuo --selftest → 打包冒烟（bundle.sh --quick）（非 macOS 自动跳过）
+bun run bundle:macos -- --version 0.2.0   # 组装通用二进制的 umuo.app、.dmg、.app.tar.gz（签名 / 公证看环境变量，见脚本开头）
 ```
 
 改动翻译逻辑后，**必须**同时跑 `bun run test:rust`；改动 UI 后必须跑 `bun run build:desktop-ui`。直接跑 `bun run verify` 最省事。
 
 > 门禁与 CI 对不上，本仓库犯过**两次**同一个错：clippy 与 `cargo fmt --check` 都只存在于 CI，
 > 而 `verify` 的链条里没有，于是「本机全绿但 PR 上红」。两次都补进 `verify` 了。
+> SwiftUI 的 `swift build` 与 `--selftest` 是第三个同类缺口（只在 CI 的 macos-app job 里），已作为 `verify:macos` 接上。
 > 以后往门槛里加检查时，顺手确认它真的在 `verify` 的链条上，而不是只存在于某个人的肌肉记忆里。
 >
 > 注意 fmt 的版本差：`verify` 用的是本机 rustfmt，CI 用 `dtolnay/rust-toolchain@stable` 的当前版本
@@ -79,6 +95,9 @@ cargo build -p umuo-desktop   # 主程序
 <script>
 window.__TAURI_INTERNALS__ = {
   invoke: async (cmd) => ({ /* 按 apps/desktop/src/lib/ipc.ts 的形状返回 */ })[cmd],
+  // 窗口专属事件用 getCurrentWebviewWindow().listen() 订阅，它读这份元数据；
+  // 少了它，浮窗 / 撰写窗 / 对比窗挂载时就会抛错。label 换成你要看的那个窗口。
+  metadata: { currentWindow: { label: 'panel' }, currentWebview: { label: 'panel' } },
   transformCallback: () => 1,
   unregisterCallback: () => {},
   registerListener: () => 1,
@@ -114,11 +133,14 @@ window.__TAURI_EVENT_PLUGIN_INTERNALS__ = { unregisterListener: () => {} };
 ## 仓库结构
 
 ```
-apps/desktop/             Tauri 2 客户端
+apps/desktop/             Tauri 2 客户端（已冻结）
   src/                    前端 UI（React）
-  src-tauri/              Rust 外壳：托盘、全局快捷键、窗口、IPC 命令
+  src-tauri/              Rust 外壳：托盘、全局快捷键、窗口、取词线程、IPC 命令、MacHost、TauriSink
+apps/macos/               SwiftUI 客户端（SwiftPM；Sources/Umuo 按功能分目录，Tests/UmuoTests 是 Swift Testing，--selftest）
 crates/umuo-core/         共享翻译内核（纯逻辑 + 传输，平台无关）
-crates/umuo-platform/     平台能力 trait 定义
+crates/umuo-app/          应用层：AppCore、Host、事件、翻译流水线、多模型对比、命令业务（ops）、设置与 patch、术语表、统计、历史、预算、导入导出、请求登记、配置目录（不依赖 Tauri，两个客户端共用）
+crates/umuo-ffi/          UniFFI 导出层：Engine、RequestHandle、HostBridge 与事件 sink，只做换型
+crates/umuo-platform/     平台能力 trait 定义（只给 Tauri 外壳用，随它删除）
 crates/umuo-platform-macos/ macOS 实现：取词、写回、凭据、OCR、朗读、修饰键监听
 crates/umuo-store/        本机 SQLite：历史、收藏、用量
 packages/tokens/          设计令牌 CSS，客户端 @import
@@ -126,9 +148,9 @@ packages/tokens/          设计令牌 CSS，客户端 @import
 
 ### 分层规则（违反它会立刻让 CI 或架构崩掉）
 
-1. `umuo-core` **不得**依赖任何平台 API，也不得依赖 Tauri。它必须能在 Linux 上编译并测试。
-2. 一切与操作系统交互的能力走 `umuo-platform` 里的 trait；`umuo-core` 只依赖 trait，不依赖具体实现。
-3. Tauri 的 `src-tauri` 只做「窗口 / 快捷键 / 命令 / 组装依赖」这些外壳工作，翻译逻辑一律调用内核。
+1. `umuo-core` 与 `umuo-app` **不得**依赖任何平台 API，也不得依赖 Tauri（`umuo-app` 也不依赖 uniffi）。它们必须能在 Linux 上编译并测试（CI 的 `app-core-linux`）。
+2. 流水线中途要的平台能力（Key、前台应用、写回）只走 `umuo_app::Host`；其余平台能力（取词、截图、OCR、语音、快捷键）留在宿主里。Tauri 外壳的平台能力走 `umuo-platform` 的 trait。宿主接口、事件协议与线程约定见 `docs/ARCHITECTURE.md` §2.1–2.3。
+3. Tauri 的 `src-tauri` 只做「窗口 / 快捷键 / 取词 / 命令 / 组装依赖」这些外壳工作，编排逻辑一律调用 `umuo-app`；`umuo-ffi` 只做类型转换。
 4. 前端 **不得**直接持有 API Key，也不得直接发供应商请求——请求走 Rust 侧，key 走 Keychain。
 
 ## 代码风格
@@ -154,6 +176,10 @@ packages/tokens/          设计令牌 CSS，客户端 @import
 
 - Rust 内核：单测与被测模块同文件（`#[cfg(test)] mod tests`），跨模块行为放 `crates/umuo-core/tests/`。
   优先测**纯函数**：请求构造、流式事件解析、Prompt 渲染、路由决策、费用计算、语言判断。
+- 流水线的端到端行为（故障转移、取消、超额换供应商、离线回落、分片、写回守卫、对比分流）用假宿主 + 本地 SSE 桩测：
+  `apps/desktop/src-tauri/src/pipeline_tests.rs`、`crates/umuo-ffi/src/engine.rs` 的测试，以及 Swift 的 `Umuo --selftest`。
+- Swift 视图模型与纯规则：Swift Testing（`apps/macos/Tests/UmuoTests`，`verify.sh` 里跑 `swift test`）。不碰真实 Keychain、用户剪贴板，不投递按键。
+  线上事件格式由 `src-tauri/src/sink.rs` 的黄金快照逐字节守着。
 - TS 侧：Vitest，测试文件与被测代码同目录 `__tests__/` 或 `*.test.ts`。
   **不要用 `bun test`**——它不读 `vitest.config.ts`。
 - 网络：不要在测试里打真实供应商端点。传输层的价值在「字节流 → 事件」这段纯逻辑上，把它单独抽出来测。
@@ -164,5 +190,5 @@ packages/tokens/          设计令牌 CSS，客户端 @import
 - 不要实现浏览器扩展、网页沉浸式双语阅读（PRD §3.3 已把它列为非目标）。
 - 不要把 API Key 写进配置、日志、历史库，或从前端明文传给 Rust（用 Keychain 的读写命令）。
 - 不要为「以后可能的平台」提前抽象：新平台接入时按现有 trait 补一个实现即可。
-- 不要在 Tauri 命令里写业务逻辑；命令只做参数校验与内核调用。
+- 不要在 Tauri 命令或 `umuo-ffi` 导出里写业务逻辑；命令只做参数转发与 `umuo-app` 调用，导出层只做换型。
 - 不要引入第二个包管理器或第二个 lint 工具链。

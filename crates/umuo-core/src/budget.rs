@@ -121,6 +121,9 @@ pub fn check(provider_id: &str, budget: Budget) -> Option<LimitVerdict> {
 pub struct ProviderLimit {
     pub provider_id: String,
     pub limit_usd: f64,
+    /// 本版本不认识的字段，见 [`crate::UnknownFields`]。
+    #[serde(flatten)]
+    pub extra: crate::UnknownFields,
 }
 
 /// 取某个供应商的上限。没配置过 = 不设上限。
@@ -194,6 +197,16 @@ pub fn pick_under_budget<'a>(candidates: &[(&'a str, Budget)]) -> Option<&'a str
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn unknown_fields_of_a_providerlimit_survive_a_json_round_trip() {
+        // 新版本加的字段，旧版本读进来再写出去不能丢
+        let raw = r#"{"providerId":"openai","limitUsd":5,"futureFlag":true}"#;
+        let value: ProviderLimit = serde_json::from_str(raw).unwrap();
+        let back: serde_json::Value = serde_json::to_value(&value).unwrap();
+        let original: serde_json::Value = serde_json::from_str(raw).unwrap();
+        assert_eq!(back["futureFlag"], original["futureFlag"]);
+    }
 
     #[test]
     fn no_limit_means_never_over_however_much_was_spent() {
@@ -349,6 +362,7 @@ mod tests {
     fn a_negative_configured_limit_is_treated_as_zero() {
         // 多半是手改配置的笔误。按 0 处理是更保守的那一侧，不会因笔误而放行支出。
         let limits = vec![ProviderLimit {
+            extra: Default::default(),
             provider_id: "openai".to_string(),
             limit_usd: -10.0,
         }];
@@ -359,6 +373,7 @@ mod tests {
     #[test]
     fn a_provider_missing_from_the_limit_list_is_unlimited() {
         let limits = vec![ProviderLimit {
+            extra: Default::default(),
             provider_id: "openai".to_string(),
             limit_usd: 5.0,
         }];

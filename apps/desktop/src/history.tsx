@@ -85,6 +85,14 @@ function History() {
     return () => window.clearTimeout(timer)
   }, [query, appFilter, modelFilter, reload])
 
+  useEffect(() => {
+    // 历史窗是复用的常驻窗口：关掉再打开只是重新聚焦，不会重新挂载。
+    // 不在聚焦时刷新，期间新翻译的记录、新收藏都看不到（审查 L25，与 quick.tsx 同一做法）。
+    const onFocus = () => void reload(query, appFilter, modelFilter)
+    window.addEventListener('focus', onFocus)
+    return () => window.removeEventListener('focus', onFocus)
+  }, [query, appFilter, modelFilter, reload])
+
   const toggleFavorite = async (record: HistoryRecord) => {
     // 收藏的是**原文 + 译文这一对**：语言学习者想留住的是那句外文，
     // 以及它对应的意思。判定「单词还是句子」由 Rust 侧用词卡规则决定，
@@ -303,7 +311,8 @@ function History() {
                       className="umuo-pressable rounded-control border border-border px-2 py-0.5 text-[11px] text-text-secondary"
                       onClick={() =>
                         void api
-                          .copyText(favorite.translation ?? favorite.text)
+                          // 旧版本可能存过空串译文（审查 L23），`??` 会把空串复制进剪贴板
+                          .copyText(favorite.translation || favorite.text)
                           .catch((error: unknown) => setStatus(String(error)))
                       }
                     >

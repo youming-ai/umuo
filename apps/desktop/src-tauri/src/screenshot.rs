@@ -108,6 +108,8 @@ pub fn trigger(app: &AppHandle) {
             }
             Ok(result) => {
                 // 识别结果作为源文本，走与划词翻译完全相同的那条流水线。
+                // 先把浮窗开出来：成功时也要看得到结果（审查 H3）。
+                translator::ensure_panel_shown(&app);
                 translator::spawn(&app, translator::Request::ocr(result.text), None);
             }
         }

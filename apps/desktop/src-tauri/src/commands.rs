@@ -9,10 +9,15 @@
 use std::sync::atomic::Ordering;
 use std::time::Duration;
 
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use tauri::{AppHandle, Emitter, Manager, State, WebviewUrl, WebviewWindowBuilder};
 use tauri_plugin_global_shortcut::GlobalShortcutExt;
-use umuo_core::provider::{self, ProviderKind};
+use umuo_app::ops::{
+    self, FavoriteDto, HistoryFilterDto, PickDto, ProviderDto, QuickState, RecordDto, StyleDto,
+    UsageDto,
+};
+use umuo_app::settings_patch::SettingsEffects;
+use umuo_core::provider;
 use umuo_platform::{ScreenCapture, SecretStore, SelectionReader, Speech};
 
 use crate::compare;
@@ -23,59 +28,32 @@ use crate::{
     QUICK_LABEL, SETTINGS_LABEL,
 };
 
-#[derive(Debug, Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct ProviderDto {
-    pub id: String,
-    pub label: String,
-    pub default_model: String,
-    pub suggested_models: Vec<String>,
-    pub keys_url: String,
-    /// 本地模型（Ollama / LM Studio）不需要 Key，UI 据此隐藏 Key 输入框。
-    pub requires_key: bool,
-    /// 必须由用户填 Base URL（Azure 的资源终结点、自定义端点）。
-    pub requires_base_url: bool,
-    pub local: bool,
-}
-
-#[derive(Debug, Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct StyleDto {
-    pub id: String,
-    pub label: String,
-    /// 是否用户自建（设置页据此决定能不能删）。
-    pub custom: bool,
-}
-
 #[tauri::command]
 pub fn get_settings(state: State<'_, AppState>) -> Settings {
     state.settings.lock().expect("设置锁不应中毒").clone()
 }
 
+/// 前端传来的是整份设置：整份作为 patch 交给应用层（不做 diff），校验与落盘都在那里。
 #[tauri::command]
 pub fn save_settings(
     app: AppHandle,
     state: State<'_, AppState>,
-    mut settings: Settings,
+    settings: Settings,
 ) -> Result<Settings, String> {
-    // 自建预设先规范化：能修的修（空标签、越界温度），修不了的明确报错。
-    // 报错而不是静默丢弃——用户会看到自己刚存的预设凭空消失，那更糟。
-    settings.normalize_custom_styles()?;
-    settings.normalize_selection_blacklist();
-    // 代理地址当场校验：填错了要在设置页立刻说，而不是等下次翻译莫名其妙地失败。
-    settings.proxy_choice()?;
-    settings
-        .save(&state.config_dir)
-        .map_err(|e| e.to_string())?;
-    let hotkeys_changed = {
-        let mut current = state.settings.lock().expect("设置锁不应中毒");
-        let changed = current.hotkeys() != settings.hotkeys();
-        *current = settings.clone();
-        changed
-    };
+    let patch = serde_json::to_value(settings).map_err(|e| e.to_string())?;
+    let (settings, effects) = state.apply_settings_patch(patch)?;
+    run_settings_effects(&app, &settings, effects);
+    // 返回**规范化之后**的设置：前端拿它覆盖本地 state，
+    // 否则设置页显示的还是用户填的原始值，与真正生效的规则不一致。
+    Ok(settings)
+}
+
+/// 让一份刚存好的设置**当场生效**。`save_settings` 与 `import_config` 共用：
+/// 导入的配置走的是同一套快捷键重注册和广播。
+fn run_settings_effects(app: &AppHandle, settings: &Settings, effects: SettingsEffects) {
     // 快捷键改了就当场重注册，不用重启客户端。
-    if hotkeys_changed {
-        crate::reregister_hotkeys(&app, settings.clone());
+    if effects.hotkeys {
+        crate::reregister_hotkeys(app, settings.clone());
     }
     // 广播主题：浮窗是常驻窗口，不广播的话用户改完主题要等到下次重启才看到效果，
     // 会以为"设置没生效"。
@@ -84,49 +62,18 @@ pub fn save_settings(
     let _ = app.emit("settings://locale", settings.locale.clone());
     let _ = app.emit("settings://scale", settings.ui_scale);
     // 托盘图标样式改动即时生效：重建客户端要重启，托盘图标不用。
-    crate::apply_tray_style(&app, &settings);
-    // 返回**规范化之后**的设置：前端拿它覆盖本地 state，
-    // 否则设置页显示的还是用户填的原始值，与真正生效的规则不一致。
-    Ok(settings)
+    crate::apply_tray_style(app, settings);
 }
 
 #[tauri::command]
 pub fn provider_catalog() -> Vec<ProviderDto> {
-    provider::PROVIDERS.iter().map(to_dto).collect()
+    ops::provider_catalog()
 }
 
-fn to_dto(p: &provider::Provider) -> ProviderDto {
-    ProviderDto {
-        id: p.id.to_string(),
-        label: p.label.to_string(),
-        default_model: p.default_model.to_string(),
-        suggested_models: p.suggested_models.iter().map(|m| m.to_string()).collect(),
-        keys_url: p.keys_url.to_string(),
-        requires_key: p.requires_key(),
-        requires_base_url: p.requires_base_url(),
-        local: p.kind == ProviderKind::Local,
-    }
-}
-
-/// 浮窗的「换个模型」下拉要用的：**这次真能用**的供应商。
-///
-/// 只列已配 Key 的（本地模型不需要 Key，也算）。把没配 Key 的也列出来，
-/// 用户选中后只会得到 401——那不是「切换模型」，是踩坑。
+/// 浮窗的「换个模型」下拉：只列这次真能用的供应商，规则见 [`ops::configured_providers`]。
 #[tauri::command]
 pub fn configured_providers(state: State<'_, AppState>) -> Vec<ProviderDto> {
-    provider::PROVIDERS
-        .iter()
-        .filter(|p| {
-            !p.requires_key()
-                || state
-                    .secrets
-                    .get(p.id)
-                    .ok()
-                    .flatten()
-                    .is_some_and(|key| !key.trim().is_empty())
-        })
-        .map(to_dto)
-        .collect()
+    ops::configured_providers(&state)
 }
 
 /// 浮窗的「重译」：同一段原文，换供应商 / 模型 / 风格再翻一次（PRD §5.2）。
@@ -162,25 +109,78 @@ pub fn retranslate(
 /// 守卫用**显示浮窗时记下的那个应用**：与静默翻译同一套保护——
 /// 用户切走了就不写回，避免把译文打进别的应用。写不进去时返回原因，
 /// 由浮窗显示，而不是静默失败。
+///
+/// 点这个按钮本身就会激活本应用（浮窗不是真·非激活 NSPanel），前台变成自己，
+/// 守卫必然拒绝（审查 H5）。所以这时先把源应用切回前台，等焦点回来再写。
 #[tauri::command]
-pub fn replace_source(app: AppHandle, text: String) -> Result<(), String> {
+pub async fn replace_source(app: AppHandle, text: String) -> Result<(), String> {
+    let state = app.state::<AppState>();
     let guard = {
-        let state = app.state::<AppState>();
         // 具名绑定：直接把 `lock().clone()` 写成尾表达式的话，
         // MutexGuard 这个临时值会在块尾与 `state` 一起析构，借用检查过不去。
         let owner = state.panel_owner.lock().expect("浮窗归属锁不应中毒");
         owner.clone()
     };
+    let current = state.selection.frontmost_app_token();
+    let own = translator::own_app_token();
+    match translator::plan_replace(guard.as_deref(), current.as_deref(), &own) {
+        translator::ReplacePlan::NoSource => {
+            return Err("这段文字不是从别的应用里取的，没有可替换的原文".to_string());
+        }
+        translator::ReplacePlan::Refocus => {
+            if let Some(owner) = guard.as_deref() {
+                refocus_source_app(&state.selection, owner).await;
+            }
+        }
+        translator::ReplacePlan::Write => {}
+    }
+    // 焦点没回来时这里的守卫会如实拒绝（目标已改变），不会写到别处。
     translator::write_back(&app, guard.as_deref(), &text).map_err(|e| e.to_string())
+}
+
+/// 把源应用切回前台，并等到前台确实是它（最多约 600ms）。
+///
+/// 切换是异步的：请求发出后立刻写，写回会落到我们自己的窗口上。
+/// 焦点回来后再多等一拍，让源应用把输入框的焦点与选区恢复好。
+async fn refocus_source_app(selection: &impl SelectionReader, owner: &str) {
+    if !selection.activate_app(owner) {
+        return;
+    }
+    for _ in 0..24 {
+        tokio::time::sleep(Duration::from_millis(25)).await;
+        if selection.frontmost_app_token().as_deref() == Some(owner) {
+            tokio::time::sleep(Duration::from_millis(50)).await;
+            return;
+        }
+    }
 }
 
 /// 把当前原文（可带译文）带到撰写窗（PRD §5.2「在撰写窗中打开」）。
 #[tauri::command]
 pub fn open_compose_with(
     app: AppHandle,
+    window: tauri::WebviewWindow,
     text: String,
     translation: Option<String>,
 ) -> Result<(), String> {
+    // 先算粘贴目标再显示：显示并聚焦撰写窗后前台就成了 umuo 自己。
+    // 每次都按调用方重新算，不保留旧值——撰写窗一直开着时旧值可能指向很早以前唤出它的应用，
+    // ⌘⇧Enter 会把这段原文的译文粘进那里。规则见 `compose_owner_for_caller`。
+    if let Some(state) = app.try_state::<AppState>() {
+        // 先单独取浮窗归属，避免同时持有两把锁。
+        let panel_owner = state
+            .panel_owner
+            .lock()
+            .expect("浮窗归属锁不应中毒")
+            .clone();
+        let owner = crate::compose_owner_for_caller(
+            state.selection.frontmost_app_token(),
+            window.label(),
+            panel_owner,
+            std::process::id(),
+        );
+        *state.compose_owner.lock().expect("撰写窗目标锁不应中毒") = owner;
+    }
     crate::show_compose(&app);
     let _ = app.emit_to(
         COMPOSE_LABEL,
@@ -200,8 +200,7 @@ pub struct PrefillPayload {
 /// 只回「配没配过」，不回明文——见文件头部的说明。
 #[tauri::command]
 pub fn key_status(state: State<'_, AppState>, provider_id: String) -> Result<bool, String> {
-    let secret = state.secrets.get(&provider_id).map_err(|e| e.to_string())?;
-    Ok(secret.is_some_and(|s| !s.trim().is_empty()))
+    ops::key_status(&state, &provider_id)
 }
 
 #[tauri::command]
@@ -234,25 +233,7 @@ pub async fn list_models(
     state: State<'_, AppState>,
     provider_id: String,
 ) -> Result<Vec<String>, String> {
-    let provider = provider::find_provider(&provider_id).ok_or_else(|| "未知供应商".to_string())?;
-    let api_key = state
-        .secrets
-        .get(provider.id)
-        .map_err(|e| e.to_string())?
-        .unwrap_or_default();
-    let settings = state.settings.lock().expect("设置锁不应中毒").clone();
-    let base_url = settings
-        .base_url_override(provider)
-        .map_err(|e| e.to_string())?;
-    let wire = match base_url.as_deref() {
-        Some(url) => umuo_core::wire::build_models_request_at(provider, url, &api_key),
-        None => umuo_core::wire::build_models_request(provider, &api_key),
-    }
-    .map_err(|e| e.to_string())?;
-    let body = umuo_core::transport::fetch_json(&state.client, &wire, Duration::from_secs(15))
-        .await
-        .map_err(|e| e.to_string())?;
-    umuo_core::wire::parse_models_list(provider.protocol, &body).map_err(|e| e.to_string())
+    ops::list_models(&state, &provider_id).await
 }
 
 #[tauri::command]
@@ -265,18 +246,10 @@ pub fn accessibility_trusted(app: AppHandle, state: State<'_, AppState>) -> bool
     trusted
 }
 
-/// 翻译风格目录（内置 + 用户自建）。前端不该自己维护一份风格清单——那样两边一定会漂移。
+/// 翻译风格目录（内置 + 用户自建）。
 #[tauri::command]
 pub fn style_catalog(state: State<'_, AppState>) -> Vec<StyleDto> {
-    let settings = state.settings.lock().expect("设置锁不应中毒");
-    umuo_core::prompt::all_styles(&settings.custom_styles)
-        .into_iter()
-        .map(|s| StyleDto {
-            id: s.id,
-            label: s.label,
-            custom: s.custom,
-        })
-        .collect()
+    ops::style_catalog(&state)
 }
 
 /// 打开「隐私与安全性 → 辅助功能」面板。
@@ -309,9 +282,10 @@ pub fn translate_text(app: AppHandle, text: String) -> Result<(), String> {
     Ok(())
 }
 
+/// 取消**发起这条命令的那个窗口**当前的请求：对比窗按 Esc 不该停掉浮窗的翻译。
 #[tauri::command]
-pub fn cancel_translation(state: State<'_, AppState>) {
-    state.cancel.store(true, Ordering::Relaxed);
+pub fn cancel_translation(window: tauri::WebviewWindow, state: State<'_, AppState>) {
+    state.requests.cancel(window.label());
 }
 
 #[tauri::command]
@@ -415,10 +389,6 @@ const QUICK_HEIGHT: f64 = 420.0;
 const MENUBAR_FALLBACK_Y: f64 = 30.0;
 /// 面板右缘相对托盘图标中心的内缩（逻辑点）。
 const TRAY_ANCHOR_INSET: f64 = 40.0;
-/// 面板里最多显示几条最近翻译。
-const QUICK_RECENT_LIMIT: u32 = 5;
-/// 面板里每条最多这么多字符：面板只有 340 宽，一整段选文会把最近翻译挤成一条。
-const PANEL_TEXT_LIMIT: usize = 60;
 
 /// ⌥A 与托盘菜单走 [`crate::toggle_compose`]；这个命令给前端与将来的按钮用。
 #[tauri::command]
@@ -500,9 +470,9 @@ pub fn compose_back_translate(
 
 /// 撰写窗的提交动作（PRD §5.3）。
 ///
-/// `paste` 为 true 时对应 ⌘⇧Enter：写剪贴板 → 收起撰写窗 → 让焦点回到上一个 App
-/// 后再粘贴。中间那段等待是必需的：窗口刚收起时前台应用还没切回去，
-/// 立刻发 ⌘V 会打给一个错误的接收者。
+/// `paste` 为 true 时对应 ⌘⇧Enter：写剪贴板 → 收起撰写窗 → 把唤出撰写窗之前的应用
+/// 叫回前台、确认它确实在前台后再粘贴。确认不了（从 umuo 自己的窗口唤出、原应用已退出）
+/// 就只留在剪贴板里并提示，不往不知道是谁的窗口里 ⌘V。
 #[tauri::command]
 pub async fn compose_commit(app: AppHandle, text: String, paste: bool) -> Result<(), String> {
     use umuo_platform::Clipboard;
@@ -525,42 +495,30 @@ pub async fn compose_commit(app: AppHandle, text: String, paste: bool) -> Result
 
     let state = app.state::<AppState>();
     let selection = &state.selection;
-    // 等焦点回到上一个 App。这个延时不是「保险起见」，而是这一步的必要组成：
-    // 抢在窗口切换完成之前按键，粘贴会落空或落到我们的窗口上。
-    tokio::time::sleep(std::time::Duration::from_millis(220)).await;
+    let owner = state
+        .compose_owner
+        .lock()
+        .expect("撰写窗目标锁不应中毒")
+        .clone();
+    // 把唤出撰写窗之前的应用叫回前台，轮询到它真的在前台再粘贴。固定等一段时间不够：
+    // 撰写窗收起后接过焦点的可能是 umuo 自己的历史窗或设置窗，⌘V 会落进那里。
+    let back_in_owner = match owner.as_deref() {
+        Some(owner) => {
+            refocus_source_app(selection, owner).await;
+            selection.frontmost_app_token().as_deref() == Some(owner)
+        }
+        None => false,
+    };
+    if !back_in_owner {
+        let message = "译文已复制到剪贴板，但原来的应用没能回到前台，没有自动粘贴。可以手动 ⌘V。";
+        // 撰写窗已经收起，它自己的提示没人看得见：用浮窗说。
+        translator::emit_notice(&app, message, None);
+        return Err(message.to_string());
+    }
     selection.paste_clipboard().map_err(|e| e.to_string())
 }
 
 // ---------------------------------------------------------------- 多模型对比（PRD §5.6）
-
-#[derive(Debug, Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct PickDto {
-    pub provider_id: String,
-    pub model: String,
-    /// 被标记为「最佳」的次数。
-    pub count: u32,
-}
-
-fn picks_from(state: &AppState) -> Vec<PickDto> {
-    state
-        .stats
-        .lock()
-        .expect("统计锁不应中毒")
-        .ranking()
-        .into_iter()
-        .filter_map(|(key, count)| {
-            // 键里可能出现已经下架的供应商或模型名。跳过它们而不是把脏键丢给前端——
-            // 前端拿一个解析不了的名字只会显示成空白一行。
-            let (provider_id, model) = crate::stats::split_pick_key(&key)?;
-            Some(PickDto {
-                provider_id: provider_id.to_string(),
-                model: model.to_string(),
-                count,
-            })
-        })
-        .collect()
-}
 
 /// 从命令发起一次对比（浮窗里的「对比」按钮、将来的右键菜单）。
 #[tauri::command]
@@ -587,156 +545,45 @@ pub fn record_compare_pick(
     provider_id: String,
     model: String,
 ) -> Result<Vec<PickDto>, String> {
-    if provider::find_provider(&provider_id).is_none() {
-        return Err(format!("未知供应商：{provider_id}"));
-    }
-
-    {
-        let mut stats = state.stats.lock().expect("统计锁不应中毒");
-        stats.record_pick(&provider_id, &model);
-        // 写盘失败不让命令失败：这一次标记仍然生效于内存，只是重启后可能丢。
-        // 反过来（报错并回滚）会让用户以为没记上，实际却是记上了。
-        if let Err(error) = stats.save(&state.config_dir) {
-            eprintln!("umuo: 对比偏好写盘失败：{error}");
-        }
-    }
-
-    Ok(picks_from(&state))
+    ops::record_compare_pick(&state, &provider_id, &model)
 }
 
 #[tauri::command]
 pub fn compare_picks(state: State<'_, AppState>) -> Vec<PickDto> {
-    picks_from(&state)
+    ops::picks_from(&state)
 }
 
 // ---------------------------------------------------------------- 翻译历史（PRD §5.9）
 
-/// 历史列表每页最多多少条。上限是给前端兜底的：一次拉几千条会让窗口卡住，
-/// 而用户真正会翻的也就是最近这些。
-const HISTORY_PAGE_MAX: u32 = 500;
-
-/// 历史检索条件（PRD §5.9）。三者可叠加，都是 AND。
-#[derive(Debug, Clone, Default, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct HistoryFilterDto {
-    pub query: Option<String>,
-    pub source_app: Option<String>,
-    pub model: Option<String>,
-}
-
-/// 按条件查询历史。空条件等于「显示全部」。
-///
-/// 检索与筛选走同一条路径：分两个命令的话，「搜索 + 筛选」这种组合要么做不到，
-/// 要么就得在前端自己合并两份结果。
 #[tauri::command]
 pub fn history_query(
-    app: AppHandle,
+    state: State<'_, AppState>,
     filter: Option<HistoryFilterDto>,
     limit: u32,
     offset: u32,
 ) -> Result<Vec<RecordDto>, String> {
-    let filter = filter.unwrap_or_default();
-    let rows = crate::history::with_store(&app, |store| {
-        store.query(
-            &umuo_store::HistoryFilter {
-                query: filter.query,
-                source_app: filter.source_app,
-                model: filter.model,
-            },
-            limit.min(HISTORY_PAGE_MAX),
-            offset,
-        )
-    })?;
-    Ok(records_to_dto(rows))
-}
-
-/// 筛选下拉的候选值：历史里**真正出现过**的来源 App 与模型。
-#[tauri::command]
-pub fn history_facets(app: AppHandle) -> Result<umuo_store::Facets, String> {
-    crate::history::with_store(&app, |store| store.facets())
+    ops::history_query(&state, filter, limit, offset)
 }
 
 #[tauri::command]
-pub fn history_delete(app: AppHandle, id: i64) -> Result<bool, String> {
-    crate::history::with_store(&app, |store| store.delete(id))
+pub fn history_facets(state: State<'_, AppState>) -> Result<umuo_store::Facets, String> {
+    ops::history_facets(&state)
 }
 
 #[tauri::command]
-pub fn history_clear(app: AppHandle) -> Result<usize, String> {
-    crate::history::with_store(&app, |store| store.clear())
+pub fn history_delete(state: State<'_, AppState>, id: i64) -> Result<bool, String> {
+    ops::history_delete(&state, id)
+}
+
+#[tauri::command]
+pub fn history_clear(state: State<'_, AppState>) -> Result<usize, String> {
+    ops::history_clear(&state)
 }
 
 /// 本月的次数、token 与费用（PRD §5.10）。
 #[tauri::command]
-pub fn usage_summary(app: AppHandle) -> Result<UsageDto, String> {
-    let summary = crate::history::month_usage(&app)?;
-    Ok(UsageDto {
-        count: summary.count,
-        input_tokens: summary.input_tokens,
-        output_tokens: summary.output_tokens,
-        cost_usd: summary.cost_usd,
-        // 价格未知的条数要如实给出：否则用户会以为「这个月只花了这么点」，
-        // 而实际上一部分根本没算进总额。
-        unpriced: summary.unpriced,
-    })
-}
-
-#[derive(Debug, Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct UsageDto {
-    pub count: u32,
-    pub input_tokens: u32,
-    pub output_tokens: u32,
-    pub cost_usd: f64,
-    pub unpriced: u32,
-}
-
-/// 历史的一行。与 `umuo_store::Record` 分开是为了**不让存储层的形状直接变成 IPC 契约**：
-/// 表结构以后要加列时，前端不该被迫一起改。
-#[derive(Debug, Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct RecordDto {
-    pub id: i64,
-    pub created_at: i64,
-    pub source_text: String,
-    pub translated_text: String,
-    pub source_lang: Option<String>,
-    pub target_lang: String,
-    pub provider_id: String,
-    pub model: String,
-    pub style_id: String,
-    pub scene: String,
-    pub source_app: Option<String>,
-    pub input_tokens: u32,
-    pub output_tokens: u32,
-    pub estimated: bool,
-    pub cost_usd: Option<f64>,
-}
-
-/// 存储层记录 → IPC 记录。
-///
-/// 用普通函数而不是 `impl From<Vec<...>> for Vec<...>`：后者会撞上孤儿规则
-/// （`Vec` 是外部类型），而且一个自由函数在这里读起来也更直白。
-fn records_to_dto(rows: Vec<umuo_store::Record>) -> Vec<RecordDto> {
-    rows.into_iter()
-        .map(|row| RecordDto {
-            id: row.id,
-            created_at: row.entry.created_at,
-            source_text: row.entry.source_text,
-            translated_text: row.entry.translated_text,
-            source_lang: row.entry.source_lang,
-            target_lang: row.entry.target_lang,
-            provider_id: row.entry.provider_id,
-            model: row.entry.model,
-            style_id: row.entry.style_id,
-            scene: row.entry.scene,
-            source_app: row.entry.source_app,
-            input_tokens: row.entry.input_tokens,
-            output_tokens: row.entry.output_tokens,
-            estimated: row.entry.estimated,
-            cost_usd: row.entry.cost_usd,
-        })
-        .collect()
+pub fn usage_summary(state: State<'_, AppState>) -> Result<UsageDto, String> {
+    ops::usage_summary(&state)
 }
 
 #[tauri::command]
@@ -757,11 +604,11 @@ pub fn open_history(app: AppHandle) -> Result<(), String> {
 
 /// 最近 `days` 天的按日用量（PRD §5.10）。
 #[tauri::command]
-pub fn usage_daily(app: AppHandle, days: u32) -> Result<Vec<umuo_store::DayUsage>, String> {
-    // 上限给到一年：再长的窗口在界面上也读不完，而且会让查询与渲染都变慢。
-    let days = days.clamp(1, 365);
-    let since = crate::history::now_unix() - i64::from(days) * 86_400;
-    crate::history::with_store(&app, |store| store.usage_by_day(since))
+pub fn usage_daily(
+    state: State<'_, AppState>,
+    days: u32,
+) -> Result<Vec<umuo_store::DayUsage>, String> {
+    ops::usage_daily(&state, days)
 }
 
 // ---------------------------------------------------------------- 菜单栏快捷面板（PRD §7.1）
@@ -833,70 +680,12 @@ pub fn open_quick_panel(app: &AppHandle, near: Option<tauri::PhysicalPosition<f6
     }
 }
 
-/// 快捷面板一次要用的全部状态。
-///
-/// **打成一个命令**而不是四个：面板一打开就要四样东西，四次往返只会让
-/// 它先渲染出一个半空的界面再跳一下。
-#[derive(Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct QuickState {
-    pub paused: bool,
-    pub provider_label: String,
-    pub model: String,
-    pub recent: Vec<QuickRecord>,
-}
-
-#[derive(Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct QuickRecord {
-    /// 历史记录 id。**用它当列表 key**，不要用下标——
-    /// 列表会随新翻译而变化，下标当 key 会让 React 复用错行。
-    pub id: i64,
-    pub source: String,
-    pub translation: String,
-    pub model: String,
-}
-
 #[tauri::command]
-pub fn quick_state(app: AppHandle, state: State<'_, AppState>) -> Result<QuickState, String> {
-    let settings = state.settings.lock().expect("设置锁不应中毒").clone();
-    let paused = state.paused.load(Ordering::Relaxed);
-    let provider_label = provider::find_provider(&settings.provider_id)
-        .map(|p| p.label.to_string())
-        .unwrap_or_else(|| settings.provider_id.clone());
-
-    // 最近几条：拿不到就空列表，不该让整个面板打不开。
-    let recent = crate::history::with_store(&app, |store| {
-        store.query(&umuo_store::HistoryFilter::default(), QUICK_RECENT_LIMIT, 0)
-    })
-    .map(|rows| {
-        rows.into_iter()
-            .map(|row| QuickRecord {
-                id: row.id,
-                source: trim_display(&row.entry.source_text, PANEL_TEXT_LIMIT),
-                translation: trim_display(&row.entry.translated_text, PANEL_TEXT_LIMIT),
-                model: row.entry.model,
-            })
-            .collect()
-    })
-    .unwrap_or_default();
-
-    Ok(QuickState {
-        paused,
-        provider_label,
-        model: settings.model,
-        recent,
-    })
-}
-
-/// 按**字符**而不是字节截断：中文按字节切会切出半个字。
-pub fn trim_display(text: &str, limit: usize) -> String {
-    let cleaned = text.trim().replace('\n', " ");
-    if cleaned.chars().count() <= limit {
-        return cleaned;
-    }
-    let head: String = cleaned.chars().take(limit.saturating_sub(1)).collect();
-    format!("{head}…")
+pub fn quick_state(state: State<'_, AppState>) -> Result<QuickState, String> {
+    Ok(ops::quick_state(
+        &state,
+        state.paused.load(Ordering::Relaxed),
+    ))
 }
 
 /// 暂停 / 恢复。返回切换后的状态。
@@ -916,6 +705,8 @@ pub fn quick_translate(app: AppHandle, text: String) -> Result<(), String> {
     if let Some(window) = app.get_webview_window(QUICK_LABEL) {
         let _ = window.hide();
     }
+    // 划词路径自己会开浮窗，这条入口不会：成功时也要看得到结果（审查 H3）。
+    crate::translator::ensure_panel_shown(&app);
     crate::translator::trigger_with_text(&app, trimmed.to_string());
     Ok(())
 }
@@ -1008,6 +799,10 @@ pub fn autostart_status() -> Result<bool, String> {
 pub fn set_autostart(enabled: bool) -> Result<bool, String> {
     let home = home_dir()?;
     let exec = std::env::current_exe().map_err(|e| format!("读不到程序路径：{e}"))?;
+    // 从磁盘映像或隔离目录运行时直接说清楚怎么办，不包一层「写入失败」。
+    if enabled {
+        crate::autostart::check_launch_path(&exec)?;
+    }
     crate::autostart::set_enabled(&home, &exec, enabled).map_err(|e| format!("写入失败：{e}"))?;
     Ok(crate::autostart::is_enabled(&home))
 }
@@ -1020,71 +815,26 @@ fn home_dir() -> Result<std::path::PathBuf, String> {
 
 // ---------------------------------------------------------------- 配置导入导出（PRD §6.4）
 
-/// 导出配置与术语表到固定位置，返回写出的完整路径。
-///
-/// 导出内容**不含 API Key**（Key 只在 Keychain，设置与术语表里都没有它）。
+/// 导出配置与术语表到固定位置，返回写出的完整路径。导出内容**不含 API Key**。
 #[tauri::command]
 pub fn export_config(state: State<'_, AppState>) -> Result<String, String> {
-    let settings = state.settings.lock().expect("设置锁不应中毒").clone();
-    let glossaries = state.glossaries.lock().expect("术语表锁不应中毒").clone();
-
-    let bundle = crate::config_io::Bundle {
-        version: crate::config_io::BUNDLE_VERSION,
-        app_version: env!("CARGO_PKG_VERSION").to_string(),
-        settings,
-        glossaries,
-    };
-
     let home = std::env::var_os("HOME")
         .map(std::path::PathBuf::from)
         .ok_or_else(|| "读不到 HOME，无法确定导出位置".to_string())?;
-    let path = crate::config_io::export_path_in(&home);
-    if let Some(parent) = path.parent() {
-        std::fs::create_dir_all(parent).map_err(|e| format!("创建目录失败：{e}"))?;
-    }
-
-    let json = serde_json::to_string_pretty(&bundle).map_err(|e| e.to_string())?;
-    std::fs::write(&path, json).map_err(|e| format!("写入失败：{e}"))?;
-    Ok(path.to_string_lossy().to_string())
+    ops::export_config(&state, &home)
 }
 
-/// 从文件导入配置与术语表，返回"应用了什么"的摘要。
-///
-/// **不碰 Keychain**：导入的包里没有 Key，用户的 Key 保持原样。
+/// 从文件导入配置与术语表，返回"应用了什么"的摘要。**不碰 Keychain**：
 /// 新机器上导完之后仍需自己填 Key——界面要把这句话说清楚。
 #[tauri::command]
 pub fn import_config(
+    app: AppHandle,
     state: State<'_, AppState>,
     path: String,
 ) -> Result<crate::config_io::ImportSummary, String> {
-    let raw = std::fs::read_to_string(&path).map_err(|e| format!("读取失败：{e}"))?;
-    let bundle: crate::config_io::Bundle =
-        serde_json::from_str(&raw).map_err(|e| format!("不是有效的 umuo 配置文件：{e}"))?;
-    crate::config_io::check_version(bundle.version)?;
-
-    let summary = crate::config_io::ImportSummary {
-        provider_id: bundle.settings.provider_id.clone(),
-        target_lang: bundle.settings.target_lang.clone(),
-        custom_style_count: bundle.settings.custom_styles.len(),
-        glossary_count: bundle.glossaries.lists.len(),
-        bundle_version: bundle.version,
-    };
-
-    {
-        let mut settings = state.settings.lock().expect("设置锁不应中毒");
-        *settings = bundle.settings;
-        settings
-            .save(&state.config_dir)
-            .map_err(|e| e.to_string())?;
-    }
-    {
-        let mut glossaries = state.glossaries.lock().expect("术语表锁不应中毒");
-        *glossaries = bundle.glossaries;
-        glossaries
-            .save(&state.config_dir)
-            .map_err(|e| e.to_string())?;
-    }
-    Ok(summary)
+    let imported = ops::import_config(&state, std::path::Path::new(&path))?;
+    run_settings_effects(&app, &imported.settings, imported.effects);
+    Ok(imported.summary)
 }
 
 // ---------------------------------------------------------------- 浮窗钉住（PRD §7.1）
@@ -1111,27 +861,17 @@ pub fn panel_set_pinned(state: State<'_, AppState>, pinned: bool) -> bool {
 
 // ---------------------------------------------------------------- 术语表（PRD §5.8）
 
-/// 全部术语表。前端拿它渲染管理界面，**不参与翻译**（翻译用的是下面的命中块）。
 #[tauri::command]
 pub fn glossary_list(state: State<'_, AppState>) -> Vec<umuo_core::glossary::Glossary> {
-    state
-        .glossaries
-        .lock()
-        .expect("术语表锁不应中毒")
-        .lists
-        .clone()
+    ops::glossary_list(&state)
 }
 
-/// 保存（新建或覆盖）一张术语表。
 #[tauri::command]
 pub fn glossary_save(
     state: State<'_, AppState>,
     glossary: umuo_core::glossary::Glossary,
 ) -> Result<Vec<umuo_core::glossary::Glossary>, String> {
-    let mut store = state.glossaries.lock().expect("术语表锁不应中毒");
-    store.upsert(glossary);
-    store.save(&state.config_dir).map_err(|e| e.to_string())?;
-    Ok(store.lists.clone())
+    ops::glossary_save(&state, glossary)
 }
 
 #[tauri::command]
@@ -1139,44 +879,29 @@ pub fn glossary_remove(
     state: State<'_, AppState>,
     id: String,
 ) -> Result<Vec<umuo_core::glossary::Glossary>, String> {
-    let mut store = state.glossaries.lock().expect("术语表锁不应中毒");
-    store.remove(&id);
-    store.save(&state.config_dir).map_err(|e| e.to_string())?;
-    Ok(store.lists.clone())
+    ops::glossary_remove(&state, &id)
 }
 
-/// 从 CSV / TSV 文本导入，**替换**该表的全部条目。返回导入条数。
 #[tauri::command]
 pub fn glossary_import(
     state: State<'_, AppState>,
     id: String,
     text: String,
 ) -> Result<usize, String> {
-    let mut store = state.glossaries.lock().expect("术语表锁不应中毒");
-    let count = store.import_into(&id, &text)?;
-    store.save(&state.config_dir).map_err(|e| e.to_string())?;
-    Ok(count)
+    ops::glossary_import(&state, &id, &text)
 }
 
-/// 导出为 CSV 文本。
 #[tauri::command]
 pub fn glossary_export(state: State<'_, AppState>, id: String) -> Result<String, String> {
-    state
-        .glossaries
-        .lock()
-        .expect("术语表锁不应中毒")
-        .export(&id)
+    ops::glossary_export(&state, &id)
 }
 
 // ---------------------------------------------------------------- 月度上限（PRD §5.10）
 
 /// 本月各供应商的花费，供设置页显示「已用 x / 上限 y」。
 #[tauri::command]
-pub fn monthly_spend(app: AppHandle) -> Result<Vec<umuo_store::ProviderUsage>, String> {
-    crate::history::with_store(&app, |store| {
-        let since = store.month_start_unix()?;
-        store.usage_by_provider(since)
-    })
+pub fn monthly_spend(state: State<'_, AppState>) -> Result<Vec<umuo_store::ProviderUsage>, String> {
+    ops::monthly_spend(&state)
 }
 
 // ---------------------------------------------------------------- 发音朗读（PRD §5.1）
@@ -1237,140 +962,35 @@ pub fn open_screen_recording_settings() -> Result<(), String> {
 
 // ---------------------------------------------------------------- 收藏（PRD §5.9）
 
-#[derive(Debug, Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct FavoriteDto {
-    pub id: i64,
-    pub created_at: i64,
-    pub kind: String,
-    pub text: String,
-    pub translation: Option<String>,
-    pub source_lang: Option<String>,
-    pub target_lang: Option<String>,
-}
-
-/// 这段文本该算「单词」还是「句子」。
-///
-/// 复用核心层判定词卡模式的那条规则（≤3 个词、无句末标点、长度有限），
-/// 而不是在前端再写一遍——两处各写一遍，迟早会出现「同一个词在词卡里是词、
-/// 在收藏里是句」这种自相矛盾。
-fn favorite_kind_for(text: &str) -> umuo_store::FavoriteKind {
-    if umuo_core::word_card::is_word_mode(text) {
-        umuo_store::FavoriteKind::Word
-    } else {
-        umuo_store::FavoriteKind::Sentence
-    }
-}
-
 /// 切换收藏状态，返回**切换之后**的状态（true = 现在已收藏）。
-///
-/// 返回新状态而不是 `()`：星标按钮需要知道最终是亮的还是灭的。
-/// 让前端自己做乐观更新再与服务端对账，是这类小交互里最容易出现不一致的写法。
 #[tauri::command]
 pub fn favorite_toggle(
-    app: AppHandle,
+    state: State<'_, AppState>,
     text: String,
     translation: Option<String>,
 ) -> Result<bool, String> {
-    let trimmed = text.trim().to_string();
-    if trimmed.is_empty() {
-        return Err(EMPTY_TEXT.to_string());
-    }
-    let kind = favorite_kind_for(&trimmed);
-
-    crate::history::with_store(&app, |store| {
-        if store.is_favorited(kind, &trimmed)? {
-            store.remove_favorite_by_text(kind, &trimmed)?;
-            Ok(false)
-        } else {
-            store.add_favorite(&umuo_store::NewFavorite {
-                created_at: crate::history::now_unix(),
-                kind,
-                text: trimmed,
-                translation,
-                source_lang: None,
-                target_lang: None,
-            })?;
-            Ok(true)
-        }
-    })
+    ops::favorite_toggle(&state, &text, translation)
 }
 
-/// 给定若干条文本，返回它们**当前**是否已被收藏。
-///
-/// 历史列表一屏有一百来行，逐行去问一次是 100 次 IPC 往返；
-/// 这里一次问完。判定规则仍然在 Rust 侧，前端不需要知道 kind 怎么算。
+/// 一次问完若干条文本当前是否已收藏（历史列表一屏一百来行，不逐行往返）。
 #[tauri::command]
-pub fn favorites_status(app: AppHandle, texts: Vec<String>) -> Result<Vec<bool>, String> {
-    crate::history::with_store(&app, |store| {
-        texts
-            .iter()
-            .map(|text| {
-                let trimmed = text.trim();
-                if trimmed.is_empty() {
-                    return Ok(false);
-                }
-                store.is_favorited(favorite_kind_for(trimmed), trimmed)
-            })
-            .collect::<Result<Vec<bool>, umuo_store::StoreError>>()
-    })
+pub fn favorites_status(
+    state: State<'_, AppState>,
+    texts: Vec<String>,
+) -> Result<Vec<bool>, String> {
+    ops::favorites_status(&state, &texts)
 }
 
 #[tauri::command]
-pub fn favorites_list(app: AppHandle, limit: u32, offset: u32) -> Result<Vec<FavoriteDto>, String> {
-    let rows = crate::history::with_store(&app, |store| {
-        store.favorites(limit.min(HISTORY_PAGE_MAX), offset)
-    })?;
-    Ok(rows
-        .into_iter()
-        .map(|row| FavoriteDto {
-            id: row.id,
-            created_at: row.created_at,
-            kind: match row.kind {
-                umuo_store::FavoriteKind::Word => "word".to_string(),
-                umuo_store::FavoriteKind::Sentence => "sentence".to_string(),
-            },
-            text: row.text,
-            translation: row.translation,
-            source_lang: row.source_lang,
-            target_lang: row.target_lang,
-        })
-        .collect())
+pub fn favorites_list(
+    state: State<'_, AppState>,
+    limit: u32,
+    offset: u32,
+) -> Result<Vec<FavoriteDto>, String> {
+    ops::favorites_list(&state, limit, offset)
 }
 
 #[tauri::command]
-pub fn favorite_remove(app: AppHandle, id: i64) -> Result<bool, String> {
-    crate::history::with_store(&app, |store| store.remove_favorite(id))
-}
-
-#[cfg(test)]
-mod quick_panel_tests {
-    use super::trim_display;
-
-    #[test]
-    fn short_text_is_returned_as_is() {
-        assert_eq!(trim_display("  hello  ", 60), "hello");
-        assert_eq!(trim_display("你好", 60), "你好");
-    }
-
-    #[test]
-    fn newlines_become_spaces_so_the_panel_stays_one_line() {
-        // 面板里每条只有一行的高度；换行会把四条最近翻译撑成一屏。
-        assert_eq!(trim_display("第一行\n第二行", 60), "第一行 第二行");
-    }
-
-    #[test]
-    fn long_text_is_cut_by_characters_not_bytes() {
-        // 按字节切会把一个汉字切成半个——那是乱码，不是省略。
-        let long = "一".repeat(100);
-        let trimmed = trim_display(&long, 10);
-        assert_eq!(trimmed.chars().count(), 10, "含省略号共 10 个字符");
-        assert!(trimmed.ends_with('…'));
-        assert!(trimmed.chars().all(|c| c == '一' || c == '…'));
-    }
-
-    #[test]
-    fn a_zero_limit_does_not_panic() {
-        assert_eq!(trim_display("abc", 0), "…");
-    }
+pub fn favorite_remove(state: State<'_, AppState>, id: i64) -> Result<bool, String> {
+    ops::favorite_remove(&state, id)
 }

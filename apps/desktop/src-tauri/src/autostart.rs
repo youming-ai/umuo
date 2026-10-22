@@ -47,6 +47,38 @@ fn escape_xml(text: &str) -> String {
         .replace('"', "&quot;")
 }
 
+fn unescape_xml(text: &str) -> String {
+    // `&amp;` 最后还原：先还原它会把 `&amp;lt;` 错还原成 `<`。
+    text.replace("&lt;", "<")
+        .replace("&gt;", ">")
+        .replace("&quot;", "\"")
+        .replace("&amp;", "&")
+}
+
+/// 从 plist 里取出 `ProgramArguments` 的第一项（登录时要启动的程序）。
+fn program_in_plist(plist: &str) -> Option<PathBuf> {
+    let after_key = &plist[plist.find("<key>ProgramArguments</key>")?..];
+    let start = after_key.find("<string>")? + "<string>".len();
+    let end = start + after_key[start..].find("</string>")?;
+    Some(PathBuf::from(unescape_xml(&after_key[start..end])))
+}
+
+/// 这个程序路径能不能写进 LaunchAgent。
+///
+/// 从 DMG 里直接打开（`/Volumes/...`）、或被 Gatekeeper 的 App Translocation 挪到随机只读
+/// 目录里运行时，`current_exe()` 是一个**临时**路径：卸载 DMG 或重启之后就不在了，
+/// 自启随之静默失效，开关却还显示「开」。这种情况直接拒绝，让用户先把应用装好。
+pub fn check_launch_path(exec_path: &Path) -> Result<(), String> {
+    let temporary = exec_path.starts_with("/Volumes")
+        || exec_path
+            .components()
+            .any(|part| part.as_os_str() == "AppTranslocation");
+    if temporary {
+        return Err("umuo 正从临时位置运行（磁盘映像或系统隔离目录）。请先把它拖进「应用程序」文件夹、从那里打开，再开启开机启动".to_string());
+    }
+    Ok(())
+}
+
 /// plist 的落点：`<home>/Library/LaunchAgents/<label>.plist`。
 pub fn plist_path(home: &Path) -> PathBuf {
     home.join("Library")
@@ -54,10 +86,16 @@ pub fn plist_path(home: &Path) -> PathBuf {
         .join(format!("{LABEL}.plist"))
 }
 
-/// 现在是不是开着。判据就是文件在不在——不查 `launchctl`，
+/// 现在是不是开着。判据是文件在、且里面写的程序还在——不查 `launchctl`，
 /// 因为那是另一个进程的输出，会把"文件在但服务没加载"变成两种不一致的状态。
+///
+/// 程序不在了（应用被挪走、删掉，或当初写进去的是临时路径）时登录不会启动任何东西，
+/// 如实报「关」，用户重新打开一次开关就会写入现在的路径。
 pub fn is_enabled(home: &Path) -> bool {
-    plist_path(home).is_file()
+    std::fs::read_to_string(plist_path(home))
+        .ok()
+        .and_then(|plist| program_in_plist(&plist))
+        .is_some_and(|program| program.exists())
 }
 
 /// 打开或关闭。
@@ -71,6 +109,7 @@ pub fn set_enabled(home: &Path, exec_path: &Path, enabled: bool) -> io::Result<(
             Err(error) => Err(error),
         };
     }
+    check_launch_path(exec_path).map_err(io::Error::other)?;
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent)?;
     }
@@ -115,14 +154,17 @@ mod tests {
     #[test]
     fn enabling_writes_the_file_and_disabling_removes_it() {
         let dir = home("cycle");
-        let exec = Path::new("/usr/local/bin/umuo");
+        // 程序得真的存在，is_enabled 才认。
+        let exec = dir.join("umuo");
+        std::fs::write(&exec, "").unwrap();
+        let exec = exec.as_path();
 
         assert!(!is_enabled(&dir), "初始应当是关的");
         set_enabled(&dir, exec, true).unwrap();
         assert!(is_enabled(&dir));
         assert!(std::fs::read_to_string(plist_path(&dir))
             .unwrap()
-            .contains("/usr/local/bin/umuo"));
+            .contains(&*exec.to_string_lossy()));
 
         set_enabled(&dir, exec, false).unwrap();
         assert!(!is_enabled(&dir));
@@ -133,6 +175,39 @@ mod tests {
         // 用户可能在设置里连点两次，或配置文件与磁盘状态不同步。
         let dir = home("idempotent");
         assert!(set_enabled(&dir, Path::new("/usr/local/bin/umuo"), false).is_ok());
+    }
+
+    #[test]
+    fn the_program_path_round_trips_through_the_plist() {
+        let exec = Path::new("/Users/a&b/My <App>/umuo");
+        assert_eq!(
+            program_in_plist(&launch_agent_plist(exec)).as_deref(),
+            Some(exec)
+        );
+    }
+
+    #[test]
+    fn a_plist_pointing_at_a_missing_program_counts_as_off() {
+        // 应用被挪走或删掉之后，登录时什么都不会启动——开关不该还显示「开」。
+        let dir = home("stale");
+        let path = plist_path(&dir);
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+        std::fs::write(&path, launch_agent_plist(&dir.join("gone/umuo"))).unwrap();
+        assert!(!is_enabled(&dir));
+    }
+
+    #[test]
+    fn temporary_locations_are_refused() {
+        for exec in [
+            "/Volumes/umuo/umuo.app/Contents/MacOS/umuo",
+            "/private/var/folders/x/T/AppTranslocation/ABC/d/umuo.app/Contents/MacOS/umuo",
+        ] {
+            assert!(check_launch_path(Path::new(exec)).is_err(), "{exec}");
+            let dir = home("translocated");
+            assert!(set_enabled(&dir, Path::new(exec), true).is_err());
+            assert!(!plist_path(&dir).exists(), "拒绝时不该留下文件");
+        }
+        assert!(check_launch_path(Path::new("/Applications/umuo.app/Contents/MacOS/umuo")).is_ok());
     }
 
     #[test]

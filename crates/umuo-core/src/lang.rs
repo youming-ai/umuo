@@ -7,6 +7,9 @@
 //!    该出英文而不是把中文「翻译」成中文）。
 //! 2. 给 Prompt 填 `{source_lang}`，让模型知道自己在处理什么。
 //!
+//! 拉丁字母是例外：一个书写系统对应多种语言，所以再用变音字母与高频虚词粗分
+//! 几种常见欧洲语言，见 [`latin_language`]。
+//!
 //! 判不出具体语言时返回 `None`，让调用方把源语言交给模型自己判断——
 //! 猜错语言比不猜更糟。
 
@@ -14,13 +17,23 @@
 ///
 /// 只覆盖产品明确承诺的语言（PRD §8「翻译语言 ≥ 30 种」由模型侧兜底，
 /// 这里只需要识别出「该翻成什么」）。
+///
+/// 拉丁字母是例外：一个书写系统对应多种语言，只看字母判不出法文还是英文。
+/// 这里用变音字母与高频虚词粗分几种常见欧洲语言（[`latin_language`]），
+/// 没有任何线索时仍按英文处理（审查 M8）。
 pub fn detect(text: &str) -> Option<&'static str> {
     let mut han = 0usize;
     let mut kana = 0usize;
     let mut hangul = 0usize;
     let mut cyrillic = 0usize;
     let mut arabic = 0usize;
+    let mut greek = 0usize;
+    let mut hebrew = 0usize;
+    let mut thai = 0usize;
+    let mut devanagari = 0usize;
     let mut latin = 0usize;
+    // 其它字母（格鲁吉亚文、亚美尼亚文……）：认得出是文字，但不知道是哪种语言。
+    let mut other = 0usize;
     let mut meaningful = 0usize;
 
     for ch in text.chars() {
@@ -38,7 +51,14 @@ pub fn detect(text: &str) -> Option<&'static str> {
             0x4E00..=0x9FFF | 0x3400..=0x4DBF => han += 1,
             0x0400..=0x04FF => cyrillic += 1,
             0x0600..=0x06FF => arabic += 1,
-            _ if ch.is_alphabetic() => latin += 1,
+            0x0370..=0x03FF => greek += 1,
+            0x0590..=0x05FF => hebrew += 1,
+            0x0E00..=0x0E7F => thai += 1,
+            0x0900..=0x097F => devanagari += 1,
+            // ASCII 字母、拉丁补充与扩展（含越南文用的 1E00 区）。
+            _ if ch.is_ascii_alphabetic() => latin += 1,
+            0x00C0..=0x024F | 0x1E00..=0x1EFF if ch.is_alphabetic() => latin += 1,
+            _ if ch.is_alphabetic() => other += 1,
             _ => {}
         }
     }
@@ -58,16 +78,177 @@ pub fn detect(text: &str) -> Option<&'static str> {
     if han > 0 {
         return Some("zh");
     }
+    // 西里尔与阿拉伯文沿用「出现即判」（审查前的行为）。后加的几种文字要求占多数：
+    // 希腊字母常作数学符号混在英文里（「The α value is 0.5」「Δt」），出现一个就判成
+    // 希腊文会让英文目标的用户拿到英译英、TTS 换成希腊语音。
     if cyrillic > 0 {
         return Some("ru");
     }
     if arabic > 0 {
         return Some("ar");
     }
-    if latin > 0 {
-        return Some("en");
+    let scripts = [
+        (greek, "el"),
+        (hebrew, "he"),
+        (thai, "th"),
+        (devanagari, "hi"),
+    ];
+    if let Some((_, code)) = scripts
+        .iter()
+        .filter(|(count, _)| *count > latin)
+        .max_by_key(|(count, _)| *count)
+    {
+        return Some(code);
+    }
+    // 拉丁字母为主时才去细分；混着认不出的文字时，猜一个只会把 {source_lang} 填错。
+    let minority_script = greek + hebrew + thai + devanagari;
+    if latin > 0 && latin >= other + minority_script {
+        return Some(latin_language(text));
     }
     None
+}
+
+/// 只出现在某一种常见欧洲语言里的字母（变音字母）。
+///
+/// 法文只收 ç œ ù：è ê â û î ï 在英文借词里太常见（crème brûlée、naïve），
+/// è 还是意大利文的「是」。
+const LATIN_MARKERS: &[(&str, &str)] = &[
+    ("de", "ßäöü"),
+    ("fr", "çœù"),
+    ("es", "ñ¿¡"),
+    ("pt", "ãõ"),
+    ("it", "ìò"),
+    ("tr", "ışğ"),
+    ("pl", "ąęłńśźż"),
+    ("vi", "ăơưđ"),
+];
+
+/// 各语言的高频虚词。只收几乎不会出现在别的语言里的词——
+/// `que`（法/西/葡）、`con` `del`（西/意）、`do`（英/葡）、`i`（英/意）这类有歧义的一律不收。
+const LATIN_STOPWORDS: &[(&str, &[&str])] = &[
+    (
+        "en",
+        &[
+            "the", "and", "is", "are", "of", "to", "this", "that", "with", "you", "it", "was",
+            "for", "not", "have",
+        ],
+    ),
+    (
+        "fr",
+        &[
+            "le", "les", "des", "est", "et", "une", "du", "pas", "je", "vous", "nous", "avec",
+            "pour", "dans", "ce", "qui", "suis", "sont",
+        ],
+    ),
+    (
+        "de",
+        &[
+            "der", "die", "das", "und", "ist", "nicht", "ein", "eine", "ich", "zu", "mit", "sie",
+            "auf", "dem", "wir", "sind",
+        ],
+    ),
+    (
+        "es",
+        &[
+            "el", "los", "las", "y", "una", "como", "pero", "muy", "está", "esto", "estoy",
+        ],
+    ),
+    (
+        "it",
+        &[
+            "gli", "che", "di", "non", "per", "sono", "della", "ma", "è", "un", "anche", "questo",
+        ],
+    ),
+    (
+        "pt",
+        &[
+            "os", "não", "uma", "com", "é", "em", "mas", "você", "são", "isso", "muito", "eu",
+        ],
+    ),
+];
+
+/// 拉丁字母文本属于哪种语言。英文是强默认值（审查 M8 复审）。
+///
+/// 每个含变音字母的词、每个虚词各算一条线索。别的语言要胜出，
+/// 线索至少 2 条，并且比英文虚词至少多 2 条——借词、专名、缩写只能提供一条线索
+/// （São Paulo、José、Müller、per month），不该把一句英文改判成别的语言。
+/// 全大写的词（EU、EST、OS、DES）多是缩写，不算其它语言的虚词。
+///
+/// 没有任何线索（只有一个词，或只有通用的 é/á 之类）时按英文处理——
+/// 返回 `None` 会让上层把母语当源语言，中文母语的用户划一句带 café 的英文，
+/// 就会被「撞车换第二目标语言」改成英译英，比把法文当英文更糟。
+fn latin_language(text: &str) -> &'static str {
+    const MIN_SIGNALS: usize = 2;
+    const MARGIN_OVER_ENGLISH: usize = 2;
+
+    let words: Vec<&str> = text
+        .split(|ch: char| !ch.is_alphabetic())
+        .filter(|w| !w.is_empty())
+        .collect();
+    let lower: Vec<String> = words.iter().map(|w| w.to_lowercase()).collect();
+    let is_acronym = |w: &str| w.chars().count() >= 2 && !w.chars().any(char::is_lowercase);
+    let stopword_hits = |list: &[&str], skip_acronyms: bool| {
+        words
+            .iter()
+            .zip(&lower)
+            .filter(|(orig, low)| {
+                !(skip_acronyms && is_acronym(orig)) && list.contains(&low.as_str())
+            })
+            .count()
+    };
+    let list_for = |code: &str| {
+        LATIN_STOPWORDS
+            .iter()
+            .find(|(c, _)| *c == code)
+            .map(|(_, list)| *list)
+            .unwrap_or(&[])
+    };
+
+    let english = stopword_hits(list_for("en"), false);
+    // ¿ ¡ 不是字母，不在分词结果里，单独数。
+    let lower_text = text.to_lowercase();
+
+    let mut best: Option<(&'static str, usize)> = None;
+    let candidates = LATIN_STOPWORDS
+        .iter()
+        .map(|(code, _)| *code)
+        .chain(LATIN_MARKERS.iter().map(|(code, _)| *code))
+        .filter(|code| *code != "en");
+    let mut seen: Vec<&str> = Vec::new();
+    for code in candidates {
+        if seen.contains(&code) {
+            continue;
+        }
+        seen.push(code);
+        let markers = LATIN_MARKERS
+            .iter()
+            .find(|(c, _)| *c == code)
+            .map(|(_, m)| {
+                let letters: Vec<char> = m.chars().filter(|c| c.is_alphabetic()).collect();
+                let punctuation = m
+                    .chars()
+                    .filter(|c| !c.is_alphabetic())
+                    .map(|p| lower_text.matches(p).count())
+                    .sum::<usize>();
+                lower
+                    .iter()
+                    .filter(|w| w.chars().any(|c| letters.contains(&c)))
+                    .count()
+                    + punctuation
+            })
+            .unwrap_or(0);
+        let score = markers + stopword_hits(list_for(code), true);
+        // 严格大于：平分时保留先出现的。
+        if score > best.map_or(0, |(_, s)| s) {
+            best = Some((code, score));
+        }
+    }
+    match best {
+        Some((code, score)) if score >= MIN_SIGNALS && score >= english + MARGIN_OVER_ENGLISH => {
+            code
+        }
+        _ => "en",
+    }
 }
 
 /// 两个语言码是否指向同一种语言。`zh-CN` 与 `zh` 视为同一语言。
@@ -172,6 +353,9 @@ pub fn display_name(code: &str) -> String {
         "id" => "Bahasa Indonesia",
         "tr" => "Türkçe",
         "hi" => "हिन्दी",
+        "el" => "Ελληνικά",
+        "he" => "עברית",
+        "pl" => "Polski",
         _ => return code.to_string(),
     };
     name.to_string()
@@ -200,6 +384,69 @@ mod tests {
         assert_eq!(detect("Привет мир"), Some("ru"));
         assert_eq!(detect("hello world"), Some("en"));
         assert_eq!(detect("مرحبا"), Some("ar"));
+    }
+
+    #[test]
+    fn common_european_languages_are_not_all_english() {
+        // 审查 M8：以前所有拉丁字母都判成 en，法文会被当成「与英文目标撞车」。
+        assert_eq!(detect("Bonjour, je suis très content"), Some("fr"));
+        assert_eq!(detect("Ça va, et vous ?"), Some("fr"));
+        assert_eq!(detect("Der Hund ist groß"), Some("de"));
+        assert_eq!(detect("¿Dónde está la estación?"), Some("es"));
+        assert_eq!(detect("Questo è un libro"), Some("it"));
+        assert_eq!(detect("Eu não sei"), Some("pt"));
+    }
+
+    #[test]
+    fn english_with_a_loanword_stays_english() {
+        // 借词与专名里的变音字母不能把英文推成「未知」：未知会退回母语假设，
+        // 中文用户就会拿到英译英。
+        assert_eq!(detect("I love this café"), Some("en"));
+        assert_eq!(detect("café"), Some("en"));
+        assert_eq!(detect("hello"), Some("en"));
+    }
+
+    #[test]
+    fn loanwords_names_and_acronyms_do_not_push_english_elsewhere() {
+        // 审查 M8 复审：一个借词、专名或缩写只是一条线索，不足以推翻英文。
+        for text in [
+            "The naïve approach",
+            "Our office in São Paulo is great",
+            "I met José Muñoz at the conference",
+            "$5 per month",
+            "EU AI Act",
+            "Meeting at 3pm EST",
+            "Plants die without water",
+            "die",
+            "The crème brûlée was great",
+            "Müller's plan",
+        ] {
+            assert_eq!(detect(text), Some("en"), "{text}");
+        }
+    }
+
+    #[test]
+    fn italian_e_accent_is_not_french() {
+        // è 是意大利文的「是」，不能当法文标记。
+        assert_eq!(detect("Non è vero"), Some("it"));
+    }
+
+    #[test]
+    fn a_stray_greek_letter_in_english_stays_english() {
+        // 审查：希腊字母常作数学符号，出现一个就判成希腊文会让英文用户拿到英译英。
+        assert_eq!(detect("The α value is 0.5"), Some("en"));
+        assert_eq!(detect("β-blocker"), Some("en"));
+        assert_eq!(detect("Δt"), Some("en"));
+    }
+
+    #[test]
+    fn other_scripts_get_their_own_language_or_none() {
+        assert_eq!(detect("สวัสดีครับ"), Some("th"));
+        assert_eq!(detect("नमस्ते दुनिया"), Some("hi"));
+        assert_eq!(detect("Καλημέρα"), Some("el"));
+        assert_eq!(detect("שלום"), Some("he"));
+        // 认不出的文字不再兜底成英文。
+        assert_eq!(detect("გამარჯობა"), None);
     }
 
     #[test]

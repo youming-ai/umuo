@@ -2,6 +2,14 @@
 
 Oct 6, 2026 · @youming
 
+> **2026-10-19 方向调整（优先于本文与之冲突的章节）**
+>
+> 1. **只做 macOS**：取消 Windows（原 V1.1）与 Linux / Omarchy（原 V2）。§9.3、§9.4 与路线图里的相关内容作废。
+> 2. **客户端改用 SwiftUI**：Tauri 外壳与 React 界面重写；翻译内核 `umuo-core` 保留，经 UniFFI 调用。计划见 `docs/SWIFTUI-MIGRATION.md`。
+> 3. **分发**：官网直装 + Homebrew，Developer ID 签名与公证；**不上 Mac App Store**（§3.3 原有结论不变：沙盒禁止跨 App 辅助功能）。
+> 4. **付费**：Pro = 客户端功能解锁的许可证，模型仍由用户自带 Key（BYOK）；收款用 Waffo Pancake（官网 Worker 负责结账、webhook 与许可证校验）。
+>    §5.12 的账号、§6.6 的官方额度与模型网关、§10 按额度分档的定价**暂缓**；哪些功能归 Pro 待定。
+
 ## 1. 文档信息
 
 本文档定义面向 macOS 的 AI 翻译客户端 umuo（官网 umuo.app）的 V1.0 需求，核心卖点是「系统级随处翻译 + 自带 API Key（BYOK）」。Windows 在 V1.1 跟进，Linux（Omarchy / Hyprland）作为 V2 目标，V1 架构需为其预留。

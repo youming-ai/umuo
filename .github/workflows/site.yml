@@ -1,0 +1,48 @@
+name: Site
+
+# 门禁：site/ 下官网与 Worker 的 lint / 类型 / 测试 / 构建。部署由 Cloudflare Workers Builds
+# 从 main 的 site/ 构建，不走 GitHub Actions。
+on:
+  push:
+    branches: [main]
+    paths: ['site/**', '.github/workflows/site.yml']
+  pull_request:
+    branches: [main]
+    paths: ['site/**', '.github/workflows/site.yml']
+
+concurrency:
+  group: site-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    working-directory: site
+
+jobs:
+  web:
+    name: Web (lint / types / tests / build)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version-file: site/package.json
+
+      - name: Install dependencies
+        # lockfile 与 package.json 不一致时直接失败，而不是悄悄改锁文件
+        run: bun install --frozen-lockfile
+
+      - name: Lint (Biome)
+        run: bun run lint
+
+      - name: Type check
+        run: bun run type-check
+
+      - name: Tests (Vitest)
+        run: bun run test:run
+
+      - name: Build landing page
+        run: bun run build:web
+

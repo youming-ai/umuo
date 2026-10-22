@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  umuo.app 的 Info.plist 模板，由 scripts/bundle.sh 把 @VERSION@ 换成版本号后放进 Contents/。
+
+  - CFBundleIdentifier 必须是 app.umuo.desktop（与 Tauri 版相同）：设置目录、Keychain 服务名、
+    辅助功能 / 输入监控 / 屏幕录制的授权都挂在它上面（docs/SWIFTUI-MIGRATION.md「必须守住的兼容性」）。
+  - CFBundleExecutable 沿用 Tauri 的 umuo-desktop：老用户开着开机自启时，
+    ~/Library/LaunchAgents/app.umuo.desktop.plist 里写死的是 …/Contents/MacOS/umuo-desktop，
+    换名字的话经更新通道升级后登录项指向一个不存在的文件，开关也会显示成「关」。
+  - LSUIElement：菜单栏应用，启动时不在 Dock 闪一下（AppModel 还会再设 .accessory）。
+  - 没有任何 *UsageDescription：用到的能力（辅助功能、输入监控、屏幕录制经 screencapture 子进程、
+    Vision、AVSpeechSynthesizer 朗读）都不读 Info.plist 的用途说明；不用的键不加。
+  - umuo:// 只登记、还没有处理函数：深链接（umuo://activate）随阶段 4 的许可证一起做。
+-->
+<plist version="1.0">
+<dict>
+  <key>CFBundleDevelopmentRegion</key>
+  <string>zh-Hans</string>
+  <key>CFBundleLocalizations</key>
+  <array>
+    <string>zh-Hans</string>
+    <string>zh-Hant</string>
+    <string>en</string>
+    <string>ja</string>
+  </array>
+  <key>CFBundleDisplayName</key>
+  <string>umuo</string>
+  <key>CFBundleName</key>
+  <string>umuo</string>
+  <key>CFBundleExecutable</key>
+  <string>umuo-desktop</string>
+  <key>CFBundleIconFile</key>
+  <string>icon.icns</string>
+  <key>CFBundleIdentifier</key>
+  <string>app.umuo.desktop</string>
+  <key>CFBundleInfoDictionaryVersion</key>
+  <string>6.0</string>
+  <key>CFBundlePackageType</key>
+  <string>APPL</string>
+  <key>CFBundleShortVersionString</key>
+  <string>@VERSION@</string>
+  <key>CFBundleVersion</key>
+  <string>@VERSION@</string>
+  <key>LSApplicationCategoryType</key>
+  <string>public.app-category.productivity</string>
+  <key>LSMinimumSystemVersion</key>
+  <string>14.0</string>
+  <key>LSUIElement</key>
+  <true/>
+  <key>NSHighResolutionCapable</key>
+  <true/>
+  <key>NSPrincipalClass</key>
+  <string>NSApplication</string>
+  <key>CFBundleURLTypes</key>
+  <array>
+    <dict>
+      <key>CFBundleURLName</key>
+      <string>app.umuo.desktop</string>
+      <key>CFBundleURLSchemes</key>
+      <array>
+        <string>umuo</string>
+      </array>
+    </dict>
+  </array>
+</dict>
+</plist>

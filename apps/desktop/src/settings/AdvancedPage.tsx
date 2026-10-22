@@ -134,6 +134,7 @@ export function AdvancedPage({
                     placeholder={t('prefs.advanced.unlimited')}
                     value={limit === null ? '' : String(limit)}
                     onError={setLimitError}
+                    badInputMessage={t('prefs.invalidNumber')}
                     onCommit={(text) =>
                       commit({
                         monthlyLimits: setLimit(
@@ -186,6 +187,7 @@ export function AdvancedPage({
               width="w-20"
               value={String(settings.historyRetentionDays)}
               onError={setRetentionError}
+              badInputMessage={t('prefs.invalidNumber')}
               onCommit={(text) => {
                 // 负数与 NaN 都归 0（不清理）——传下去只会让清理逻辑算出未来的时间点。
                 const parsed = Number.parseInt(text, 10)

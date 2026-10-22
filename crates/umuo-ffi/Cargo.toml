@@ -1,0 +1,28 @@
+[package]
+name = "umuo-ffi"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+description = "umuo-core 给 SwiftUI 客户端的 UniFFI 导出层（只做类型转换，不写业务逻辑）"
+
+[lib]
+name = "umuo_ffi"
+# staticlib 给 Swift 链接；cdylib 只给 uniffi-bindgen 读元数据生成绑定；lib 让 cargo test 能跑
+crate-type = ["staticlib", "cdylib", "lib"]
+
+[[bin]]
+name = "uniffi-bindgen"
+path = "uniffi-bindgen.rs"
+
+[dependencies]
+umuo-core = { path = "../umuo-core" }
+uniffi = { version = "0.32", features = ["cli"] }
+umuo-app = { path = "../umuo-app" }
+# 只为了在换型时点名历史与用量的 DTO（`umuo_app::ops` 直接返回它们）
+umuo-store = { path = "../umuo-store" }
+# 自建的多线程运行时跑流式请求。**不开 uniffi 的 `tokio` feature**：导出的流式方法都是同步启动，
+# 用不到它；开了反而多一套运行时上下文（迁移计划 §4）。
+tokio = { workspace = true, features = ["rt-multi-thread"] }
+thiserror.workspace = true
+serde_json.workspace = true

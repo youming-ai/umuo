@@ -23,14 +23,14 @@ pub mod error;
 pub mod favorites;
 pub mod history;
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use rusqlite::Connection;
 
 pub use error::StoreError;
 pub use favorites::{Favorite, FavoriteKind, NewFavorite};
 pub use history::{
-    DayUsage, Facets, HistoryFilter, NewRecord, ProviderUsage, Record, UsageSummary,
+    DayUsage, Facets, HistoryFilter, NewRecord, NewUsage, ProviderUsage, Record, UsageSummary,
 };
 
 /// 建表语句，按版本递进。
@@ -71,6 +71,30 @@ const MIGRATIONS: &[&str] = &[
     );
     CREATE INDEX idx_favorites_created_at ON favorites(created_at DESC);
     ",
+    // v2：独立的用量账本。
+    //
+    // 月度上限与用量统计原本直接 SUM 历史表，于是关掉历史、开隐私模式、清空历史、
+    // 保留期清理都会让「本月花了多少」变少，上限形同虚设。账本只存计费需要的字段
+    // （时间、供应商、模型、token、费用），**不存原文与译文**，所以不受上面任何一项影响。
+    //
+    // 同一脚本里从历史表回填：否则月中升级的用户本月已花的钱会突然归零。
+    "
+    CREATE TABLE usage (
+      id            INTEGER PRIMARY KEY AUTOINCREMENT,
+      created_at    INTEGER NOT NULL,
+      provider_id   TEXT    NOT NULL,
+      model         TEXT    NOT NULL,
+      input_tokens  INTEGER NOT NULL DEFAULT 0,
+      output_tokens INTEGER NOT NULL DEFAULT 0,
+      estimated     INTEGER NOT NULL DEFAULT 0,
+      cost_usd      REAL
+    );
+    CREATE INDEX idx_usage_created_at ON usage(created_at);
+
+    INSERT INTO usage (created_at, provider_id, model, input_tokens, output_tokens, estimated, cost_usd)
+      SELECT created_at, provider_id, model, input_tokens, output_tokens, estimated, cost_usd
+      FROM history ORDER BY id;
+    ",
 ];
 
 /// 本机数据库句柄。
@@ -88,6 +112,34 @@ impl Store {
         }
         let conn = Connection::open(path)?;
         Self::from_connection(conn)
+    }
+
+    /// 打开库；库文件损坏时把它（连同 WAL 旁路文件）挪成 `.corrupt-<时间戳>` 再建一个新库。
+    ///
+    /// 返回挪走后的备份路径（没损坏时为 `None`），调用方据此告诉用户发生了什么。
+    /// 只认 [`StoreError::is_corruption`]：版本过新、目录没权限这类失败原样返回——
+    /// 那些情况下挪走文件只会毁掉本来完好的数据。
+    pub fn open_recovering(path: &Path) -> Result<(Self, Option<PathBuf>), StoreError> {
+        match Self::open(path) {
+            Ok(store) => Ok((store, None)),
+            Err(error) if error.is_corruption() => {
+                let stamp = std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .map(|d| d.as_secs())
+                    .unwrap_or(0);
+                let backup = with_suffix(path, &format!(".corrupt-{stamp}"));
+                std::fs::rename(path, &backup).map_err(|e| StoreError::Io(e.to_string()))?;
+                // WAL 模式的旁路文件属于旧库，留着会被新库当成自己的日志重放。
+                for side in ["-wal", "-shm"] {
+                    let from = with_suffix(path, side);
+                    if from.exists() {
+                        let _ = std::fs::rename(&from, with_suffix(&backup, side));
+                    }
+                }
+                Ok((Self::open(path)?, Some(backup)))
+            }
+            Err(error) => Err(error),
+        }
     }
 
     /// 内存库。测试用它——不碰用户的真实历史，也不需要清理。
@@ -109,6 +161,15 @@ impl Store {
         let current: i64 = self
             .conn
             .query_row("PRAGMA user_version", [], |row| row.get(0))?;
+
+        // 新版程序写过的库（用户装回了旧版）：拒绝打开，而不是带着看不懂的结构照常读写。
+        let supported = MIGRATIONS.len() as i64;
+        if current > supported {
+            return Err(StoreError::SchemaTooNew {
+                found: current,
+                supported,
+            });
+        }
 
         for (index, script) in MIGRATIONS.iter().enumerate() {
             let version = index as i64 + 1;
@@ -138,6 +199,13 @@ impl Store {
     }
 }
 
+/// `history.db` + `-wal` → `history.db-wal`。`Path::with_extension` 会吃掉原扩展名，不能用。
+fn with_suffix(path: &Path, suffix: &str) -> PathBuf {
+    let mut name = path.as_os_str().to_owned();
+    name.push(suffix);
+    PathBuf::from(name)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -155,11 +223,11 @@ mod tests {
         let _ = std::fs::remove_file(&path);
         {
             let store = Store::open(&path).unwrap();
-            assert_eq!(store.schema_version().unwrap(), 1);
+            assert_eq!(store.schema_version().unwrap(), MIGRATIONS.len() as i64);
         }
         {
             let store = Store::open(&path).unwrap();
-            assert_eq!(store.schema_version().unwrap(), 1);
+            assert_eq!(store.schema_version().unwrap(), MIGRATIONS.len() as i64);
         }
         let _ = std::fs::remove_file(&path);
     }
@@ -172,7 +240,90 @@ mod tests {
         let _ = std::fs::remove_dir_all(std::env::temp_dir().join("umuo-store-nested"));
         let path = dir.join("history.db");
         let store = Store::open(&path).expect("应自动创建目录");
-        assert_eq!(store.schema_version().unwrap(), 1);
+        assert_eq!(store.schema_version().unwrap(), MIGRATIONS.len() as i64);
         let _ = std::fs::remove_dir_all(std::env::temp_dir().join("umuo-store-nested"));
+    }
+
+    fn temp_dir(name: &str) -> PathBuf {
+        let dir = std::env::temp_dir().join(format!("umuo-store-{name}-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    #[test]
+    fn a_database_written_by_a_newer_version_is_refused_not_misread() {
+        let dir = temp_dir("too-new");
+        let path = dir.join("history.db");
+        {
+            let store = Store::open(&path).unwrap();
+            store
+                .connection()
+                .pragma_update(None, "user_version", 99)
+                .unwrap();
+        }
+        let error = Store::open(&path).err().expect("版本过高应拒绝打开");
+        assert!(matches!(error, StoreError::SchemaTooNew { found: 99, .. }));
+        // 过新不是损坏：恢复流程不能把它挪走。
+        assert!(!error.is_corruption());
+        assert!(Store::open_recovering(&path).is_err());
+        assert!(path.exists(), "过新的库必须原样留着");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn a_corrupt_file_is_detected_and_moved_aside_for_a_fresh_store() {
+        let dir = temp_dir("corrupt");
+        let path = dir.join("history.db");
+        std::fs::write(&path, vec![0x5a_u8; 8192]).unwrap();
+
+        let error = Store::open(&path).err().expect("垃圾文件不该被当成库");
+        assert!(error.is_corruption(), "应识别为损坏：{error}");
+
+        let (store, backup) = Store::open_recovering(&path).unwrap();
+        let backup = backup.expect("应返回备份路径");
+        assert!(backup.exists(), "原文件应被保留成备份");
+        assert!(backup
+            .file_name()
+            .unwrap()
+            .to_string_lossy()
+            .starts_with("history.db.corrupt-"));
+        assert_eq!(store.schema_version().unwrap(), MIGRATIONS.len() as i64);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn a_healthy_store_is_opened_without_any_backup() {
+        let dir = temp_dir("healthy");
+        let path = dir.join("history.db");
+        let (_, backup) = Store::open_recovering(&path).unwrap();
+        assert!(backup.is_none());
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn upgrading_from_v1_backfills_the_usage_ledger_from_history() {
+        // 月中升级的用户，本月已花的钱不能因为换了数据来源而归零。
+        let dir = temp_dir("backfill");
+        let path = dir.join("history.db");
+        {
+            let conn = Connection::open(&path).unwrap();
+            conn.execute_batch(MIGRATIONS[0]).unwrap();
+            conn.pragma_update(None, "user_version", 1).unwrap();
+            conn.execute(
+                "INSERT INTO history (created_at, source_text, translated_text, target_lang,
+                 provider_id, model, style_id, scene, input_tokens, output_tokens, cost_usd)
+                 VALUES (100, 'a', '甲', 'zh-CN', 'openai', 'gpt-4o-mini', 'standard',
+                 'selection', 10, 20, 1.5)",
+                [],
+            )
+            .unwrap();
+        }
+        let store = Store::open(&path).unwrap();
+        let summary = store.usage_since(0).unwrap();
+        assert_eq!(summary.count, 1);
+        assert_eq!((summary.input_tokens, summary.output_tokens), (10, 20));
+        assert!((summary.cost_usd - 1.5).abs() < 1e-9);
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }

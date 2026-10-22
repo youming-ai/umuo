@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
+import { tFor } from './i18n'
 import type { ModelRef, SceneModels } from './ipc'
 import {
   addFallback,
@@ -10,6 +11,9 @@ import {
   SCENE_ROWS,
   setSceneModel,
 } from './scene-routing'
+
+/** 断言的是简体中文文案，与源语言一致。 */
+const t = tFor('zh-CN')
 
 const ref = (providerId: string, model: string): ModelRef => ({ providerId, model })
 
@@ -41,9 +45,11 @@ describe('完整性与标签', () => {
   })
 
   it('没配时显示「用默认模型」而不是空白', () => {
-    expect(modelLabel(null)).toBe('用默认模型')
-    expect(modelLabel(ref('', ''))).toBe('用默认模型')
-    expect(modelLabel(ref('openai', 'gpt-4o'))).toBe('openai · gpt-4o')
+    expect(modelLabel(null, t)).toBe('用默认模型')
+    expect(modelLabel(ref('', ''), t)).toBe('用默认模型')
+    expect(modelLabel(ref('openai', 'gpt-4o'), t)).toBe('openai · gpt-4o')
+    // 文案随界面语言走（审查 L24）
+    expect(modelLabel(null, tFor('en'))).toBe('Use the default model')
   })
 })
 

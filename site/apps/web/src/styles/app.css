@@ -1,0 +1,828 @@
+/* 全站统一 Open Sans，自托管可变字体；中日韩字形由系统无衬线字体补齐。 */
+@import "tailwindcss";
+
+@font-face {
+  font-family: "Open Sans";
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+  src: url("/fonts/open-sans/open-sans-latin.woff2") format("woff2");
+  unicode-range:
+    U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308,
+    U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: "Open Sans";
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+  src: url("/fonts/open-sans/open-sans-latin-ext.woff2") format("woff2");
+  unicode-range:
+    U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308,
+    U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4,
+    U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+@theme {
+  --font-sans:
+    "Open Sans", -apple-system, BlinkMacSystemFont, "PingFang SC", "PingFang TC", "Hiragino Sans",
+    "Apple SD Gothic Neo", "Malgun Gothic", "Segoe UI", sans-serif;
+  /* 兼容原有组件类名，但标题和译文不再使用宋体 / 明朝。 */
+  --font-serif: var(--font-sans);
+  --font-heading: var(--font-sans);
+  --color-background: var(--paper);
+  --color-background-secondary: var(--paper);
+  --color-background-tertiary: var(--paper-2);
+  --color-surface: var(--paper);
+  --color-text-primary: var(--ink);
+  --color-text-secondary: var(--ink-2);
+  --color-text-tertiary: var(--ink-3);
+  --color-text-muted: var(--ink-3);
+  --color-border: var(--rule);
+  --color-border-secondary: var(--rule-strong);
+  --color-border-muted: var(--rule);
+  --radius-control: 6px;
+  --radius-card: 10px;
+}
+
+@layer base {
+  :root {
+    color-scheme: light;
+    --paper: #ffffff;
+    --paper-2: #f6f6f7;
+    --ink: #16181d;
+    --ink-2: #464a53;
+    --ink-3: #6b6f78;
+    --rule: #e3e4e8;
+    --rule-strong: #c4c6cc;
+    --select: #b3d7ff;
+    --button-fill: #16181d;
+    --button-text: #ffffff;
+    /* 兼容旧类名 */
+    --accent-color: var(--ink);
+    --surface-selected: var(--select);
+  }
+
+  html[data-theme="dark"] {
+    color-scheme: dark;
+    --paper: #1c1d21;
+    --paper-2: #232429;
+    --ink: #ecedef;
+    --ink-2: #b6b9c0;
+    --ink-3: #8f929a;
+    --rule: #303238;
+    --rule-strong: #4a4d55;
+    --select: #3f638b;
+    --button-fill: #ecedef;
+    --button-text: #1c1d21;
+  }
+
+  html[data-theme="high-contrast"] {
+    --paper: #000000;
+    --paper-2: #000000;
+    --ink: #ffffff;
+    --ink-2: #ffffff;
+    --ink-3: #e0e0e0;
+    --rule: #ffffff;
+    --rule-strong: #ffffff;
+    --select: #1f5fbf;
+    --button-fill: #ffffff;
+    --button-text: #000000;
+  }
+
+  html {
+    scroll-behavior: smooth;
+    scroll-padding-top: 5rem;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    @apply min-h-screen font-sans;
+    background: var(--paper);
+    color: var(--ink);
+    font-size: 1.0625rem;
+    line-height: 1.6;
+  }
+
+  *,
+  ::before,
+  ::after {
+    border-color: var(--rule);
+  }
+
+  button,
+  summary,
+  a {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  button {
+    background: transparent;
+    color: inherit;
+  }
+
+  button:not(:disabled),
+  summary {
+    cursor: pointer;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--ink);
+    outline-offset: 3px;
+  }
+
+  ::selection {
+    background: var(--select);
+    color: var(--ink);
+  }
+}
+
+@layer components {
+  /* 横向溢出兜底；用 clip 而非 hidden，以免影响 sticky */
+  .landing {
+    position: relative;
+    isolation: isolate;
+    overflow-x: clip;
+  }
+
+  .container-page {
+    @apply mx-auto w-full px-6;
+    max-width: 76rem;
+  }
+
+  /* —— 按钮与键帽：Mac 原生的小圆角，不用胶囊 —— */
+  .btn-primary,
+  .btn-secondary,
+  .btn-ghost {
+    @apply inline-flex h-11 items-center justify-center gap-2 px-5 text-[0.9375rem] font-medium;
+    border: 1px solid transparent;
+    border-radius: var(--radius-control);
+    background: transparent;
+    transition: opacity 150ms ease;
+  }
+
+  .btn-primary {
+    color: var(--ink);
+    border-color: var(--ink);
+  }
+
+  .btn-primary:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+
+  .btn-primary:hover:not(:disabled) {
+    opacity: 0.72;
+  }
+
+  .btn-secondary {
+    color: var(--ink);
+    border-color: var(--rule-strong);
+  }
+
+  .btn-secondary:hover,
+  .btn-ghost:hover {
+    opacity: 0.72;
+  }
+
+  .btn-ghost {
+    color: var(--ink-2);
+  }
+
+  /* 实心主按钮：首屏唯一的行动入口 */
+  .btn-solid {
+    background: var(--button-fill);
+    border-color: var(--button-fill);
+    color: var(--button-text);
+  }
+
+  /* 安装包未发布：保持原样不变灰，靠里面的状态标签说明「还没发布」 */
+  .btn-primary.is-pending {
+    opacity: 1;
+    cursor: default;
+  }
+
+  .status-tag {
+    margin-inline-start: 0.25rem;
+    padding: 0.0625rem 0.375rem;
+    border-radius: 4px;
+    background: color-mix(in srgb, currentColor 14%, transparent);
+    font-size: 0.75rem;
+    font-weight: 500;
+  }
+
+  .keycap {
+    @apply inline-flex h-9 min-w-9 items-center justify-center px-2.5 text-[0.9375rem] font-medium;
+    border: 1px solid var(--rule-strong);
+    border-bottom-width: 2px;
+    border-radius: 5px;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    line-height: 1;
+  }
+
+  .keycap-sm {
+    @apply h-7 min-w-7 px-1.5 text-xs;
+  }
+
+  /* —— 字号阶：17 / 21 / 28 / 40 / 60，全站使用 Open Sans 字体栈 —— */
+  .section-title {
+    font-family: var(--font-serif);
+    font-size: clamp(1.75rem, 3vw, 2.5rem);
+    font-weight: 600;
+    line-height: 1.2;
+    text-wrap: balance;
+  }
+
+  .lead {
+    color: var(--ink-2);
+    font-size: 1.1875rem;
+    line-height: 1.6;
+    max-width: 34em;
+    text-wrap: pretty;
+  }
+
+  .u-accent-text {
+    color: var(--ink);
+  }
+
+  /* 图标同时保留在 DOM 中，保证预渲染和 hydration 的结构一致。 */
+  html:not([data-theme="light"]) .umuo-theme-when-light,
+  html[data-theme="light"] .umuo-theme-when-dark {
+    display: none;
+  }
+
+  /* —— 导航 —— */
+  /* 页眉透明地压在字符网格上；用 absolute 而非 fixed，定价页滚动时正文不会从页眉底下穿过 */
+  .site-nav {
+    inset-inline: 0;
+    top: 0;
+  }
+
+  .site-nav a[aria-current="page"] {
+    color: var(--ink);
+    text-decoration: underline;
+    text-underline-offset: 0.4em;
+    text-decoration-color: var(--ink-3);
+  }
+
+  .landing-home {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .landing-home main {
+    display: grid;
+    flex: 1;
+  }
+
+  /* 首页恰好一屏：main 吃掉页脚以外的高度，首屏在其中垂直居中；内容放不下的小屏才滚动 */
+  .hero-stage {
+    display: grid;
+    align-items: center;
+    padding-top: 4rem;
+  }
+
+  .site-footer {
+    padding-block: 1.5rem;
+  }
+
+  /* —— 定价：三栏像书的分栏，顶上一条细线，不做卡片 —— */
+  .pricing {
+    padding-top: 7rem;
+    padding-bottom: 4rem;
+  }
+  .pricing-plans {
+    display: grid;
+    gap: 2.5rem;
+    margin-top: 3rem;
+  }
+  @media (min-width: 900px) {
+    .pricing-plans {
+      /* 按方案数分栏：现在是 Free + Premium，以后加「高级 AI」档不用改样式 */
+      grid-auto-flow: column;
+      grid-auto-columns: minmax(0, 1fr);
+    }
+  }
+  .pricing-action {
+    margin-top: 1.25rem;
+  }
+  .pricing-fineprint {
+    margin-top: 0.75rem;
+    color: var(--ink-3);
+    font-size: 0.875rem;
+  }
+  .checkout-field {
+    display: grid;
+    gap: 0.375rem;
+    max-width: 22rem;
+    font-size: 0.875rem;
+    color: var(--ink-2);
+  }
+  .checkout-field input {
+    border: 1px solid var(--rule-strong);
+    border-radius: 0.375rem;
+    background: var(--paper);
+    color: var(--ink);
+    padding: 0.5rem 0.75rem;
+    font-size: 1rem;
+  }
+  .checkout-status {
+    margin-top: 0.75rem;
+    min-height: 1.5em;
+    font-size: 0.875rem;
+  }
+  .checkout-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin-top: 0.75rem;
+  }
+
+  /* —— 激活页：付款后领取许可证密钥 —— */
+  .activate {
+    padding-top: 7rem;
+    padding-bottom: 4rem;
+  }
+  .activate-body > * + * {
+    margin-top: 1.25rem;
+  }
+  .activate-body {
+    max-width: 44rem;
+    margin-top: 1.5rem;
+  }
+  .license-key {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.75rem;
+  }
+  .license-key code {
+    font-size: 1.125rem;
+    letter-spacing: 0.04em;
+    user-select: all;
+  }
+  .activate-steps {
+    padding-inline-start: 1.25rem;
+    list-style: decimal;
+    color: var(--ink-2);
+  }
+  .pricing-plans > li {
+    border-top: 1px solid var(--rule-strong);
+    padding-top: 1.25rem;
+  }
+  .pricing-plans h2 {
+    font-size: 1.3125rem;
+    font-weight: 600;
+  }
+  .pricing-tagline,
+  .pricing-yearly {
+    color: var(--ink-3);
+    font-size: 0.9375rem;
+  }
+  .pricing-price {
+    margin-top: 1rem;
+    font-size: 2rem;
+    font-weight: 600;
+    line-height: 1.2;
+  }
+  .pricing-plans ul {
+    margin-top: 1rem;
+    padding-inline-start: 1.25rem;
+    list-style: disc;
+    color: var(--ink-2);
+  }
+  .pricing-notes {
+    display: grid;
+    gap: 1.25rem;
+    max-width: 44rem;
+    margin-top: 3.5rem;
+  }
+  .pricing-notes dt {
+    font-weight: 600;
+  }
+  .pricing-notes dd {
+    margin-top: 0.25rem;
+    color: var(--ink-2);
+  }
+
+  /* —— 服务条款 / 隐私政策：长文页，正文限宽便于阅读 —— */
+  .legal {
+    padding-top: 7rem;
+    padding-bottom: 4rem;
+  }
+  .legal > * {
+    max-width: 44rem;
+  }
+  .legal-meta {
+    margin-top: 0.75rem;
+    color: var(--ink-3);
+    font-size: 0.875rem;
+  }
+  .legal h2 {
+    margin-top: 2.5rem;
+    font-size: 1.3125rem;
+    font-weight: 600;
+  }
+  .legal h3 {
+    margin-top: 1.25rem;
+    font-weight: 600;
+  }
+  .legal p,
+  .legal ul {
+    margin-top: 0.75rem;
+    color: var(--ink-2);
+  }
+  .legal ul {
+    padding-inline-start: 1.25rem;
+    list-style: disc;
+  }
+  .legal li + li,
+  .pricing-plans ul li + li {
+    margin-top: 0.375rem;
+  }
+
+  .site-nav > .container-page {
+    height: 4rem;
+  }
+
+  /* —— 首屏：多语言网格与指针聚光，文案保持独立的可读层 —— */
+  .hero-stage {
+    position: relative;
+    overflow: hidden;
+  }
+
+  .language-grid {
+    --grid-active: 0;
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    user-select: none;
+  }
+
+  .language-grid-layer {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+  }
+
+  .language-grid-cells {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: max-content;
+    display: grid;
+    grid-template-columns: repeat(var(--grid-columns, 16), 6rem);
+  }
+
+  .language-grid-cells > span {
+    display: grid;
+    place-items: center;
+    height: 6rem;
+    border: 1px solid var(--rule-strong);
+    margin: 0 -1px -1px 0;
+    font-size: 1.5rem;
+    font-weight: 500;
+    color: var(--ink-2);
+  }
+
+  .language-grid-base {
+    opacity: 0.13;
+  }
+
+  .language-grid-glow {
+    opacity: var(--grid-active);
+    transition: opacity 350ms ease;
+    mask-image: radial-gradient(
+      circle 15rem at var(--grid-x, 50%) var(--grid-y, 30%),
+      black,
+      transparent
+    );
+  }
+
+  :where(.language-grid-glow) .language-grid-cells > span {
+    color: var(--ink);
+    border-color: var(--ink-3);
+    background: color-mix(in srgb, var(--select) 12%, transparent);
+  }
+
+  .hero {
+    position: relative;
+    display: grid;
+    grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
+    align-items: center;
+    gap: clamp(2rem, 5vw, 5.5rem);
+    padding-block: clamp(1.5rem, 4svh, 3rem);
+  }
+
+  .hero-title {
+    font-family: var(--font-sans);
+    font-size: clamp(2.25rem, min(4.4vw, 8svh), 4.25rem);
+    font-weight: 600;
+    line-height: 1.08;
+    letter-spacing: -0.02em;
+    text-wrap: balance;
+    /* 中日文标题在文案里用换行符指定断点，避免把一个词拆到两行 */
+    white-space: pre-line;
+  }
+
+  /* 首屏内部的纵向节奏随视口高度收放，矮屏也能一屏放下 */
+  .hero-gap {
+    margin-top: clamp(0.75rem, 2.4svh, 1.5rem);
+  }
+
+  .hero-gap-lg {
+    margin-top: clamp(1.25rem, 4svh, 2.5rem);
+  }
+
+  /* —— 演示面板：上半是正在发生的那一下，下半是切换键位 —— */
+  .hero-demo {
+    border: 1px solid var(--rule);
+    border-radius: 12px;
+    background: var(--paper);
+    box-shadow:
+      0 1px 0 var(--rule),
+      0 28px 56px -36px rgb(22 24 29 / 0.4);
+    overflow: hidden;
+  }
+
+  .demo-stage {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 1rem;
+    min-height: clamp(12.5rem, 30svh, 16rem);
+    padding: clamp(1.25rem, 4svh, 2.5rem) clamp(1.25rem, 3vw, 2.5rem);
+  }
+
+  .hero-demo .translation-text {
+    font-size: clamp(1.1875rem, 2.8svh, 1.5rem);
+    line-height: 1.5;
+  }
+
+  .demo-popover {
+    position: relative;
+    align-self: flex-start;
+    padding: 0.75rem 1rem;
+    border: 1px solid var(--rule);
+    border-radius: 8px;
+    background: var(--paper);
+    box-shadow: 0 14px 30px -20px rgb(22 24 29 / 0.45);
+  }
+
+  /* 浮窗指向选区的小尖角 */
+  .demo-popover::before {
+    content: "";
+    position: absolute;
+    top: -6px;
+    left: 1.5rem;
+    width: 10px;
+    height: 10px;
+    border-top: 1px solid var(--rule);
+    border-left: 1px solid var(--rule);
+    background: var(--paper);
+    transform: rotate(45deg);
+  }
+
+  .demo-replaced {
+    color: var(--ink-3);
+    text-decoration: line-through;
+    text-decoration-color: var(--ink-3);
+  }
+
+  .demo-field {
+    padding: 0.625rem 0.875rem;
+    border: 1px solid var(--rule-strong);
+    border-radius: var(--radius-control);
+  }
+
+  .demo-wave {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    height: 1.75rem;
+  }
+
+  .demo-wave > span {
+    width: 3px;
+    height: var(--h);
+    border-radius: 2px;
+    background: var(--ink-3);
+    animation: wave 700ms ease-in-out calc(var(--i) * 35ms) 2 alternate;
+  }
+
+  @keyframes wave {
+    to {
+      transform: scaleY(0.3);
+    }
+  }
+
+  .demo-switch {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    border-top: 1px solid var(--rule);
+    background: var(--paper-2);
+  }
+
+  .demo-switch button {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+    padding: 0.875rem clamp(0.75rem, 1.6vw, 1.25rem);
+    text-align: start;
+    color: var(--ink-3);
+    transition: color 150ms ease;
+  }
+
+  .demo-switch button + button {
+    border-inline-start: 1px solid var(--rule);
+  }
+
+  .demo-switch button:hover {
+    color: var(--ink-2);
+  }
+
+  .demo-switch button[aria-pressed="true"] {
+    background: var(--paper);
+    color: var(--ink);
+  }
+
+  /* 当前模式：顶上一道墨线，和面板分隔线接在一起 */
+  .demo-switch button[aria-pressed="true"]::before {
+    content: "";
+    position: absolute;
+    inset: -1px 0 auto;
+    height: 2px;
+    background: var(--ink);
+  }
+
+  .demo-switch-name {
+    font-size: 0.875rem;
+    font-weight: 500;
+  }
+
+  .demo-hint {
+    padding: 0.5rem clamp(0.75rem, 1.6vw, 1.25rem);
+    border-top: 1px solid var(--rule);
+    background: var(--paper-2);
+    font-size: 0.75rem;
+    color: var(--ink-3);
+  }
+
+  .source-text {
+    font-family: var(--font-sans);
+    font-size: 1.1875rem;
+    line-height: 1.7;
+    color: var(--ink-2);
+  }
+
+  .translation-text {
+    font-family: var(--font-serif);
+    font-size: 1.3125rem;
+    line-height: 1.75;
+    color: var(--ink);
+  }
+
+  .selection {
+    background: var(--select);
+    color: var(--ink);
+    padding-block: 0.1em;
+    box-decoration-break: clone;
+    -webkit-box-decoration-break: clone;
+  }
+
+  .stream-char {
+    animation: stream-in 1ms linear backwards;
+    animation-delay: calc(var(--d, 600ms) + var(--i) * 45ms);
+  }
+
+  @keyframes stream-in {
+    from {
+      opacity: 0;
+    }
+  }
+
+  .stream-caret {
+    display: inline-block;
+    width: 2px;
+    height: 1.05em;
+    margin-inline-start: 3px;
+    vertical-align: -0.15em;
+    background: var(--ink);
+    animation: caret 1.1s steps(2) infinite;
+  }
+
+  @keyframes caret {
+    50% {
+      opacity: 0;
+    }
+  }
+
+  /* 版本标记：小方角，不做胶囊 */
+  .tag {
+    display: inline-block;
+    padding: 0.0625rem 0.375rem;
+    border: 1px solid var(--rule-strong);
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    line-height: 1.4;
+    color: var(--ink-3);
+    white-space: nowrap;
+  }
+
+  @media (max-width: 1023px) {
+    .hero {
+      grid-template-columns: minmax(0, 1fr);
+      gap: clamp(1.5rem, 4svh, 2.5rem);
+    }
+    .hero-copy {
+      max-width: 40rem;
+    }
+  }
+
+  @media (max-width: 639px) {
+    .container-page {
+      padding-inline: 1.25rem;
+    }
+    .demo-switch-name {
+      font-size: 0.8125rem;
+    }
+    .demo-stage {
+      min-height: 8.5rem;
+      gap: 0.75rem;
+      padding: 1.25rem;
+    }
+    /* 手机上没有键盘：切换条只留功能名 */
+    .demo-switch kbd {
+      display: none;
+    }
+    .demo-switch button {
+      padding-block: 0.75rem;
+    }
+    .hero-title {
+      font-size: clamp(1.875rem, 8.5vw, 2.25rem);
+    }
+    .hero .lead {
+      font-size: 1rem;
+    }
+    .hero {
+      gap: 1.25rem;
+    }
+    /* 手机上页脚是两行（版权与条款 / 联系与设置），收紧上下留白，首页仍是一屏 */
+    .site-footer {
+      padding-block: 0.5rem;
+    }
+  }
+
+  /* 矮屏手机（如 iPhone SE）放不下演示；手机本来也用不了快捷键，只留标题和下载 */
+  @media (max-width: 639px) and (max-height: 720px) {
+    .hero-demo {
+      display: none;
+    }
+  }
+
+  /* 触屏设备没有快捷键可按 */
+  @media (hover: none) {
+    .demo-hint {
+      display: none;
+    }
+  }
+}
+
+@media (hover: none) and (pointer: coarse) {
+  button,
+  a,
+  summary,
+  input {
+    min-height: 44px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  ::before,
+  ::after {
+    animation: none;
+    transition: none;
+    scroll-behavior: auto;
+  }
+}
+
+@media (prefers-contrast: more) {
+  :root {
+    --rule: var(--rule-strong);
+  }
+  button,
+  input {
+    border-width: 2px;
+  }
+}

@@ -4,7 +4,15 @@ import { createRoot } from 'react-dom/client'
 import { WordCardView } from './components/WordCard'
 import { useT } from './lib/i18n'
 import { api, onTranslationEvents, type ProviderInfo, type StyleInfo } from './lib/ipc'
-import { costLine, initialState, reduce, replaceNotice, statusLine } from './lib/panel-state'
+import {
+  costLine,
+  favoriteTranslation,
+  initialState,
+  reduce,
+  replaceNotice,
+  retranslateMode,
+  statusLine,
+} from './lib/panel-state'
 import { initUi } from './lib/ui-bootstrap'
 import './styles/app.css'
 
@@ -60,8 +68,8 @@ export function Panel() {
           .then(([value]) => setFavorited(Boolean(value)))
           .catch(() => setFavorited(false))
       },
-      onDelta: (text) => dispatch({ type: 'delta', text }),
-      onCard: (payload) => dispatch({ type: 'card', payload }),
+      onDelta: (requestId, text) => dispatch({ type: 'delta', requestId, text }),
+      onCard: (requestId, payload) => dispatch({ type: 'card', requestId, payload }),
       onDone: (payload) => dispatch({ type: 'done', payload }),
       onError: (payload) => dispatch({ type: 'error', payload }),
     }).then((unlisten) => {
@@ -90,6 +98,9 @@ export function Panel() {
   // 抽成局部 const：`useReducer` 的 state 在闭包里收窄不到，
   // 直接用 `state.translation!` 会引入非空断言（lint 也会拦）。
   const translation = state.translation
+  // 流式中途的半截译文不能拿去复制或替换（审查 M18）；出错时的译文可能是上一段的残留
+  // 或被取消的半段，替换进原文同样不对（审查 M15）。所以替换只在完成后出现。
+  const settled = state.status === 'done'
   // 只有 OCR 结果窗的原文可编辑：划词路径里改原文没有意义
   //（那段文字还在用户自己的文档里，改了也不会同步回去）。
   const editableSource = state.mode === 'ocr'
@@ -116,7 +127,7 @@ export function Panel() {
             {statusLine(state, t)}
           </span>
           <div className="flex items-center gap-1 shrink-0">
-            {state.translation && (
+            {state.translation && state.status !== 'streaming' && (
               <button
                 type="button"
                 className="umuo-pressable rounded-control px-2 py-0.5 text-xs text-text-secondary"
@@ -225,7 +236,13 @@ export function Panel() {
                     {state.errorActions.includes('retry') && (
                       <ActionButton
                         label={t('panel.actionRetry')}
-                        onClick={() => void api.translateText(state.source)}
+                        // OCR 结果窗的重试要保住 ocr 模式（审查 L21），走 retranslate；
+                        // 划词路径仍走 translateText，与首次翻译一致。
+                        onClick={() =>
+                          void (retranslateMode(state) === 'ocr'
+                            ? api.retranslate(state.source, null, null, null, 'ocr')
+                            : api.translateText(state.source))
+                        }
                       />
                     )}
                     {(state.errorActions.includes('switch_model') ||
@@ -266,7 +283,7 @@ export function Panel() {
 
         {(state.source || state.translation) && (
           <div className="flex flex-wrap items-center gap-1 border-t border-border-secondary px-3 py-1.5">
-            {translation && (
+            {translation && settled && (
               <button
                 type="button"
                 className="umuo-pressable rounded-control px-2 py-0.5 text-[11px] text-text-secondary"
@@ -289,9 +306,11 @@ export function Panel() {
                 'umuo-pressable rounded-control px-2 py-0.5 text-[11px]',
                 favorited ? 'text-success' : 'text-text-secondary',
               ].join(' ')}
+              // 流式中途收藏会存下半截译文（审查 L23）
+              disabled={state.status === 'streaming'}
               onClick={() =>
                 void api
-                  .favoriteToggle(state.source, state.translation)
+                  .favoriteToggle(state.source, favoriteTranslation(state))
                   .then(setFavorited)
                   .catch((error: unknown) => setActionNotice(String(error)))
               }
@@ -321,7 +340,13 @@ export function Panel() {
                 if (!provider) return
                 setActionNotice(t('panel.switchingModel', { provider: provider.label }))
                 void api
-                  .retranslate(state.source, provider.id, provider.defaultModel, null)
+                  .retranslate(
+                    state.source,
+                    provider.id,
+                    provider.defaultModel,
+                    null,
+                    retranslateMode(state),
+                  )
                   .catch((error: unknown) => setActionNotice(String(error)))
               }}
             >
@@ -339,7 +364,7 @@ export function Panel() {
                 if (!event.target.value) return
                 setActionNotice(t('panel.switchingStyle'))
                 void api
-                  .retranslate(state.source, null, null, event.target.value)
+                  .retranslate(state.source, null, null, event.target.value, retranslateMode(state))
                   .catch((error: unknown) => setActionNotice(String(error)))
               }}
             >

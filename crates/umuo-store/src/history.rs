@@ -33,6 +33,25 @@ pub struct NewRecord {
     pub cost_usd: Option<f64>,
 }
 
+/// 用量账本里的一行（PRD §5.10）。
+///
+/// 与 [`NewRecord`] 分开存：历史可以关、可以清、会按保留期删，账本不会——
+/// 月度上限要的是「这个月真花了多少」，不能跟着历史一起消失。
+/// 只有计费需要的字段，**没有原文与译文**，所以隐私模式下照记也不违背「别留记录」。
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NewUsage {
+    /// Unix 秒。
+    pub created_at: i64,
+    pub provider_id: String,
+    pub model: String,
+    pub input_tokens: u32,
+    pub output_tokens: u32,
+    pub estimated: bool,
+    /// 价格表里查不到该模型时为 `None`。
+    pub cost_usd: Option<f64>,
+}
+
 /// 一条历史记录。
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -106,6 +125,24 @@ impl Store {
             ],
         )?;
         Ok(self.connection().last_insert_rowid())
+    }
+
+    /// 往用量账本记一笔。与历史开关、隐私模式无关，调用方每次成功翻译都该记。
+    pub fn record_usage(&self, usage: &NewUsage) -> Result<(), StoreError> {
+        self.connection().execute(
+            "INSERT INTO usage (created_at, provider_id, model, input_tokens, output_tokens,
+             estimated, cost_usd) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+            rusqlite::params![
+                usage.created_at,
+                usage.provider_id,
+                usage.model,
+                usage.input_tokens,
+                usage.output_tokens,
+                usage.estimated as i64,
+                usage.cost_usd,
+            ],
+        )?;
+        Ok(())
     }
 
     /// 最近的记录，最新的在前。
@@ -206,7 +243,7 @@ impl Store {
         Ok(affected > 0)
     }
 
-    /// 清空全部历史，返回删除的条数。
+    /// 清空全部历史，返回删除的条数。用量账本不受影响——清历史不等于把钱退回来。
     pub fn clear(&self) -> Result<usize, StoreError> {
         Ok(self.connection().execute("DELETE FROM history", [])?)
     }
@@ -221,14 +258,14 @@ impl Store {
     ///
     /// 保留策略用它（PRD §5.9「可设置保留天数，默认 90 天」）。
     /// 用「不含」而不是「含」是为了让语义与 `created_at < before` 一致，
-    /// 调用方自己算好边界时间即可。
+    /// 调用方自己算好边界时间即可。只删历史，用量账本不受保留期影响。
     pub fn prune_before(&self, before: i64) -> Result<usize, StoreError> {
         Ok(self
             .connection()
             .execute("DELETE FROM history WHERE created_at < ?1", [before])?)
     }
 
-    /// 统计 `since`（含）之后的用量与费用。
+    /// 统计 `since`（含）之后的用量与费用。下面几个统计都读用量账本，不读历史表。
     pub fn usage_since(&self, since: i64) -> Result<UsageSummary, StoreError> {
         let summary = self.connection().query_row(
             "SELECT COUNT(*),
@@ -236,7 +273,7 @@ impl Store {
                     COALESCE(SUM(output_tokens), 0),
                     COALESCE(SUM(cost_usd), 0.0),
                     COALESCE(SUM(CASE WHEN cost_usd IS NULL THEN 1 ELSE 0 END), 0)
-             FROM history WHERE created_at >= ?1",
+             FROM usage WHERE created_at >= ?1",
             [since],
             |row| {
                 Ok(UsageSummary {
@@ -281,7 +318,7 @@ impl Store {
                     COALESCE(SUM(output_tokens), 0),
                     COALESCE(SUM(cost_usd), 0.0),
                     COALESCE(SUM(CASE WHEN cost_usd IS NULL THEN 1 ELSE 0 END), 0)
-             FROM history WHERE created_at >= ?1
+             FROM usage WHERE created_at >= ?1
              GROUP BY provider_id ORDER BY provider_id",
         )?;
         let rows = stmt.query_map([since], |row| {
@@ -301,7 +338,7 @@ impl Store {
     pub fn provider_spend_this_month(&self, provider_id: &str) -> Result<f64, StoreError> {
         let since = self.month_start_unix()?;
         Ok(self.connection().query_row(
-            "SELECT COALESCE(SUM(cost_usd), 0.0) FROM history
+            "SELECT COALESCE(SUM(cost_usd), 0.0) FROM usage
              WHERE created_at >= ?1 AND provider_id = ?2",
             rusqlite::params![since, provider_id],
             |row| row.get(0),
@@ -330,7 +367,7 @@ impl Store {
                     COALESCE(SUM(output_tokens), 0),
                     COALESCE(SUM(cost_usd), 0.0),
                     COALESCE(SUM(CASE WHEN cost_usd IS NULL THEN 1 ELSE 0 END), 0)
-             FROM history WHERE created_at >= ?1
+             FROM usage WHERE created_at >= ?1
              GROUP BY day ORDER BY day DESC",
         )?;
         let rows = stmt.query_map([since], |row| {
@@ -422,6 +459,44 @@ mod tests {
             estimated: false,
             cost_usd: Some(0.0001),
         }
+    }
+
+    /// 按一条历史的计费字段往账本记一笔（统计类测试用）。
+    fn charge(store: &Store, record: &NewRecord) {
+        store
+            .record_usage(&NewUsage {
+                created_at: record.created_at,
+                provider_id: record.provider_id.clone(),
+                model: record.model.clone(),
+                input_tokens: record.input_tokens,
+                output_tokens: record.output_tokens,
+                estimated: record.estimated,
+                cost_usd: record.cost_usd,
+            })
+            .unwrap();
+    }
+
+    #[test]
+    fn usage_survives_clearing_and_pruning_history() {
+        // 清空历史、保留期清理都只动历史表；上限依赖的账本必须原样留着。
+        let store = Store::open_in_memory().unwrap();
+        for at in [100, 200] {
+            let record = sample("a", "甲", at);
+            store.insert(&record).unwrap();
+            charge(&store, &record);
+        }
+        store.prune_before(150).unwrap();
+        store.clear().unwrap();
+        assert_eq!(store.count().unwrap(), 0);
+        assert_eq!(store.usage_since(0).unwrap().count, 2);
+    }
+
+    #[test]
+    fn history_rows_alone_do_not_count_as_usage() {
+        // 统计只读账本：历史表里的记录不会被重复计入。
+        let store = Store::open_in_memory().unwrap();
+        store.insert(&sample("a", "甲", 100)).unwrap();
+        assert_eq!(store.usage_since(0).unwrap().count, 0);
     }
 
     #[test]
@@ -522,16 +597,16 @@ mod tests {
     #[test]
     fn usage_aggregation_sums_tokens_and_cost_and_counts_unpriced_rows() {
         let store = Store::open_in_memory().unwrap();
-        store.insert(&sample("a", "b", 100)).unwrap();
+        charge(&store, &sample("a", "b", 100));
         let mut second = sample("c", "d", 200);
         second.input_tokens = 50;
         second.output_tokens = 10;
         second.cost_usd = Some(0.0002);
-        store.insert(&second).unwrap();
+        charge(&store, &second);
 
         let mut unpriced = sample("e", "f", 300);
         unpriced.cost_usd = None;
-        store.insert(&unpriced).unwrap();
+        charge(&store, &unpriced);
 
         let summary = store.usage_since(0).unwrap();
         assert_eq!(summary.count, 3);
@@ -545,8 +620,8 @@ mod tests {
     #[test]
     fn usage_since_excludes_older_records() {
         let store = Store::open_in_memory().unwrap();
-        store.insert(&sample("old", "旧", 100)).unwrap();
-        store.insert(&sample("new", "新", 500)).unwrap();
+        charge(&store, &sample("old", "旧", 100));
+        charge(&store, &sample("new", "新", 500));
         let summary = store.usage_since(400).unwrap();
         assert_eq!(summary.count, 1);
         assert_eq!(summary.input_tokens, 100);
@@ -589,10 +664,8 @@ mod tests {
         let month_start = store.month_start_unix().unwrap();
 
         // 上个月的最后一条：不该被算进本月。
-        store
-            .insert(&sample("old", "旧", month_start - 86_400))
-            .unwrap();
-        store.insert(&sample("new", "新", month_start)).unwrap();
+        charge(&store, &sample("old", "旧", month_start - 86_400));
+        charge(&store, &sample("new", "新", month_start));
 
         let summary = store.usage_this_month().unwrap();
         assert_eq!(summary.count, 1, "月初之前的不该计入本月");
@@ -612,9 +685,9 @@ mod tests {
             )
             .unwrap();
 
-        store.insert(&sample("a", "甲", noon)).unwrap();
-        store.insert(&sample("b", "乙", noon + 60)).unwrap();
-        store.insert(&sample("c", "丙", noon - 86_400)).unwrap();
+        charge(&store, &sample("a", "甲", noon));
+        charge(&store, &sample("b", "乙", noon + 60));
+        charge(&store, &sample("c", "丙", noon - 86_400));
 
         let days = store.usage_by_day(0).unwrap();
         assert_eq!(days.len(), 2, "应该分成两天");
@@ -629,7 +702,7 @@ mod tests {
         let store = Store::open_in_memory().unwrap();
         let mut unpriced = sample("e", "f", 1_700_000_000);
         unpriced.cost_usd = None;
-        store.insert(&unpriced).unwrap();
+        charge(&store, &unpriced);
 
         let days = store.usage_by_day(0).unwrap();
         assert_eq!(days[0].unpriced, 1);
@@ -809,7 +882,7 @@ mod tests {
         let mut third = sample("c", "丙", 1_700_000_200);
         third.provider_id = "deepseek".into();
         for record in [&first, &second, &third] {
-            store.insert(record).unwrap();
+            charge(&store, record);
         }
 
         let rows = store.usage_by_provider(0).unwrap();
@@ -834,17 +907,17 @@ mod tests {
         let mut this_month = sample("a", "甲", month_start);
         this_month.provider_id = "openai".into();
         this_month.cost_usd = Some(1.5);
-        store.insert(&this_month).unwrap();
+        charge(&store, &this_month);
 
         let mut other = sample("b", "乙", month_start);
         other.provider_id = "deepseek".into();
         other.cost_usd = Some(99.0);
-        store.insert(&other).unwrap();
+        charge(&store, &other);
 
         let mut last_month = sample("c", "丙", month_start - 86_400);
         last_month.provider_id = "openai".into();
         last_month.cost_usd = Some(50.0);
-        store.insert(&last_month).unwrap();
+        charge(&store, &last_month);
 
         let spend = store.provider_spend_this_month("openai").unwrap();
         assert!(
@@ -860,7 +933,7 @@ mod tests {
         let store = Store::open_in_memory().unwrap();
         let mut record = sample("a", "甲", 1_700_000_000);
         record.cost_usd = None;
-        store.insert(&record).unwrap();
+        charge(&store, &record);
 
         assert_eq!(
             store

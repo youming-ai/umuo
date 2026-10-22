@@ -81,6 +81,9 @@ pub struct SceneModels {
     pub ocr: Option<ModelRef>,
     pub compare: Vec<ModelRef>,
     pub word_card: Option<ModelRef>,
+    /// 本版本不认识的字段，见 [`crate::UnknownFields`]。
+    #[serde(flatten)]
+    pub extra: crate::UnknownFields,
 }
 
 impl SceneModels {
@@ -197,6 +200,16 @@ pub fn successful_attempt(attempts: &[Attempt]) -> Option<&Attempt> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn unknown_fields_of_a_scenemodels_survive_a_json_round_trip() {
+        // 新版本加的字段，旧版本读进来再写出去不能丢
+        let raw = r#"{"compare":[],"futureScene":{"providerId":"openai","model":"m"}}"#;
+        let value: SceneModels = serde_json::from_str(raw).unwrap();
+        let back: serde_json::Value = serde_json::to_value(&value).unwrap();
+        let original: serde_json::Value = serde_json::from_str(raw).unwrap();
+        assert_eq!(back["futureScene"], original["futureScene"]);
+    }
 
     fn model(provider: &str, name: &str) -> ModelRef {
         ModelRef {

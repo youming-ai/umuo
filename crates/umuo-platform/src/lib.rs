@@ -23,5 +23,5 @@ pub use error::PlatformError;
 pub use modifier::{ModifierEvent, ModifierKind, ModifierMonitor, ModifierSide, PhysicalModifier};
 pub use ocr::{Ocr, OcrLine, OcrResult};
 pub use secret::SecretStore;
-pub use selection::SelectionReader;
+pub use selection::{FocusSource, FocusText, SelectionReader};
 pub use speech::Speech;

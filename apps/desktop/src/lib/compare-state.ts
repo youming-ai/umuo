@@ -6,7 +6,8 @@
  * 某张卡已经报错了、它的增量却还在路上；或者一轮对比结束后又来了一批旧增量。
  */
 
-import type { CompareCard, CompareDone, CompareError, CompareStart } from './ipc'
+import type { Translate } from './i18n'
+import type { CompareCard, CompareDone, CompareError, CompareNotice, CompareStart } from './ipc'
 
 export type CardStatus = 'waiting' | 'streaming' | 'done' | 'error'
 
@@ -20,6 +21,10 @@ export interface CardState extends CompareCard {
 export interface CompareState {
   /** `idle` = 还没发起过；`running` = 还有卡片没落定。 */
   status: 'idle' | 'running' | 'done'
+  /** 正在显示的那一轮。0 = 还没有过（后端的 id 从 1 起）。别的轮次的事件一律丢掉。 */
+  runId: number
+  /** 整窗级的提示（没有可用模型、取词失败）。新一轮 start 时清掉。 */
+  notice: string | null
   source: string
   targetLang: string
   cards: CardState[]
@@ -27,6 +32,8 @@ export interface CompareState {
 
 export const initialCompareState: CompareState = {
   status: 'idle',
+  runId: 0,
+  notice: null,
   source: '',
   targetLang: '',
   cards: [],
@@ -34,17 +41,22 @@ export const initialCompareState: CompareState = {
 
 export type CompareAction =
   | { type: 'start'; payload: CompareStart }
-  | { type: 'delta'; index: number; text: string }
+  | { type: 'delta'; runId: number; index: number; text: string }
   | { type: 'done'; payload: CompareDone }
   | { type: 'error'; payload: CompareError }
+  | { type: 'notice'; payload: CompareNotice }
   | { type: 'reset' }
 
 export function reduceCompare(state: CompareState, action: CompareAction): CompareState {
   switch (action.type) {
     case 'start':
+      // 比当前还旧的一轮：它在发出 start 前就已经被新一轮顶掉了。
+      if (action.payload.runId < state.runId) return state
       // 每次 start 整体重建：上一轮的译文绝不能残留在这一轮的卡片里。
       return {
         status: 'running',
+        runId: action.payload.runId,
+        notice: null,
         source: action.payload.text,
         targetLang: action.payload.targetLang,
         cards: action.payload.cards.map((card) => ({
@@ -57,6 +69,8 @@ export function reduceCompare(state: CompareState, action: CompareAction): Compa
       }
 
     case 'delta': {
+      // 上一轮迟到的增量：同一个下标在新一轮里是另一张卡片，写进去就串了。
+      if (action.runId !== state.runId) return state
       const cards = state.cards.map((card) => {
         if (card.index !== action.index) return card
         // 已经落定的卡片不再接受增量：迟到的分片如果还写进去，
@@ -68,6 +82,7 @@ export function reduceCompare(state: CompareState, action: CompareAction): Compa
     }
 
     case 'done': {
+      if (action.payload.runId !== state.runId) return state
       const cards = state.cards.map((card) =>
         card.index === action.payload.index
           ? { ...card, status: 'done' as CardStatus, metrics: action.payload }
@@ -77,6 +92,7 @@ export function reduceCompare(state: CompareState, action: CompareAction): Compa
     }
 
     case 'error': {
+      if (action.payload.runId !== state.runId) return state
       const cards = state.cards.map((card) =>
         card.index === action.payload.index
           ? {
@@ -91,8 +107,13 @@ export function reduceCompare(state: CompareState, action: CompareAction): Compa
       return { ...state, cards, status: settleStatus(cards) }
     }
 
+    case 'notice':
+      if (action.payload.runId < state.runId) return state
+      // 新一轮在出卡片之前就失败了：上一轮的卡片不能留着，否则看起来像是这一轮的结果。
+      return { ...initialCompareState, runId: action.payload.runId, notice: action.payload.message }
+
     case 'reset':
-      return initialCompareState
+      return { ...initialCompareState, runId: state.runId }
   }
 }
 
@@ -104,15 +125,22 @@ function settleStatus(cards: CardState[]): CompareState['status'] {
     : 'running'
 }
 
-/** 卡片标题行的计量文案。价格未知时明确说「无价格信息」，不编数字。 */
-export function cardMetrics(card: CardState): string | null {
+/**
+ * 卡片标题行的计量文案。价格未知时明确说「无价格信息」，不编数字。
+ * 文案复用浮窗那几条（审查 L24）：两处说的是同一组指标，措辞不该分叉。
+ */
+export function cardMetrics(card: CardState, t: Translate): string | null {
   const metrics = card.metrics
   if (!metrics) return null
-  const cost = metrics.costUsd === null ? '无价格信息' : `$${metrics.costUsd.toFixed(4)}`
-  const tokens = `${metrics.inputTokens} → ${metrics.outputTokens} tokens`
+  const cost = metrics.costUsd === null ? t('panel.noPrice') : `$${metrics.costUsd.toFixed(4)}`
+  const tokens = t('panel.tokens', {
+    input: metrics.inputTokens,
+    output: metrics.outputTokens,
+    estimated: metrics.estimated ? t('panel.estimated') : '',
+  })
   const latency =
     metrics.firstTokenMs === null
-      ? `${metrics.totalMs}ms`
-      : `首字 ${metrics.firstTokenMs}ms / 共 ${metrics.totalMs}ms`
-  return `${latency} · ${tokens}${metrics.estimated ? '（估算）' : ''} · ${cost}`
+      ? t('panel.latencyTotal', { total: metrics.totalMs })
+      : t('panel.latency', { first: metrics.firstTokenMs, total: metrics.totalMs })
+  return `${latency} · ${tokens} · ${cost}`
 }

@@ -1,3 +1,4 @@
+import { useT } from '../lib/i18n'
 import { api, type WordCard } from '../lib/ipc'
 
 /**
@@ -7,6 +8,7 @@ import { api, type WordCard } from '../lib/ipc'
  * 词形变化与例句跟在后面。所以它单独一个组件，而不是往现有那段文本里塞更多行。
  */
 export function WordCardView({ card }: { card: WordCard }) {
+  const t = useT()
   return (
     <div className="space-y-2">
       <div className="flex items-baseline gap-2">
@@ -17,7 +19,7 @@ export function WordCardView({ card }: { card: WordCard }) {
           className="umuo-pressable ml-auto rounded-control px-2 py-0.5 text-[11px] text-text-secondary"
           onClick={() => void api.speakText(card.word)}
         >
-          朗读
+          {t('wordCard.speak')}
         </button>
       </div>
 
