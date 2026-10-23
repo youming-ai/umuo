@@ -8,10 +8,6 @@ dist-ssr/
 target/
 *.tsbuildinfo
 
-# Tauri 生成物
-apps/desktop/src-tauri/gen/
-apps/desktop/src-tauri/target/
-
 # wrangler 的本地状态（历史遗留，可能含测试邮箱，永远不提交）
 .wrangler/
 

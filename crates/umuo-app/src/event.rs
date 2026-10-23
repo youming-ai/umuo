@@ -1,10 +1,9 @@
 //! 翻译与对比流水线发给界面的事件。
 //!
 //! 流水线只认这里的事件和 [`TranslateSink`] / [`CompareSink`]，不碰任何窗口系统：
-//! Tauri 外壳把它们转成 `translate://*`、`compare://*` 事件发给 webview，
-//! SwiftUI 客户端以后经 FFI 收同样的事件。
+//! SwiftUI 客户端经 FFI 接收类型化事件。
 //!
-//! 载荷结构与字段顺序就是前端收到的 JSON 契约（外壳的黄金快照测试逐字节守着）：
+//! 历史 JSON 契约由 `tests/event_wire.rs` 的黄金快照逐字节守着：
 //! 改字段名或顺序 = 改前端协议。
 
 use serde::Serialize;

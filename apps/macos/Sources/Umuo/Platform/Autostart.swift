@@ -1,6 +1,6 @@
 import Foundation
 
-/// 开机自启：在 `~/Library/LaunchAgents/app.umuo.desktop.plist` 放一个 LaunchAgent，`apps/desktop/src-tauri/src/autostart.rs` 的移植。
+/// 开机自启：在 `~/Library/LaunchAgents/app.umuo.desktop.plist` 放一个 LaunchAgent。
 ///
 /// **与 Tauri 版同一个文件、同一个 Label**：老用户升级后开关的状态照旧，关掉也删的是同一个文件，
 /// 不会留下一个指向旧程序、再也关不掉的登录项。没用 `SMAppService`：它只认打包好的 .app 自己的登录项，

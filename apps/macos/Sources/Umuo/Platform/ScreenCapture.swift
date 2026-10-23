@@ -16,7 +16,7 @@ enum CaptureError: Error, Equatable, CustomStringConvertible {
     }
 }
 
-/// 屏幕捕获，对应 `crates/umuo-platform-macos/src/capture.rs` 的权限两件套与 `capture_interactively`。
+/// 屏幕捕获：检查屏幕录制权限并调用系统框选。
 ///
 /// ## 权限
 ///

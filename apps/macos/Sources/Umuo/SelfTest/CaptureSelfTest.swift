@@ -23,7 +23,7 @@ enum CaptureSelfTest {
         }
     }
 
-    /// 与 `umuo-platform/src/ocr.rs` 的测试同一张表。
+    /// 识别结果的固定回归夹具。
     static func resultRules(_ check: (String, Bool, String) -> Void) {
         func line(_ text: String, _ confidence: Float) -> OcrLine { OcrLine(text: text, confidence: confidence) }
         let joined = OcrResult(lines: [line("Hello", 0.9), line("world", 0.8)])

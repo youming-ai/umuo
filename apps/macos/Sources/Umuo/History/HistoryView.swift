@@ -1,7 +1,7 @@
 import SwiftUI
 import UmuoCore
 
-/// 翻译历史窗（PRD §5.9 / §5.10），`apps/desktop/src/history.tsx` 的移植：页头（本月用量、两周柱状图、分页、清空、
+/// 翻译历史窗（PRD §5.9 / §5.10）：页头（本月用量、两周柱状图、分页、清空、
 /// 搜索与两个筛选、隐私模式提示、状态行）与两个列表。状态全在 `HistoryModel` 里；不用 `@State`（只装 CLT 时编不过）。
 struct HistoryView: View {
     @Bindable var model: HistoryModel

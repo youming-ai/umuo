@@ -2,14 +2,14 @@ import AppKit
 import CoreGraphics
 import Vision
 
-/// 识别出的一行文字。对应 `umuo_platform::ocr::OcrLine`。
+/// 识别出的一行文字。
 struct OcrLine: Equatable {
     let text: String
     /// 0..1，Vision 给的就是这个量级。
     let confidence: Float
 }
 
-/// 一次识别的结果。对应 `umuo_platform::ocr::OcrResult`。
+/// 一次识别的结果。
 struct OcrResult: Equatable {
     /// 按行拼好的整段文本——直接拿去翻译的就是它。
     let text: String
@@ -27,7 +27,7 @@ struct OcrResult: Equatable {
     var isEmpty: Bool { text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
 }
 
-/// 本机文字识别（Apple Vision，不联网、免费），对应 `crates/umuo-platform-macos/src/ocr.rs`。
+/// 本机文字识别（Apple Vision，不联网、免费）。
 ///
 /// 不把截图发给多模态大模型：截图 OCR 是高频动作，每次上传一张图既慢又贵，
 /// 而且用户截的往往是自己屏幕上的东西——能不出本机就不出本机。
@@ -60,7 +60,7 @@ enum OCR {
     }
 }
 
-/// 截图 OCR 的编排，对应 `apps/desktop/src-tauri/src/screenshot.rs`：权限检查 → 系统框选 → 本机识别。
+/// 截图 OCR 的编排，权限检查 → 系统框选 → 本机识别。
 ///
 /// 只决定「接下来该怎么办」，不碰窗口与剪贴板：弹提示、开浮窗、写剪贴板是调用方（菜单栏应用）的事，
 /// 这样文案与分支能在 selftest 里逐条验，而不用真的截屏。

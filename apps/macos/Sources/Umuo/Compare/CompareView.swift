@@ -2,7 +2,7 @@ import SwiftUI
 import UmuoCore
 import UniformTypeIdentifiers
 
-/// 多模型对比窗的界面（PRD §5.6），`apps/desktop/src/compare.tsx` 的移植：头部、卡片横排、空状态，
+/// 多模型对比窗的界面（PRD §5.6）：头部、卡片横排、空状态，
 /// 文案与按钮的显示条件逐条一致。
 ///
 /// 同一段文本并发发给最多 4 个模型，每张卡自己流式输出——谁先返回就先看到，这正是对比要回答的问题

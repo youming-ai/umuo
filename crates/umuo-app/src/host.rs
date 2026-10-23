@@ -1,4 +1,4 @@
-//! 应用层要向宿主（Tauri 外壳、以后的 SwiftUI 客户端）要的东西。
+//! 应用层要向Swift 原生宿主要的东西。
 //!
 //! 原则：能提前取的值由宿主先取好再传进来，流水线中途必须现取的才走这里。
 
@@ -11,7 +11,7 @@ pub enum FocusSource {
     WholeField,
 }
 
-/// 宿主提供的平台能力。两个客户端各实现一份：Tauri 用 `umuo-platform-macos`，Swift 直接调 Apple API。
+/// 宿主提供的平台能力，由 Swift 通过 HostBridge 直接调用 Apple API。
 pub trait Host: Send + Sync {
     /// 某个供应商的 API Key（Keychain：service `app.umuo.desktop`，account = 供应商 id）。
     /// 预算检查要看其它供应商有没有配 Key，所以不能由宿主一次性预取。

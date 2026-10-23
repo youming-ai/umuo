@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// 单词词卡（PRD §5.2），`apps/desktop/src/components/WordCard.tsx` 的移植。
+/// 单词词卡（PRD §5.2）。
 ///
 /// 与「一行译文」的区别在于它要能被人**读进去**：音标在上、释义按常用度排、词形变化与例句跟在后面。
 struct WordCardView: View {

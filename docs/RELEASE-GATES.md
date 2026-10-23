@@ -1,11 +1,14 @@
 # 发布门槛实测（PRD §8）
 
+> 2026-10-22：下面的数字全部来自旧 Tauri release 构建，仅为历史基线，不能作为当前 SwiftUI 客户端的发布验收结果。
+> 原生版重新测量入口：`bun run bundle:macos -- --version X.Y.Z`，产物在 `apps/macos/dist/`。
+> 原生安装包体积、phys_footprint、CPU、唤起速度、首字开销与崩溃率尚未完成发布门槛实测。
+
 PRD §8 把「快、轻、稳」写成发布门槛。这份文件记录**怎么测的、测出来多少、以及哪几项现在测不了**。
 
 方法比结论重要：下面的数字换一个口径就会得到相反结论（见「内存：口径决定结论」）。
 
-**测试环境**：Apple Silicon (arm64)、macOS 26。被测产物：`bun run build:desktop` 的
-**release 构建**（`target/release/umuo-desktop` 与 `target/release/bundle/`）。
+**测试环境**：Apple Silicon (arm64)、macOS 26。历史被测产物：旧 `bun run build:desktop` 生成的 **release 构建**（命令与旧客户端现已删除）（`target/release/umuo-desktop` 与 `target/release/bundle/`）。
 不是 debug 构建——门槛针对的是发出去的东西。
 
 ---

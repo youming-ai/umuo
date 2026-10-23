@@ -17,7 +17,7 @@ protocol ComposeBackend: AnyObject {
     func speak(_ text: String)
 }
 
-/// 撰写窗的视图模型（PRD §5.3），`apps/desktop/src/compose.tsx` 的移植，语义逐条一致。
+/// 撰写窗的视图模型（PRD §5.3），语义逐条一致。
 ///
 /// **输入框的内容是这里自己的状态**——它不能由 Engine 推来的 start 事件驱动，否则每翻译一次就会把
 /// 用户正在打的字重置一遍。主译文区与回译区各用一份浮窗那套 reducer（`PanelModel`）：两者共用同一组事件，

@@ -1,7 +1,7 @@
 import ApplicationServices
 import UmuoCore
 
-/// 静默翻译的写回：逐条照搬 `crates/umuo-platform-macos/src/selection.rs` 的 `replace_focus_text`。
+/// 静默翻译的写回：检查目标可写性、来源和原文，防止修改错误的输入框。
 ///
 /// 选区改 `AXSelectedText`，整框改 `AXValue`；写之前确认属性可写、原文还在原处。
 /// **没有 ⌘V 兜底**：粘贴只会插在光标处，在不可写的地方还会打进 shell。写不进去就报错，

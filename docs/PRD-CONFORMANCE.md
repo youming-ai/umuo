@@ -5,7 +5,8 @@
 怎么维护：**每条都要能指向代码位置或给出可复现的验证方式**。做完一条就把 ⬜ 改成 ✅ 并补上验收证据；
 有意不做或做法不同的，移到「有意偏离」并写清**为什么**——不写理由的偏离，过几轮就没人知道是刻意还是漏了。
 
-核对方式：逐节读 `docs/PRD.md`，再用 grep / 真机验证代码，**不凭记忆**。上一次核对是在 2026-10-07。
+核对方式：逐节读 `docs/PRD.md`，再用 grep / 真机验证代码，**不凭记忆**。功能基线核对于 2026-10-07；2026-10-22 将实现证据更新到 SwiftUI 客户端。
+✅ 表示已有代码与自动验证，不代替系统权限、焦点与真机发布验收；待测项见 `SWIFTUI-MIGRATION.md`。
 
 ---
 
@@ -14,47 +15,48 @@
 | PRD | 要求 | 实现位置 |
 | --- | --- | --- |
 | §3.3 | 不做浏览器扩展、不做沉浸式双语阅读、不做语言学习体系、不上架 MAS | 仓库内无相关代码 |
-| §5.1 读 | 划词/划句翻译、单词词卡、多模型对比 | `translator.rs` / `word_card.rs` / `compare.rs` |
-| §5.1 写 | 撰写窗、输入框原地替换 | `compose.tsx` / `translator.rs::Mode::SilentReplace` |
-| §5.2 | ⌥D 触发、AX 优先取词 + ⌘C 降级并恢复剪贴板（全部 item 与类型原样恢复，串行化，超时后迟到的复制按 changeCount 识别并再恢复）、非激活浮窗流式输出、语言判断与第二目标语言、单词模式（音标/词性/释义/词形/例句/发音） | `main.rs` / `ax.rs` / `selection.rs` / `word_card.rs` |
+| §5.1 读 | 划词/划句翻译、单词词卡、多模型对比 | `Panel/`、`Compare/` 与 `umuo-core/src/word_card.rs` |
+| §5.1 写 | 撰写窗、输入框原地替换 | `Compose/`、`umuo-app/src/translate/` 的 SilentReplace 模式 |
+| §5.2 | ⌥D 触发、AX 优先取词 + ⌘C 降级并恢复剪贴板（全部 item 与类型原样恢复，串行化，超时后迟到的复制按 changeCount 识别并再恢复）、非激活浮窗流式输出、语言判断与第二目标语言、单词模式（音标/词性/释义/词形/例句/发音） | `Platform/Selection.swift`、`Pasteboard.swift`、`Panel/`、`umuo-core/src/{lang,word_card}.rs`；默认快捷键已按下方偏离说明调整 |
 | §5.2 | 浮窗操作：复制、朗读、**替换原文**、**收藏**、**在撰写窗打开**、**切换模型/风格重译** | 前四项已有；替换原文复用静默翻译的写回守卫（用浮窗归属应用判定）；重译通过 `Request` 的三个 override 实现，**只影响这一次请求**，不改用户设置 |
-| §5.2 §7.1 | 浮窗**可调整大小 / 可拖动 / 可钉住**（切走自动收起，钉住后不收起） | `main.rs` 的窗口配置与 `spawn_panel_watcher` + `translator::should_auto_hide`（纯函数，四个分支有测试）+ 浮窗的 `data-tauri-drag-region` 与钉住按钮 |
-| §5.3 | ⌥A 居中撰写窗、上下分栏、**停止输入 500 ms 触发**、可关闭自动翻译、⌘Enter 复制并关闭、⌘⇧Enter 复制并粘贴（粘回唤出撰写窗前的前台应用，确认它回到前台才 ⌘V；从 umuo 自己的窗口唤出或原应用回不来时只复制并用浮窗提示）、**回译自检** | `compose.tsx` / `compose_back_translate` |
+| §5.2 §7.1 | 浮窗**可调整大小 / 可拖动 / 可钉住**（切走自动收起，钉住后不收起） | `PanelWindow.swift`、`PanelView.swift`、`PanelController.swift` 与 `umuo-app/src/panel.rs`；纯规则和视图模型有自动测试，焦点与拖动待真机验收 |
+| §5.3 | ⌥A 居中撰写窗、上下分栏、**停止输入 500 ms 触发**、可关闭自动翻译、⌘Enter 复制并关闭、⌘⇧Enter 复制并粘贴（粘回唤出撰写窗前的前台应用，确认它回到前台才 ⌘V；从 umuo 自己的窗口唤出或原应用回不来时只复制并用浮窗提示）、**回译自检** | `ComposeSession.swift`、`ComposeQueue.swift`、`ComposeWindow.swift`、`ComposeController.swift` 与对应 Swift Testing；原应用恢复守卫在 `ReplaceSelection.swift` |
 | §5.3 | **可选源/目标语言、模型、风格** | 撰写窗顶部四个下拉；覆盖经 `Overrides` 传入，**只作用于这一次请求**、不写回设置；「源语言」可钉住（自动检测对短句常猜不准），钉住的值同时用于 Prompt 与目标语言切换规则——两处同一个值才不会自相矛盾 |
-| §5.4 | **目标语言规则：固定 / 按 App 记忆** | `lang::resolve_target`（纯函数 + 5 条测试）：显式指定 > 按 App 记忆 > 常规规则。记忆来自 `Settings::app_target_langs`，**只在用户手动为某个 App 选过语言后才写入**（不做隐式学习）；设置页能看到并逐条删掉。只有开启该模式时（或风格指令用到 `{app_name}` 时）才读来源 App——那是一次 AX 往返，默认路径不该付这个成本 |
-| §5.4 | ⌥⇧T 读选中（无选中读整框）→ 翻译 → 原地替换、失败不改原文 | `translator.rs` + `target_still_matches`。`read_focus_text` 返回 `FocusText`（来源 `Selection` / `WholeField`），经 `Request::focus_source` 带到写回：选区写 `AXSelectedText`，整框写 `AXValue`（写前确认内容没变）。整框读之前先确认 `AXValue` 可写——终端缓冲区这类不可写区域不读、不发给供应商。静默写回**没有 ⌘V 兜底**，写不进去就报 `WriteBackFailed`；浮窗「替换原文」仍保留 ⌘V，但 AX 明确报告不可写时拒绝（审查 H4 / L33） |
-| §5.5 | ⌥S 框选（系统选择器，天然支持多显示器与 Retina）、默认 Apple Vision 本地识别、屏幕录制权限引导 | `screenshot.rs` / `ocr.rs` / `capture.rs` |
-| §5.5 | **结果窗原文可编辑后重译** | 浮窗在 `mode === 'ocr'` 时把原文渲染成 textarea，改动后出现「重译」；重译**带着 ocr 模式**发出（否则结果回来时模式退回 selection、原文又变只读，这个功能就只能用一次）。为此把 `TranslateMode` 补上了 `'ocr'`——它此前不在类型里，所以浮窗一直无法区分"这次是 OCR" |
-| §5.6 | 最多 4 个模型并发、卡片横排、耗时与 Token、标记「最佳」进本地统计 | `compare.rs` / `stats.rs` |
+| §5.4 | **目标语言规则：固定 / 按 App 记忆** | `umuo-core/src/lang.rs`、`umuo-app/src/settings.rs` 与 `Settings/Pages/TranslatePage.swift`；仅手动选择后记忆，不做隐式学习 |
+| §5.4 | ⌥⇧T 读选中（无选中读整框）→ 翻译 → 原地替换、失败不改原文 | `Platform/Selection.swift`、`AXWriteBack.swift` 与 `umuo-app/src/translate/`；写回守卫由流水线测试覆盖，整框写回前确认可写性与原文，静默替换没有 ⌘V 兜底 |
+| §5.5 | ⌥S 框选（系统选择器，天然支持多显示器与 Retina）、默认 Apple Vision 本地识别、屏幕录制权限引导 | `Platform/ScreenCapture.swift`、`OCR.swift` 与 `PanelTriggers.swift`；系统框选 + Vision，真实权限待验 |
+| §5.5 | **结果窗原文可编辑后重译** | `PanelView.swift`、`PanelSession.swift`；OCR 原文可编辑，重译保留 OCR 模式 |
+| §5.6 | 最多 4 个模型并发、卡片横排、耗时与 Token、标记「最佳」进本地统计 | `umuo-app/src/compare.rs`、`stats.rs` 与 `Compare/`；本地 SSE 回归测试覆盖卡片分流 |
 | §5.7 | 7 个内置预设、自建预设（系统 Prompt/温度/few-shot/是否附解释）、5 个变量 | `prompt.rs` + 设置页预设编辑器。风格指令里的变量经 `render_instruction` 渲染，缺值时换成中性说法；`{text}` 只写成「原文」，正文不进系统 Prompt；指令里写了 `{app_name}` 才去读来源 App（审查 L10） |
 | §5.8 | 多术语表、按语言对生效、CSV/TSV 导入导出、只注入命中术语 | `glossary.rs` / `glossaries.rs`。纯 ASCII 术语的词边界只看 ASCII 字母数字，紧贴中日文也能命中；**词卡同样注入命中的术语**（审查 M9 / L12 / L13） |
 | §5.9 | 本地 SQLite 存原文/译文/语言对/模型/风格/来源 App/时间/Token；检索；保留天数（默认 90）或关闭历史 | `umuo-store` / `history.rs` |
-| §6.4 | **配置导入导出，默认不含 Key** | `config_io.rs`：导出设置 + 术语表到 `~/Downloads/umuo-config.json`（固定位置，界面显示完整路径），导入校验版本号，与保存设置走同一个 `apply_settings`（规范化、代理与端点校验、快捷键重注册、广播主题 / 语言 / 缩放、托盘样式），端点只接受 https（本机回环例外；不发 Key 的 Ollama / LM Studio 覆盖可用局域网 http），并返回「应用了什么」的摘要，其中单列端点与取词黑名单的变化。**「不含 Key」是结构的必然结果**——Key 只在 Keychain，设置与术语表里都没有它，导出路径上另有一条测试守着。**未实现**：PRD 的「勾选含 Key + 密码加密」，理由见下方专节 |
+| §6.4 | **配置导入导出，默认不含 Key** | `umuo-app/src/config_io.rs` 与 `Settings/Pages/AdvancedPage.swift`；同一 patch 校验链，文件选择与路径输入；导出不含 Key，加密含 Key 导出未做（理由见下） |
 | §5.9 | **按来源 App / 模型筛选**（与全文检索 AND 叠加）、**一键再次编辑**（进撰写窗）、**隐私模式**（临时不写历史） | `umuo-store::query/facets`（筛选走占位符、不是字符串插值）+ `history_query`/`history_facets` 命令 + 历史窗的两个下拉与「再次编辑」+ `Settings::privacy_mode`（与长期开关语义不同：临时状态） |
 | §5.10 | 记录输入输出 Token（缺失时估算并标注）、按日/月展示费用、按 Provider 设月度上限并提醒或切换 | `usage.rs` / `budget.rs` / `umuo-store`。流式解析同时收下同一事件里的文本与用量，厂商没回用量时 `transport::stream_chat` 用 `fill_missing_usage` 估算并标成估算值。费用与上限读独立的 `usage` 账本（v2 迁移），只存时间/供应商/模型/token/费用：**关闭历史、隐私模式下照记**（没有任何内容），清空历史与保留期清理不删它 |
 | §6.1 | OpenAI / Anthropic / Gemini / DeepSeek / 通义 / 智谱 / Moonshot / OpenRouter / Ollama / LM Studio / 自定义端点 | `provider.rs` |
 | §6.1 | **Azure OpenAI 部署** | 新增 `Protocol::AzureOpenAi`（路径里是**部署名** + 必带 `api-version`）、`Auth::ApiKeyHeader`（`api-key` 而非 Bearer）、`ProviderKind::Azure`（**必须**由用户填资源终结点，没填会被拦下而不是发出空 URL 请求）。`Settings::provider_base_urls` 做逐供应商地址覆盖（Azure 必需，其它家留空即用内置地址）；核心里另加了「空 Base URL 一律拒绝」的守卫。**已知限制**：Azure 的模型列表接口返回的是资源支持的模型、不是你的**部署**，部署名需要手填，界面已明说 |
 | §6.2 | Key 前缀推测 Provider、模型列表校验、推荐默认模型 | `key_detect.rs` / `list_models` / `stats.rs` |
 | §6.3 | 分场景模型、故障转移（8 s 超时 / 429 / 额度不足，按用户备用顺序，标注实际模型） | `router.rs` / `settings.rs`（含跨供应商） |
-| §6.3 | **长文本切分**（>70% 上下文按段落切分**并发**请求、结果按顺序合并） | `chunk.rs`（预算/切分/按序重排/分隔符）+ `transport::stream_chunks`（并发 + 按序输出 + 用量汇总）+ `translator.rs` 的分片分支；`provider::context_window_for` 提供模型窗口 |
+| §6.3 | **长文本切分**（>70% 上下文按段落切分**并发**请求、结果按顺序合并） | `umuo-core/src/chunk.rs`、`transport.rs` 与 `umuo-app/src/translate/`；本地 SSE 回归验证并发、顺序与整批故障转移 |
 | §6.5 | 基础规则保留格式与占位符；结构化输出用 JSON 模式；解析失败降级纯文本；内置 Prompt 版本化 | `prompt.rs` / `wire.rs` / `word_card.rs` |
-| §7.1 | 划词浮窗失焦或 Esc 关闭、撰写窗 ⌘Enter/Esc、截图选区 Esc 取消、对比窗与历史窗为普通窗口 | `panel-state.ts` / `compare.rs` / `history.tsx` |
-| §7.1 | 对比窗**可拖拽排序**（多卡片横排） | `reorder.ts` 的 `moveItem`/`applyOrder`（纯函数 + 11 条测试，覆盖往前拖/往后拖的下标语义、越界、新卡片追加、顺序里已不存在的卡片）；拖拽源用 **ref 而非 state**——`drop` 必须同步拿到"拖的是哪一张"，放 state 里拖快一点就读到 null。夹具实测：把第 1 张拖到第 3 位，顺序确实变成 `[2,3,1]` |
-| §7.3 | **菜单栏图标样式**（模板 / 品牌色 / 恒定黑） | `make-icons.ts` 生成三份托盘 PNG（模板走系统着色，非模板把透明度调高——彩色图标太淡在菜单栏里会"若隐若现"，实测发现）；`tray_icon_image` 按设置取图，`apply_tray_style` 运行时切换（**不需重启**，`set_icon_as_template` 在 TrayIcon 上而非图片上）。
+| §7.1 | 划词浮窗失焦或 Esc 关闭、撰写窗 ⌘Enter/Esc、截图选区 Esc 取消、对比窗与历史窗为普通窗口 | `Panel/`、`Compose/`、`Compare/`、`History/`；非激活 NSPanel 与普通 NSWindow，Esc 按请求归属取消；焦点行为待真机验收 |
+| §7.1 | 对比窗**可拖拽排序**（多卡片横排） | `Compare/Reorder.swift`、`CompareView.swift` 与对应 Swift Testing；保留键盘重排入口，拖拽待真机验收 |
+| §7.3 | **菜单栏图标样式**（模板 / 品牌色 / 恒定黑） | `scripts/make-icons.ts` 直接生成 `Resources/Tray/` 三份 PNG，`App/StatusBar.swift` 动态切换样式，不需重启 |
 | §7.3 | **取词黑名单**（密码管理器等） | `Settings::selection_blacklist`（默认含 1Password / KeePassXC / Bitwarden / Keychain——**安全默认**，可增删）；判定在**读取之前**（把密码字段发给云端是安全事故，不是体验问题），⌥D / ⌥⇧T / ⌥R 三条路径都拦，拦下时浮窗说明原因。匹配不区分大小写、双向包含（填 keepass 命中 KeePassXC）；保存时归一化。**黑名单非空才读前台应用名**——不给默认路径增加 AX 成本。守卫测试因此改造：`settings_json_never_has_a_credential_field` 改查**字段名**而非全文子串（黑名单值里的 "1Password" 不是凭据） |
-| §7.1 | **菜单栏快捷面板**（最近翻译、快速输入、当前模型、暂停/恢复） | `quick.tsx` + `quick_state`/`set_paused`/`quick_translate` 命令。托盘**左键**打开（此前 `show_menu_on_left_click(false)` 设了却没人接手左键——那是个点击毫无反应的真 bug）；右击仍出菜单，菜单里也有入口。暂停检查只加在 `register_one` 一处，加新快捷键不必记得判断暂停。四语言文案齐备。**实测**：用 CGEvent 真点托盘图标，面板出现且完全在屏内（903–1243，主屏 1920 逻辑点宽） |
+| §7.1 | **菜单栏快捷面板**（最近翻译、快速输入、当前模型、暂停/恢复） | `Quick/`、`App/StatusBar.swift`；左键 NSPopover、右键菜单，支持快速输入、最近翻译、模型与暂停状态；当前实现真机验收见迁移记录 |
 | §7.2 | ⌥D / ⌥A / ⌥⇧T / ⌥S / ⌥C / ⌥⇧C / **⌥R 朗读选中文本** 七个默认快捷键且可自定义 | `settings.rs` + 设置页的**录键器**（点一下、按下新组合；录制期间注销全部全局快捷键，否则 macOS 会把已占用的组合截走、录不到；改完立刻重注册，不用重启）；⌥R 取选区后直接朗读，不弹浮窗（取不到选区、黑名单拦截、朗读失败时才弹浮窗说明；黑名单不报成权限问题） |
-| §7.2 | **连按两下修饰键**（⌃⌃、⌥⌥、右⌘⌘） | `umuo_core::hotkey`（解析 + 判定状态机，9 条测试：按住超过 250ms、两下间隔超过 350ms、中间按了别的键或点了鼠标、组合了别的修饰键、左接右，都不算）→ 平台 trait `umuo_platform::ModifierMonitor`，macOS 实现 `MacModifierMonitor`（只读 CGEventTap，键码与设备标志位映射，被系统停用时自动重新启用）→ `double_tap.rs`（绑定 + 回主线程执行；只在有连按快捷键时才启动监听，启动失败不缓存、授权后再改快捷键即可重试）。设置页录键器支持录连按；左侧录成「左右都算」，右侧录成只认右侧。监听启动失败（缺「辅助功能 / 输入监控」）标在对应那一行 |
-| §7.2 | **快捷键冲突检测并提示** | 两层：① **录制时**静态检查（`hotkey-conflict.ts`，纯函数 + 9 条测试）——别名归一化后的内部重复、没有真正修饰键、命中已知系统快捷键；② **注册后**的真实结果——macOS 对已被占用的快捷键**静默拒绝**，所以注册失败会被记进 `AppState::hotkey_failures`（记设置字段名），标在设置页对应那一行上；与别的功能撞键的组合录键器直接拒绝保存。✓ 本机实测七个全部注册成功 |
-| §7.2 | 与 luca-translate 默认一致 | **有意偏离（2026-10-08）**：新装默认改为对齐 Trancy Air——划词 ⌃⌃、输入框替换 ⌥⌥、对比 ⌥P、截图翻译 ⌥⌘O、撰写 ⌥⌘A、只识别 ⌥⇧O，朗读仍是 ⌥R。只影响**新装**：老用户的设置文件里写着各自的键位，不迁移。引导页与对比窗里提到的键位改为读当前设置，不再写死。连按默认依赖「辅助功能」权限才能启动监听，所以授权后的「检查权限」会补启动（`double_tap::retry_start`），不必重启 |
-| §7.3 | 设置页 **9 组**中的：**通用（主题、开机启动）** 与 **关于** | 新增「通用」与「关于」两页（2026-10-08 起设置窗为 6 个分区：通用、翻译、引擎、权限、高级、关于）。主题四选一（跟随系统/浅色/深色/高对比度），改动**广播到四个窗口并立刻生效**——浮窗是常驻窗口，不广播就要等重启。开机启动用 LaunchAgent（不引插件），`launch_agent_plist` 是纯函数、测试覆盖 XML 转义；从磁盘映像（`/Volumes`）或 App Translocation 的临时路径运行时拒绝开启并说明原因，plist 里的程序不在了就如实显示「关」。关于页显示编译期版本号与数据存放说明 |
-| §7.4 | **首次启动引导五步**（欢迎 → 语言 → 模型 → 权限 → 试一试） | `onboarding.tsx` / `lib/onboarding.ts`（步骤、完成度与要写入的默认引擎，15 条测试）/ `Settings::onboarding_done` / 启动时按需显示；语言、保存 Key 的供应商（连同其默认模型）、未配 Key 时探测到的本机模型都即时写入设置，结束引导前等保存落定；设置页可「重新运行首次引导」。**两处如实降级**：① PRD 要的「三张动图」用文字 + 键帽代替（仓库没有视频素材）；② 第 3 步的「登录用官方额度」与「免 Key 网页通道」不可提供（前者服务端不在本仓库、后者未实现），因此只提供 BYOK 与本机模型 |
-| §7.5 | 流式光标动画、Esc 中止请求、错误用卡片内提示条附操作（不弹系统警告） | `panel-state.ts` / `error.rs::actions` |
-| §8 | **界面国际化——当前全貌** | **已完全本地化的窗口**：浮窗、撰写窗、历史窗、对比窗、快捷面板、引导窗、**设置窗**（2026-10-08 重排为分区侧边栏时补齐，文案在 `lib/i18n/prefs-messages.ts`，247 条 × 4 语言，连同它用到的风格预设、术语表、分场景模型等组件一起进了 `LOCALIZED_FILES` 防线）。词卡、对比窗的计量行、引导步骤标题、「用默认模型」也已改走文案表（审查 L24）；防线现在还要求**每个 `.tsx` 都在清单里**，并覆盖产出界面文案的 `lib/compare-state.ts`、`lib/onboarding.ts`、`lib/scene-routing.ts`。**未开始**：内核返回的文本（错误消息、内置风格名）、托盘菜单与窗口标题、快捷键冲突提示里的系统功能名 |
+| §7.2 | **连按两下修饰键**（⌃⌃、⌥⌥、右⌘⌘） | `umuo-core/src/hotkey.rs` + `Platform/ModifierTap.swift` / `Hotkeys.swift`；CGEventTap 被系统停用时重新启用，授权后可重试，规则由 Rust / Swift 自动测试覆盖 |
+| §7.2 | **快捷键冲突检测并提示** | `Settings/HotkeyConflict.swift` / `HotkeyEditor.swift` + `Platform/GlobalHotkeys.swift`；静态冲突与系统注册失败分别显示 |
+| §7.2 | 与 luca-translate 默认一致 | **有意偏离（2026-10-08）**：新装默认改为对齐 Trancy Air——划词 ⌃⌃、输入框替换 ⌥⌥、对比 ⌥P、截图翻译 ⌥⌘O、撰写 ⌥⌘A、只识别 ⌥⇧O，朗读仍是 ⌥R。只影响**新装**：老用户的设置文件里写着各自的键位，不迁移。引导页与对比窗里提到的键位改为读当前设置，不再写死。连按默认依赖「辅助功能」权限才能启动监听，所以授权后的「检查权限」会补启动（Swift Hotkeys 的权限重试），不必重启 |
+| §7.3 | 设置页 **9 组**中的：**通用（主题、开机启动）** 与 **关于** | `Settings/Pages/GeneralPage.swift`、`AboutPage.swift` 与 `Platform/Autostart.swift`；六个设置分区，主题 / 界面语言 / 缩放 / 自启动；拒绝从 DMG 或 App Translocation 临时位置设置自启动 |
+| §7.4 | **首次启动引导五步**（欢迎 → 语言 → 模型 → 权限 → 试一试） | `Onboarding/` 与 Swift Testing；语言、模型、权限、试译走正式 backend；欢迎动图降级为文字与键帽，账号和免 Key 通道暂缓 |
+| §7.5 | 流式光标动画、Esc 中止请求、错误用卡片内提示条附操作（不弹系统警告） | `Panel/PanelView.swift`、`PanelModel.swift` 与 `umuo-core/src/error.rs`；错误卡片与按请求取消 |
+| §8 | **界面国际化——当前全貌** | `Resources/Strings/Localizable.xcstrings`、`Models/L10n.swift`；界面支持简中、繁中、英语、日语，直接维护 String Catalog；内核错误文本与内置风格名仍待完整本地化 |
 | §8 | **代理**（系统代理、自定义 HTTP/SOCKS5） | `proxy.rs::parse_proxy`（纯函数 + 6 条测试）→ `transport::build_client_with`（+4 条：三种意图都能建出客户端、构建层对地址宽容的实测记录）。reqwest 补开 `system-proxy` 与 `socks` 两个 feature（此前 `default-features = false` 把它们关了，SOCKS5 与系统代理都不可用）。**实测**：坏代理地址下应用仍能启动（回落到跟随系统并打日志，不让网络配置弄垮启动）；设置页保存时当场校验地址；改代理需重启（已在界面写明）。`reqwest::Proxy::all` 对"少了协议头"的地址很宽容——这正是设置层必须自己校验的原因（已写成测试） |
-| §8 | **发布门槛实测**（release 构建） | 见 `docs/RELEASE-GATES.md`：安装包 DMG 3.64 MiB ✅、空闲内存 `phys_footprint` **30 MB** ✅、空闲 CPU 0.0% ✅、唤起 **40–105 ms** ✅；**首字额外开销与崩溃率仍测不了**（需真实 Key / 长期数据）；**唤起在只能走剪贴板降级的应用里 540–610 ms 不达标**（设计使然） |
-| §7.5 | **离线时自动切到本地模型并标注「离线」** | 请求因**网络类错误**失败后探测 Ollama → LM Studio（必须真能列出模型才算可用），把本机候选插到计划的下一个位置重试一次（不排在剩下的云端备用之后），只有本机候选真的出了结果才标「离线」；浮窗显示「离线 · 模型名」而**不沿用原云端厂商名**（`should_fall_back_to_local` 纯函数 + 测试、`panel-state`::statusLine 测试）。单请求与分片两条路径都覆盖 |
+| §7.5 | **离线时自动切到本地模型并标注「离线」** | `umuo-app/src/translate/` 网络错误后探测 Ollama → LM Studio，成功后标离线；`tests/pipeline.rs` 与 Swift 状态模型测试覆盖 |
 | §11.3 §11.4 | 官网 FAQ、构建期预渲染与 SEO | 官网在 `site/`（五种语言预渲染），规则见 `site/AGENTS.md` |
+
+| §7.1 | 真正非激活 NSPanel | `Panel/PanelWindow.swift`；已替代旧 focused(false) 方案，点击 / 焦点与跨 App 交互仍待真机验收 |
 
 ## ⬜ 未对齐
 
@@ -66,9 +68,9 @@
 它比其余缺口大一个量级：转写引擎（官方额度 / BYOK 语音模型 / 本地 whisper.cpp）、
 按住说话的状态机、麦克风权限、听写词典、后处理。**记在这里，不是遗忘。**
 
-### 未实现：账号与订阅（§5.12，P0）
+### 暂缓：账号与订阅（§5.12，历史 P0）
 
-PRD v0.3 把账号与订阅列为 P0。账号、订阅与模型网关的服务端不在本仓库（§9.6），但**客户端这一侧也还没做**：没有登录、没有账户设置、没有订阅入口，官方额度与免 Key 通道也都没有。
+PRD v0.3 曾把账号与订阅列为 P0；当前方向已暂缓账号、官方额度与收费许可证。账号、订阅与模型网关的服务端不在本仓库（§9.6），但**客户端这一侧也还没做**：没有登录、没有账户设置、没有订阅入口，官方额度与免 Key 通道也都没有。
 官网（`site/`）已公布方案与价格，并写明「应用内订阅尚未上线」。动手之前先把这一节拆成可验收的条目。
 
 ### UI 能力缺口（用户直接可感）
@@ -90,7 +92,8 @@ PRD v0.3 把账号与订阅列为 P0。账号、订阅与模型网关的服务�
 
 | PRD | 要求 | 现状 | 验收方式 |
 | --- | --- | --- | --- |
-| §8 | 可访问性：VoiceOver、动态字体 | 只有高对比度主题 | VoiceOver 能读出主要控件；字体随系统缩放 |
+| §8 | 可访问性：VoiceOver、动态字体 | 已有原生控件与高对比度主题，完整走查尚未完成 | VoiceOver 能读出主要控件；字体随系统缩放 |
+| §8 | 原生版性能门槛、签名公证与应用内更新 | 原生打包链路已实现；SwiftUI 性能重新测量、Developer ID、公证和更新闭环待完成 | 按 `RELEASE-GATES.md` 与 `SWIFTUI-MIGRATION.md` 逐项验收 |
 | §11.2 | 素材：15 秒演示视频 + 4 段快捷键短视频 | 用了静帧产品截图 | 补视频或明确降级为静态 |
 
 ### 官网文案核查
@@ -123,10 +126,9 @@ PRD §11.2 要求「翻译 1,000 句约 ¥x」的具体示例，并注明"需实
 PRD 的九组里，已对齐的是「通用（主题、界面缩放、开机启动）」「语言（母语、目标语言规则）」「模型」「快捷键」「风格与术语」「隐私与数据（部分）」「用量」「关于」。
 仍缺：
 
-- **通用**：界面语言（客户端界面本体仍是中文，见 i18n 段）。**菜单栏图标样式已做**（见已对齐表：
-  三种样式、运行时切换不需重启）
+- **通用**：界面语言与菜单栏图标样式均已做，见已对齐表；原生外观细节继续按 Apple HIG 验收
 - **划词 OCR 与语音**：触发方式、悬浮按钮开关、OCR 引擎（**App 黑名单已做**，见已对齐表）
-- **无障碍**：VoiceOver 的完整走查与动态字体跟随（**对比窗重排的键盘通道已补**：卡片上的 ◀ ▶ 按钮，Tab 可达、带 aria-label）
+- **无障碍**：VoiceOver 的完整走查与动态字体跟随（**对比窗重排的键盘通道已补**：卡片上的 ◀ ▶ 按钮，Tab 可达、带辅助功能标签）
 - **隐私与数据**：遥测开关——**有意的空缺**：当前客户端不发送任何遥测，没有可开关的东西；
   在真要发遥测之前放一个开关是假功能。关于页已写明「不发送任何遥测数据」
 
@@ -142,12 +144,12 @@ PRD §6.4 允许「勾选包含 Key，但需设置导出密码并加密」。目
 
 ### 浮窗「失焦收起」为什么是轮询
 
-浮窗是**非激活**窗口（`focused(false)`），创建时不接受焦点，所以没有可靠的 blur 事件可听。
+浮窗是 AppKit **非激活 NSPanel**，不依赖普通窗口的 blur 事件。
 而「用户切到了别的应用」才是他真正想收起浮窗的信号——于是每 500 ms 读一次前台应用标识
 （只在浮窗可见时才读），变了就收起，钉住则不动。
 
 拿不到标识时**不收起**：宁可让浮窗多留一会儿，也不能让用户正在读的东西凭空消失。
-判据是纯函数 `translator::should_auto_hide`，四个分支都有测试。
+判据是纯函数 `umuo_app::panel::should_auto_hide`，四个分支都有测试。
 
 ### 长文本切分的已知简化
 
@@ -167,7 +169,6 @@ PRD §6.4 允许「勾选包含 Key，但需设置导出密码并加密」。目
 
 | PRD | 我们的做法 | 理由 |
 | --- | --- | --- |
-| §7.1 划词浮窗用 **NSPanel** 真·非激活 | Tauri `focused(false)` + always_on_top | 需要 objc2 子类化 NSWindow。**已知差距**：点击浮窗仍会激活本应用。为此看门狗把「前台是本应用」视为没切走，「替换原文」写回前先把记下的源应用切回前台、等焦点回来再写（审查 H5，待真机确认） |
 | §7.1 截图用**自绘全屏遮罩** | 系统 `screencapture -i` | 换取「选区 → 像素」零坐标换算风险（多显示器负坐标会让自绘方案截错位置）；代价是拿不到选区坐标 |
 | §6.4 Key「默认掩码显示，查看需身份验证」 | **永不回显**（只显示「已配置」徽标） | 比掩码更严格：前端拿不到明文，也就无从泄露 |
 | §5.9「全文检索」 | `LIKE` 而非 FTS5 | FTS5 默认分词器不切分中日韩文本，中文搜不到词 |

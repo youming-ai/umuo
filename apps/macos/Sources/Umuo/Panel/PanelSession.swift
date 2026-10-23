@@ -27,7 +27,7 @@ protocol PanelBackend: AnyObject {
 }
 
 /// 浮窗的视图模型：翻译状态（`PanelModel`）之外，窗口自己的那些一次性状态——钉住、收藏、提示、OCR 的可改原文、
-/// 能换的模型与风格、这次翻译属于哪个应用。`apps/desktop/src/panel.tsx` 里 `useState` 的那几项，语义逐条一致。
+/// 能换的模型与风格、这次翻译属于哪个应用。
 ///
 /// 只在 MainActor 上改；要等的操作（收藏、复制、替换）由 backend 在后台做完再回来。
 @MainActor @Observable

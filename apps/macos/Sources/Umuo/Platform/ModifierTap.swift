@@ -3,7 +3,7 @@ import Foundation
 import os
 import UmuoCore
 
-/// 修饰键监听，对应 `crates/umuo-platform-macos/src/modifier_tap.rs`。
+/// 修饰键监听。
 ///
 /// 系统的全局快捷键只能注册「修饰键 + 主键」，⌃⌃ 这种只按修饰键的组合注册不了，
 /// 所以这里开一个**只读**的事件监听（CGEventTap，ListenOnly）：只看、不拦、不改，按键照常送到前台应用。

@@ -2,7 +2,7 @@ import Testing
 import UmuoCore
 @testable import Umuo
 
-// 对比窗视图模型的交互规则（`apps/desktop/src/compare.tsx` 里的按钮与状态）。backend 换成只记调用的假实现。
+// 对比窗视图模型的交互规则。backend 换成只记调用的假实现。
 
 @MainActor
 private final class FakeBackend: CompareBackend {

@@ -4,7 +4,7 @@
 
 **系统级 AI 翻译客户端 —— 用你自己的 Key，在任意 App 里读、写、看都能即时翻译**
 
-macOS 专用 · SwiftUI（迁移中，见 docs/SWIFTUI-MIGRATION.md）· Rust 共享核心 · BYOK 优先 · 闭源
+macOS 专用 · Swift + SwiftUI + AppKit· Rust 共享核心 · BYOK 优先 · 闭源
 
 </div>
 
@@ -38,9 +38,9 @@ umuo 是一个常驻菜单栏、快捷键驱动的桌面翻译客户端。它不
 | 模块 | 状态 |
 | --- | --- |
 | 仓库骨架（Bun workspace + Cargo workspace + CI） | ✅ |
-| Rust 共享内核 `crates/umuo-core` + 平台层 + 存储层（单元测试覆盖） | ✅ 见下表的已实现能力 |
+| Rust 共享内核 `crates/umuo-core` + 应用层 + 存储层（单元测试覆盖） | ✅ 见下表的已实现能力 |
 | macOS 平台适配：Accessibility 取词 / 剪贴板降级 / Keychain | ✅ |
-| Tauri 2 外壳：菜单栏托盘、**七个**全局快捷键（含连按修饰键）、非激活浮窗 + 六个功能窗 | ✅ 快捷键全部可在设置里改 |
+| SwiftUI + AppKit 客户端：菜单栏、**七个**全局快捷键（含连按修饰键）、非激活浮窗 + 六个功能窗 | ✅ 快捷键全部可在设置里改 |
 | 输入框原地替换（静默翻译，⌥⌥） | ✅ 含「目标应用已切换就不写回」的保护 |
 | 撰写窗（⌥⌘A）：上方写、下方实时出译文，⌘Enter 复制 | ✅ |
 | 多模型对比（⌥P）：并发发给最多 4 个模型，卡片横排 | ✅ 含「选它」偏好统计 |
@@ -67,31 +67,31 @@ umuo 是一个常驻菜单栏、快捷键驱动的桌面翻译客户端。它不
 > **范围诚实声明**：客户端之外只有官网（[`site/`](site/)）。PRD §9.6 里的账号、订阅、模型网关是闭源服务端、独立部署，
 > 客户端只通过公开 API 调用它，仓库中不包含服务端实现。
 >
-> **尚未在真机上人工验证的部分**：浮窗的「不抢焦点」目前用 Tauri 的 `focused(false)` 实现，
-> 与 PRD 要求的非激活 NSPanel 仍有差距；浮窗按鼠标位置摆放，不是精确锚定选区。
-> 详见 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) 的「已知边界」。
+> **发布仍有待办**：应用内更新、Developer ID 签名与公证、Homebrew Cask，以及系统权限和多显示器等真机验收。旧客户端源码已清理；这不代表 SwiftUI 版已经发布。见 [迁移记录](docs/SWIFTUI-MIGRATION.md)。
 
 ## 快速开始
 
 ```bash
-bun install          # JS 依赖（Bun workspace）
+bun install          # 仓库工具脚本依赖
 cargo fetch          # Rust 依赖
 
-bun run dev:desktop  # 桌面客户端 → Tauri 窗口（需要 Xcode Command Line Tools）
+bun run dev:macos    # 编 Rust 绑定与 SwiftUI 客户端后启动（macOS 14+，Swift 6）
+# 开发二进制默认不注册全局快捷键；先退出其他实例，再用 bun run dev:macos --hotkeys
 ```
 
 ## 开发命令
 
 | 命令 | 作用 |
 | --- | --- |
-| `bun run dev:desktop` | 桌面客户端开发（Tauri，热重载前端 + Rust 增量编译） |
-| `bun run build:desktop` | 打包 `.app` / `.dmg`（macOS 签名与公证另配） |
-| `bun run icons` | 重新生成图标资产（`scripts/make-icons.ts`，加 `--preview` 可在终端自检形状） |
-| `bun run lint` / `bun run format` | Biome 检查 / 格式化 |
-| `bun run type-check` | 全部 TypeScript 项目类型检查 |
-| `bun run test:run` | Vitest（客户端 UI 的纯逻辑） |
-| `bun run test:rust` | `cargo test --workspace`（翻译内核） |
-| `bun run verify` | 上面全部串一遍——**提交前跑这个** |
+| `bun run dev:macos` | 编译并启动 SwiftUI 客户端 |
+| `bun run build` | 编译 Rust 绑定与原生客户端 |
+| `bun run bundle:macos -- --version X.Y.Z` | 生成通用 `.app` / `.dmg` / `.app.tar.gz`，不上传 |
+| `bun run icons` | 直接生成原生应用 ICNS 与菜单栏 PNG |
+| `bun run lint` / `bun run format` | Biome 检查 / 格式化工具脚本 |
+| `bun run type-check` | 工具脚本的 TypeScript 类型检查 |
+| `bun run test:rust` | Rust workspace 单测与流水线回归测试 |
+| `bun run verify:macos` | Swift 构建、Swift Testing、FFI 自检与打包冒烟 |
+| `bun run verify` | 提交前完整门禁，与客户端 CI 对齐 |
 
 ### 跑通划词翻译需要一次系统授权
 
@@ -104,31 +104,28 @@ bun run dev:desktop  # 桌面客户端 → Tauri 窗口（需要 Xcode Command L
 ## 仓库结构
 
 ```
-apps/desktop/        桌面客户端
-  src/               前端 UI（React，跑在 Tauri WebView 里）
-    panel.tsx          划词浮窗
-    settings.tsx       设置窗外壳（侧边栏 + 改了就存）；各分区页在 settings/
-  src-tauri/         Tauri 2 外壳：托盘、全局快捷键、窗口、IPC 命令
-    src/translator.rs  划词链路编排
-crates/umuo-core/    共享翻译内核：Provider 目录、Prompt 引擎、流式解析、路由、计量
-crates/umuo-platform/      平台能力 trait（取词、写回、剪贴板、凭据存储）
-crates/umuo-platform-macos/ macOS 实现（Accessibility FFI、Keychain）
-crates/umuo-store/   本机 SQLite：翻译历史、收藏、用量
-packages/tokens/     设计令牌（客户端的 CSS 变量与 @theme 映射）
-scripts/make-icons.ts 图标生成（手写 PNG/ICNS 编码器，无图形库依赖）
-docs/PRD.md          产品需求文档
-docs/ARCHITECTURE.md 架构与已知边界
-docs/research/       竞品拆解与 luca-translate 复用审计
+apps/macos/          Swift + SwiftUI + AppKit 原生客户端（SwiftPM）
+  Sources/Umuo/      App、Platform、Panel、Compose、Compare、History、Settings、Onboarding、Quick
+  Tests/UmuoTests/   Swift Testing：视图模型与纯规则
+  packaging/         Info.plist、图标与签名权限
+  scripts/           Rust 绑定构建、原生开发、验证与打包
+crates/umuo-ffi/     UniFFI 导出与类型转换
+crates/umuo-app/     共享应用逻辑：设置、流水线、对比、历史、预算
+  tests/             本地 SSE 流水线回归与事件兼容快照
+crates/umuo-core/    平台无关翻译内核：Provider、Prompt、流式解析、路由、计量
+crates/umuo-store/   本地 SQLite：历史、收藏与用量
+site/               官网与 Worker，独立 Bun 项目
+scripts/            图标生成与原生发布工具
+docs/              PRD、架构、迁移与发布验收记录
 ```
 
 ## 架构原则
 
-1. **翻译逻辑全部在 `umuo-core`**，且不依赖任何操作系统 API——因此可以在 Linux/macOS CI 上直接 `cargo test`。
-2. **凡是跟操作系统打交道的能力都下沉到平台适配层**：取词、写回、截图 OCR、全局快捷键、凭据存储。
-   V1 只有 macOS 实现（`umuo-platform-macos`），Windows（V1.1）与 Omarchy（V2）按同一组 trait 补齐，不改内核。
-3. **Provider 是数据不是分支**：新增一家供应商 = 往目录里加一条数据，而不是到处加 `if`。
-4. **全部请求流式输出**：首字延迟是这类工具的核心体验指标，等整段返回再渲染是不可接受的。
-5. **Key 只存系统凭据存储**，不进配置文件、不进日志、不进翻译历史。
+1. UI 使用 SwiftUI，窗口与系统能力使用 AppKit 和 Apple 原生 API；交互以 Apple Human Interface Guidelines 为依据。
+2. `umuo-app` 与 `umuo-core` 保持平台无关，在 Linux 上可测试；应用编排经 UniFFI 提供给 Swift，不在 Swift 重写。
+3. 平台能力在 Swift 宿主实现：AX 取词与写回、Keychain、Vision OCR、语音、快捷键和窗口。
+4. Provider 是数据；请求流式输出，每次请求独立取消，旧事件不覆盖新结果。
+5. Key 只存系统 Keychain，不进配置、日志或历史，供应商请求由 Rust 发出。
 
 ## 隐私
 

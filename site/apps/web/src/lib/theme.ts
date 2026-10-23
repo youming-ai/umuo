@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 
 /**
- * 主题只切换 `<html data-theme>`，颜色全部来自 packages/tokens/app.css 的令牌，
+ * 主题只切换 `<html data-theme>`，颜色全部来自 apps/web/src/styles/app.css 的令牌，
  * 官网不另外定义任何颜色。默认跟随系统，选择记在 localStorage。
  */
 export type Theme = 'dark' | 'light'

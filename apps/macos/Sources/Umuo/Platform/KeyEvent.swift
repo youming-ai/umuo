@@ -1,7 +1,7 @@
 import CoreGraphics
 import Foundation
 
-/// 合成 ⌘C / ⌘V，对应 `crates/umuo-platform-macos/src/key_event.rs`。
+/// 合成 ⌘C / ⌘V。
 ///
 /// 用 CGEvent 直接投递到 HID 层，而不是走 AppleScript：后者要额外权限、延迟高、
 /// 在无脚本权限的环境里会静默失败。合成键盘事件本身也要辅助功能权限——

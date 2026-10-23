@@ -6,37 +6,26 @@
   "description": "umuo — macOS 系统级 AI 翻译客户端（闭源）",
   "license": "UNLICENSED",
   "packageManager": "bun@1.4.2",
-  "workspaces": [
-    "apps/*",
-    "packages/*"
-  ],
   "scripts": {
-    "dev": "bun run --filter umuo-desktop dev",
-    "dev:desktop": "bun run --filter umuo-desktop dev",
-    "build": "bun run build:desktop",
-    "build:desktop-ui": "bun run --filter umuo-desktop build:vite",
-    "build:desktop": "bun run --filter umuo-desktop build",
+    "dev": "bun run dev:macos",
+    "dev:macos": "sh apps/macos/scripts/dev.sh",
+    "build": "sh apps/macos/scripts/build.sh",
     "icons": "bun run scripts/make-icons.ts",
     "lint": "biome check .",
+    "format": "biome format . --write",
+    "type-check": "tsc --noEmit",
     "clippy": "cargo clippy --workspace --all-targets -- -D warnings",
     "fmt:rust": "cargo fmt --all -- --check",
-    "format": "biome format . --write",
-    "type-check": "tsc --noEmit && bun run --filter umuo-desktop type-check",
-    "test": "vitest",
-    "test:run": "vitest run",
     "test:rust": "cargo test --workspace",
     "verify:macos": "sh apps/macos/scripts/verify.sh",
-    "release:local": "sh scripts/release-local.sh",
     "bundle:macos": "sh apps/macos/scripts/bundle.sh",
     "release:swift": "sh scripts/release-swift-local.sh",
-    "verify": "bun run lint && bun run type-check && bun run test:run && bun run fmt:rust && bun run clippy && bun run test:rust && bun run build:desktop-ui && bun run verify:macos"
+    "verify": "bun run lint && bun run type-check && bun run fmt:rust && bun run clippy && bun run test:rust && bun run verify:macos"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.3",
     "@types/bun": "^1.4.2",
     "@types/node": "^24.10.1",
-    "happy-dom": "^20.14.5",
-    "typescript": "^5.9.3",
-    "vitest": "^4.1.10"
+    "typescript": "^5.9.3"
   }
 }

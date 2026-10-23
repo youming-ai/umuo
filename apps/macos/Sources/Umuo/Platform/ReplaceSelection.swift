@@ -1,8 +1,7 @@
 import AppKit
 import ApplicationServices
 
-/// 浮窗「替换原文」的写入，逐条照搬 `crates/umuo-platform-macos/src/selection.rs` 的 `replace_selection`
-/// 与 `check_panel_writable`，错误文案与 Rust 的 `PlatformError` Display 逐字一致。
+/// 浮窗「替换原文」：确认源应用恢复后检查目标可写性，再执行写入。
 ///
 /// 与静默翻译的写回（`AXWriteBack`）不同：浮窗的原文可能本来就是靠模拟 ⌘C 取到的（Electron、网页视图），
 /// AX 通道在那里不通，所以**有 ⌘V 兜底**；只有聚焦的确实是能读选区、又明确只读的文本控件（终端）才拒绝，

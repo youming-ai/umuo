@@ -98,7 +98,7 @@ mod tests {
     use super::*;
     use crate::history::{self, Draft};
 
-    /// 不碰任何平台 API 的宿主：Swift 版与 Tauri 版之外的第三个实现，证明应用层只依赖 [`Host`]。
+    /// 不碰任何平台 API 的宿主：独立于正式客户端的测试实现，证明应用层只依赖 [`Host`]。
     struct FakeHost;
 
     impl Host for FakeHost {

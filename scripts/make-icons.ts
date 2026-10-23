@@ -1,7 +1,7 @@
 /**
  * 生成 umuo 的图标资产（应用图标 + 菜单栏图标 + .icns）。
  *
- * 图形与官网 logo 是同一只水獭（umuo 仓库的 apps/web/public/favicon.svg，100×100 设计坐标），
+ * 图形与官网 logo 是同一只水獭（umuo 仓库的 site/apps/web/public/favicon.svg，100×100 设计坐标），
  * 这里按同样的图层顺序用几何图元重画一遍。改 logo 时两边一起改。
  *
  * 为什么手写光栅化而不是引一个绘图库：图标只需要「圆、椭圆、多边形、圆头线段」，
@@ -19,7 +19,8 @@ import { fileURLToPath } from 'node:url'
 import { type Canvas, createCanvas, encodePng, type RGB } from './png'
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..')
-const ICON_DIR = join(ROOT, 'apps/desktop/src-tauri/icons')
+const ICON_DIR = join(ROOT, 'apps/macos/packaging')
+const TRAY_DIR = join(ROOT, 'apps/macos/Sources/Umuo/Resources/Tray')
 
 // ---------------------------------------------------------------- 配色（与 favicon.svg 一致）
 
@@ -440,26 +441,13 @@ if (process.argv.includes('--preview')) {
 }
 
 mkdirSync(ICON_DIR, { recursive: true })
-
-const appSizes: Array<[string, number]> = [
-  ['32x32.png', 32],
-  ['128x128.png', 128],
-  ['128x128@2x.png', 256],
-  ['icon.png', 512],
-  ['icon-1024.png', 1024],
-]
-
-for (const [name, size] of appSizes) {
-  const png = encodePng(renderAppIcon(size))
-  writeFileSync(join(ICON_DIR, name), png)
-  console.log(`写入 ${name} (${size}×${size}, ${png.length} 字节)`)
-}
+mkdirSync(TRAY_DIR, { recursive: true })
 
 // 菜单栏图标：三个样式各一份。template 是默认；运行时按设置换载哪一份。
 for (const style of ['template', 'brand', 'black'] as const) {
   const name = style === 'template' ? 'tray.png' : `tray-${style}.png`
   const png = encodePng(renderTrayIcon(44, style))
-  writeFileSync(join(ICON_DIR, name), png)
+  writeFileSync(join(TRAY_DIR, name), png)
   console.log(`写入 ${name} (44×44, ${png.length} 字节)`)
 }
 

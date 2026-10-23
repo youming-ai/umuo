@@ -1,7 +1,7 @@
 import Testing
 @testable import Umuo
 
-// 设计令牌的移植（packages/tokens/app.css）。AGENTS.md「设计令牌的三条硬约束」第 1 条：
+// 保留自定义主题的颜色对比度回归要求：
 // 按钮的前景 / 背景在每套主题下都要达到 WCAG AA——这里按对比度算，而不是只抄色号。
 
 @Suite("设计令牌")

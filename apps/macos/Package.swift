@@ -8,7 +8,7 @@ let here = URL(fileURLWithPath: #filePath).deletingLastPathComponent().path
 
 let package = Package(
     name: "Umuo",
-    // 源语言与 Tauri 版一致：简体中文。文案表见 Sources/Umuo/Resources/Strings/Localizable.xcstrings
+    // 源语言：简体中文。文案表见 Sources/Umuo/Resources/Strings/Localizable.xcstrings
     defaultLocalization: "zh-Hans",
     platforms: [.macOS(.v14)],
     targets: [
@@ -32,7 +32,7 @@ let package = Package(
             // String Catalog 整个目录原样拷贝、运行时自己读（Models/L10n.swift）：SwiftPM 见到目标里的 .xcstrings
             // 就要调 Xcode 的 xcstringstool（`.process` 编译、连 `.copy` 单个文件也要生成字符串符号），
             // 只装 Command Line Tools 时编不过；拷整个目录不会被扫描，两种工具链下行为也完全一致。
-            // 菜单栏图标的三份 PNG（与 Tauri 版 src-tauri/icons/tray*.png 同一套）同样原样拷贝
+            // 菜单栏图标的三份 PNG 由 scripts/make-icons.ts 直接生成并原样拷贝
             resources: [.copy("Resources/Strings"), .copy("Resources/Tray")],
             // 全局组合键用 Carbon 的 RegisterEventHotKey（不需要 TCC 权限）
             linkerSettings: [.linkedFramework("Carbon"), .linkedFramework("Vision"), .linkedFramework("AVFoundation")]

@@ -1,7 +1,7 @@
 import SwiftUI
 import UmuoCore
 
-/// 菜单栏快捷面板（PRD §7.1），`apps/desktop/src/quick.tsx` 的移植：页头（暂停 / 恢复）、暂停提示、当前模型与「配置」、
+/// 菜单栏快捷面板（PRD §7.1）：页头（暂停 / 恢复）、暂停提示、当前模型与「配置」、
 /// 快速输入（⌘↩ 翻译）、最近翻译（点一下复制译文）、提示行。末尾多一行打开窗口的入口（历史、设置）。
 struct QuickView: View {
     @Bindable var model: QuickModel

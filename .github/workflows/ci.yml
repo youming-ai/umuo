@@ -1,7 +1,6 @@
 name: CI
 
-# 两条门禁：TS 侧（客户端 UI）与 Rust 侧（翻译内核 + 平台适配）。
-# 客户端只承诺 macOS，所以 Rust 作业跑在 macOS runner 上——否则编译不了平台适配层。
+# 门禁：Bun 工具脚本、平台无关 Rust 内核、SwiftUI 客户端。
 # 只改官网（site/）时不跑客户端门禁
 on:
   push:
@@ -19,8 +18,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  web:
-    name: Desktop UI (lint / types / tests / build)
+  tooling:
+    name: Tooling (lint / types)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -40,12 +39,6 @@ jobs:
 
       - name: Type check
         run: bun run type-check
-
-      - name: Tests (Vitest)
-        run: bun run test:run
-
-      - name: Build desktop UI
-        run: bun run build:desktop-ui
 
   # 应用层与内核必须不依赖平台：在 Linux 上编译并测试，谁不小心引入 Tauri / AppKit 就在这里红。
   app-core-linux:

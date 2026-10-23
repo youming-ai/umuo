@@ -1,7 +1,7 @@
 import SwiftUI
 import UmuoCore
 
-/// 首次启动引导（PRD §7.4，五步），`apps/desktop/src/onboarding.tsx` 的移植：页头（标题、进度、五个步骤格）、
+/// 首次启动引导（PRD §7.4，五步）：页头（标题、进度、五个步骤格）、
 /// 当前步骤、页脚（没有引擎时的后果说明、提示、上一步 / 跳过 / 下一步或开始使用）。状态全在 `OnboardingModel` 里。
 struct OnboardingView: View {
     @Bindable var model: OnboardingModel

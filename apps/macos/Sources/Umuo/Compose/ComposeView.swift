@@ -1,7 +1,7 @@
 import SwiftUI
 import UmuoCore
 
-/// 撰写窗的界面，`apps/desktop/src/compose.tsx` 的移植：上面是四个下拉，下面依次是状态行、输入框、译文区、
+/// 撰写窗的界面：上面是四个下拉，下面依次是状态行、输入框、译文区、
 /// 回译区与底部按钮；文案与按钮的显示条件逐条一致。
 ///
 /// 它不做任何决策：调度、提交、回译都在 `ComposeSession` 里（也因此能测）。不用 `@State`：只装 CLT 时编不过。

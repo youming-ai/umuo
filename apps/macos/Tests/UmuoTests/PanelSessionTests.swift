@@ -2,7 +2,7 @@ import Testing
 import UmuoCore
 @testable import Umuo
 
-// 浮窗视图模型的交互规则（`apps/desktop/src/panel.tsx` 里按钮的条件与动作）。
+// 浮窗视图模型的交互规则。
 // backend 换成只记调用的假实现：不开窗口、不碰 Engine、剪贴板与 AX。
 
 @MainActor

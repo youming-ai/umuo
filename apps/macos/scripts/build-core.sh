@@ -11,6 +11,9 @@ set -eu
 here="$(cd "$(dirname "$0")/.." && pwd)"
 root="$(cd "$here/../.." && pwd)"
 profile="${PROFILE:-release}"
+# 与 Package.swift 的 .macOS(.v14) 一致；本机构建也不能按当前 SDK 标记 C / 汇编依赖。
+# 否则开发与验证时会链接出要求更高系统版本的静态库，出现 built for newer macOS 警告。
+export MACOSX_DEPLOYMENT_TARGET=14.0
 
 cd "$root"
 # 尊重 CARGO_TARGET_DIR：设置了它时 cargo 的产物不在仓库的 target/ 下
@@ -20,9 +23,6 @@ mkdir -p "$here/.core/lib" "$here/.core/bindings" "$here/Sources/UmuoCore"
 
 if [ "${UNIVERSAL:-}" = 1 ]; then
   [ "$profile" = release ] || { echo "UNIVERSAL=1 只支持 release" >&2; exit 1; }
-  # 与 Package.swift 的 .macOS(.v14) 一致。不设的话 cc 编的 C / 汇编（ring 等）按本机 SDK 的版本打标，
-  # 链接时满屏「built for newer macOS」，在老系统上可能用到没有的指令或符号
-  export MACOSX_DEPLOYMENT_TARGET=14.0
   for triple in aarch64-apple-darwin x86_64-apple-darwin; do
     rustup target list --installed | grep -qx "$triple" ||
       { echo "缺目标 ${triple}：rustup target add $triple" >&2; exit 1; }

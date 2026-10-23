@@ -1,6 +1,6 @@
 import AVFoundation
 
-/// 系统里可用的一个发音人。对应 `umuo_platform::speech::Voice`，多一个 `identifier`：
+/// 系统里可用的一个发音人，以 `identifier` 标识：
 /// AVSpeech 下同一个名字（Eddy、Flo…）在每个语言下各有一份，只有 identifier 能唯一指到一个。
 struct Voice: Equatable {
     let name: String
@@ -11,7 +11,7 @@ struct Voice: Equatable {
     var flaggedNovelty = false
 }
 
-/// 发音朗读的纯规则，对应 `crates/umuo-platform/src/speech.rs`：按语言挑发音人、把译文收拾成可念的文本。
+/// 发音朗读的纯规则：按语言挑发音人、把译文收拾成可念的文本。
 enum SpeechRules {
     /// macOS 自带的「趣味」发音人，与 Rust 的 `NOVELTY_VOICES` 同一份名单。
     ///
@@ -84,7 +84,7 @@ enum SpeechRules {
     }
 }
 
-/// macOS 发音朗读，对应 `crates/umuo-platform-macos/src/speech.rs`（Tauri 版用 `/usr/bin/say` 子进程）。
+/// macOS 发音朗读（Tauri 版用 `/usr/bin/say` 子进程）。
 ///
 /// Swift 版用进程内的 `AVSpeechSynthesizer`：Rust 不用它，是因为它要一个 run loop 才开口，而 Tauri 命令跑在哪个线程
 /// 不由我们决定。这里整个类钉在 MainActor 上，主线程的 run loop 由 SwiftUI 应用持有，那个顾虑不存在。

@@ -1,7 +1,7 @@
 import ApplicationServices
 
 /// Accessibility 的最小封装，取词（`Selection`）与写回（`AXWriteBack`）共用。
-/// 对应 `crates/umuo-platform-macos/src/ax.rs`：全是线程安全的 C API，工作线程上直接调。
+/// 封装 macOS Accessibility：全是线程安全的 C API，工作线程上直接调。
 enum AX {
     /// 当前聚焦的 UI 元素（系统级 `AXFocusedUIElement`）。没有权限、没有焦点时为 nil。
     static func focusedElement() -> AXUIElement? {

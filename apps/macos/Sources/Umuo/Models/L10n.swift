@@ -43,7 +43,7 @@ enum AppLocale: String, CaseIterable, Sendable {
     }
 }
 
-/// String Catalog（`Resources/Strings/Localizable.xcstrings`，由 `scripts/export-xcstrings.ts` 从 Tauri 版文案表导出）。
+/// String Catalog（`Resources/Strings/Localizable.xcstrings`，直接维护；历史 TS 文案导出脚本已删除）。
 ///
 /// **运行时自己读 JSON**，不走 `Bundle.localizedString`：SwiftPM 的 `.process` 要 Xcode 的 xcstringstool，
 /// 只装 Command Line Tools 编不过；而且界面语言可以在设置里明选，不跟系统走，按语言取文案本来就得自己挑。

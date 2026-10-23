@@ -15,7 +15,7 @@ protocol CompareBackend: AnyObject {
 }
 
 /// 对比窗的视图模型（PRD §5.6）：卡片状态（`CompareModel`）之外，窗口自己的那些状态——偏好排行、这一轮选了哪张、
-/// 空状态里的快捷键。`apps/desktop/src/compare.tsx` 里 `useState` 的那几项，语义逐条一致。
+/// 空状态里的快捷键。
 @MainActor @Observable
 final class CompareSession {
     let model = CompareModel()

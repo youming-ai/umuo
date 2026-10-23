@@ -4,7 +4,7 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 publish.workspace = true
-description = "umuo 客户端的应用层：设置、术语表、统计、请求登记、翻译流水线与多模型对比。不依赖 Tauri，Tauri 外壳与 SwiftUI 客户端（经 umuo-ffi）共用"
+description = "umuo 客户端的应用层：设置、术语表、统计、请求登记、翻译流水线与多模型对比。平台无关，经 umuo-ffi 给 SwiftUI 客户端调用"
 
 [dependencies]
 serde.workspace = true
@@ -15,3 +15,6 @@ reqwest.workspace = true
 futures-util.workspace = true
 umuo-core = { path = "../umuo-core" }
 umuo-store = { path = "../umuo-store" }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["net", "io-util"] }

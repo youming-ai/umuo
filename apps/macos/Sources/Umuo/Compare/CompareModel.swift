@@ -2,7 +2,7 @@ import Foundation
 import Observation
 import UmuoCore
 
-// 对比窗的状态机，`apps/desktop/src/lib/compare-state.ts` 的移植，语义逐条一致。
+// 对比窗的状态机，语义逐条一致。
 //
 // 与浮窗那套的区别：这里是 **N 路并发**的流式输出，每条增量都带卡片下标。抽成纯函数同样是为了测那些
 // 在界面里几乎无法复现的时序问题：某张卡已经报错了、它的增量却还在路上；或者一轮结束后又来了一批旧增量。

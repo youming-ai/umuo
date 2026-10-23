@@ -1,6 +1,6 @@
 import AppKit
 
-/// ⌘C 取词降级要的剪贴板操作，对应 `crates/umuo-platform-macos/src/clipboard.rs`。
+/// ⌘C 取词降级要的剪贴板操作。
 ///
 /// 都接一个 `NSPasteboard` 参数（正式路径是 `.general`）：selftest 换成私有命名剪贴板，
 /// 整个降级事务都能在不碰用户剪贴板的前提下跑一遍。

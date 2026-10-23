@@ -28,7 +28,7 @@
 
 /// 持久化结构里本版本不认识的字段：读进来原样保留、保存时原样写回。
 ///
-/// 新版本（SwiftUI 客户端、以后的 Tauri 版）加的字段，用户回到旧版本改一次设置就会被抹掉——
+/// 新版本加的字段，用户回到旧版本改一次设置就会被抹掉——
 /// 升级再降级、两个客户端交替用都会丢数据。用法是 `#[serde(flatten)] pub extra: UnknownFields`；
 /// 为空时不输出任何键，现有的序列化结果不变。
 pub type UnknownFields = serde_json::Map<String, serde_json::Value>;

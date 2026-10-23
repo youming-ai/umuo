@@ -2,7 +2,7 @@ import Foundation
 import Observation
 import UmuoCore
 
-/// 设置窗的视图模型，`apps/desktop/src/settings.tsx` 里 `SettingsApp` 的状态与规则，语义逐条一致。
+/// 设置窗的视图模型。
 ///
 /// **改了就存**，没有「保存」按钮：顺序与失败回滚交给 `SettingsQueue`（逐个保存、只交自己改的键、
 /// 失败只退回这几个字段）；API Key 是唯一例外（要明确按「保存」，见 `EngineEditor`）。

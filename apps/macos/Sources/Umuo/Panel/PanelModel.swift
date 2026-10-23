@@ -2,7 +2,7 @@ import Foundation
 import Observation
 import UmuoCore
 
-// 浮窗（以及撰写窗的主译文区与回译区）的状态机，`apps/desktop/src/lib/panel-state.ts` 的移植，语义逐条一致。
+// 浮窗（以及撰写窗的主译文区与回译区）的状态机，语义逐条一致。
 //
 // 抽成纯函数是为了能测：浮窗最烦人的 bug 都是「流结束之后还在追加增量」或者「上一次翻译的增量污染了下一次」
 // 这类时序问题，在真实界面里很难复现，在纯 reducer 里是一行断言的事。

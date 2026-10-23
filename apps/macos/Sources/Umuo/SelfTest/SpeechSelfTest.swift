@@ -18,7 +18,7 @@ enum SpeechSelfTest {
         Voice(name: name, language: language, identifier: "\(language).\(name)")
     }
 
-    /// 与 `umuo-platform/src/speech.rs` 的测试同一张表（Rust 的夹具是 `say -v '?'` 的 `xx_YY`，这里两种写法都喂）。
+    /// 发音人选择的回归夹具同时覆盖 xx_YY 与 xx-YY 语言标记。
     static func voiceRules(_ check: (String, Bool, String) -> Void) {
         let list = [voice("Eddy", "ja_JP"), voice("Tingting", "zh-CN"), voice("Meijia", "zh_TW"),
                     voice("Yuna", "ko-KR"), voice("Daniel", "en_GB")]

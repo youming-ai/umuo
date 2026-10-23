@@ -11,7 +11,7 @@
 #   APPLE_API_KEY / APPLE_API_ISSUER / APPLE_API_KEY_PATH
 #                            三个都设了才公证（notarytool --wait）并 staple；与 Tauri 打包用的同名变量一致
 #   TAURI_SIGNING_PRIVATE_KEY（私钥内容）或 TAURI_SIGNING_PRIVATE_KEY_PATH（默认 ~/.tauri/umuo-updater.key）
-#   TAURI_SIGNING_PRIVATE_KEY_PASSWORD                       --updater-sign 用；与 release-local.sh 同一把钥匙
+#   TAURI_SIGNING_PRIVATE_KEY_PASSWORD                       --updater-sign 用；沿用已发布旧客户端的同一把钥匙
 #   OUT_DIR                  产物目录，默认 apps/macos/dist（--quick 时 .build/bundle-smoke）
 #
 # 产物：$OUT_DIR/umuo.app、umuo_<版本>_universal.dmg、umuo.app.tar.gz（+ .sig）。
@@ -199,12 +199,13 @@ if [ "$updater_sign" = 1 ]; then
   if [ -z "${TAURI_SIGNING_PRIVATE_KEY:-}" ]; then
     [ -f "$key_path" ] || fail "找不到更新签名私钥：设 TAURI_SIGNING_PRIVATE_KEY 或把私钥放在 $key_path"
   fi
-  # @tauri-apps/cli 装在 apps/desktop 下；私钥只经环境变量交给它，不出现在命令行（ps 看得见）里
+  # 仅显式 --updater-sign 时下载固定版本的旧通道签名工具；不依赖旧客户端。
+  # 私钥只经环境变量传入，不出现在命令行（ps 看得见）里
   # （_PATH 要整个去掉：设成空串它也当成「给了路径」而报错）
-  (cd "$root/apps/desktop" &&
+  (cd "$root" &&
     TAURI_SIGNING_PRIVATE_KEY="${TAURI_SIGNING_PRIVATE_KEY:-$(cat "$key_path")}" \
       TAURI_SIGNING_PRIVATE_KEY_PASSWORD="${TAURI_SIGNING_PRIVATE_KEY_PASSWORD:-}" \
-      env -u TAURI_SIGNING_PRIVATE_KEY_PATH bunx tauri signer sign "$tgz")
+      env -u TAURI_SIGNING_PRIVATE_KEY_PATH bunx --package @tauri-apps/cli@2.12.1 tauri signer sign "$tgz")
   [ -s "$tgz.sig" ] || fail "签名文件没写出来：$tgz.sig"
 fi
 

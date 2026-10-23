@@ -1,4 +1,4 @@
-//! 翻译与对比流水线的端到端测试（迁移方案 PR4）。
+//! 翻译与对比流水线的端到端回归测试（假宿主 + 本地 SSE）。
 //!
 //! 翻译流水线（PR5）与对比（PR6）都已搬进 `umuo-app`。这些测试写在搬迁之前，钉住的是搬迁前的行为：
 //! 假宿主（内存 Keychain、可改的前台应用、记下每次写回）+ 本地 SSE 桩（tokio TcpListener），
@@ -23,7 +23,8 @@ use umuo_app::{AppCore, Host};
 use umuo_core::error::CoreError;
 use umuo_core::wire::ModelRef;
 
-use crate::{COMPARE_LABEL, PANEL_LABEL};
+const COMPARE_LABEL: &str = "compare";
+const PANEL_LABEL: &str = "panel";
 
 // ---------------------------------------------------------------- 假宿主
 
@@ -385,7 +386,7 @@ impl Env {
         Self { core, fake, stub }
     }
 
-    fn settings(&self, change: impl FnOnce(&mut crate::settings::Settings)) {
+    fn settings(&self, change: impl FnOnce(&mut umuo_app::settings::Settings)) {
         change(&mut self.core.settings.lock().unwrap());
     }
 
@@ -406,11 +407,11 @@ impl Env {
     }
 
     fn history_count(&self) -> u32 {
-        crate::history::with_store(&self.core, |store| store.count()).unwrap()
+        umuo_app::history::with_store(&self.core, |store| store.count()).unwrap()
     }
 
     fn spent(&self, provider_id: &str) -> Option<f64> {
-        crate::history::with_store(&self.core, |store| {
+        umuo_app::history::with_store(&self.core, |store| {
             store.usage_by_provider(store.month_start_unix()?)
         })
         .unwrap()
@@ -610,7 +611,7 @@ async fn going_over_the_monthly_limit_switches_to_another_provider_with_its_defa
         }];
         s.limit_action = umuo_core::budget::LimitAction::Failover;
     });
-    crate::history::record_usage(
+    umuo_app::history::record_usage(
         &env.core,
         "openai",
         "gpt-4o-mini",

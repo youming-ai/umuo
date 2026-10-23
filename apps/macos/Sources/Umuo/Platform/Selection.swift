@@ -3,7 +3,7 @@ import ApplicationServices
 import UmuoCore
 
 /// 静默翻译读到的文本连同它的来源：读的是整个输入框，写回就必须替换整个输入框（PRD §5.4）。
-/// 对应 `umuo_platform::FocusText`；来源复用 FFI 的 `FocusSource`，直接交给 `Engine.translate`。
+/// 来源复用 FFI 的 `FocusSource`，直接交给 `Engine.translate`。
 struct FocusText: Equatable {
     let text: String
     let source: FocusSource
@@ -28,7 +28,7 @@ enum SelectionError: Error, Equatable, CustomStringConvertible {
     }
 }
 
-/// 从前台应用取词，对应 `crates/umuo-platform-macos/src/selection.rs` 的 `read_selection` / `read_focus_text`。
+/// 从前台应用取词。
 ///
 /// **都是同步阻塞的，不要在主线程调**：⌘C 降级最长要等约 1 秒（轮询 400ms + 迟到复制观察 600ms）。
 /// AX 与 NSPasteboard 在工作线程上调都没问题。

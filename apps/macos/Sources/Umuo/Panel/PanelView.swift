@@ -1,7 +1,7 @@
 import SwiftUI
 import UmuoCore
 
-/// 划词翻译浮窗的界面，`apps/desktop/src/panel.tsx` 的移植：布局、文案、按钮的显示条件逐条一致。
+/// 划词翻译浮窗的界面：布局、文案、按钮的显示条件逐条一致。
 ///
 /// 它不做任何决策——语言、模型、费用都来自 Engine 推来的事件；这里只把状态画出来，
 /// 把「用户想干什么」交给 `PanelSession`。
