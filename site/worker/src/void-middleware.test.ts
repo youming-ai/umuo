@@ -220,6 +220,7 @@ const CASES: Case[] = [
   ['/download/macos（无版本）', '/download/macos'],
   ['update.json 200', '/download/macos/update.json', undefined, WITH_RELEASE],
   ['update.json 204', '/download/macos/update.json'],
+  ['Sparkle 空频道', '/download/macos/appcast.xml'],
   ['tar.gz 200', '/download/macos/umuo-0.2.0-universal.app.tar.gz', undefined, WITH_RELEASE],
   ['tar.gz 缺失 404', '/download/macos/umuo-9.9.9-universal.app.tar.gz', undefined, WITH_RELEASE],
   ['下载目录外的文件名 404', '/download/macos/latest.json', html, WITH_RELEASE],

@@ -7,25 +7,18 @@ import UmuoCore
 /// 过得了 `applySettingsPatch`、删除与清空。
 ///
 /// 视图模型的规则由 `swift test` 用假 backend 测；这里补的是两边对不对得上。只用 `EngineSelfTest` 的临时配置目录与历史库，
-/// 不碰用户的历史库、Keychain、剪贴板。放在 `opsChecks` 之后：那里已经记了一条翻译、收藏了一条。
+/// 不碰用户的历史库、Keychain、剪贴板。放在 `opsChecks` 之后：那里已经记了一条翻译。
 enum DataSelfTest {
     static func run(_ engine: Engine, _ check: (String, Bool, String) -> Void) {
         let t = Translate(locale: .zhCN)
         do {
-            let all = try engine.historyQuery(filter: HistoryFilter(query: "", sourceApp: "", model: ""), limit: 100, offset: 0)
-            let matched = try engine.historyQuery(filter: HistoryFilter(query: "你好", sourceApp: "", model: "gpt-4o-mini"),
-                                                  limit: 100, offset: 0)
-            let none = try engine.historyQuery(filter: HistoryFilter(query: "你好", sourceApp: "", model: "not-a-model"),
-                                               limit: 100, offset: 0)
+            let all = try engine.historyQuery(filter: HistoryFilter(query: ""), limit: 100, offset: 0)
+            let matched = try engine.historyQuery(filter: HistoryFilter(query: "你好"), limit: 100, offset: 0)
+            let none = try engine.historyQuery(filter: HistoryFilter(query: "没有这句"), limit: 100, offset: 0)
             let meta = all.first.map { HistoryFormat.recordMeta($0, t) } ?? ""
-            check("history: 筛选", !all.isEmpty && matched.count == all.count && none.isEmpty
+            check("history: 搜索", !all.isEmpty && matched.count == all.count && none.isEmpty
                 && meta.contains("openai · gpt-4o-mini") && meta.contains("划词"),
-                "空条件 \(all.count) 条、AND 命中 \(matched.count)、错模型 \(none.count)；\(meta)")
-
-            let bars = HistoryFormat.dailyBars(try engine.usageDaily(days: UInt32(HistoryFormat.barWindowDays)))
-            let line = HistoryFormat.usageLine(try engine.usageSummary(), t)
-            let barOk = bars.count == 1 && bars[0].label.count == 5 && bars[0].ratio == 1
-            check("history: 用量", barOk && line.hasPrefix("本月 "), "\(bars.map(\.label)) · \(line)")
+                "空条件 \(all.count) 条、命中 \(matched.count)、无关词 \(none.count)；\(meta)")
 
             let quick = engine.quickState(paused: true)
             check("quickState", quick.paused && quick.providerLabel == "OpenAI" && quick.model == "gpt-4o-mini"
@@ -49,10 +42,8 @@ enum DataSelfTest {
             let removedOne = try engine.historyDelete(id: all[0].id)
             let cleared = try engine.historyClear()
             let left = try engine.historyQuery(filter: nil, limit: 10, offset: 0)
-            // 清空历史不动收藏（「收藏不受影响」那句提示）
-            let favorites = try engine.favoritesList(limit: 10, offset: 0)
-            check("history: 删除与清空", removedOne && left.isEmpty && !favorites.isEmpty,
-                  "删 1 条：\(removedOne)，再清空 \(cleared) 条，剩 \(left.count)，收藏 \(favorites.count) 条")
+            check("history: 删除与清空", removedOne && left.isEmpty,
+                  "删 1 条：\(removedOne)，再清空 \(cleared) 条，剩 \(left.count)")
         } catch {
             check("history / quick / onboarding", false, "\(error)")
         }

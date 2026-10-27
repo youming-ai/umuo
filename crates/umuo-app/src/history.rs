@@ -7,13 +7,10 @@
 //! 2. **关闭历史时一条都不写。** 用户关掉它不是因为嫌列表长，而是因为不想留下记录——
 //!    这时候「只写一点点」比全都写更违背承诺。
 //!
-//! 用量账本是例外：它只有时间、供应商、模型、token 与费用，没有任何内容，
-//! 而月度上限必须知道「这个月真花了多少」。所以账本**总是**记，历史才看开关。
-//! 它也是单独的一次调用（[`record_usage`]），不挂在 [`record`] 上：厂商一返回成功
-//! 就已经计费，之后写回失败（用户中途切了窗口）不记历史，但这笔钱照样要进账本。
+//! 费用报表与月度预算已退出（PRD §5.10），用量账本不再写入；库里的旧账本与历史的
+//! `cost_usd` 列原样保留，新记录的费用留空。
 
-use umuo_core::wire::TokenUsage;
-use umuo_store::{NewRecord, NewUsage, Store, UsageSummary};
+use umuo_store::{NewRecord, Store};
 
 use crate::AppCore;
 
@@ -33,42 +30,9 @@ pub struct Draft {
     pub input_tokens: u32,
     pub output_tokens: u32,
     pub estimated: bool,
-    pub cost_usd: Option<f64>,
-}
-
-/// 把一次已计费的调用记进用量账本。任何失败都只写 stderr。
-///
-/// 调用方在厂商返回成功后**立刻**调用，排在写回等任何可能失败的收尾之前：
-/// 钱已经花出去了，后面的步骤失败也不能让月度上限少算这一笔。
-/// 不看历史开关与隐私模式，理由见模块文档。
-pub fn record_usage(
-    core: &AppCore,
-    provider_id: &str,
-    model: &str,
-    usage: TokenUsage,
-    cost_usd: Option<f64>,
-) {
-    let guard = core.store.lock().expect("存储锁不应中毒");
-    let Some(store) = guard.as_ref() else {
-        return;
-    };
-    let entry = NewUsage {
-        created_at: now_unix(),
-        provider_id: provider_id.to_string(),
-        model: model.to_string(),
-        input_tokens: usage.input_tokens,
-        output_tokens: usage.output_tokens,
-        estimated: usage.estimated,
-        cost_usd,
-    };
-    if let Err(error) = store.record_usage(&entry) {
-        eprintln!("umuo: 记用量失败（不影响本次翻译）：{error}");
-    }
 }
 
 /// 记录一次翻译进历史。任何失败都只写 stderr。
-///
-/// 只管历史，不记账：用量由调用方先行 [`record_usage`]。
 pub fn record(core: &AppCore, draft: Draft) {
     let created_at = now_unix();
 
@@ -101,7 +65,7 @@ pub fn record(core: &AppCore, draft: Draft) {
         input_tokens: draft.input_tokens,
         output_tokens: draft.output_tokens,
         estimated: draft.estimated,
-        cost_usd: draft.cost_usd,
+        cost_usd: None,
     };
 
     let guard = core.store.lock().expect("存储锁不应中毒");
@@ -170,11 +134,6 @@ pub fn with_store<T>(
     query(store).map_err(|e| e.to_string())
 }
 
-/// 本月的用量汇总。
-pub fn month_usage(core: &AppCore) -> Result<UsageSummary, String> {
-    with_store(core, |store| store.usage_this_month())
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -185,15 +144,6 @@ mod tests {
         let now = now_unix();
         assert!(now > 1_767_225_600, "时间戳早于 2026 年，系统时钟可能不对");
         assert!(now < i64::MAX / 2);
-    }
-
-    #[test]
-    fn history_records_use_the_local_month_boundary_from_sqlite() {
-        // 这条断言的价值在于：它把「本月起点」的定义钉在存储层，
-        // 而不是在应用层再实现一遍日期算术。
-        let store = Store::open_in_memory().unwrap();
-        let start = store.month_start_unix().unwrap();
-        assert!(start <= now_unix());
     }
 
     #[test]

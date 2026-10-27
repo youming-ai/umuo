@@ -70,7 +70,7 @@ enum ScreenOCR {
         case cancelled
         /// 给用户看的一句话；`permission` 非空时 UI 要附上「去授权」入口（值与 Tauri 的 `screenRecording` 一致）。
         case notice(String, permission: String?)
-        /// 识别到的文本：⌥S 交给翻译流水线（先开浮窗），静默 OCR 只复制到剪贴板。
+        /// 识别到的文本交给翻译流水线。
         case recognized(String)
     }
 
@@ -105,7 +105,7 @@ enum ScreenOCR {
         }
     }
 
-    /// 静默 OCR 的收尾：只把原文复制到剪贴板，成功时什么都不显示；复制失败才说话。
+    /// 结果操作共用的复制工具；复制失败返回原因。
     /// 要拿 `Pasteboard.exclusive`：⌘C 取词降级的事务可能正在另一个线程上跑，
     /// 不互斥的话 OCR 文本要么被它的恢复盖掉，要么被它当成用户原内容存下来。
     static func copy(_ text: String, to pasteboard: NSPasteboard = .general) -> String? {

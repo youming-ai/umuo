@@ -33,8 +33,7 @@ pub enum SuggestedAction {
 /// 限流（可重试），也可能是余额不足（不可重试），状态码本身不是可用的信息。
 ///
 /// `Clone + PartialEq` 是必需的而不是顺手加的：流式事件（[`crate::wire::StreamEvent`]）
-/// 与重试记录（[`crate::router::Attempt`]）都要能复制与比较，
-/// 于是错误类型必须跟着可复制——否则「同一次失败被报告两次」这类问题没法断言。
+/// 要能复制与比较，于是错误类型必须跟着可复制——否则「同一次失败被报告两次」这类问题没法断言。
 #[derive(Debug, Clone, PartialEq, thiserror::Error)]
 pub enum CoreError {
     #[error("尚未配置 API Key")]
@@ -152,24 +151,6 @@ impl CoreError {
                 vec![SuggestedAction::OpenModelSettings]
             }
         }
-    }
-
-    /// 故障转移是否值得试下一个模型（PRD §6.3）。
-    ///
-    /// 注意「Key 无效」与「余额不足」**不**触发转移：备用模型用的是同一把 Key、
-    /// 同一个账号，换模型救不回来，只会把一次明确的失败变成 N 次日志噪音。
-    /// 写回失败同理：问题出在本机与目标应用之间，跟模型无关。
-    pub fn is_failover_worthy(&self) -> bool {
-        matches!(
-            self,
-            CoreError::RateLimited { .. }
-                | CoreError::Timeout { .. }
-                | CoreError::ServerError { .. }
-                | CoreError::Network { .. }
-                | CoreError::ModelUnavailable { .. }
-                | CoreError::ContextTooLong
-                | CoreError::BadResponse { .. }
-        )
     }
 }
 
@@ -323,7 +304,6 @@ mod tests {
         let err = classify_http_error(429, body, Some(secs(20)));
         assert!(matches!(err, CoreError::InsufficientBalance));
         assert_eq!(err.actions(), vec![SuggestedAction::OpenModelSettings]);
-        assert!(!err.is_failover_worthy());
     }
 
     #[test]
@@ -334,7 +314,6 @@ mod tests {
             CoreError::RateLimited { retry_after } => assert_eq!(retry_after, Some(secs(7))),
             other => panic!("期望 RateLimited，实际 {other:?}"),
         }
-        assert!(err.is_failover_worthy());
         assert_eq!(
             err.actions(),
             vec![SuggestedAction::Retry, SuggestedAction::SwitchModel]
@@ -347,7 +326,6 @@ mod tests {
         let body = r#"{"error":{"code":429,"message":"You exceeded your current quota, please check your plan and billing details.","status":"RESOURCE_EXHAUSTED"}}"#;
         let err = classify_http_error(429, body, None);
         assert!(matches!(err, CoreError::RateLimited { .. }), "{err:?}");
-        assert!(err.is_failover_worthy());
     }
 
     #[test]
@@ -355,7 +333,6 @@ mod tests {
         let body = "<html><body>502 Bad Gateway: load balancer upstream unavailable</body></html>";
         let err = classify_http_error(502, body, None);
         assert_eq!(err, CoreError::ServerError { status: 502 });
-        assert!(err.is_failover_worthy());
         // 非 5xx 也不能因为一个裸词就判成余额不足。
         let err = classify_http_error(
             400,
@@ -395,9 +372,8 @@ mod tests {
     }
 
     #[test]
-    fn a_truncated_translation_never_triggers_failover() {
-        // 截断是在「成功」之后才判的：钱已经花了、文本已经显示了，不该再换模型自动重来。
-        assert!(!CoreError::Truncated.is_failover_worthy());
+    fn a_truncated_translation_suggests_switching_model() {
+        // 截断是在「成功」之后才判的：文本已经显示了，由用户决定要不要换模型再来。
         assert!(CoreError::Truncated
             .actions()
             .contains(&SuggestedAction::SwitchModel));
@@ -413,11 +389,10 @@ mod tests {
     }
 
     #[test]
-    fn context_length_is_failover_worthy_so_long_text_can_fall_back() {
+    fn context_length_errors_are_recognised() {
         let body = r#"{"error":{"message":"This model's maximum context length is 8192 tokens"}}"#;
         let err = classify_http_error(400, body, None);
         assert!(matches!(err, CoreError::ContextTooLong));
-        assert!(err.is_failover_worthy());
     }
 
     #[test]
@@ -434,7 +409,6 @@ mod tests {
     #[test]
     fn bare_500_is_retryable_but_summarised() {
         let err = classify_http_error(503, "", None);
-        assert!(err.is_failover_worthy());
         assert_eq!(
             err.actions(),
             vec![SuggestedAction::Retry, SuggestedAction::SwitchModel]
@@ -464,7 +438,6 @@ mod tests {
             CoreError::CustomEndpointMissing.actions(),
             vec![SuggestedAction::OpenModelSettings]
         );
-        assert!(!CoreError::CustomEndpointMissing.is_failover_worthy());
     }
 
     #[test]
@@ -473,7 +446,7 @@ mod tests {
     }
 
     #[test]
-    fn write_back_failures_offer_no_retry_and_never_failover() {
+    fn write_back_failures_offer_no_retry() {
         // 重试会重新翻译并再写一次，而那正是「目标已变」时要避免的行为；
         // 换模型更救不了「目标应用切走了」。
         for error in [
@@ -483,7 +456,6 @@ mod tests {
             },
         ] {
             assert!(error.actions().is_empty(), "{error:?} 不该给任何动作");
-            assert!(!error.is_failover_worthy(), "{error:?} 不该触发故障转移");
         }
     }
 }

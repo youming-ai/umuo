@@ -1,7 +1,9 @@
 import AppKit
 import SwiftUI
 
-/// 设置窗的排版积木（`settings/ui.tsx`）：一组（标题 + 圆角底板）里放若干行，每行左边是名字和一句说明，右边是控件。
+/// 设置窗的排版积木：系统的分组表单（`Form` + `.formStyle(.grouped)`，同 macOS 自带应用与 TablePro 的设置页）。
+/// 一组是一个 `Section`；每行左边只有名字，右边是控件。解释性的说明放进悬停提示（`.help`），
+/// 只有「此刻的状态」（Key 是否已配置、当前引擎、导入结果）才作为 `note` 常显在名字下面。
 ///
 /// 所有控件都是「改了就存」：下拉框与开关立刻提交；文本框是草稿，失焦或回车才提交（`DraftField`），
 /// 提交失败就退回上一次存好的值，并把原因写在这一行下面——而不是让人去页面底部找。
@@ -10,62 +12,51 @@ import SwiftUI
 /// 文本框的「失焦才提交」交给 AppKit 的 `NSTextField`（`controlTextDidEndEditing` 正好就是失焦或回车）。
 struct PrefGroup<Content: View>: View {
     var title: String?
-    let palette: Palette
     @ViewBuilder let content: () -> Content
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            if let title {
-                Text(title).font(.system(size: 13, weight: .semibold)).foregroundStyle(palette.textPrimary.color)
-                    .padding(.horizontal, 4)
-            }
-            VStack(alignment: .leading, spacing: 0) { content() }
-                .background(palette.surface.color)
-                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(palette.border.color))
+        if let title {
+            Section(title) { content() }
+        } else {
+            Section { content() }
         }
     }
 }
 
 struct PrefRow<Control: View, Extra: View>: View {
     let title: String
+    /// 解释这一项做什么：悬停提示，不常显。
     var description: String?
+    /// 此刻的状态：常显在名字下面。
+    var note: String?
     var error: String?
-    let palette: Palette
     @ViewBuilder var control: () -> Control
     @ViewBuilder var extra: () -> Extra
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            HStack(alignment: .center, spacing: 16) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(title).font(.system(size: 13, weight: .medium)).foregroundStyle(palette.textPrimary.color)
-                    if let description {
-                        Text(description).font(.system(size: 12)).foregroundStyle(palette.textTertiary.color)
-                            .fixedSize(horizontal: false, vertical: true)
-                            .textSelection(.enabled)
-                    }
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
+        VStack(alignment: .leading, spacing: 6) {
+            LabeledContent {
                 HStack(spacing: 8) { control() }.fixedSize(horizontal: true, vertical: false)
+            } label: {
+                Text(title)
+                if let note { Text(note).textSelection(.enabled) }
             }
             if let error {
-                Text(error).font(.system(size: 12)).foregroundStyle(palette.error.color).padding(.top, 6)
+                Text(error).font(.callout).foregroundStyle(.red)
                     .fixedSize(horizontal: false, vertical: true)
                     .textSelection(.enabled)
             }
-            extra().padding(.top, Extra.self == EmptyView.self ? 0 : 12)
+            extra()
         }
-        .padding(.horizontal, 16).padding(.vertical, 12)
-        .overlay(alignment: .bottom) { Rectangle().fill(palette.border.color).frame(height: 1).opacity(0.5) }
+        .help(description ?? "")
     }
 }
 
 extension PrefRow where Extra == EmptyView {
-    init(title: String, description: String? = nil, error: String? = nil, palette: Palette,
+    init(title: String, description: String? = nil, note: String? = nil, error: String? = nil,
          @ViewBuilder control: @escaping () -> Control)
     {
-        self.init(title: title, description: description, error: error, palette: palette, control: control) { EmptyView() }
+        self.init(title: title, description: description, note: note, error: error, control: control) { EmptyView() }
     }
 }
 
@@ -74,18 +65,16 @@ struct PrefBlock<Content: View>: View {
     let title: String
     var description: String?
     var error: String?
-    let palette: Palette
     @ViewBuilder let content: () -> Content
 
     var body: some View {
-        PrefRow(title: title, description: description, error: error, palette: palette, control: { EmptyView() },
-                extra: content)
+        PrefRow(title: title, description: description, error: error, control: { EmptyView() }, extra: content)
     }
 }
 
 extension PrefRow where Control == EmptyView, Extra == EmptyView {
-    init(title: String, description: String? = nil, error: String? = nil, palette: Palette) {
-        self.init(title: title, description: description, error: error, palette: palette, control: { EmptyView() }) {
+    init(title: String, description: String? = nil, note: String? = nil, error: String? = nil) {
+        self.init(title: title, description: description, note: note, error: error, control: { EmptyView() }) {
             EmptyView()
         }
     }
@@ -110,25 +99,21 @@ struct PrefPicker<Value: Hashable>: View {
     }
 }
 
-/// 一行里的普通按钮。
+/// 一行里的普通按钮。系统按钮样式；危险操作用 `.destructive` 角色，由系统决定怎么标红。
 struct PrefButton: View {
     let title: String
     var danger = false
     var prominent = false
     var disabled = false
-    let palette: Palette
     let action: () -> Void
 
     var body: some View {
+        let button = Button(title, role: danger ? .destructive : nil, action: action).disabled(disabled)
         if prominent {
-            Button(action: action) { label }.buttonStyle(.borderedProminent).disabled(disabled)
+            button.buttonStyle(.borderedProminent)
         } else {
-            Button(action: action) { label }.buttonStyle(.bordered).disabled(disabled)
+            button
         }
-    }
-
-    private var label: some View {
-        Text(title).font(.system(size: 12)).foregroundStyle(danger ? palette.error.color : Color.primary)
     }
 }
 
@@ -136,13 +121,11 @@ struct PrefButton: View {
 struct LinkRowButton: View {
     let label: String
     var external = false
-    let palette: Palette
     let action: () -> Void
 
     var body: some View {
         Button(action: action) {
-            Text(external ? "↗" : "›").font(.system(size: 14)).foregroundStyle(palette.textTertiary.color)
-                .padding(.horizontal, 6).padding(.vertical, 2)
+            Image(systemName: external ? "arrow.up.right" : "chevron.right").foregroundStyle(.secondary)
         }
         .buttonStyle(.borderless)
         .accessibilityLabel(label)
@@ -200,7 +183,7 @@ struct DraftField: NSViewRepresentable {
             scroll.borderType = .bezelBorder
             let text = scroll.documentView as! NSTextView
             text.isRichText = false
-            text.font = .systemFont(ofSize: 12)
+            text.font = .systemFont(ofSize: NSFont.systemFontSize)
             text.isAutomaticQuoteSubstitutionEnabled = false
             text.isAutomaticDashSubstitutionEnabled = false
             text.isAutomaticSpellingCorrectionEnabled = false
@@ -214,7 +197,7 @@ struct DraftField: NSViewRepresentable {
         field.delegate = context.coordinator
         field.lineBreakMode = .byTruncatingTail
         field.usesSingleLineMode = true
-        field.font = .systemFont(ofSize: 12)
+        field.font = .systemFont(ofSize: NSFont.systemFontSize)
         field.setAccessibilityLabel(label)
         return field
     }
@@ -265,7 +248,8 @@ struct PlainTextEditor: NSViewRepresentable {
         scroll.borderType = .bezelBorder
         let view = scroll.documentView as! NSTextView
         view.isRichText = false
-        view.font = monospaced ? .monospacedSystemFont(ofSize: 12, weight: .regular) : .systemFont(ofSize: 12)
+        let size = NSFont.systemFontSize
+        view.font = monospaced ? .monospacedSystemFont(ofSize: size, weight: .regular) : .systemFont(ofSize: size)
         view.isAutomaticQuoteSubstitutionEnabled = false
         view.isAutomaticDashSubstitutionEnabled = false
         view.isAutomaticTextReplacementEnabled = false
@@ -291,15 +275,11 @@ struct PlainTextEditor: NSViewRepresentable {
 /// 键帽（快捷键的显示）。
 struct Keycap: View {
     let text: String
-    let palette: Palette
 
     var body: some View {
-        Text(text).font(.system(size: 12, weight: .medium, design: .rounded))
-            .foregroundStyle(palette.textPrimary.color)
+        Text(text).font(.callout.weight(.medium))
             .padding(.horizontal, 6).padding(.vertical, 2)
-            .background(palette.background.color)
-            .clipShape(RoundedRectangle(cornerRadius: 5))
-            .overlay(RoundedRectangle(cornerRadius: 5).strokeBorder(palette.border.color))
+            .background(.quaternary, in: RoundedRectangle(cornerRadius: 5))
     }
 }
 

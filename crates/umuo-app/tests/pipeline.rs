@@ -1,6 +1,6 @@
-//! 翻译与对比流水线的端到端回归测试（假宿主 + 本地 SSE）。
+//! 翻译流水线的端到端回归测试（假宿主 + 本地 SSE）。
 //!
-//! 翻译流水线（PR5）与对比（PR6）都已搬进 `umuo-app`。这些测试写在搬迁之前，钉住的是搬迁前的行为：
+//! 流水线在 umuo-app 中执行，测试覆盖应用编排与协议行为：
 //! 假宿主（内存 Keychain、可改的前台应用、记下每次写回）+ 本地 SSE 桩（tokio TcpListener），
 //! 从「发请求」一路测到「发给界面的事件」与「写没写回原处」。搬完这些测试原样通过，才算没改行为。
 //!
@@ -15,20 +15,17 @@ use std::time::{Duration, Instant};
 use tokio::io::AsyncWriteExt;
 use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::mpsc;
-use umuo_app::compare;
-use umuo_app::event::{CompareEvent, CompareSink, Route, TranslateEvent, TranslateSink};
+use umuo_app::event::{Route, TranslateEvent, TranslateSink};
 use umuo_app::host::FocusSource;
 use umuo_app::translate::{self, Request};
 use umuo_app::{AppCore, Host};
 use umuo_core::error::CoreError;
-use umuo_core::wire::ModelRef;
 
-const COMPARE_LABEL: &str = "compare";
 const PANEL_LABEL: &str = "panel";
 
 // ---------------------------------------------------------------- 假宿主
 
-/// 假宿主：内存里的 Key、可改的前台应用、记下每次写回。翻译与对比都经它读 Key。
+/// 假宿主：内存里的 Key、可改的前台应用、记下每次写回。翻译请求经它读 Key。
 struct Fake {
     keys: HashMap<String, String>,
     /// 前台应用的标识。测试中途改它，模拟「翻译期间用户切走了」。
@@ -96,16 +93,6 @@ impl TranslateSink for Recorder {
     fn send(&self, route: Route, event: TranslateEvent) {
         let _ = self.0.send(Ev {
             request_id: route.request_id,
-            name: event.name(),
-            body: serde_json::to_value(&event).unwrap(),
-        });
-    }
-}
-
-impl CompareSink for Recorder {
-    fn send(&self, event: CompareEvent) {
-        let _ = self.0.send(Ev {
-            request_id: 0,
             name: event.name(),
             body: serde_json::to_value(&event).unwrap(),
         });
@@ -360,7 +347,7 @@ struct Env {
 
 impl Env {
     /// 临时配置目录 + 假宿主 + 桩。所有供应商（含两个本机的）都指到桩上：
-    /// 不指的话离线回落会去探测开发机上真实的 localhost:11434。
+    /// 万一有代码去探测本机模型，打到的是桩而不是开发机上真实的 localhost:11434，测试能看见。
     async fn new(handler: impl Fn(&Hit) -> Reply + Send + Sync + 'static) -> Self {
         static SEQ: AtomicUsize = AtomicUsize::new(0);
         let dir = std::env::temp_dir().join(format!(
@@ -409,16 +396,6 @@ impl Env {
     fn history_count(&self) -> u32 {
         umuo_app::history::with_store(&self.core, |store| store.count()).unwrap()
     }
-
-    fn spent(&self, provider_id: &str) -> Option<f64> {
-        umuo_app::history::with_store(&self.core, |store| {
-            store.usage_by_provider(store.month_start_unix()?)
-        })
-        .unwrap()
-        .into_iter()
-        .find(|row| row.provider_id == provider_id)
-        .map(|row| row.cost_usd)
-    }
 }
 
 /// 不会被判成单词词卡（≤3 个词）、也不会被切分的普通句子。
@@ -433,6 +410,74 @@ fn server_error() -> Reply {
 }
 
 // ---------------------------------------------------------------- 翻译流水线
+
+#[tokio::test]
+async fn retired_presets_and_glossaries_do_not_influence_any_translation_path() {
+    let mut env = Env::new(|_| sse(&["译文"])).await;
+    let retired = serde_json::json!({
+        "id": "old-custom", "instruction": "RETIRED_INSTRUCTION {app_name}",
+        "temperature": 1.9, "explain": true,
+        "fewShot": [{"source": "RETIRED_EXAMPLE", "target": "RETIRED_ANSWER"}],
+        "future": {"keep": true}
+    });
+    env.settings(|settings| {
+        settings.style_id = "old-custom".into();
+        settings.custom_styles = vec![retired.clone()];
+    });
+    let glossary = r#"{"lists":[{"id":"old","entries":[{"source":"hello","target":"RETIRED_TERM"}]}],"future":true}"#;
+    let path = env.core.config_dir.join("glossaries.json");
+    std::fs::write(&path, glossary).unwrap();
+    env.core
+        .settings
+        .lock()
+        .unwrap()
+        .save(&env.core.config_dir)
+        .unwrap();
+    env.core = Arc::new(AppCore::open(env.core.config_dir.clone(), env.fake.clone()).unwrap());
+    for text in [SENTENCE.to_string(), "hello".to_string(), long_text(2)] {
+        let events = env.translate(Request::selection(text), None).await;
+        assert_eq!(events.last().unwrap().name, "translate://done");
+    }
+    let hits = env.stub.chat_hits("openai");
+    assert_eq!(hits.len(), 4, "普通句子、词卡、两片长文都执行成功");
+    for hit in hits {
+        assert!(!hit.body.contains("RETIRED_"), "旧规则不得进入请求");
+        let body: serde_json::Value = serde_json::from_str(&hit.body).unwrap();
+        let expected = if body.get("response_format").is_some() {
+            0.3
+        } else {
+            0.2
+        };
+        assert!((body["temperature"].as_f64().unwrap() - expected).abs() < 1e-6);
+    }
+    let records = umuo_app::ops::history_query(&env.core, None, 10, 0).unwrap();
+    assert_eq!(records.len(), 3);
+    assert!(records.iter().all(|row| row.style_id == "standard"));
+    assert_eq!(std::fs::read_to_string(path).unwrap(), glossary);
+    let settings = env.core.settings.lock().unwrap();
+    assert_eq!(settings.style_id, "old-custom");
+    assert_eq!(settings.custom_styles, vec![retired]);
+}
+
+#[tokio::test]
+async fn a_corrupt_retired_glossary_is_untouched_on_startup_and_translation() {
+    let mut env = Env::new(|_| sse(&["译文"])).await;
+    let path = env.core.config_dir.join("glossaries.json");
+    let corrupt = "{retired and broken";
+    std::fs::write(&path, corrupt).unwrap();
+    // 重新打开同一个目录，验证启动不会解析、备份或覆盖退役文件。
+    env.core
+        .settings
+        .lock()
+        .unwrap()
+        .save(&env.core.config_dir)
+        .unwrap();
+    env.core = Arc::new(AppCore::open(env.core.config_dir.clone(), env.fake.clone()).unwrap());
+    assert_eq!(std::fs::read_to_string(&path).unwrap(), corrupt);
+    let events = env.translate(Request::selection(SENTENCE), None).await;
+    assert_eq!(events.last().unwrap().name, "translate://done");
+    assert_eq!(std::fs::read_to_string(path).unwrap(), corrupt);
+}
 
 #[tokio::test]
 async fn a_plain_translation_streams_start_deltas_done_and_records_history() {
@@ -459,92 +504,94 @@ async fn a_plain_translation_streams_start_deltas_done_and_records_history() {
     let done = &events[3];
     assert_eq!(done.str("model"), "gpt-4o-mini");
     assert_eq!(done.body["replaced"], false);
-    assert_eq!(done.body["offline"], false);
+    assert!(done.body.get("costUsd").is_none(), "费用已退出事件");
     let hits = env.stub.chat_hits("openai");
     assert_eq!(hits.len(), 1);
     assert_eq!(hits[0].auth.as_deref(), Some("Bearer sk-openai"));
     assert_eq!(env.history_count(), 1);
 }
 
+/// 第三批精简前的旧配置：备用顺序、分场景模型、月度上限与「超限自动切换」。
+/// 它们只作为未知字段保留，不得再让请求换到别的供应商或模型。
+fn with_retired_routing(settings: &mut umuo_app::settings::Settings) {
+    let deepseek = serde_json::json!({ "providerId": "deepseek", "model": "deepseek-chat" });
+    settings.extra.insert(
+        "fallbackModels".into(),
+        serde_json::json!([deepseek.clone()]),
+    );
+    settings.extra.insert(
+        "sceneModels".into(),
+        serde_json::json!({ "selection": deepseek, "compare": [] }),
+    );
+    settings.extra.insert(
+        "monthlyLimits".into(),
+        serde_json::json!([{ "providerId": "openai", "limitUsd": 0.0 }]),
+    );
+    settings
+        .extra
+        .insert("limitAction".into(), serde_json::json!("failover"));
+}
+
 #[tokio::test]
-async fn failover_mid_stream_restarts_the_same_request_on_the_next_candidate() {
-    // 首选流出半句后流内报错：前端要先收到同一个 id 的第二个 start 把半句清掉，
-    // 再收到备用模型的译文（start 的供应商也要换成真正在翻的那家）。
+async fn retired_routing_settings_never_move_a_request_to_another_model() {
     let env = Env::new(|hit| match hit.path.as_str() {
-        "/openai/chat/completions" => Reply::Sse {
+        "/openai/chat/completions" => sse(&["译文"]),
+        "/deepseek/chat/completions" => sse(&["不该出现"]),
+        _ => not_found(),
+    })
+    .await;
+    env.settings(with_retired_routing);
+
+    let events = env.translate(Request::selection(SENTENCE), None).await;
+
+    assert_eq!(
+        names(&events),
+        ["translate://start", "translate://delta", "translate://done"]
+    );
+    assert_eq!(events[0].str("provider"), "OpenAI", "只用当前模型");
+    assert!(events[2].body["warning"].is_null(), "没有预算提醒");
+    assert_eq!(env.stub.chat_hits("openai")[0].model(), "gpt-4o-mini");
+    assert!(env.stub.chat_hits("deepseek").is_empty());
+}
+
+#[tokio::test]
+async fn a_failure_is_reported_as_is_without_trying_another_model() {
+    // 流出半句后流内报错、或直接 HTTP 失败：都把错误交给用户，由用户重试或换模型。
+    for openai in [
+        Reply::Sse {
             delay: Duration::ZERO,
             deltas: vec!["半句".into()],
             gap: Duration::ZERO,
             error: Some("model overloaded"),
         },
-        "/deepseek/chat/completions" => sse(&["完整译文"]),
-        _ => not_found(),
-    })
-    .await;
-    env.settings(|s| {
-        s.fallback_models = vec![ModelRef {
-            provider_id: "deepseek".into(),
-            model: "deepseek-chat".into(),
-        }]
-    });
+        server_error(),
+    ] {
+        let reply = std::sync::Mutex::new(Some(openai));
+        let env = Env::new(move |hit| match hit.path.as_str() {
+            "/openai/chat/completions" => reply.lock().unwrap().take().unwrap_or_else(server_error),
+            "/deepseek/chat/completions" => sse(&["不该出现"]),
+            _ => not_found(),
+        })
+        .await;
+        env.settings(with_retired_routing);
 
-    let events = env.translate(Request::selection(SENTENCE), None).await;
+        let events = env.translate(Request::selection(SENTENCE), None).await;
 
-    assert_eq!(
-        names(&events),
-        [
-            "translate://start",
-            "translate://delta",
-            "translate://start",
-            "translate://delta",
-            "translate://done"
-        ]
-    );
-    let id = events[0].request_id;
-    assert!(events.iter().all(|e| e.request_id == id), "同一次请求");
-    assert_eq!(events[0].str("provider"), "OpenAI");
-    assert_eq!(events[2].str("provider"), "DeepSeek");
-    assert_eq!(events[2].str("model"), "deepseek-chat");
-    assert_eq!(
-        events[2].str("text"),
-        SENTENCE,
-        "重发的 start 带着同一段原文"
-    );
-    assert_eq!(events[3].str("text"), "完整译文");
-    assert_eq!(events[4].str("model"), "deepseek-chat", "结果卡片说真话");
-    let hits = env.stub.chat_hits("deepseek");
-    assert_eq!(hits.len(), 1);
-    assert_eq!(hits[0].auth.as_deref(), Some("Bearer sk-deepseek"));
-    assert_eq!(hits[0].model(), "deepseek-chat");
-}
-
-#[tokio::test]
-async fn failover_after_an_http_error_also_restarts() {
-    let env = Env::new(|hit| match hit.path.as_str() {
-        "/openai/chat/completions" => server_error(),
-        "/deepseek/chat/completions" => sse(&["译文"]),
-        _ => not_found(),
-    })
-    .await;
-    env.settings(|s| {
-        s.fallback_models = vec![ModelRef {
-            provider_id: "deepseek".into(),
-            model: "deepseek-chat".into(),
-        }]
-    });
-
-    let events = env.translate(Request::selection(SENTENCE), None).await;
-
-    assert_eq!(
-        names(&events),
-        [
-            "translate://start",
-            "translate://start",
-            "translate://delta",
-            "translate://done"
-        ]
-    );
-    assert_eq!(events[1].str("provider"), "DeepSeek");
+        assert_eq!(events.last().unwrap().name, "translate://error");
+        let id = events[0].request_id;
+        assert!(events.iter().all(|e| e.request_id == id), "同一次请求");
+        assert_eq!(
+            names(&events)
+                .iter()
+                .filter(|n| **n == "translate://start")
+                .count(),
+            1,
+            "不换候选，也就不重发 start"
+        );
+        assert_eq!(env.stub.chat_hits("openai").len(), 1);
+        assert!(env.stub.chat_hits("deepseek").is_empty());
+        assert_eq!(env.history_count(), 0);
+    }
 }
 
 #[tokio::test]
@@ -597,55 +644,8 @@ async fn esc_stops_the_stream_and_no_delta_arrives_after_it() {
 }
 
 #[tokio::test]
-async fn going_over_the_monthly_limit_switches_to_another_provider_with_its_default_model() {
-    let env = Env::new(|hit| match hit.path.as_str() {
-        "/deepseek/chat/completions" => sse(&["译文"]),
-        _ => not_found(),
-    })
-    .await;
-    env.settings(|s| {
-        s.monthly_limits = vec![umuo_core::budget::ProviderLimit {
-            provider_id: "openai".into(),
-            limit_usd: 1.0,
-            extra: Default::default(),
-        }];
-        s.limit_action = umuo_core::budget::LimitAction::Failover;
-    });
-    umuo_app::history::record_usage(
-        &env.core,
-        "openai",
-        "gpt-4o-mini",
-        umuo_core::wire::TokenUsage::default(),
-        Some(2.0),
-    );
-
-    let events = env.translate(Request::selection(SENTENCE), None).await;
-
-    assert_eq!(
-        names(&events),
-        ["translate://start", "translate://delta", "translate://done"]
-    );
-    assert_eq!(events[0].str("provider"), "DeepSeek");
-    assert_eq!(events[0].str("model"), "deepseek-chat");
-    assert!(
-        events[2].body["warning"].is_string(),
-        "要告诉用户换了供应商"
-    );
-    assert!(
-        env.stub.chat_hits("openai").is_empty(),
-        "超限的那家一次都不请求"
-    );
-    let hits = env.stub.chat_hits("deepseek");
-    assert_eq!(hits.len(), 1);
-    assert_eq!(
-        hits[0].model(),
-        "deepseek-chat",
-        "用新供应商的默认模型，不沿用旧模型名"
-    );
-}
-
-#[tokio::test]
-async fn a_network_failure_falls_back_to_the_local_model_and_marks_it_offline() {
+async fn a_network_failure_is_reported_without_probing_local_models() {
+    // 本地自动回落已退出：断网就如实报错，不去探测 Ollama / LM Studio，也不标「离线」。
     let env = Env::new(|hit| match hit.path.as_str() {
         "/openai/chat/completions" => Reply::Hangup,
         "/ollama/models" => Reply::Models(&["qwen2.5:7b"]),
@@ -656,53 +656,17 @@ async fn a_network_failure_falls_back_to_the_local_model_and_marks_it_offline() 
 
     let events = env.translate(Request::selection(SENTENCE), None).await;
 
-    assert_eq!(
-        names(&events),
-        [
-            "translate://start",
-            "translate://start",
-            "translate://delta",
-            "translate://done"
-        ]
-    );
-    assert_eq!(events[1].str("provider"), "Ollama（本机）");
-    assert_eq!(events[1].str("model"), "qwen2.5:7b");
-    assert_eq!(events[3].body["offline"], true);
-    assert_eq!(env.stub.chat_hits("ollama")[0].model(), "qwen2.5:7b");
-}
-
-#[tokio::test]
-async fn the_local_fallback_tries_lm_studio_when_ollama_has_no_models() {
-    let env = Env::new(|hit| match hit.path.as_str() {
-        "/openai/chat/completions" => Reply::Hangup,
-        "/ollama/models" => Reply::Models(&[]),
-        "/lmstudio/models" => Reply::Models(&["local-model"]),
-        "/lmstudio/chat/completions" => sse(&["本机译文"]),
-        _ => not_found(),
-    })
-    .await;
-
-    let events = env.translate(Request::selection(SENTENCE), None).await;
-
-    assert_eq!(events[1].str("provider"), "LM Studio（本机）");
-    assert_eq!(events.last().unwrap().body["offline"], true);
-}
-
-#[tokio::test]
-async fn a_non_network_failure_does_not_probe_the_local_models() {
-    // 401 换成本机也解决不了，不该标「离线」也不该多等一轮探测。
-    let env = Env::new(|hit| match hit.path.as_str() {
-        "/openai/chat/completions" => {
-            Reply::Status(401, r#"{"error":{"message":"Incorrect API key provided"}}"#)
-        }
-        _ => not_found(),
-    })
-    .await;
-
-    let events = env.translate(Request::selection(SENTENCE), None).await;
-
     assert_eq!(names(&events), ["translate://start", "translate://error"]);
-    assert!(env.stub.hits().iter().all(|h| !h.path.ends_with("/models")));
+    assert!(env
+        .stub
+        .hits()
+        .iter()
+        .all(|h| !h.path.starts_with("/ollama")));
+    assert!(env
+        .stub
+        .hits()
+        .iter()
+        .all(|h| !h.path.starts_with("/lmstudio")));
 }
 
 /// 每段约 1 万字符的英文：两段放不进一片（拉丁字符的预算约 1.6 万），所以一段一片。
@@ -769,31 +733,26 @@ async fn long_text_is_split_into_concurrent_chunks_and_merged_in_order() {
 }
 
 #[tokio::test]
-async fn a_failed_chunk_batch_is_resent_whole_to_the_next_candidate_after_a_restart() {
+async fn a_failed_chunk_batch_is_reported_without_resending_it_elsewhere() {
     let env = Env::new(|hit| match hit.path.as_str() {
         "/openai/chat/completions" => server_error(),
         "/deepseek/chat/completions" => sse(&[&format!("D{}", paragraph_of(hit))]),
         _ => not_found(),
     })
     .await;
-    env.settings(|s| {
-        s.fallback_models = vec![ModelRef {
-            provider_id: "deepseek".into(),
-            model: "deepseek-chat".into(),
-        }]
-    });
+    env.settings(with_retired_routing);
 
     let events = env.translate(Request::selection(long_text(3)), None).await;
 
+    assert_eq!(events.last().unwrap().name, "translate://error");
     assert_eq!(
         names(&events)
             .iter()
             .filter(|n| **n == "translate://start")
             .count(),
-        2
+        1
     );
-    assert_eq!(events.last().unwrap().str("model"), "deepseek-chat");
-    assert_eq!(env.stub.chat_hits("deepseek").len(), 3);
+    assert!(env.stub.chat_hits("deepseek").is_empty());
 }
 
 fn silent(text: &str) -> Request {
@@ -855,7 +814,6 @@ async fn silent_replace_refuses_to_write_when_the_frontmost_app_changed() {
         CoreError::WriteTargetChanged.to_string()
     );
     assert!(env.fake.writes().is_empty(), "不能把译文打进别的应用");
-    assert!(env.spent("openai").is_some(), "厂商已经计费，钱照样进账本");
     assert_eq!(env.history_count(), 0);
 }
 
@@ -872,142 +830,4 @@ async fn silent_replace_also_refuses_when_the_frontmost_app_can_no_longer_be_rea
 
     assert_eq!(events.last().unwrap().name, "translate://error");
     assert!(env.fake.writes().is_empty());
-}
-
-// ---------------------------------------------------------------- 对比
-
-#[tokio::test]
-async fn compare_streams_every_card_by_index_and_reports_failures_on_their_own_card() {
-    let env = Env::new(|hit| match hit.path.as_str() {
-        "/openai/chat/completions" => sse(&["甲", "乙"]),
-        "/deepseek/chat/completions" => server_error(),
-        _ => not_found(),
-    })
-    .await;
-    env.settings(|s| s.compare_providers = vec!["openai".into(), "deepseek".into()]);
-
-    let (tx, mut rx) = mpsc::unbounded_channel();
-    let ticket = env.core.requests.begin(COMPARE_LABEL);
-    let run_id = ticket.id;
-    compare::run(&env.core, &Recorder(tx), SENTENCE.to_string(), ticket).await;
-    let events = drain(&mut rx);
-
-    assert_eq!(events[0].name, "compare://start");
-    let cards = events[0].body["cards"].as_array().unwrap();
-    assert_eq!(cards.len(), 2);
-    assert_eq!(cards[0]["providerId"], "openai");
-    assert_eq!(cards[1]["providerId"], "deepseek");
-    assert!(events.iter().all(|e| e.body["runId"] == run_id));
-
-    let of = |index: usize| -> Vec<&Ev> {
-        events[1..]
-            .iter()
-            .filter(|e| e.body["index"] == index)
-            .collect()
-    };
-    let first: Vec<_> = of(0).iter().map(|e| e.name).collect();
-    assert_eq!(
-        first,
-        ["compare://delta", "compare://delta", "compare://done"]
-    );
-    let text: String = of(0)
-        .iter()
-        .filter(|e| e.name == "compare://delta")
-        .map(|e| e.str("text"))
-        .collect();
-    assert_eq!(text, "甲乙");
-    let second: Vec<_> = of(1).iter().map(|e| e.name).collect();
-    assert_eq!(second, ["compare://error"], "失败只落在自己那张卡上");
-    assert_eq!(env.history_count(), 1, "只有成功的卡进历史");
-}
-
-#[tokio::test]
-async fn compare_with_no_usable_model_sends_a_window_level_notice() {
-    let env = Env::new(|_| not_found()).await;
-    // 只勾了一个没有 Key 的供应商。
-    env.settings(|s| s.compare_providers = vec!["anthropic".into()]);
-
-    let (tx, mut rx) = mpsc::unbounded_channel();
-    let ticket = env.core.requests.begin(COMPARE_LABEL);
-    compare::run(&env.core, &Recorder(tx), SENTENCE.to_string(), ticket).await;
-
-    assert_eq!(names(&drain(&mut rx)), ["compare://notice"]);
-    assert!(env.stub.hits().is_empty());
-}
-
-#[tokio::test]
-async fn esc_mid_compare_stops_every_lane_at_once() {
-    // N 路共用一张凭据上的取消标志：按一次 Esc，每一路都要停，而不是只停第一路、
-    // 其余几路在看不见的地方继续计费。
-    let env = Env::new(|hit| match hit.path.as_str() {
-        "/openai/chat/completions" | "/deepseek/chat/completions" => Reply::Sse {
-            delay: Duration::ZERO,
-            deltas: (0..20).map(|i| format!("片{i}")).collect(),
-            gap: Duration::from_millis(300),
-            error: None,
-        },
-        _ => not_found(),
-    })
-    .await;
-    // 显式清单可以对比同一家的两个模型，于是这个桩上能凑出三路。
-    env.settings(|s| {
-        s.scene_models.compare = [
-            ("openai", "gpt-4o"),
-            ("openai", "gpt-4o-mini"),
-            ("deepseek", "deepseek-chat"),
-        ]
-        .into_iter()
-        .map(|(provider_id, model)| ModelRef {
-            provider_id: provider_id.into(),
-            model: model.into(),
-        })
-        .collect();
-    });
-    const LANES: usize = 3;
-
-    let (tx, mut rx) = mpsc::unbounded_channel();
-    let sink = Recorder(tx);
-    let ticket = env.core.requests.begin(COMPARE_LABEL);
-    let started = Instant::now();
-    let mut seen = Vec::new();
-    let pipeline = compare::run(&env.core, &sink, SENTENCE.to_string(), ticket);
-    let esc = async {
-        // 每一路都流出了增量（确实是「中途」）再按 Esc。
-        let mut streaming = [false; LANES];
-        while let Some(event) = rx.recv().await {
-            if event.name == "compare://delta" {
-                streaming[event.body["index"].as_u64().unwrap() as usize] = true;
-            }
-            seen.push(event);
-            if streaming.iter().all(|&s| s) {
-                env.core.requests.cancel(COMPARE_LABEL);
-                break;
-            }
-        }
-    };
-    tokio::join!(pipeline, esc);
-    seen.extend(drain(&mut rx));
-
-    assert!(
-        started.elapsed() < Duration::from_secs(2),
-        "取消要立刻落到每一路，不能等流跑完"
-    );
-    assert_eq!(seen[0].name, "compare://start");
-    assert_eq!(seen[0].body["cards"].as_array().unwrap().len(), LANES);
-    for index in 0..LANES {
-        let lane: Vec<&Ev> = seen[1..]
-            .iter()
-            .filter(|e| e.body["index"] == index)
-            .collect();
-        let last = lane.last().unwrap();
-        assert_eq!(last.name, "compare://error", "第 {index} 路：{lane:?}");
-        assert_eq!(last.str("message"), CoreError::Cancelled.to_string());
-        assert!(
-            lane[..lane.len() - 1]
-                .iter()
-                .all(|e| e.name == "compare://delta"),
-            "第 {index} 路取消前只有增量：{lane:?}"
-        );
-    }
-    assert_eq!(env.history_count(), 0, "取消的不进历史");
 }

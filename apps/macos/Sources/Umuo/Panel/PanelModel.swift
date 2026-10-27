@@ -2,7 +2,7 @@ import Foundation
 import Observation
 import UmuoCore
 
-// 浮窗（以及撰写窗的主译文区与回译区）的状态机，语义逐条一致。
+// 浮窗（以及撰写窗的译文区）的状态机，语义逐条一致。
 //
 // 抽成纯函数是为了能测：浮窗最烦人的 bug 都是「流结束之后还在追加增量」或者「上一次翻译的增量污染了下一次」
 // 这类时序问题，在真实界面里很难复现，在纯 reducer 里是一行断言的事。
@@ -23,13 +23,10 @@ enum PermissionKind: String, Equatable, Sendable {
 /// 单词词卡（PRD §5.2）。
 struct WordCard: Equatable {
     struct Sense: Hashable { let partOfSpeech: String; let definition: String }
-    struct Example: Hashable { let source: String; let target: String }
 
     let word: String
     let phonetic: String?
     let senses: [Sense]
-    let forms: [String]
-    let examples: [Example]
 }
 
 struct PanelStart: Equatable {
@@ -42,19 +39,17 @@ struct PanelStart: Equatable {
     var mode: PanelMode
 }
 
-/// 完成事件，也是费用行要的计量（TS 的 `DonePayload`）。
+/// 完成事件，也是计量行要的 token 与耗时（TS 的 `DonePayload`）。
 struct PanelDone: Equatable {
     var requestId: UInt64
     var model: String
     var inputTokens: UInt32
     var outputTokens: UInt32
     var estimated: Bool
-    var costUsd: Double?
     var firstTokenMs: UInt64?
     var totalMs: UInt64
     var replaced: Bool
     var warning: String?
-    var offline: Bool
 }
 
 struct PanelError: Equatable {
@@ -87,17 +82,15 @@ enum PanelAction: Equatable {
                                      mode: PanelMode(rawValue: mode) ?? .selection))
         case let .delta(text):
             self = .delta(requestId: id, text: text)
-        case let .card(word, phonetic, senses, forms, examples):
+        case let .card(word, phonetic, senses):
             self = .card(requestId: id, WordCard(
                 word: word, phonetic: phonetic,
-                senses: senses.map { .init(partOfSpeech: $0.partOfSpeech, definition: $0.definition) },
-                forms: forms,
-                examples: examples.map { .init(source: $0.source, target: $0.target) }
+                senses: senses.map { .init(partOfSpeech: $0.partOfSpeech, definition: $0.definition) }
             ))
-        case let .done(warning, model, inputTokens, outputTokens, estimated, costUsd, firstTokenMs, totalMs, replaced, offline):
+        case let .done(warning, model, inputTokens, outputTokens, estimated, firstTokenMs, totalMs, replaced):
             self = .done(PanelDone(requestId: id, model: model, inputTokens: inputTokens, outputTokens: outputTokens,
-                                   estimated: estimated, costUsd: costUsd, firstTokenMs: firstTokenMs, totalMs: totalMs,
-                                   replaced: replaced, warning: warning, offline: offline))
+                                   estimated: estimated, firstTokenMs: firstTokenMs, totalMs: totalMs,
+                                   replaced: replaced, warning: warning))
         case let .error(message, actions, needsPermission, permission, source):
             self = .error(PanelError(requestId: id, message: message, actions: actions, needsPermission: needsPermission,
                                      permission: permission.flatMap(PermissionKind.init(rawValue:)), source: source))
@@ -110,7 +103,7 @@ struct PanelState: Equatable {
     /// 正在显示的是哪一次请求。0 = 还没有过请求（后端的 id 从 1 起）。
     ///
     /// 增量、词卡、完成只认这个 id；被顶掉的旧请求迟到的事件一律丢掉——
-    /// 否则换模型重译时两路译文会交错拼在一起（审查 M1）。
+    /// 否则连续重试时两路译文会交错拼在一起（审查 M1）。
     var requestId: UInt64 = 0
     /// 原文（用于对照与小字展示）。
     var source = ""
@@ -124,11 +117,9 @@ struct PanelState: Equatable {
     var mode: PanelMode = .selection
     /// 译文是否已经写回原处。
     var replaced = false
-    /// 离线用本机模型翻的（PRD §7.5）。
-    var offline = false
     /// 单词词卡。有值时就该渲染卡片而不是纯文本译文（PRD §5.2）。
     var card: WordCard?
-    /// 结果之外要说的那句话（超限、换供应商）。翻译是成功的，不是错误。
+    /// 结果之外要说的那句话（译文可能不完整）。翻译是成功的，不是错误。
     var warning: String?
     var error: String?
     var errorActions: [SuggestedAction] = []
@@ -179,10 +170,8 @@ struct PanelState: Equatable {
             next.status = .done
             // 提醒跟着结果一起到达；下一次 start 会把它清掉。
             next.warning = done.warning
-            // 故障转移后实际服务的模型可能与 start 时说的不同，以 done 为准。
             next.model = done.model
             next.replaced = done.replaced
-            next.offline = done.offline
             next.metrics = done
             return next
 
@@ -216,11 +205,8 @@ struct PanelState: Equatable {
     }
 
     /// 状态行：把「谁在翻、翻成什么」用一行说清。
-    ///
-    /// 离线回落时**不能**沿用 start 里的供应商名：那是原来那家云端厂商，而实际服务的是本机模型。
     func statusLine(_ t: Translate) -> String {
-        let source = offline ? t("panel.offline") : provider
-        return [source, model, targetLang].filter { !$0.isEmpty }.joined(separator: " · ")
+        [provider, model, targetLang].filter { !$0.isEmpty }.joined(separator: " · ")
     }
 
     /// 静默翻译要显式告诉用户「原文已经被换掉了」；写回被拦下时也不能谎称已替换。
@@ -234,15 +220,9 @@ struct PanelState: Equatable {
         }
     }
 
-    /// 重试 / 换模型 / 换风格要带上的模式。只有 OCR 要保住（结果窗的原文可编辑，审查 L21），
+    /// 重试 / OCR 重译要带上的模式。只有 OCR 要保住（结果窗的原文可编辑，审查 L21），
     /// 其余交给后端默认值——静默替换、撰写都有自己的入口，不该从浮窗重放。
     var retranslateMode: PanelMode? { mode == .ocr ? .ocr : nil }
-
-    /// 收藏时要存的译文：流式中途不存半截，词卡模式没有纯文本译文——都是 nil 而不是空串（审查 L23）。
-    var favoriteTranslation: String? {
-        if status == .streaming { return nil }
-        return translation.isEmpty ? nil : translation
-    }
 }
 
 /// 计量文案的几段（浮窗与对比窗共用同一组文案，审查 L24：两处说的是同一组指标，措辞不该分叉）。
@@ -251,23 +231,17 @@ enum MetricsText {
         t("panel.tokens", ["input": "\(input)", "output": "\(output)", "estimated": estimated ? t("panel.estimated") : ""])
     }
 
-    /// 价格表里没有这个模型时**明确说不知道**，不编数字。
-    static func cost(_ costUsd: Double?, _ t: Translate) -> String {
-        costUsd.map { "$" + String(format: "%.4f", $0) } ?? t("panel.noPrice")
-    }
-
     static func latency(firstTokenMs: UInt64?, totalMs: UInt64, _ t: Translate) -> String {
         guard let first = firstTokenMs else { return t("panel.latencyTotal", ["total": "\(totalMs)"]) }
         return t("panel.latency", ["first": "\(first)", "total": "\(totalMs)"])
     }
 }
 
-/// 费用行：`tokens · cost · latency`。请求完成之前没有。
-func costLine(_ metrics: PanelDone?, _ t: Translate) -> String? {
+/// 计量行：`tokens · latency`。请求完成之前没有。费用估算已退出（PRD §5.10）。
+func metricsLine(_ metrics: PanelDone?, _ t: Translate) -> String? {
     guard let metrics else { return nil }
     return [
         MetricsText.tokens(metrics.inputTokens, metrics.outputTokens, estimated: metrics.estimated, t),
-        MetricsText.cost(metrics.costUsd, t),
         MetricsText.latency(firstTokenMs: metrics.firstTokenMs, totalMs: metrics.totalMs, t),
     ].joined(separator: " · ")
 }

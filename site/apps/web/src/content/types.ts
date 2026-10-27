@@ -46,7 +46,7 @@ export interface DemoMode {
   id: DemoModeId
   /** 切换按钮上的功能名 */
   name: string
-  /** 版本标记，例如 V1.1；首发功能留空 */
+  /** 状态标记，例如「开发中」；已发布的功能留空 */
   tag?: string
   /** 触发键位，键帽逐个渲染；带文字的（如「按住右 ⌥」）也写在这里，随语言翻译 */
   keys: string[]
@@ -90,37 +90,21 @@ export interface LegalDoc {
   sections: Array<{ heading: string; body: LegalBlock[] }>
 }
 
-/** 定价页的一个方案 */
-export interface PricingPlan {
-  name: string
-  tagline: string
-  /** 月付价格，例如「$2.99 / 月」；免费方案写「$0」 */
-  monthly: string
-  /** 年付价格，例如「或 $29.90 / 年」；免费方案写「永久免费」 */
-  yearly: string
-  features: string[]
-  /** 卡片底部的操作：免费方案放下载按钮，付费方案放结账表单 */
-  action: 'download' | 'checkout'
+/** 定价页的一笔账：付给谁、多少、怎么付 */
+export interface PricingBill {
+  payee: string
+  /** 金额；未定时写「价格待定」 */
+  amount: string
+  /** 一次性 / 按用量 */
+  cadence: string
+  body: string
 }
 
-/** 定价页的结账表单（`POST /api/checkout`，Waffo 收银台在新标签页打开） */
-export interface CheckoutContent {
-  emailLabel: string
-  emailPlaceholder: string
-  /** 月付 / 年付按钮上的文字，含价格 */
-  monthly: string
-  yearly: string
-  /** 正在创建结账会话 */
-  opening: string
-  /** 浏览器拦了新标签页时，给一个手动打开的链接 */
-  openManually: string
-  /** 收银台已在新标签页打开时的提示，同时是一个再次打开的链接 */
-  opened: string
-  /** 结账还没开放（CHECKOUT_ENABLED = false）时代替表单的说明 */
-  unavailable: string
-  /** 表单下方的小字：付款在哪里完成、付完会发生什么 */
-  fineprint: string
-  errors: { invalidEmail: string; rateLimited: string; failed: string }
+/** 「包含」清单的一行：功能名，配默认快捷键或状态标记（如「开发中」） */
+export interface PricingFeature {
+  name: string
+  keys?: string[]
+  tag?: string
 }
 
 /** 付款完成后的激活页 `/activate?claim=…`：轮询领取码，拿到许可证密钥 */
@@ -152,15 +136,15 @@ export interface PricingContent {
   /** meta description */
   description: string
   lead: string
-  plans: PricingPlan[]
-  checkout: CheckoutContent
-  /** 方案下面的说明：怎么买、试用、税费、取消、退款 */
-  notes: Array<{
-    heading: string
-    body: string
-    /** 只在结账开放（CHECKOUT_ENABLED）时才成立的说明，比如「在本页购买」「在客户端里管理订阅」 */
-    checkoutOnly?: boolean
-  }>
+  /** 两笔账，像对照本的左右两页：付给 umuo 的一次性买断，付给模型供应商的用量费 */
+  bills: [PricingBill, PricingBill]
+  /** 购买入口还没做（买断方案与许可证流程验收前）时，放在下载按钮下的说明 */
+  unavailable: string
+  /** 「包含」区块的标题 */
+  included: string
+  /** 标题下的一句：键位是默认值、可以改 */
+  includedNote: string
+  features: PricingFeature[]
 }
 
 export interface SiteContent {
@@ -169,9 +153,9 @@ export interface SiteContent {
   nav: NavContent
   hero: HeroContent
   footer: FooterContent
-  /** 定价页：Waffo 审核要求下单前就能在网站上看到价格与计费周期 */
+  /** 定价页：买断 + 自带 Key；支付审核要求下单前就能在网站上看到价格 */
   pricing: PricingContent
   activate: ActivateContent
-  /** 服务条款与隐私政策（按 Waffo Pancake 的 V1 订阅模板） */
+  /** 服务条款与隐私政策（买断授权 + 请求直连） */
   legal: { terms: LegalDoc; privacy: LegalDoc }
 }

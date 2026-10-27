@@ -32,22 +32,14 @@ export const LEGAL_COUNTRY = {
 } as const
 
 /** 条款版本与生效日期；改条款时一起改，重大变更需提前 14 天邮件通知现有用户 */
-export const LEGAL_VERSION = '1.1'
-export const LEGAL_EFFECTIVE = '2026-10-20'
+export const LEGAL_VERSION = '2.0'
+export const LEGAL_EFFECTIVE = '2026-10-23'
 
 /**
  * macOS 安装包地址。由 Worker 读 R2 里的 macos/latest.json 给出最新版（见 worker/src/releases.ts）；
  * 客户端仓库每次合进 main 都会自动发一个新版本。设回 null 则下载按钮变为不可点。
  */
 export const MACOS_DOWNLOAD_URL: string | null = '/download/macos'
-
-/**
- * 定价页是否开放真实结账（POST /api/checkout → Waffo 收银台）。
- *
- * 先关着：客户端还不能填许可证，付了钱拿不到东西。客户端支持许可证、Worker 配好 Waffo 之后再打开，
- * 打开之前先在 Waffo 测试环境用测试卡走通全流程（见 docs/DEPLOY.md「收费」）。
- */
-export const CHECKOUT_ENABLED = false
 
 /** 语言切换顺序与 <html lang> 映射（PRD §11.4） */
 export const LOCALES = ['zh-cn', 'zh-tw', 'en', 'ja', 'ko'] as const

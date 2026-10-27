@@ -1,7 +1,7 @@
 import AppKit
 import UmuoCore
 
-/// 快捷键 / 菜单栏触发的五个浮窗功能：划词翻译、原地替换、朗读、截图翻译、静默 OCR。
+/// 快捷键 / 菜单栏触发的浮窗功能：划词翻译、原地替换、截图翻译。
 /// 对应 Tauri 的 `translator::trigger*` 与 `screenshot::trigger*`，分支与文案逐条一致。
 ///
 /// 取词、框选、识别都是阻塞的（⌘C 降级最长约 1 秒，框选一直等到用户松手），全部在 `Task.detached` 里做；
@@ -47,9 +47,8 @@ extension PanelController {
                 case let .success(focus):
                     self.startTranslation(
                         TranslateRequest(text: focus.text, mode: silent ? .silentReplace : .selection,
-                                         targetOverride: nil, providerOverride: nil, modelOverride: nil,
-                                         styleOverride: nil, sourceOverride: nil,
-                                         focusSource: silent ? focus.source : nil, back: false),
+                                         targetOverride: nil, sourceOverride: nil,
+                                         focusSource: silent ? focus.source : nil),
                         guardToken: guardToken, ticketId: id
                     )
                 }
@@ -57,51 +56,21 @@ extension PanelController {
         }
     }
 
-    /// 不经取词的文本入口：快捷面板的「快速输入」与首次引导的「翻一句看看」（Tauri 的 `quick_translate` / `translate_text`）。
+    /// 不经取词的文本入口：首次引导的「翻一句看看」（Tauri 的 `translate_text`）。
     /// 与划词同一条流水线（只显示、不写回）；这条入口不取词，浮窗要自己弹出来，成功时也看得到结果（审查 H3）。
-    /// 只有空白时抛出 `empty`（两个入口在 Tauri 里各有一句写死的中文）。
+    /// 只有空白时抛出 `empty`。
     func translateText(_ text: String, empty: String) throws {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { throw EngineError.Failed(message: empty) }
         ensureShown()
-        startTranslation(TranslateRequest(text: trimmed, mode: .selection, targetOverride: nil, providerOverride: nil,
-                                          modelOverride: nil, styleOverride: nil, sourceOverride: nil,
-                                          focusSource: nil, back: false))
+        startTranslation(TranslateRequest(text: trimmed, mode: .selection, targetOverride: nil, sourceOverride: nil,
+                                          focusSource: nil))
     }
 
-    /// ⌥R：朗读当前选中的文本（PRD §7.2）。**不弹浮窗**——用户要的是把这段读出来；取不到选区才用浮窗说话，
-    /// 一个「按了没反应」的全局快捷键比报错更让人困惑。再按一次是重新读一遍（`speak` 先停上一段）。
-    func triggerSpeak() {
-        guard let engine = app.engine else { return showNotice(app.engineStatus, permission: nil) }
-        Task.detached {
-            // 朗读同样受黑名单约束：把密码读出声，比翻译它更糟。拦下不是权限问题，不引去辅助功能设置。
-            if let notice = Self.blockNotice(engine) {
-                await MainActor.run { self.showNotice(notice, permission: nil) }
-                return
-            }
-            let read = Result { () throws(SelectionError) in try Selection.readSelection() }
-            await MainActor.run {
-                switch read {
-                case let .success(text):
-                    let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-                    if !trimmed.isEmpty { self.app.speech.speak(trimmed, language: detectLanguage(text: trimmed)) }
-                case let .failure(error):
-                    self.showNotice(error.description, permission: error == .permissionDenied ? .accessibility : nil)
-                }
-            }
-        }
-    }
-
-    /// ⌥S：框选 → 本机识别 → 交给同一条翻译流水线（先把浮窗开出来，成功时也要看得到结果）。
-    func triggerOcr() { triggerCapture(silent: false) }
-
-    /// 静默 OCR：识别完**只把原文复制到剪贴板**，成功时什么都不显示；只有失败才说话（PRD §5.5）。
-    func triggerSilentOcr() { triggerCapture(silent: true) }
-
-    private func triggerCapture(silent: Bool) {
+    /// 系统框选后在本机识别，结果交给 OCR 翻译流水线。
+    func triggerOcr() {
         Task.detached {
             let outcome = ScreenOCR.run()
-            let copyFailure: String? = if silent, case let .recognized(text) = outcome { ScreenOCR.copy(text) } else { nil }
             await MainActor.run {
                 switch outcome {
                 case .cancelled:
@@ -109,15 +78,10 @@ extension PanelController {
                 case let .notice(message, permission):
                     self.showNotice(message, permission: permission.flatMap(PermissionKind.init(rawValue:)))
                 case let .recognized(text):
-                    if silent {
-                        if let copyFailure { self.showNotice(copyFailure, permission: nil) }
-                    } else {
-                        self.ensureShown()
-                        self.startTranslation(TranslateRequest(
-                            text: text, mode: .ocr, targetOverride: nil, providerOverride: nil, modelOverride: nil,
-                            styleOverride: nil, sourceOverride: nil, focusSource: nil, back: false
-                        ))
-                    }
+                    self.ensureShown()
+                    self.startTranslation(TranslateRequest(
+                        text: text, mode: .ocr, targetOverride: nil, sourceOverride: nil, focusSource: nil
+                    ))
                 }
             }
         }

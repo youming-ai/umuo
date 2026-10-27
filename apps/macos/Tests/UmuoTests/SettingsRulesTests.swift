@@ -3,30 +3,27 @@ import Testing
 import UmuoCore
 @testable import Umuo
 
-// settings-tabs.test.ts、hotkey-format.test.ts、style-presets.test.ts、glossary-editor.test.ts 逐条改写，
+// 设置页与快捷键等保留能力的规则回归，
 // 外加 Swift 版自己的规则：嵌套对象里的未知字段在编辑后保留、数字框的坏输入、开机自启的 LaunchAgent。
 
 private let zh = Translate(locale: .zhCN)
 
 @Suite("设置窗的分区")
 struct SettingsTabsTests {
-    private let ok = SettingsAttentionInput(keyConfigured: true, someProviderOverLimit: false, permissionMissing: false)
+    private let ok = SettingsAttentionInput(keyConfigured: true, permissionMissing: false)
 
     @Test func 六个分区顺序固定且不重复() {
         #expect(SettingsTab.allCases.map(\.rawValue) == ["general", "translate", "engine", "permissions", "advanced", "about"])
         for tab in SettingsTab.allCases { #expect(zh(tab.titleKey) != tab.titleKey) }
     }
 
-    @Test func 没配Key点亮引擎缺权限点亮权限超限点亮高级() {
+    @Test func 没配Key点亮引擎缺权限点亮权限() {
         var input = ok
         input.keyConfigured = false
         #expect(SettingsTabs.attention(input) == [.engine])
         input = ok
         input.permissionMissing = true
         #expect(SettingsTabs.attention(input) == [.permissions])
-        input = ok
-        input.someProviderOverLimit = true
-        #expect(SettingsTabs.attention(input) == [.advanced])
     }
 
     @Test func 一切都好或状态还没读出来时不点灯() {
@@ -159,161 +156,6 @@ struct DoubleTapRecorderTests {
     }
 }
 
-@Suite("自建风格预设")
-struct StylePresetsTests {
-    private func style(_ id: String, label: String? = nil, instruction: String = "简短。",
-                       fewShot: [CustomStyle.Example] = [], explain: Bool = false) -> CustomStyle
-    {
-        CustomStyle(id: id, label: label ?? id, instruction: instruction, fewShot: fewShot, explain: explain)
-    }
-
-    @Test func 新建的id带custom前缀且与时间戳一一对应() {
-        #expect(StylePresets.new(now: 1).id.hasPrefix("custom-"))
-        #expect(StylePresets.new(now: 1).id == StylePresets.new(now: 1).id)
-        #expect(StylePresets.new(now: 1).id != StylePresets.new(now: 2).id)
-        // 与 JS 的 `Date.now().toString(36)` 同一写法
-        #expect(StylePresets.new(now: 1_700_000_000_000).id == "custom-loyw3v28")
-    }
-
-    @Test func 默认温度是温和的0点2() {
-        #expect(StylePresets.new(now: 1).temperature == 0.2)
-    }
-
-    @Test func 新id追加已有id覆盖() {
-        #expect(StylePresets.upsert([style("a")], style("b")).map(\.id) == ["a", "b"])
-        let list = StylePresets.upsert([style("a"), style("b")], style("a", label: "改过"))
-        #expect(list.count == 2)
-        #expect(list[0].label == "改过")
-    }
-
-    @Test func 删除按id精确匹配不存在是无操作() {
-        #expect(StylePresets.remove([style("a"), style("b")], id: "a").map(\.id) == ["b"])
-        #expect(StylePresets.remove([style("a")], id: "nope").count == 1)
-    }
-
-    @Test func 摘要显示温度示例数与解释开关() {
-        let summary = StylePresets.summary(style("a", fewShot: [.init(source: "a", target: "b")], explain: true), zh)
-        #expect(summary.contains("温度 0.2"))
-        #expect(summary.contains("1 个示例"))
-        #expect(summary.contains("附解释"))
-    }
-
-    @Test func 没填风格指令时明确说出来() {
-        #expect(StylePresets.summary(style("a", instruction: "  "), zh).contains("未填风格指令"))
-    }
-
-    @Test func 没有示例与解释时就不提它们() {
-        let summary = StylePresets.summary(style("a"), zh)
-        #expect(!summary.contains("示例"))
-        #expect(!summary.contains("解释"))
-    }
-
-    @Test func 温度解析() {
-        #expect(StylePresets.parseTemperature("") == 0.2)
-        #expect(StylePresets.parseTemperature("abc") == 0.2)
-        #expect(StylePresets.parseTemperature("9") == 2)
-        #expect(StylePresets.parseTemperature("-1") == 0)
-        #expect(abs(StylePresets.parseTemperature("0.7") - 0.7) < 1e-9)
-    }
-
-    @Test func 改一个字段后预设与示例里不认识的字段原样保留() throws {
-        let json = #"""
-        [{"id":"custom-1","label":"旧","instruction":"x","temperature":0.5,"explain":false,
-          "fewShot":[{"source":"a","target":"b","note":"keep"}],"futureFlag":true}]
-        """#
-        let list = try JSONDecoder().decode(JSONValue.self, from: Data(json.utf8))
-        var styles = StylePresets.decode(list.arrayValue ?? [])
-        styles[0].label = "新"
-        let encoded = StylePresets.encode(styles).arrayValue?.first?.objectValue
-        #expect(encoded?["futureFlag"] == .bool(true))
-        #expect(encoded?["label"] == .string("新"))
-        #expect(encoded?["fewShot"]?.arrayValue?.first?.objectValue?["note"] == .string("keep"))
-    }
-
-    @Test func 例句的行id各不相同_不写进设置也不参与比较() {
-        let a = CustomStyle.Example(source: "a", target: "b")
-        let b = CustomStyle.Example(source: "a", target: "b")
-        #expect(a.id != b.id)
-        #expect(a == b)
-        #expect(a.json == .object(["source": .string("a"), "target": .string("b")]))
-    }
-
-    @Test func 缺字段时取Rust侧的默认值() {
-        let style = CustomStyle(json: .object(["id": .string("custom-x"), "label": .string("L")]))
-        #expect(style?.temperature == 0.2)
-        #expect(style?.instruction == "")
-        #expect(style?.fewShot.isEmpty == true)
-    }
-}
-
-@Suite("术语表编辑器")
-struct GlossaryEditorTests {
-    private func list(source: String = "en", target: String = "zh-CN", entries: [(String, String)] = []) -> Glossary {
-        Glossary(json: .object([
-            "id": .string("a"), "name": .string("术语"), "source_lang": .string(source), "target_lang": .string(target),
-            "entries": .array(entries.map { .object(["source": .string($0.0), "target": .string($0.1)]) }),
-        ]))!
-    }
-
-    @Test func 新建的id带glossary前缀默认不限语言对() {
-        #expect(GlossaryEditor.new(now: 1).id.hasPrefix("glossary-"))
-        #expect(GlossaryEditor.new(now: 1).id == GlossaryEditor.new(now: 1).id)
-        #expect(GlossaryEditor.new(now: 1).id != GlossaryEditor.new(now: 2).id)
-        #expect(!GlossaryEditor.hasLanguageConstraint(GlossaryEditor.new(now: 1)))
-    }
-
-    @Test func 摘要显示语言对与条数留空写成不限() {
-        #expect(GlossaryEditor.summary(list(entries: [("a", "b"), ("c", "d")]), zh) == "en → zh-CN · 2 条")
-        #expect(GlossaryEditor.summary(list(source: ""), zh).contains("不限 → zh-CN"))
-        #expect(GlossaryEditor.summary(list(target: "   "), zh).contains("en → 不限"))
-        #expect(GlossaryEditor.summary(list(), zh).contains("0 条"))
-    }
-
-    @Test func 任一语言填了就有约束只有空白不算() {
-        #expect(GlossaryEditor.hasLanguageConstraint(list(source: "en", target: "")))
-        #expect(GlossaryEditor.hasLanguageConstraint(list(source: "", target: "zh-CN")))
-        #expect(!GlossaryEditor.hasLanguageConstraint(list(source: "  ", target: "  ")))
-    }
-
-    @Test func 编辑框反填成每行原文制表符译文() {
-        #expect(GlossaryEditor.editableText(list(entries: [("API", "接口"), ("cache", "缓存")])) == "API\t接口\ncache\t缓存")
-    }
-
-    @Test func 只改名称时条目与未知字段原样带回去() {
-        var glossary = Glossary(json: .object([
-            "id": .string("g"), "name": .string("旧"), "source_lang": .string(""), "target_lang": .string(""),
-            "entries": .array([.object(["source": .string("a"), "target": .string("b"), "tag": .string("keep")])]),
-            "futureField": .number(3),
-        ]))!
-        glossary.name = "新"
-        let object = glossary.json.objectValue
-        #expect(object?["name"] == .string("新"))
-        #expect(object?["futureField"] == .number(3))
-        #expect(object?["entries"]?.arrayValue?.first?.objectValue?["tag"] == .string("keep"))
-        // 编码成 JSON 再解回来也一样（`glossarySaveJson` 收的就是这个）
-        let back = GlossaryEditor.decode("[\(GlossaryEditor.encode(glossary))]")
-        #expect(back.first?.raw["futureField"] == .number(3))
-    }
-
-    @Test func 语言对按Rust的snake_case键读写() {
-        var glossary = GlossaryEditor.new(now: 1)
-        glossary.sourceLang = "en"
-        let object = glossary.json.objectValue
-        #expect(object?["source_lang"] == .string("en"))
-        #expect(object?["sourceLang"] == nil)
-    }
-
-    @Test func 读不出的JSON当作没有表() {
-        #expect(GlossaryEditor.decode("not json").isEmpty)
-        #expect(GlossaryEditor.decode("{}").isEmpty)
-    }
-
-    @Test func 导出文件名() {
-        #expect(GlossaryEditor.exportFileName(Glossary(id: "g1", name: "a/b")) == "a-b.csv")
-        #expect(GlossaryEditor.exportFileName(Glossary(id: "g1", name: " ")) == "g1.csv")
-    }
-}
-
 @Suite("设置页的输入规则")
 struct SettingsRulesTests {
     @Test func 数字显示与JS一致() {
@@ -347,55 +189,6 @@ struct SettingsRulesTests {
         #expect(SettingsRules.proxyChoice("custom", savedMode: "system", savedUrl: "socks5://h:1") == .commit("custom"))
         #expect(SettingsRules.proxyChoice("none", savedMode: "system", savedUrl: "") == .commit("none"))
         #expect(SettingsRules.proxyChoice("system", savedMode: "system", savedUrl: "") == .unchanged)
-    }
-
-    @Test func 月度上限改一条时那一条里不认识的字段保留() {
-        let list: [JSONValue] = [
-            .object(["providerId": .string("openai"), "limitUsd": .number(5), "note": .string("keep")]),
-            .object(["providerId": .string("deepseek"), "limitUsd": .number(1)]),
-        ]
-        let next = SettingsRules.setLimit(list, providerId: "openai", to: 8)
-        let openai = next.first { $0.objectValue?.string("providerId") == "openai" }?.objectValue
-        #expect(openai?["limitUsd"] == .number(8))
-        #expect(openai?["note"] == .string("keep"))
-        #expect(next.count == 2)
-        // 清除 = 去掉那一条，而不是记成 0
-        #expect(SettingsRules.setLimit(list, providerId: "openai", to: nil).count == 1)
-        #expect(SettingsRules.setLimit(list, providerId: "x", to: -1).last?.objectValue?["limitUsd"] == .number(0))
-    }
-
-    @Test func 改一个场景时对比模型与不认识的键原样保留() {
-        let scenes: [String: JSONValue] = [
-            "selection": .null,
-            "compare": .array([JSONValue(ModelRef(providerId: "openai", model: "gpt"))]),
-            "futureScene": .string("keep"),
-        ]
-        let next = SettingsRules.setScene(scenes, .ocr, to: ModelRef(providerId: "deepseek", model: "chat"))
-        #expect(next["ocr"]?.modelRef == ModelRef(providerId: "deepseek", model: "chat"))
-        #expect(next["compare"] == scenes["compare"])
-        #expect(next["futureScene"] == .string("keep"))
-        // 只填了一半 = 用默认模型
-        #expect(SettingsRules.setScene(scenes, .ocr, to: ModelRef(providerId: "deepseek", model: "")).values.contains(.null))
-        #expect(SettingsRules.setScene(scenes, .ocr, to: ModelRef(providerId: "deepseek", model: ""))["ocr"] == .null)
-    }
-
-    @Test func 模型引用按Rust的snake_case写读的时候也认camelCase() {
-        // `umuo_core::wire::ModelRef` 没有 rename_all：写成 providerId 会被 applySettingsPatch 拒掉
-        #expect(JSONValue(ModelRef(providerId: "openai", model: "gpt")) == .object([
-            "provider_id": .string("openai"), "model": .string("gpt"),
-        ]))
-        #expect(JSONValue.object(["providerId": .string("x"), "model": .string("m")]).modelRef
-            == ModelRef(providerId: "x", model: "m"))
-    }
-
-    @Test func 用量那一行未计价时必须说出来() {
-        let usage = UsageSummary(count: 3, inputTokens: 10, outputTokens: 20, costUsd: 0.5, unpriced: 0)
-        #expect(SettingsRules.usageLine(usage, zh) == zh("history.usageLine", [
-            "count": "3", "input": "10", "output": "20", "cost": "$0.5000",
-        ]))
-        let unpriced = UsageSummary(count: 3, inputTokens: 10, outputTokens: 20, costUsd: 0.5, unpriced: 2)
-        #expect(SettingsRules.usageLine(unpriced, zh) != SettingsRules.usageLine(usage, zh))
-        #expect(SettingsRules.usageLine(nil, zh) == zh("history.loadingUsage"))
     }
 
     @Test func 导入说明单独列出端点与黑名单的变化() {

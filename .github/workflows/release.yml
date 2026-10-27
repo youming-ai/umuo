@@ -52,11 +52,23 @@ jobs:
 
       - name: Build universal native app
         env:
+          SPARKLE_PUBLIC_ED_KEY: ${{ vars.SPARKLE_PUBLIC_ED_KEY }}
           APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
           APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
           APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
           APPLE_API_KEY_PATH: ${{ secrets.APPLE_API_KEY_PATH }}
         run: sh apps/macos/scripts/bundle.sh --version "$VERSION"
+
+      - name: Sign Sparkle update and generate appcast
+        env:
+          SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
+        run: |
+          test -n "$SPARKLE_PRIVATE_KEY"
+          sparkle_key=$(mktemp)
+          trap 'rm -f "$sparkle_key"' EXIT
+          chmod 600 "$sparkle_key"
+          printf '%s' "$SPARKLE_PRIVATE_KEY" > "$sparkle_key"
+          SPARKLE_PRIVATE_KEY_PATH="$sparkle_key" bun scripts/sparkle-appcast.ts "$PWD/apps/macos/dist" "$VERSION"
 
       - name: Keep native release artifacts
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
@@ -65,4 +77,5 @@ jobs:
           path: |
             apps/macos/dist/*.dmg
             apps/macos/dist/*.app.tar.gz
+            apps/macos/dist/appcast.xml
           retention-days: 14

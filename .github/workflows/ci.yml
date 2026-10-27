@@ -19,7 +19,7 @@ concurrency:
 
 jobs:
   tooling:
-    name: Tooling (lint / types)
+    name: Tooling (lint / types / tests)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -39,6 +39,9 @@ jobs:
 
       - name: Type check
         run: bun run type-check
+
+      - name: Tooling tests
+        run: bun run test:tools
 
   # 应用层与内核必须不依赖平台：在 Linux 上编译并测试，谁不小心引入 Tauri / AppKit 就在这里红。
   app-core-linux:

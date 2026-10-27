@@ -20,7 +20,8 @@
     "verify:macos": "sh apps/macos/scripts/verify.sh",
     "bundle:macos": "sh apps/macos/scripts/bundle.sh",
     "release:swift": "sh scripts/release-swift-local.sh",
-    "verify": "bun run lint && bun run type-check && bun run fmt:rust && bun run clippy && bun run test:rust && bun run verify:macos"
+    "verify": "bun run lint && bun run type-check && bun run test:tools && bun run fmt:rust && bun run clippy && bun run test:rust && bun run verify:macos",
+    "test:tools": "bun test scripts/sparkle-appcast.test.ts"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.3",

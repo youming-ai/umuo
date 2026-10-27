@@ -1,4 +1,5 @@
 import Foundation
+import Sparkle
 import UmuoCore
 
 /// 第 0 阶段验证：四种绑定形态（字符串、布尔、列表、回调）都能从 Swift 调通 Rust 内核；
@@ -31,9 +32,17 @@ enum SelfTest {
         }
 
         // 资源包找不到时 Bundle.module 直接 fatalError：在 .app 里跑到这里就说明 Contents/Resources 的布局对
-        let trayIcons = ["template", "brand", "black"].allSatisfy { TrayIcon.url($0) != nil }
-        check("resources", !StringCatalog.main.entries.isEmpty && trayIcons,
+        check("resources", !StringCatalog.main.entries.isEmpty && TrayIcon.url != nil,
               "\(Bundle.module.bundlePath)（\(Bundle.main.bundleIdentifier ?? "裸二进制，无 Bundle ID")）")
+
+        // 必须加载包内 Sparkle，不能碰巧借用了发版机 .build 里的框架。
+        let sparkle = Bundle(for: SPUUpdater.self)
+        let packaged = Bundle.main.bundleURL.pathExtension == "app"
+        // /tmp 与 /private/tmp 等别名先解析，避免同一包内框架被路径字符串误判。
+        let frameworks = Bundle.main.bundleURL.appendingPathComponent("Contents/Frameworks")
+            .resolvingSymlinksInPath().path + "/"
+        let loadedFramework = sparkle.bundleURL.resolvingSymlinksInPath().path
+        check("sparkle", !packaged || loadedFramework.hasPrefix(frameworks), sparkle.bundlePath)
 
         let lang = detectLanguage(text: "今天天气很好")
         check("detectLanguage", lang == "zh", "今天天气很好 → \(lang ?? "nil")")

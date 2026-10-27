@@ -2,7 +2,10 @@
 
 > 2026-10-22 用户要求清理旧实现。当前唯一客户端是 Swift + SwiftUI + AppKit，最低 macOS 14。
 > Rust 翻译内核、应用逻辑与 SQLite 保留，经 UniFFI 调用。
-> 旧源码清理已完成；SwiftUI 版正式发布、应用内更新与真机验收仍未完成。
+> 旧源码清理已完成；2026-10-23 已接入 Sparkle，正式发布、更新闭环实测与真机验收仍未完成。
+
+产品范围已收敛为文字、OCR 和语音三项核心；开发顺序见 [首版开发计划](IMPLEMENTATION-PLAN.md)。
+本记录的迁移阶段描述原生改造，不替代新范围的验收状态。
 
 ## 阶段状态
 
@@ -10,10 +13,10 @@
 | --- | --- |
 | 0 UniFFI 链路 | ✅ `umuo-ffi`、`build-core.sh` 与 Swift `--selftest` |
 | 1 共享应用逻辑与导出 | ✅ `umuo-app` 保存编排逻辑，Engine 导出翻译、对比、设置、历史、术语表、用量等；流水线回归迁到 `crates/umuo-app/tests/pipeline.rs` |
-| 2 Swift 平台层 | ✅ AX 取词与写回、Keychain、剪贴板降级、Carbon 组合键、CGEventTap 连按、系统框选、Vision OCR、语音、LaunchAgent 均在 `Platform/`；真实系统权限与焦点仍需验收 |
-| 3 原生窗口 | ✅ 浮窗、设置、撰写、对比、历史、首次引导、菜单栏快捷面板及 Swift Testing 已实现；见 `Sources/Umuo/` 与 `Tests/UmuoTests/` |
-| 4 收费许可证 | ⏸ 用户暂缓，不在客户端加许可证或付费门控 |
-| 5 打包与分发 | 🟡 通用 `.app`、`.dmg`、`.app.tar.gz` 与本机打包冒烟已实现；Developer ID / 公证、应用内更新、Homebrew Cask 待完成 |
+| 2 Swift 平台层 | ✅ AX 取词与写回、Keychain、剪贴板降级、Carbon 组合键、CGEventTap 连按、系统框选、Vision OCR、朗读、LaunchAgent 均在 `Platform/`；真实系统权限与焦点仍需验收 |
+| 3 原生窗口 | ✅ 浮窗、设置、撰写、历史、首次引导、菜单栏快捷面板及 Swift Testing 已实现；对比窗已于阶段 A 精简移除；见 `Sources/Umuo/` 与 `Tests/UmuoTests/` |
+| 4 收费许可证 | ⬜ 2026-10-23 改为一次性买断、纯 BYOK；购买授权进入开发计划，商业参数与实现待完成，见 `IMPLEMENTATION-PLAN.md` 阶段 F |
+| 5 打包与分发 | 🟡 通用 `.app`、`.dmg`、`.app.tar.gz` 与本机打包冒烟已实现；Sparkle 已接入；Developer ID / 公证、更新闭环实测、Homebrew Cask 待完成 |
 | 6 清理与切换 | 🟡 已删除 `apps/desktop`、`umuo-platform*`、`packages/tokens`、旧发布脚本与 WebView CI；正式发布切换未完成 |
 
 ## 当前目录与开发
@@ -51,7 +54,7 @@ Rust 静态库在本机开发与通用打包时统一以 macOS 14 为部署目�
 
 交互遵循 Apple Human Interface Guidelines，优先使用 SwiftUI 标准控件、系统语义颜色、字体和 SF Symbols；
 AppKit 提供非激活 NSPanel、NSStatusItem、NSPopover 和窗口管理。
-现有 `Theme/Palette.swift` 保留自定义主题；原生控件、VoiceOver、键盘导航、减少动态效果与提高对比度须继续真机走查。
+自定义主题与 `Palette.swift` 已删除，界面改用系统控件、语义色与 Liquid Glass（macOS 26）/ 系统材质（14–15）；旧设置里的 `uiScale` 与 `highContrast` 保留但不再生效。原生控件、VoiceOver、键盘导航、减少动态效果与增强对比度须继续真机走查，macOS 14/15 与 26 的观感要分别看。
 删除旧 CSS 不代表已经完成所有视觉规范对齐。
 
 只装 Command Line Tools 也能构建：
@@ -65,8 +68,9 @@ AppKit 提供非激活 NSPanel、NSStatusItem、NSPopover 和窗口管理。
 ## 阶段 5：打包与发布
 
 `bun run bundle:macos -- --version X.Y.Z` 只产出文件，不上传。
+正式组装需设置 `SPARKLE_PUBLIC_ED_KEY`，写入包内 `SUPublicEDKey`；冒烟包不配置更新通道、不联网检查。
 脚本分别构建 arm64 与 x86_64 的 Rust 静态库和 Swift release 二进制，独立 scratch 目录后 lipo 成通用二进制。
-以 macOS 14 为部署目标，组装 `.app`，由内向外签名；无 Developer ID 时使用 ad-hoc。
+以 macOS 14 为部署目标，组装 `.app` 并嵌入 Sparkle.framework，按官方顺序重签 XPC、Autoupdate、Updater.app、框架、宿主；无 Developer ID 时使用 ad-hoc。
 `APPLE_SIGNING_IDENTITY` 配置签名身份；`APPLE_API_KEY`、`APPLE_API_ISSUER`、`APPLE_API_KEY_PATH` 同时存在时调用 notarytool 并 staple。
 `bundle.sh --quick` 复用本机 debug 产物，只做 ad-hoc，不公证、不生成 DMG，供离线门禁使用。
 
@@ -79,6 +83,7 @@ GitHub Actions 目前因账单问题不可用，先在本机跑 `bun run verify`
 `bun run release:swift X.Y.Z` 在干净、与 origin/main 一致的 main 上跑门禁，构建 Swift 通用包与旧通道签名，
 在 `apps/macos/dist` 生成 `update.json` / `latest.json`，默认不上传。
 显式 `--publish` 才按「DMG、更新包、update.json、latest.json」顺序传 R2，避免清单指向未传完的文件。
+`appcast.xml` 由 Sparkle `sign_update` 签更新包，并用包内公钥再次验签后生成；上传包之后、旧清单之前上传。
 上传使用 `site/` 已有的 Wrangler 配置与登录态；此处只记录现有发布脚本，不部署官网。
 
 旧用户的 Tauri Updater 验 minisign 签名、替换安装目录，再按新 Info.plist 重启，因此可以接收 Swift 包。
@@ -87,19 +92,54 @@ GitHub Actions 目前因账单问题不可用，先在本机跑 `bun run verify`
 
 **桥接发布前必须满足：**
 
-1. 先接上并实测 Swift 自己的应用内更新（计划 Sparkle）。现在「检查更新」仍为占位，不能把旧用户迁到无法继续更新的版本。
+1. 实测 Swift 自己的 Sparkle 更新 N → N+1（下载、验签、替换、重启），确认线上 appcast 路由已部署。代码接入不代替安装更新验收。
 2. 取得 Developer ID 并完成签名、公证与 Gatekeeper 验收。ad-hoc 每次更新会改变 cdhash，用户可能需要重新授权 TCC 与 Keychain。
 3. 明确最低系统版本变化：Swift 要 macOS 14+，旧 Tauri 版支持更早系统，旧更新器不看最低系统版本。
    不接受让旧系统用户收到无法启动的更新时，保留线上旧 update.json，仅发布官网直装版。
    当前发布脚本仍要求显式 `ACK_MIN_OS_14=1`；该变量不代替应用内更新与签名验收。
 4. 用测试密钥与本地更新清单走完一次旧版下载、验签、替换、重启到 Swift 的流程；保留旧用户的配置、历史、Key 与登录项。
 
-### 应用内更新待办
+### Sparkle 原生应用内更新（2026-10-23）
 
-Sparkle 尚未接入。需要集成 SwiftPM 框架、由内向外签名嵌套组件、配置独立 EdDSA 公钥与 appcast，
-把菜单和关于页的占位接上，并实测从 N 到 N+1。Sparkle 密钥与旧通道 minisign 密钥是两套。
-旧 `update.json` 留给尚未迁移的用户，Swift appcast 与它并存；先验证原生更新，再发布桥接包。
-Homebrew Cask 尚未建立。
+已实现：
+
+- SwiftPM 锁定 Sparkle 2.10.0，`App/AppUpdater.swift` 在主线程持有唯一更新会话。
+- 菜单和关于页接到原生更新 UI，跟随 `canCheckForUpdates` 禁用重复检查。
+- 裸开发构建与 `--quick` 不启动更新；正式包写入 HTTPS feed 与 Ed25519 公钥。
+- 不启用系统信息上报，不默认自动安装；自动检查遵循 Sparkle 的用户授权流程。
+- 打包嵌入完整 Sparkle 框架，按官方顺序签嵌套程序，再以 `codesign --verify --deep --strict` 检查。
+  Developer ID 包保留库校验；无 Team ID 的 ad-hoc 包添加开发用关闭库校验权利。
+- `scripts/sparkle-appcast.ts` 用官方 `sign_update` 签名，再独立以包内公钥验签，生成含最低 macOS 14.0.0 的 appcast。
+- Worker `/download/macos/appcast.xml` 从 R2 流式返回且不缓存；未发布时回有效空 RSS，读取故障回 503。
+  这是代码改动，尚未部署线上。
+- 原生 Sparkle appcast 与旧 `update.json` 并存，共用 `.app.tar.gz`，使用两套不同签名密钥。
+
+首次准备发版机（只需一次；私钥只进入本机 Keychain）：
+
+```bash
+swift package --package-path apps/macos resolve
+apps/macos/.build/artifacts/sparkle/Sparkle/bin/generate_keys --account app.umuo.desktop
+export SPARKLE_PUBLIC_ED_KEY="$(apps/macos/.build/artifacts/sparkle/Sparkle/bin/generate_keys --account app.umuo.desktop -p)"
+bun run bundle:macos -- --version X.Y.Z
+bun scripts/sparkle-appcast.ts "$PWD/apps/macos/dist" X.Y.Z
+```
+
+`generate_keys` 首次会创建签名密钥，需妥善备份。本次代码接入没有创建或读取正式签名密钥。
+默认 `sign_update --account app.umuo.desktop` 读专用 Keychain；自动化可用 `SPARKLE_PRIVATE_KEY_PATH` 指向官方导出的私钥文件，
+不把私钥放命令参数、日志或仓库。签名后脚本验证包内公钥，阻止误用另一把签名密钥。
+Release 工作流使用 repository variable `SPARKLE_PUBLIC_ED_KEY` 与 secret `SPARKLE_PRIVATE_KEY`，后者写入权限 600 的临时文件并在退出时删除。
+`release:swift` 会生成 appcast，显式 `--publish` 才上传；仍须满足上面的桥接发布条件。
+
+本机验证：根目录 `bun run verify` 通过（含 370 项 Swift Testing、FFI 自检与带 Sparkle 的签名打包冒烟），
+`site/` 的 `bun run verify` 通过（196 项 Vitest 与官网构建）。另用临时 Ed25519 测试密钥、官方 `sign_update` 和真实冒烟更新包
+跑通签名、独立公钥验签与 appcast 生成，不访问真实 Keychain；签名错误、篡改包与 XML 版本注入由工具测试拦截。
+
+尚待完成：正式密钥配置、Developer ID / 公证、部署 Worker 路由、真实 N → N+1 安装重启与旧用户桥接。
+当前没有进行线上发布，不能将本机代码接入视为上述验收已通过。Homebrew Cask 仍未建立。
+
+官方依据：[程序化接入](https://sparkle-project.org/documentation/programmatic-setup/)、
+[手动签名顺序](https://sparkle-project.org/documentation/sandboxing/#code-signing)、
+[发布与 appcast](https://sparkle-project.org/documentation/publishing/)。
 
 ## 必须守住的兼容性
 
@@ -116,9 +156,9 @@ Homebrew Cask 尚未建立。
 
 - Safari / 备忘录取词、非激活浮窗、钉住与切走收起；多显示器与 Retina 的定位和拖动。
 - 静默替换选区 / 整框，翻译中切换前台时拒绝写回；AX 不可写、原文变化与缺权限时不改内容。
-- 撰写防抖、回译与复制 / 粘贴；对比成功失败各落自己的卡片，Esc 停止对应请求。
-- 超额切供应商、断网回落本机模型、长文本分片；历史、费用与来源标注正确。
-- 截图权限、取消、Vision 空结果；语音与菜单栏样式、快捷面板、自启动。
+- 输入翻译、原地替换与复制 / 粘贴；Esc 停止对应请求。
+- 长文本分片；请求失败（断网、限流、超时）如实报错且不换模型；历史与来源标注正确。
+- 截图权限、取消、Vision 空结果；结果朗读、菜单栏快捷面板、自启动。
 - Intel 真机启动通用包；DMG 拖装、Gatekeeper、公证、系统权限与升级后的 Keychain 访问。
 - macOS 13 明确拒绝启动；正常正式包不出 Dock 图标、默认注册快捷键。
 - VoiceOver、完整键盘操作、系统对比度与减少动态效果偏好。

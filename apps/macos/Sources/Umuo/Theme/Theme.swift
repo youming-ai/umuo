@@ -1,36 +1,44 @@
-import Foundation
+import AppKit
 
-/// 客户端主题（PRD §7.3：浅色 / 深色 / 跟随系统，外加 §8 可访问性要的高对比度），`theme.ts` 的移植。
+/// 外观（PRD §7.3：浅色 / 深色 / 跟随系统）。颜色、字号、材质全部交给系统：不维护自己的设计令牌，
+/// 高对比度走系统的「增强对比度」，所以这里只决定整个应用用哪种 `NSAppearance`。
 ///
-/// 主题存在**设置文件**里（`settings.json` 的 `theme`），所有窗口看到的是同一套；这里只有「选择 → 真正用哪套」这条规则。
+/// 主题存在设置文件里（`settings.json` 的 `theme`），所有窗口看到的是同一套。旧版的 `highContrast` 与认不出的值按「跟随系统」处理。
 enum ThemeChoice: String, CaseIterable, Sendable {
-    case system, light, dark, highContrast
+    case system, light, dark
 
-    /// 设置页的选项名（文案键与 Tauri 版 GeneralPage 的 `THEME_KEYS` 一致）。
+    /// 设置页的选项名。
     var titleKey: String { "prefs.theme.\(rawValue)" }
-}
 
-/// 真正要应用的主题。
-enum ResolvedTheme: String, Equatable, Sendable {
-    case light, dark
-    case highContrast = "high-contrast"
-}
-
-extension ThemeChoice {
-    /// 把设置里的值解析成真正要应用的主题。纯函数：`prefersDark` 由调用方从系统读，「跟随系统」才能测。
-    /// 认不出来的值一律回落「跟随系统」——手改过的设置文件不该让界面变白。
-    static func resolve(_ choice: String?, prefersDark: Bool) -> ResolvedTheme {
+    /// 设置值 → 应用外观；nil = 跟随系统。
+    static func appearanceName(_ choice: String?) -> NSAppearance.Name? {
         switch ThemeChoice(rawValue: choice ?? "") {
-        case .light: .light
-        case .dark: .dark
-        case .highContrast: .highContrast
-        case .system, nil: prefersDark ? .dark : .light
+        case .light: .aqua
+        case .dark: .darkAqua
+        case .system, nil: nil
         }
     }
 
-    /// 系统换外观时要不要重算：只在「跟随系统」（含认不出来的值）时要，否则会把用户明选的主题顶掉。
-    static func followsSystem(_ choice: String?) -> Bool {
-        let parsed = ThemeChoice(rawValue: choice ?? "")
-        return parsed == nil || parsed == .system
+    /// 按设置切换整个应用的外观。设置载入与每次保存后调用；各窗口不再单独指定配色。
+    @MainActor
+    static func apply(settingsJson: String?) {
+        let choice = settingsJson.flatMap(JSONValue.object(json:))?["theme"]?.stringValue
+        NSApp.appearance = appearanceName(choice).flatMap(NSAppearance.init(named:))
+    }
+}
+
+import SwiftUI
+
+extension View {
+    /// 浮动窗口（划词浮窗、输入翻译窗、菜单栏面板）的底板：macOS 26 起用系统的 Liquid Glass，
+    /// 更早的系统用标准材质。形状与圆角跟着系统窗口走，不另定义设计令牌。
+    @ViewBuilder
+    func floatingSurface(cornerRadius: CGFloat = 16) -> some View {
+        let shape = RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+        if #available(macOS 26.0, *) {
+            glassEffect(.regular, in: shape)
+        } else {
+            background(.regularMaterial, in: shape).clipShape(shape)
+        }
     }
 }

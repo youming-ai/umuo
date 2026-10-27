@@ -40,11 +40,13 @@ struct ResolveLocaleTests {
 struct CatalogTests {
     let catalog = StringCatalog.main
 
-    @Test func 源语言是简体中文且与Tauri版同样多的条目() {
+    @Test func 源语言是简体中文且保留核心入口文案() {
         #expect(catalog.sourceLanguage == "zh-Hans")
-        // messages.ts + prefs-messages.ts 的简中 key 数（448），外加 SwiftUI 版新增的（设置窗 7 条、
-        // 首次引导的本机模型探测 3 条、快捷面板打开窗口 2 条）；导出脚本重跑、或在 xcstrings 里加了条目，这里跟着改
-        #expect(catalog.entries.count == 460)
+        // 核对当前用户任务，不用旧客户端的条目总数限制功能精简。
+        for key in ["prefs.translate.selection", "prefs.translate.silent", "prefs.translate.compose",
+                    "prefs.translate.ocr", "prefs.engine.apiKey", "panel.copy", "onboarding.seeDesc"] {
+            #expect(catalog.entries[key] != nil, "缺少核心文案：\(key)")
+        }
     }
 
     @Test func 四种语言的key集合完全一致且没有空文案() {
@@ -77,7 +79,6 @@ struct CatalogTests {
 
     @Test func 替换占位符() {
         #expect(Translate(locale: .zhCN)("panel.replaceFailed", ["reason": "目标已切换"]) == "替换失败：目标已切换")
-        #expect(Translate(locale: .en)("panel.switchingModel", ["provider": "DeepSeek"]) == "Retranslating with DeepSeek…")
     }
 
     @Test func 没给参数时保留占位符() {

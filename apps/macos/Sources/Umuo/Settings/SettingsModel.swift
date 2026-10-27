@@ -16,21 +16,23 @@ final class SettingsModel {
     private(set) var queue: SettingsQueue<JSONValue>?
     private(set) var loadError: String?
     private(set) var providers: [ProviderDetail] = []
-    private(set) var styles: [StyleInfo] = []
     /// 当前供应商是否已配 Key。nil = 还没读出来 / 读不到。本机模型（不需要 Key）算已配。
     private(set) var keyConfigured: Bool?
     private(set) var permissions = PermissionStatus()
     /// 开机启动以磁盘上的 LaunchAgent 为准；nil = 还没读出来。
     private(set) var autostart: Bool?
     private(set) var hotkeyFailures: [String] = []
-    private(set) var picks: [ComparePick] = []
-    private(set) var usage: UsageSummary?
-    private(set) var spend: [ProviderUsage] = []
     /// 换分区就结束录键：Tauri 版换页会卸掉录键器、顺带停录；这里录键器不随页面消失，不停的话
     /// 在别的页上按的键（比如在 Key 输入框里按 ⌘V）会被当成快捷键录进去，全局快捷键也一直停着。
     var tab: SettingsTab? {
-        didSet { if tab != oldValue { hotkeys.stop() } }
+        didSet {
+            guard tab != oldValue else { return }
+            hotkeys.stop()
+            onTabChange?(tab)
+        }
     }
+    /// 窗口的分区工具栏跟着切页（`SettingsPaneController`）。
+    @ObservationIgnored var onTabChange: ((SettingsTab?) -> Void)?
     var saveError: String?
     /// 文本框一行的保存错误（行名 → 原因），显示在那一行下面。
     var rowErrors: [String: String] = [:]
@@ -38,11 +40,8 @@ final class SettingsModel {
     /// 各页的子模型。
     @ObservationIgnored private(set) lazy var engine = EngineEditor(self)
     @ObservationIgnored private(set) lazy var hotkeys = HotkeyEditor(self)
-    @ObservationIgnored private(set) lazy var presets = StylePresetsEditor(self)
-    @ObservationIgnored private(set) lazy var glossaries = GlossaryManager(self)
     @ObservationIgnored private(set) lazy var general = GeneralEditor(self)
     @ObservationIgnored private(set) lazy var advanced = AdvancedEditor(self)
-    @ObservationIgnored private(set) lazy var routing = RoutingEditor(self)
 
     /// 最近一次查 Key 状态的序号：结果回来时供应商可能又换了，只认最后一次。
     private var keyCheck = 0
@@ -58,18 +57,13 @@ final class SettingsModel {
 
     var t: Translate { Translate(locale: AppLocale.resolve(setting: values.string("locale", "system"))) }
     /// 系统此刻是不是深色外观（窗口在系统换外观时更新它）；主题选「跟随系统」时按它取。
-    var prefersDark = false
-    var theme: ResolvedTheme { ThemeChoice.resolve(values["theme"]?.stringValue, prefersDark: prefersDark) }
-    var palette: Palette { .of(theme) }
+
     var providerId: String { values.string("providerId") }
     var provider: ProviderDetail? { providers.first { $0.id == providerId } }
 
     var attention: Set<SettingsTab> {
-        let limits = SettingsRules.limits(values.array("monthlyLimits"))
-        let spends = spend.map { (providerId: $0.providerId, costUsd: $0.costUsd) }
-        return SettingsTabs.attention(SettingsAttentionInput(
+        SettingsTabs.attention(SettingsAttentionInput(
             keyConfigured: keyConfigured,
-            someProviderOverLimit: limits.contains { Limits.spend(spends, for: $0.providerId) >= $0.limitUsd },
             permissionMissing: SettingsTabs.missingPermission(permissions.accessibility, permissions.screenRecording)
         ))
     }
@@ -85,11 +79,9 @@ final class SettingsModel {
             return
         }
         providers = await backend.providers()
-        styles = await backend.styles()
         // 重新打开时队列已在：用 `refresh` 叠上最新值（有保存在路上时它会等落定），不另起一条队列打乱保存顺序。
         if let queue {
             queue.refresh(current)
-            routing.reset()
         } else {
             adopt(current)
         }
@@ -101,27 +93,23 @@ final class SettingsModel {
         keyConfigured = needsKey ? key : true
         keyCheckedProvider = current.string("providerId")
         tab = SettingsTabs.initial(SettingsAttentionInput(
-            keyConfigured: keyConfigured, someProviderOverLimit: false,
+            keyConfigured: keyConfigured,
             permissionMissing: SettingsTabs.missingPermission(perms.accessibility, perms.screenRecording)
         ))
 
         // 下面这些都是参考信息：读不到不该拖垮设置窗。
         hotkeyFailures = backend.hotkeyFailures()
         autostart = await backend.autostartStatus()
-        picks = await backend.comparePicks()
-        usage = await backend.usageSummary()
-        spend = await backend.monthlySpend()
     }
 
     private func adopt(_ loaded: SettingsValues) {
         // 每次保存都叠在后端此刻的值上（`applyPatch` 即 `applySettingsPatch`）：设置窗开着时浮窗也会写设置
         // （按 App 记住的目标语言等），拿窗口里的旧快照整份写回会把它们抹掉。
         queue = SettingsQueue(initial: loaded) { [backend] patch in try await backend.applyPatch(patch) }
-        routing.reset()
     }
 
     /// 关掉后再打开：Tauri 版每次新建 WebView、全量重读，各页的草稿与行内状态都从头开始。
-    /// 这里窗口与模型复用，所以先把各页的一次性状态清掉，再整份重新载入（用量、花费、开机启动、初始分区……）。
+    /// 这里窗口与模型复用，所以先把各页的一次性状态清掉，再整份重新载入（开机启动、初始分区……）。
     func reopen() async {
         resetDrafts()
         await load()
@@ -138,8 +126,6 @@ final class SettingsModel {
         rowErrors = [:]
         engine.reset()
         hotkeys.reset()
-        presets.reset()
-        glossaries.reset()
         general.reset()
         advanced.reset()
     }
@@ -161,10 +147,6 @@ final class SettingsModel {
     /// 快捷键重注册完成之后（`HotkeyCenter.onRegistered`）重读失败清单。
     func hotkeysRegistered() {
         hotkeyFailures = backend.hotkeyFailures()
-    }
-
-    func reloadStyles() async {
-        styles = await backend.styles()
     }
 
     // MARK: - 保存
@@ -244,9 +226,7 @@ final class SettingsModel {
     func imported(_ result: ImportResult) async {
         if let latest = JSONValue.object(json: result.settingsJson) {
             if let queue { queue.refresh(latest) } else { adopt(latest) }
-            routing.reset()
         }
-        await reloadStyles()
         await providerMaybeChanged()
     }
 }
@@ -328,7 +308,7 @@ final class EngineEditor {
 
 // MARK: - 快捷键：每行的冲突检查与录键
 
-/// 七行快捷键（翻译页）。录键期间暂停所有全局快捷键——否则录 ⌥D 的那一下会顺手触发一次划词翻译；
+/// 四个活跃入口的快捷键（翻译页）。录键期间暂停所有全局快捷键——否则录 ⌥D 的那一下会顺手触发一次划词翻译；
 /// 同一时刻只有一行在录（`recording`），开始录另一行就先停掉这一行。
 @MainActor @Observable
 final class HotkeyEditor {
@@ -338,9 +318,6 @@ final class HotkeyEditor {
         ("silentReplaceHotkey", "prefs.translate.silent"),
         ("composeHotkey", "prefs.translate.compose"),
         ("ocrHotkey", "prefs.translate.ocr"),
-        ("ocrSilentHotkey", "prefs.translate.ocrSilent"),
-        ("compareHotkey", "prefs.translate.compare"),
-        ("speakHotkey", "prefs.translate.speak"),
     ]
 
     /// 录键最多等这么久就自动放弃（`HotkeyCenter` 的暂停截止是 30 秒，这里留出余量）。
@@ -391,6 +368,7 @@ final class HotkeyEditor {
 
     /// 点一下键帽：没在录就开始录（别的行在录的话先停掉），在录就停。
     func toggle(_ field: String) {
+        guard Self.names.contains(where: { $0.field == field }) else { return }
         notice = nil
         if recording == field { return stop() }
         if recording != nil { stop() }
@@ -455,6 +433,7 @@ final class HotkeyEditor {
     /// 保存一行。与别的功能撞键就不存：两个功能抢同一个键，其中一个注册时会静默失败。
     @discardableResult
     func commit(_ field: String, _ value: String) -> Task<Void, Error>? {
+        guard Self.names.contains(where: { $0.field == field }) else { return nil }
         errors[field] = nil
         if let clash = HotkeyConflict.check(value, others: others(field)), clash.kind == .duplicate {
             errors[field] = model.t("prefs.hotkey.duplicate", ["name": clash.subject ?? ""])
@@ -467,179 +446,6 @@ final class HotkeyEditor {
                 throw error
             }
         }
-    }
-}
-
-// MARK: - 自建风格预设
-
-/// 预设编辑器（`StylePresets.tsx`）：改动只落在 `editing` 上，按「保存」才写回设置——否则每次敲键盘都落盘一次，
-/// 而中间状态（比如标签被清空）在 Rust 侧会被校验拦下。
-@MainActor @Observable
-final class StylePresetsEditor {
-    @ObservationIgnored private unowned let model: SettingsModel
-    var editing: CustomStyle?
-    /// 温度输入框的草稿（解析在保存时做，空串不会被当场改成默认值）。
-    var temperatureText = ""
-    var error: String?
-
-    init(_ model: SettingsModel) { self.model = model }
-
-    func reset() {
-        editing = nil
-        temperatureText = ""
-        error = nil
-    }
-
-    var list: [CustomStyle] { StylePresets.decode(model.values.array("customStyles")) }
-
-    func startNew(now: Int64 = Int64(Date().timeIntervalSince1970 * 1000)) {
-        edit(StylePresets.new(now: now))
-    }
-
-    func edit(_ style: CustomStyle) {
-        error = nil
-        editing = style
-        temperatureText = SettingsRules.format(style.temperature)
-    }
-
-    func cancel() { editing = nil }
-
-    /// 保存。Rust 侧的校验失败（比如 id 撞上内置风格）要说出来，否则用户按了保存、编辑器也关了，却什么都没存上。
-    func save() async {
-        guard var style = editing else { return }
-        style.temperature = StylePresets.parseTemperature(temperatureText)
-        await store(StylePresets.upsert(list, style)) { self.editing = nil }
-    }
-
-    func remove(_ id: String) async {
-        await store(StylePresets.remove(list, id: id)) {}
-    }
-
-    private func store(_ next: [CustomStyle], then done: () -> Void) async {
-        do {
-            try await model.commit(["customStyles": StylePresets.encode(next)]).value
-            done()
-            error = nil
-            // 目录里也要带上新预设，否则风格下拉框要等重开窗口才更新。
-            await model.reloadStyles()
-        } catch {
-            self.error = SettingsRules.message(error)
-        }
-    }
-}
-
-// MARK: - 术语表
-
-/// 术语表管理（`GlossaryManager.tsx`，PRD §5.8）。刻意**用「粘贴 CSV」而不是逐行表格编辑器**：
-/// 用户真正的术语来源是 Excel / Numbers / 厂商给的术语表，都是复制粘贴或存成 CSV 的。
-/// 除了 Tauri 版的粘贴与「复制 CSV」，这里还能从文件读入、导出成文件（文件的读写在视图层，内容同样交给 Rust 解析）。
-@MainActor @Observable
-final class GlossaryManager {
-    @ObservationIgnored private unowned let model: SettingsModel
-    private(set) var lists: [Glossary] = []
-    var editing: Glossary?
-    var text = ""
-    var status: String?
-
-    init(_ model: SettingsModel) { self.model = model }
-
-    func reset() {
-        editing = nil
-        text = ""
-        status = nil
-    }
-
-    func reload() async {
-        do {
-            let next = try await model.backend.glossaries()
-            lists = next
-            // 编辑框跟上存好的那一份；还没存过的新表不在列表里，留着
-            if let current = editing { editing = next.first { $0.id == current.id } ?? current }
-        } catch {
-            status = model.t("prefs.glossary.loadFailed", ["reason": SettingsRules.message(error)])
-        }
-    }
-
-    func startNew(now: Int64 = Int64(Date().timeIntervalSince1970 * 1000)) {
-        status = nil
-        editing = GlossaryEditor.new(now: now)
-        text = ""
-    }
-
-    /// 打开编辑框时把该表现有条目反填成 TSV，用户可以就地改。
-    func edit(_ glossary: Glossary) {
-        status = nil
-        editing = glossary
-        text = GlossaryEditor.editableText(glossary)
-    }
-
-    func cancel() { editing = nil }
-
-    /// 保存。`withEntries` 为假时只存名称与语言对、不动条目。先存表本身、再导入条目——两步分开是因为
-    /// 导入失败时用户不该连表名都丢掉。
-    func save(withEntries: Bool) async {
-        guard let list = editing else { return }
-        do {
-            try await model.backend.saveGlossary(list)
-            if withEntries {
-                let count = try await model.backend.importGlossary(id: list.id, text: text)
-                status = model.t("prefs.glossary.savedWithCount", ["name": list.name, "count": String(count)])
-            } else {
-                status = model.t("prefs.glossary.saved", ["name": list.name])
-            }
-            editing = nil
-            await reload()
-        } catch {
-            status = SettingsRules.message(error)
-        }
-    }
-
-    /// 删除（确认对话框由视图先问过）。
-    func remove(_ list: Glossary) async {
-        do {
-            lists = try await model.backend.removeGlossary(id: list.id)
-            if editing?.id == list.id { editing = nil }
-            status = model.t("prefs.glossary.deleted", ["name": list.name])
-        } catch {
-            status = SettingsRules.message(error)
-        }
-    }
-
-    /// 导出成 CSV 再放进剪贴板：用户可以直接存成文件交给同事。
-    func copyCsv(_ list: Glossary) async {
-        do {
-            let csv = try await model.backend.exportGlossary(id: list.id)
-            status = await model.backend.copyText(csv) ?? model.t("prefs.glossary.copied")
-        } catch {
-            status = SettingsRules.message(error)
-        }
-    }
-
-    /// 导出成文件要的 CSV 文本（写文件由视图层的保存面板做）。失败时状态行写原因、返回 nil。
-    func exportText(_ list: Glossary) async -> String? {
-        do { return try await model.backend.exportGlossary(id: list.id) } catch {
-            status = SettingsRules.message(error)
-            return nil
-        }
-    }
-
-    func exported(to path: String) {
-        status = model.t("prefs.glossary.exportedFile", ["path": path])
-    }
-
-    /// 从文件读入的内容放进编辑框（还没保存：用户看一眼再按「保存并导入」）。没在编辑时新建一张表，表名取文件名。
-    func loadFile(name: String, contents: String) {
-        status = nil
-        if editing == nil {
-            var fresh = GlossaryEditor.new()
-            fresh.name = name
-            editing = fresh
-        }
-        text = contents
-    }
-
-    func fileFailed(_ reason: String) {
-        status = model.t("prefs.glossary.fileFailed", ["reason": reason])
     }
 }
 
@@ -686,7 +492,7 @@ final class GeneralEditor {
     }
 }
 
-// MARK: - 高级页：代理、上限、历史
+// MARK: - 高级页：代理、历史
 
 @MainActor @Observable
 final class AdvancedEditor {
@@ -695,7 +501,6 @@ final class AdvancedEditor {
     var pendingCustom = false
     var proxyError: String?
     var retentionError: String?
-    var limitError: String?
 
     init(_ model: SettingsModel) { self.model = model }
 
@@ -703,7 +508,6 @@ final class AdvancedEditor {
         pendingCustom = false
         proxyError = nil
         retentionError = nil
-        limitError = nil
     }
 
     var proxyMode: String { pendingCustom ? "custom" : model.values.string("proxyMode", "system") }
@@ -731,17 +535,6 @@ final class AdvancedEditor {
         }
     }
 
-    /// 一个供应商的月度上限输入框。认不出的数字（「10,5」）拒绝提交并说明，草稿留着让用户改。
-    func commitLimit(_ providerId: String, _ text: String) -> Task<Void, Error>? {
-        if SettingsRules.isBadNumber(text) {
-            limitError = model.t("prefs.invalidNumber")
-            return nil
-        }
-        limitError = nil
-        let next = SettingsRules.setLimit(model.values.array("monthlyLimits"), providerId: providerId, to: Limits.parse(text))
-        return model.commit(["monthlyLimits": .array(next)])
-    }
-
     func commitRetention(_ text: String) -> Task<Void, Error>? {
         if SettingsRules.isBadNumber(text) {
             retentionError = model.t("prefs.invalidNumber")
@@ -749,64 +542,5 @@ final class AdvancedEditor {
         }
         retentionError = nil
         return model.commit(["historyRetentionDays": .number(Double(SettingsRules.retentionDays(text)))])
-    }
-}
-
-// MARK: - 分场景模型、对比模型、备用顺序
-
-/// 分场景模型的草稿（`SceneRouting.tsx`）：**本地草稿 + 失焦提交**。配置里不允许出现「选了供应商但模型名为空」的中间态
-/// （`SceneRouting.set` 会把它当成未配置丢弃），边打字边存会让输入框刚敲进去的内容立刻被清掉。
-@MainActor @Observable
-final class RoutingEditor {
-    @ObservationIgnored private unowned let model: SettingsModel
-    var drafts: [SceneKey: ModelRef] = [:]
-    /// 两个「加一条」行各自的草稿。
-    var fallbackDraft = ModelRef(providerId: "", model: "")
-    var compareDraft = ModelRef(providerId: "", model: "")
-
-    init(_ model: SettingsModel) { self.model = model }
-
-    var scenes: [String: JSONValue] { model.values.object("sceneModels") }
-
-    /// 设置（重新）载入后，草稿跟上存好的值。
-    func reset() {
-        let scenes = model.values.object("sceneModels")
-        drafts = Dictionary(uniqueKeysWithValues: SceneKey.allCases.map { key in
-            (key, scenes[key.rawValue]?.modelRef ?? ModelRef(providerId: "", model: ""))
-        })
-    }
-
-    func saved(_ key: SceneKey) -> ModelRef? { scenes[key.rawValue]?.modelRef }
-
-    func commitScene(_ key: SceneKey) {
-        let draft = drafts[key] ?? ModelRef(providerId: "", model: "")
-        let next = SettingsRules.setScene(scenes, key, to: draft)
-        guard next != scenes else { return }
-        model.commit(["sceneModels": .object(next)])
-    }
-
-    var fallbacks: [ModelRef] { SettingsRules.modelRefs(model.values.array("fallbackModels")) }
-    var compareModels: [ModelRef] { SettingsRules.modelRefs(scenes["compare"]?.arrayValue ?? []) }
-
-    func setFallbacks(_ list: [ModelRef]) {
-        model.commit(["fallbackModels": .array(list.map(JSONValue.init))])
-    }
-
-    /// 对比模型在 `sceneModels.compare` 里：只换这一个键，场景模型与未知字段原样带上。
-    func setCompare(_ list: [ModelRef]) {
-        var next = scenes
-        next["compare"] = .array(list.map(JSONValue.init))
-        model.commit(["sceneModels": .object(next)])
-    }
-
-    /// 加一条。重复项会被忽略；不管加没加上都清空输入，否则用户会以为没生效而反复点。
-    func addFallback() {
-        setFallbacks(SceneRouting.addFallback(fallbacks, fallbackDraft))
-        fallbackDraft = ModelRef(providerId: "", model: "")
-    }
-
-    func addCompare() {
-        setCompare(SceneRouting.addFallback(compareModels, compareDraft))
-        compareDraft = ModelRef(providerId: "", model: "")
     }
 }

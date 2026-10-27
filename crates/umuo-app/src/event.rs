@@ -1,6 +1,6 @@
-//! 翻译与对比流水线发给界面的事件。
+//! 翻译流水线发给界面的事件。
 //!
-//! 流水线只认这里的事件和 [`TranslateSink`] / [`CompareSink`]，不碰任何窗口系统：
+//! 流水线只认这里的事件和 [`TranslateSink`]，不碰任何窗口系统：
 //! SwiftUI 客户端经 FFI 接收类型化事件。
 //!
 //! 历史 JSON 契约由 `tests/event_wire.rs` 的黄金快照逐字节守着：
@@ -17,8 +17,6 @@ use umuo_core::error::SuggestedAction;
 pub struct Route {
     pub surface: &'static str,
     pub request_id: u64,
-    /// 撰写窗的回译。前端据此把它放进单独的区域，不覆盖主译文（审查 M16）。
-    pub back: bool,
 }
 
 /// 发给浮窗 / 撰写窗的翻译事件。序列化为**载荷本身**（untagged），事件名见 [`TranslateEvent::name`]。
@@ -52,36 +50,6 @@ pub trait TranslateSink: Send + Sync {
     fn send(&self, route: Route, event: TranslateEvent);
 }
 
-/// 发给对比窗的事件。序列化为载荷本身（untagged），事件名见 [`CompareEvent::name`]。
-#[derive(Clone, Serialize)]
-#[serde(untagged)]
-pub enum CompareEvent {
-    Start(CompareStartPayload),
-    Delta(CompareDeltaPayload),
-    Done(CompareDonePayload),
-    Error(CompareErrorPayload),
-    /// 整窗级的提示（没有卡片时也要显示）。用单独的事件而不是 `index: 0` 的错误——
-    /// 后者在没有卡片时会被丢掉，有旧卡片时又会挂到上一轮的第一张上（审查 M17）。
-    Notice(CompareNoticePayload),
-}
-
-impl CompareEvent {
-    pub fn name(&self) -> &'static str {
-        match self {
-            Self::Start(_) => "compare://start",
-            Self::Delta(_) => "compare://delta",
-            Self::Done(_) => "compare://done",
-            Self::Error(_) => "compare://error",
-            Self::Notice(_) => "compare://notice",
-        }
-    }
-}
-
-/// 收对比事件的一方（对比窗只有一个，所以不需要路由）。实现必须立即返回。
-pub trait CompareSink: Send + Sync {
-    fn send(&self, event: CompareEvent);
-}
-
 macro_rules! into_event {
     ($event:ident: $($payload:ident => $variant:ident),* $(,)?) => {
         $(impl From<$payload> for $event {
@@ -93,8 +61,6 @@ macro_rules! into_event {
 }
 into_event!(TranslateEvent: StartPayload => Start, DeltaPayload => Delta, CardPayload => Card,
     DonePayload => Done, ErrorPayload => Error);
-into_event!(CompareEvent: CompareStartPayload => Start, CompareDeltaPayload => Delta,
-    CompareDonePayload => Done, CompareErrorPayload => Error, CompareNoticePayload => Notice);
 
 // ---------------------------------------------------------------- 翻译事件载荷
 
@@ -119,27 +85,22 @@ pub struct DeltaPayload {
 #[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DonePayload {
-    /// 结果之外要说的一句话（目前只有月度上限用它）。
+    /// 结果之外要说的一句话（目前只有「译文可能不完整」）。
     ///
     /// 单独一个字段而不是复用错误事件：翻译**成功了**，
     /// 把它渲染成错误块会让用户以为没翻出来。
     pub warning: Option<String>,
-    /// 实际服务的那一次尝试所用的模型——故障转移后可能与首选不同，
-    /// 结果卡片必须说真话（PRD §6.3）。
+    /// 这次请求实际使用的模型。
     pub model: String,
     pub input_tokens: u32,
     pub output_tokens: u32,
     /// 用量是本地估算的（厂商没回 usage）。
     pub estimated: bool,
-    /// 价格表里查不到这个模型时为 null，UI 显示「无价格信息」而不是编一个数字。
-    pub cost_usd: Option<f64>,
     pub first_token_ms: Option<u64>,
     pub total_ms: u64,
     /// 译文是否已经写回原处。静默翻译成功时为 true——UI 据此告诉用户
     /// 「原文已经被换掉了」，而不是让他以为这只是个预览。
     pub replaced: bool,
-    /// 这次是用本机模型翻的（原请求因网络不通失败了）——PRD §7.5 要求标注「离线」。
-    pub offline: bool,
 }
 
 #[derive(Clone, Serialize)]
@@ -147,13 +108,6 @@ pub struct DonePayload {
 pub struct CardSense {
     pub part_of_speech: String,
     pub definition: String,
-}
-
-#[derive(Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct CardExample {
-    pub source: String,
-    pub target: String,
 }
 
 /// 单词词卡。字段与 `umuo_core::word_card::WordCard` 一一对应，
@@ -164,8 +118,6 @@ pub struct CardPayload {
     pub word: String,
     pub phonetic: Option<String>,
     pub senses: Vec<CardSense>,
-    pub forms: Vec<String>,
-    pub examples: Vec<CardExample>,
 }
 
 #[derive(Clone, Serialize)]
@@ -185,67 +137,4 @@ pub struct ErrorPayload {
     /// 在 start 之前就失败的请求（例如换到一个没配 Key 的模型），前端会清掉上一次的
     /// 内容；带上原文，浮窗才能继续显示「这次翻的是什么」，「重试」也才有东西可翻。
     pub source: Option<String>,
-}
-
-// ---------------------------------------------------------------- 对比事件载荷
-
-#[derive(Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct CompareCard {
-    pub index: usize,
-    /// 供应商**id**：前端要拿它拼「选它」的偏好键，展示名不能用来当键。
-    pub provider_id: String,
-    pub provider: String,
-    pub model: String,
-}
-
-#[derive(Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct CompareStartPayload {
-    /// 这一轮对比的 id。前端只认最新一轮的事件，上一轮迟到的增量一律丢掉（审查 M1）。
-    pub run_id: u64,
-    pub text: String,
-    pub target_lang: String,
-    pub cards: Vec<CompareCard>,
-}
-
-#[derive(Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct CompareDeltaPayload {
-    pub run_id: u64,
-    pub index: usize,
-    pub text: String,
-}
-
-#[derive(Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct CompareDonePayload {
-    pub run_id: u64,
-    pub index: usize,
-    pub model: String,
-    /// 端到端耗时。对比场景里这是用户真正在比较的东西之一。
-    pub total_ms: u64,
-    pub first_token_ms: Option<u64>,
-    pub input_tokens: u32,
-    pub output_tokens: u32,
-    pub estimated: bool,
-    pub cost_usd: Option<f64>,
-    /// 译文不完整：输出触到长度上限，或连接在结束信号前断开（审查 M4）。
-    /// 卡片照常显示这半段，但要标出来；也不进历史。
-    pub truncated: bool,
-}
-
-#[derive(Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct CompareErrorPayload {
-    pub run_id: u64,
-    pub index: usize,
-    pub message: String,
-}
-
-#[derive(Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct CompareNoticePayload {
-    pub run_id: u64,
-    pub message: String,
 }

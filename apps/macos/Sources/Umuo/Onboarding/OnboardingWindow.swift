@@ -46,9 +46,7 @@ final class OnboardingWindowController: NSObject, NSWindowDelegate {
     func close() { window?.close() }
 
     private func refreshAppearance(_ model: OnboardingModel) {
-        let prefersDark = NSApp.effectiveAppearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
-        let appearance = PanelRules.appearance(settingsJson: app.settingsJson, prefersDark: prefersDark)
-        model.theme = appearance.theme
+        let appearance = PanelRules.appearance(settingsJson: app.settingsJson)
         model.t = Translate(locale: appearance.locale)
     }
 

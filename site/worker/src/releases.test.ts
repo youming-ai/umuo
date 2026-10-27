@@ -116,6 +116,30 @@ describe('/api/release', () => {
 describe('自动更新', () => {
   const pkg = 'macos/umuo-0.1.9-universal.app.tar.gz'
 
+  it('Sparkle 清单按原文返回且不缓存', async () => {
+    const xml =
+      '<?xml version="1.0"?><rss version="2.0"><channel><title>umuo</title></channel></rss>'
+    const response = await call(
+      '/download/macos/appcast.xml',
+      fakeReleases({ 'macos/appcast.xml': xml }),
+    )
+    expect(response.status).toBe(200)
+    expect(response.headers.get('content-type')).toBe('application/xml; charset=utf-8')
+    expect(response.headers.get('cache-control')).toBe('no-store')
+    expect(await response.text()).toBe(xml)
+  })
+
+  it('Sparkle 未发布时返回有效空频道，读取故障则报告不可用', async () => {
+    const empty = await call('/download/macos/appcast.xml', fakeReleases({}))
+    expect(empty.status).toBe(200)
+    expect(await empty.text()).toContain('<channel>')
+    const env = fakeReleases({})
+    env.RELEASES.get = async () => {
+      throw new Error('R2 unavailable')
+    }
+    expect((await call('/download/macos/appcast.xml', env)).status).toBe(503)
+  })
+
   it('给出 update.json，不缓存', async () => {
     const response = await call(
       '/download/macos/update.json',

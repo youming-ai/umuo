@@ -2,14 +2,14 @@ import AppKit
 import Observation
 import UmuoCore
 
-/// 应用级状态：正式的 Engine 与宿主、全局快捷键、七个功能的分发。窗口按 docs/SWIFTUI-MIGRATION.md 的阶段 3 接上来。
+/// 应用级状态：正式的 Engine 与宿主、全局快捷键、核心功能的分发。窗口按 docs/SWIFTUI-MIGRATION.md 的阶段 3 接上来。
 ///
 /// 线程：这个类在 MainActor 上；Engine 的同步方法（打开、读写设置、SQLite）一律放进 `Task.detached`，
 /// 结果再回到 MainActor（ARCHITECTURE §2.3）——主线程同步调 Engine 时，宿主回调若要等主线程就会互相卡死。
 @MainActor @Observable
 final class AppModel {
     let frontmost = FrontmostApp()
-    /// 七个功能的处理函数，由各窗口接上。
+    /// 核心功能的处理函数，由各窗口接上。
     let actions: ActionRouter
     /// 全局组合键与连按（连按的 `DoubleTapRouter` 在它里面）。只有 `registersHotkeys` 为真才真的注册。
     let hotkeys: HotkeyCenter
@@ -21,8 +21,9 @@ final class AppModel {
     private(set) var engineStatus = "内核启动中…"
     /// 最近一次的整份设置（JSON）。窗口从这里读主题、界面语言；保存设置后由 `settingsApplied` 更新。
     private(set) var settingsJson: String?
-    /// 朗读（浮窗、撰写窗、⌥R 共用一个：「停上一段再念」只有一个合成器时才成立）。
+    /// 朗读（浮窗与撰写窗共用一个：「停上一段再念」只有一个合成器时才成立）。
     let speech = Speech()
+    let updater = AppUpdater()
     /// 划词浮窗。`start()` 里才建：`swift test` 会构造 AppModel，那里不该开窗口。
     @ObservationIgnored private(set) var panel: PanelController?
 
@@ -34,9 +35,8 @@ final class AppModel {
     @ObservationIgnored var onboardingOpener: (@MainActor () -> Void)?
     /// 设置窗。`start()` 里才建，理由同 `panel`。
     @ObservationIgnored private(set) var settingsWindow: SettingsWindowController?
-    /// 撰写窗与对比窗。`start()` 里才建，理由同 `panel`。
+    /// 撰写窗。`start()` 里才建，理由同 `panel`。
     @ObservationIgnored private(set) var compose: ComposeController?
-    @ObservationIgnored private(set) var compare: CompareController?
     /// 历史窗、首次引导、快捷面板与菜单栏图标。`start()` 里才建，理由同 `panel`。
     @ObservationIgnored private(set) var history: HistoryWindowController?
     @ObservationIgnored private(set) var onboarding: OnboardingWindowController?
@@ -57,20 +57,16 @@ final class AppModel {
     func start() {
         NSApplication.shared.setActivationPolicy(.accessory)
         frontmost.start()
+        updater.start()
         let panel = PanelController(app: self)
         self.panel = panel
         actions.handle(.selection) { panel.triggerSelection() }
         actions.handle(.silentReplace) { panel.triggerSilentReplace() }
-        actions.handle(.speak) { panel.triggerSpeak() }
         actions.handle(.ocr) { panel.triggerOcr() }
-        actions.handle(.ocrSilent) { panel.triggerSilentOcr() }
         let compose = ComposeController(app: self)
         self.compose = compose
         composeOpener = { compose.open($0) }
         actions.handle(.compose) { compose.toggle() }
-        let compare = CompareController(app: self)
-        self.compare = compare
-        actions.handle(.compare) { compare.trigger() }
         let settings = SettingsWindowController(app: self)
         settingsWindow = settings
         settingsOpener = { settings.show() }
@@ -110,7 +106,7 @@ final class AppModel {
             }
             settingsWindow?.engineReady()
             history?.engineReady()
-            statusBar?.applyStyle(settingsJson: settingsJson)
+            ThemeChoice.apply(settingsJson: settingsJson)
             if Self.needsOnboarding(settingsJson: settingsJson) { scheduleOnboarding() }
         case let .failure(error):
             engineStatus = "内核启动失败：\(error)"
@@ -121,7 +117,7 @@ final class AppModel {
     /// `settingsJson` 是 `SettingsUpdate.settingsJson` / `ImportResult.settingsJson`，已在后台拿到。
     func settingsApplied(settingsJson: String, hotkeysChanged: Bool) {
         self.settingsJson = settingsJson
-        statusBar?.applyStyle(settingsJson: settingsJson)
+        ThemeChoice.apply(settingsJson: settingsJson)
         guard hotkeysChanged, registersHotkeys else { return }
         hotkeys.reregister(HotkeyCenter.values(settingsJson: settingsJson))
     }
@@ -168,15 +164,8 @@ final class AppModel {
 
     func hideQuickPanel() { quick?.hide() }
 
-    /// 菜单里的「检查更新…」：应用内更新随阶段 5（Sparkle / 官网 R2），现在只说明去官网下载（与设置「关于」页同一句）。
-    func checkForUpdates() {
-        let locale = PanelRules.appearance(settingsJson: settingsJson, prefersDark: false).locale
-        let alert = NSAlert()
-        alert.messageText = "umuo"
-        alert.informativeText = Translate(locale: locale)("prefs.about.checkUpdatesPending")
-        NSApp.activate(ignoringOtherApps: true)
-        alert.runModal()
-    }
+    /// 菜单与关于页共用同一个 Sparkle 会话。
+    func checkForUpdates() { updater.checkForUpdates() }
 
     /// 菜单里的「退出 umuo」。
     func quit() {

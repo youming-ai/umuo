@@ -11,7 +11,8 @@
       "!**/target",
       "!**/coverage",
       "!**/gen",
-      "!**/*.gen.ts"
+      "!**/*.gen.ts",
+      "!**/*.md"
     ]
   },
   "formatter": {

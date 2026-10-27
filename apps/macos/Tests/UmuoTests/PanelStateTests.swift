@@ -11,14 +11,12 @@ private let start = PanelStart(requestId: 1, text: "Hello world", provider: "Ope
                                targetLang: "中文", wordMode: false, mode: .selection)
 
 private let done = PanelDone(requestId: 1, model: "gpt-4o-mini", inputTokens: 120, outputTokens: 40, estimated: false,
-                             costUsd: 0.000104, firstTokenMs: 420, totalMs: 900, replaced: false, warning: nil,
-                             offline: false)
+                             firstTokenMs: 420, totalMs: 900, replaced: false, warning: nil)
 
 private let failure = PanelError(requestId: 1, message: "请求过于频繁", actions: [.retry, .switchModel],
                                  needsPermission: false, permission: nil, source: nil)
 
-private let card = WordCard(word: "hello", phonetic: "/həˈloʊ/", senses: [.init(partOfSpeech: "int.", definition: "你好")],
-                            forms: [], examples: [.init(source: "Hello there", target: "你好")])
+private let card = WordCard(word: "hello", phonetic: "/həˈloʊ/", senses: [.init(partOfSpeech: "int.", definition: "你好")])
 
 private func with<T>(_ value: T, _ change: (inout T) -> Void) -> T {
     var copy = value
@@ -111,31 +109,26 @@ struct PanelReducerTests {
     }
 }
 
-@Suite("cost line")
-struct CostLineTests {
+@Suite("metrics line")
+struct MetricsLineTests {
     @Test func isAbsentUntilTheRequestCompletes() {
-        #expect(costLine(nil, t) == nil)
+        #expect(metricsLine(nil, t) == nil)
     }
 
-    @Test func showsTokensCostAndLatency() throws {
-        let line = try #require(costLine(done, t))
+    @Test func showsTokensAndLatencyButNoCost() throws {
+        let line = try #require(metricsLine(done, t))
         #expect(line.contains("120 → 40 tokens"))
-        #expect(line.contains("$0.0001"))
         #expect(line.contains("首字 420ms"))
-    }
-
-    @Test func saysNoPriceInsteadOfInventingANumber() throws {
-        let line = try #require(costLine(with(done) { $0.costUsd = nil }, t))
-        #expect(line.contains("无价格信息"))
-        #expect(!line.contains("$"))
+        #expect(!line.contains("$"), "费用估算已退出")
+        #expect(!line.contains("无价格信息"))
     }
 
     @Test func labelsEstimatedUsage() {
-        #expect(costLine(with(done) { $0.estimated = true }, t)?.contains("估算") == true)
+        #expect(metricsLine(with(done) { $0.estimated = true }, t)?.contains("估算") == true)
     }
 
     @Test func fallsBackToTotalLatencyWhenThereWasNoStreamedFirstToken() throws {
-        let line = try #require(costLine(with(done) { $0.firstTokenMs = nil }, t))
+        let line = try #require(metricsLine(with(done) { $0.firstTokenMs = nil }, t))
         #expect(line.contains("900ms"))
         #expect(!line.contains("首字"))
     }
@@ -231,24 +224,6 @@ struct SilentReplaceTests {
     }
 }
 
-@Suite("离线回落的显示（PRD §7.5）")
-struct OfflineTests {
-    let base = with(PanelState.initial) { $0.provider = "OpenAI"; $0.model = "llama3.1:8b"; $0.targetLang = "简体中文" }
-
-    @Test func 离线时标出离线并且不沿用云端厂商的名字() {
-        let line = with(base) { $0.offline = true }.statusLine(t)
-        #expect(line.contains("离线"))
-        #expect(line.contains("llama3.1:8b"))
-        #expect(!line.contains("OpenAI"))
-    }
-
-    @Test func 正常翻译时不出现离线字样() {
-        let line = base.statusLine(t)
-        #expect(line.contains("OpenAI"))
-        #expect(!line.contains("离线"))
-    }
-}
-
 @Suite("按请求 id 过滤事件（审查 M1 / M15）")
 struct RequestIdTests {
     let newer = with(start) { $0.requestId = 2; $0.text = "Second" }
@@ -323,33 +298,18 @@ struct RetranslateModeTests {
     }
 }
 
-@Suite("favoriteTranslation（审查 L23）")
-struct FavoriteTranslationTests {
-    @Test func 完成后存完整译文() {
-        #expect(run(.start(start), .delta(requestId: 1, text: "你好世界"), .done(done)).favoriteTranslation == "你好世界")
-    }
-
-    @Test func 流式中途不存半截译文() {
-        #expect(run(.start(start), .delta(requestId: 1, text: "你好")).favoriteTranslation == nil)
-    }
-
-    @Test func 词卡模式没有纯文本译文时存nil而不是空串() {
-        #expect(run(.start(with(start) { $0.wordMode = true }), .done(done)).favoriteTranslation == nil)
-    }
-}
-
 /// Engine 的事件经 `PanelAction(route:event:)` 换成动作：id 取自路由，认不出来的模式按划词算。
 @Suite("事件换型与视图模型")
 @MainActor
 struct PanelModelTests {
     @Test func ffiEventsDriveTheModelAndStaleOnesAreReportedAsDropped() {
         let model = PanelModel()
-        let route = Route(surface: "panel", requestId: 5, back: false)
+        let route = Route(surface: "panel", requestId: 5)
         #expect(model.apply(route: route, event: .start(text: "hi", provider: "OpenAI", model: "m", targetLang: "中文",
                                                         wordMode: false, mode: "ocr")))
         #expect(model.state.mode == .ocr)
         #expect(model.apply(route: route, event: .delta(text: "你好")))
-        let stale = Route(surface: "panel", requestId: 4, back: false)
+        let stale = Route(surface: "panel", requestId: 4)
         #expect(!model.apply(route: stale, event: .delta(text: "旧")))
         #expect(model.apply(route: route, event: .error(message: "缺权限", actions: [], needsPermission: true,
                                                         permission: "screenRecording", source: nil)))

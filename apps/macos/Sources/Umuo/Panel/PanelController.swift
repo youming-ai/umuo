@@ -57,7 +57,6 @@ final class PanelController: PanelBackend {
                 if self.showGeneration == generation { self.session.owner = token }
             }
         }
-        refreshChoices()
     }
 
     /// 截图翻译这类**不经划词**的入口：浮窗没开就开出来；已经开着就不挪位置（免得把用户正在看的浮窗拽到鼠标下）。
@@ -74,7 +73,6 @@ final class PanelController: PanelBackend {
         }
         armEscape()
         startWatchdog()
-        refreshChoices()
     }
 
     func hidePanel() {
@@ -115,26 +113,9 @@ final class PanelController: PanelBackend {
     /// 主题、界面语言与界面缩放跟设置走（所有窗口同一套），「跟随系统」时按当前系统外观。
     /// 每次显示时重读：设置改了之后下一次弹出浮窗生效（Tauri 是广播 `settings://*` 即时生效）。
     private func refreshAppearance() {
-        let prefersDark = NSApp.effectiveAppearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
-        let appearance = PanelRules.appearance(settingsJson: app.settingsJson, prefersDark: prefersDark)
-        session.theme = appearance.theme
+        let appearance = PanelRules.appearance(settingsJson: app.settingsJson)
         session.locale = appearance.locale
-        session.scale = appearance.scale
         window.invalidateShadow()
-    }
-
-    /// 能换的模型与风格。每次显示都重读：用户刚在设置里配了 Key，下一次浮窗就该能选它。
-    /// `configuredProviders` 逐家读 Keychain，后台做。
-    private func refreshChoices() {
-        guard let engine = app.engine else { return }
-        Task.detached {
-            let providers = engine.configuredProviders()
-            let styles = engine.styleCatalog()
-            await MainActor.run {
-                self.session.providers = providers
-                self.session.styles = styles
-            }
-        }
     }
 
     /// 「切走就收起」看门狗（PRD §7.1：失焦关闭，可钉住）。
@@ -237,16 +218,6 @@ final class PanelController: PanelBackend {
     }
 
     func stopSpeaking() { app.speech.stop() }
-
-    func favoriteToggle(text: String, translation: String?) async throws -> Bool {
-        guard let engine = app.engine else { throw EngineError.Failed(message: app.engineStatus) }
-        return try await Task.detached { try engine.favoriteToggle(text: text, translation: translation) }.value
-    }
-
-    func favoriteStatus(_ text: String) async -> Bool {
-        guard let engine = app.engine else { return false }
-        return await Task.detached { (try? engine.favoritesStatus(texts: [text]))?.first ?? false }.value
-    }
 
     func replace(_ text: String, owner: String?) async -> String? {
         await Task.detached { Self.replaceSource(text, owner: owner) }.value

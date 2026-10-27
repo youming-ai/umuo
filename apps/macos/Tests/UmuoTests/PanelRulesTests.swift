@@ -33,28 +33,11 @@ struct PanelRulesTests {
         #expect(origin.x >= second.minX)
     }
 
-    @Test func 外观跟设置走_读不到设置按系统() {
-        let chosen = PanelRules.appearance(settingsJson: #"{"theme":"light","locale":"ja"}"#,
-                                           prefersDark: true, systemLanguages: ["en-US"])
-        #expect(chosen.theme == .light && chosen.locale == .ja)
-        let followed = PanelRules.appearance(settingsJson: nil, prefersDark: true, systemLanguages: ["zh-Hant-TW"])
-        #expect(followed.theme == .dark && followed.locale == .zhTW && followed.scale == 1)
-        let contrast = PanelRules.appearance(settingsJson: #"{"theme":"highContrast"}"#, prefersDark: false)
-        #expect(contrast.theme == .highContrast)
-    }
-
-    // Tauri 的 `applyScale(settings.uiScale)`：原值生效，读不到或是坏值就不缩放。
-    @Test func 界面缩放跟设置走_坏值按一() {
-        func scale(_ json: String) -> Double { PanelRules.appearance(settingsJson: json, prefersDark: false).scale }
-        #expect(scale("{}") == 1)
-        #expect(scale(#"{"uiScale":1.25}"#) == 1.25)
-        #expect(scale(#"{"uiScale":0.85}"#) == 0.85)
-        #expect(scale(#"{"uiScale":"1.5"}"#) == 1)
-        #expect(scale(#"{"uiScale":0}"#) == 1)
-        #expect(scale(#"{"uiScale":-2}"#) == 1)
-        #expect(scale(#"{"uiScale":9}"#) == 1.5, "越界值收进档位范围")
-        #expect(Palette.Metrics(scale: 1.5).body == Palette.Metric.body * 1.5)
-        #expect(Palette.Metrics().caption == Palette.Metric.caption)
+    @Test func 界面语言跟设置走_读不到设置按系统() {
+        let chosen = PanelRules.appearance(settingsJson: #"{"theme":"light","locale":"ja"}"#, systemLanguages: ["en-US"])
+        #expect(chosen.locale == .ja)
+        let followed = PanelRules.appearance(settingsJson: nil, systemLanguages: ["zh-Hant-TW"])
+        #expect(followed.locale == .zhTW)
     }
 
     // 「替换原文」的 ⌘V 兜底前的那道检查（`check_panel_writable`，Rust 的同名测试逐条改写）。

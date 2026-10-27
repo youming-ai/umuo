@@ -12,6 +12,7 @@
 #                            三个都设了才公证（notarytool --wait）并 staple；与 Tauri 打包用的同名变量一致
 #   TAURI_SIGNING_PRIVATE_KEY（私钥内容）或 TAURI_SIGNING_PRIVATE_KEY_PATH（默认 ~/.tauri/umuo-updater.key）
 #   TAURI_SIGNING_PRIVATE_KEY_PASSWORD                       --updater-sign 用；沿用已发布旧客户端的同一把钥匙
+#   SPARKLE_PUBLIC_ED_KEY    Sparkle Ed25519 公钥（正式构建必填，generate_keys --account app.umuo.desktop 生成）
 #   OUT_DIR                  产物目录，默认 apps/macos/dist（--quick 时 .build/bundle-smoke）
 #
 # 产物：$OUT_DIR/umuo.app、umuo_<版本>_universal.dmg、umuo.app.tar.gz（+ .sig）。
@@ -65,6 +66,12 @@ else
   fi
 fi
 
+# 正式包必须带原生更新验签公钥；冒烟不启用更新，不访问签名 Keychain。
+if [ "$quick" = 0 ]; then
+  [ -n "${SPARKLE_PUBLIC_ED_KEY:-}" ] || fail "正式包要 SPARKLE_PUBLIC_ED_KEY（Sparkle Ed25519 公钥）"
+  echo "$SPARKLE_PUBLIC_ED_KEY" | grep -Eq '^[A-Za-z0-9+/]{43}=$' || fail "SPARKLE_PUBLIC_ED_KEY 必须是 32 字节的 Base64 公钥"
+fi
+
 if [ "$quick" = 1 ]; then
   OUT_DIR="${OUT_DIR:-$here/.build/bundle-smoke}"
 else
@@ -106,7 +113,7 @@ fi
 # ---- 组装
 step "组装 ${app}（${VERSION}）"
 rm -rf "$app"
-mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"
+mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources" "$app/Contents/Frameworks"
 # shellcheck disable=SC2086
 if [ "$quick" = 1 ]; then
   cp $binaries "$app/Contents/MacOS/$exe_name"
@@ -115,11 +122,27 @@ else
   # 去掉本地符号：通用二进制 27 MB → 19 MB（安装包门槛 30 MB）。全局符号留着，崩溃栈仍看得出函数名
   strip -x "$app/Contents/MacOS/$exe_name" 2>/dev/null || fail "strip 失败"
 fi
+# SwiftPM 可能留下指向构建机 PackageFrameworks 的绝对 rpath。移除后只从包内加载更新框架。
+otool -l "$app/Contents/MacOS/$exe_name" | sed -n 's/^ *path \(.*\) (offset .*$/\1/p' |
+  while IFS= read -r search_path; do
+    case "$search_path" in
+      "$here"/.build/*) install_name_tool -delete_rpath "$search_path" "$app/Contents/MacOS/$exe_name" ;;
+    esac
+  done
 sed "s/@VERSION@/$VERSION/g" "$here/packaging/Info.plist" >"$app/Contents/Info.plist"
 printf 'APPL????' >"$app/Contents/PkgInfo"
 cp "$here/packaging/icon.icns" "$app/Contents/Resources/icon.icns"
 # Bundle.module 先在 Bundle.main.resourceURL（Contents/Resources）里找 Umuo_Umuo.bundle（文案表与菜单栏图标）
 cp -R "$resources" "$app/Contents/Resources/"
+# SwiftPM 的二进制依赖放在 bin_dir；用 ditto 保留 framework 的符号链接与执行权限。
+[ -d "$bin_dir/Sparkle.framework" ] || fail "Sparkle.framework 缺失"
+ditto "$bin_dir/Sparkle.framework" "$app/Contents/Frameworks/Sparkle.framework"
+if [ "$quick" = 0 ]; then
+  plutil -insert SUFeedURL -string 'https://umuo.app/download/macos/appcast.xml' "$app/Contents/Info.plist"
+  plutil -insert SUPublicEDKey -string "$SPARKLE_PUBLIC_ED_KEY" "$app/Contents/Info.plist"
+  plutil -insert SUAutomaticallyUpdate -bool NO "$app/Contents/Info.plist"
+  plutil -insert SUEnableSystemProfiling -bool NO "$app/Contents/Info.plist"
+fi
 plutil -lint -s "$app/Contents/Info.plist" || fail "Info.plist 不合法"
 
 # ---- 签名：由内向外。SwiftPM 的资源包是带 _CodeSignature 的嵌套 bundle（里面没有代码），
@@ -127,12 +150,33 @@ plutil -lint -s "$app/Contents/Info.plist" || fail "Info.plist 不合法"
 # 不用 --deep：它会给嵌套内容套上同一组权利
 sign() {
   if [ -n "$identity" ]; then
-    codesign --force --options runtime --timestamp --entitlements "$here/packaging/umuo.entitlements" --sign "$identity" "$@"
+    codesign --force --options runtime --timestamp --entitlements "$entitlements" --sign "$identity" "$@"
   else
-    # ad-hoc 没有时间戳服务可用；hardened runtime 照开，行为与正式签名一致
-    codesign --force --options runtime --entitlements "$here/packaging/umuo.entitlements" --sign - "$@"
+    # ad-hoc 没有时间戳服务可用；保留 hardened runtime，开发权利只放宽库校验
+    codesign --force --options runtime --entitlements "$entitlements" --sign - "$@"
   fi
 }
+# Sparkle 官方要求按此顺序重签；Downloader 保留上游自己的权利，其余 helper 不套宿主权利。
+sign_sparkle() {
+  if [ -n "$identity" ]; then
+    codesign --force --options runtime --timestamp --sign "$identity" "$@"
+  else
+    codesign --force --options runtime --sign - "$@"
+  fi
+}
+framework="$app/Contents/Frameworks/Sparkle.framework"
+step "签名 Sparkle 的辅助程序与框架"
+sign_sparkle "$framework/Versions/B/XPCServices/Installer.xpc"
+sign_sparkle --preserve-metadata=entitlements "$framework/Versions/B/XPCServices/Downloader.xpc"
+sign_sparkle "$framework/Versions/B/Autoupdate"
+sign_sparkle "$framework/Versions/B/Updater.app"
+sign_sparkle "$framework"
+entitlements="$here/packaging/umuo.entitlements"
+if [ -z "$identity" ]; then
+  entitlements="$OUT_DIR/adhoc.entitlements"
+  cp "$here/packaging/umuo.entitlements" "$entitlements"
+  /usr/libexec/PlistBuddy -c "Add :com.apple.security.cs.disable-library-validation bool true" "$entitlements"
+fi
 step "签名（${identity:-ad-hoc}）"
 sign "$app/Contents/Resources/Umuo_Umuo.bundle"
 sign "$app"
@@ -150,11 +194,15 @@ check "URL scheme" "$(plist_get CFBundleURLTypes.0.CFBundleURLSchemes.0)" umuo
 for f in Umuo_Umuo.bundle/Contents/Resources/Strings/Localizable.xcstrings Umuo_Umuo.bundle/Contents/Resources/Tray icon.icns; do
   [ -e "$app/Contents/Resources/$f" ] || fail "Contents/Resources/$f 缺了"
 done
-codesign --verify --strict --verbose=2 "$app" 2>/dev/null || { codesign --verify --strict --verbose=2 "$app"; fail "codesign --verify 不通过"; }
+codesign --verify --deep --strict --verbose=2 "$app" 2>/dev/null || { codesign --verify --deep --strict --verbose=2 "$app"; fail "codesign --verify 不通过"; }
 codesign -dv "$app" 2>&1 | grep -q 'flags=.*runtime' || fail "没开 hardened runtime"
 if [ "$quick" = 0 ]; then
+  check SUFeedURL "$(plist_get SUFeedURL)" 'https://umuo.app/download/macos/appcast.xml'
+  check SUPublicEDKey "$(plist_get SUPublicEDKey)" "$SPARKLE_PUBLIC_ED_KEY"
   archs="$(lipo -archs "$app/Contents/MacOS/$exe_name")"
   case "$archs" in *arm64*x86_64* | *x86_64*arm64*) ;; *) fail "不是通用二进制：$archs" ;; esac
+  framework_archs="$(lipo -archs "$framework/Sparkle")"
+  case "$framework_archs" in *arm64*x86_64* | *x86_64*arm64*) ;; *) fail "Sparkle 不是通用框架：$framework_archs" ;; esac
 fi
 step "从 .app 里跑 --selftest（证明启动得起来、资源包找得到）"
 log="$OUT_DIR/selftest.log"

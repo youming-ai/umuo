@@ -6,7 +6,6 @@ import UmuoCore
 struct OnboardingView: View {
     @Bindable var model: OnboardingModel
 
-    private var p: Palette { model.palette }
     private var t: Translate { model.t }
 
     var body: some View {
@@ -20,14 +19,12 @@ struct OnboardingView: View {
                     footer
                 }
             } else {
-                Text(model.notice ?? t("onboarding.readingSettings")).font(.system(size: 13))
-                    .foregroundStyle(p.textTertiary.color).padding(32)
+                Text(model.notice ?? t("onboarding.readingSettings")).font(.body)
+                    .foregroundStyle(Color.secondary).padding(32)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             }
         }
         .frame(minWidth: 520, minHeight: 420)
-        .background(p.background.color)
-        .environment(\.colorScheme, model.theme.colorScheme)
     }
 
     // MARK: - 页头与页脚
@@ -37,47 +34,47 @@ struct OnboardingView: View {
         let progress = state.progress
         return VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 12) {
-                Text(t("onboarding.title")).font(.system(size: 13, weight: .semibold)).foregroundStyle(p.textPrimary.color)
+                Text(t("onboarding.title")).font(.headline).foregroundStyle(Color.primary)
                 Text(t("onboarding.progress", ["step": "\(model.step.index + 1)", "total": "\(progress.total)",
                                                "done": "\(progress.done)"]))
-                    .font(.system(size: 12)).foregroundStyle(p.textMuted.color)
+                    .font(.callout).foregroundStyle(Color.secondary)
             }
             HStack(spacing: 8) {
                 ForEach(OnboardingStep.allCases, id: \.self) { step in
                     let current = step == model.step
                     let satisfied = step.isSatisfied(state)
-                    Text(t(step.titleKey) + (satisfied ? " ✓" : ""))
-                        .font(.system(size: 11))
-                        .foregroundStyle((current ? p.textPrimary : satisfied ? p.textSecondary : p.textMuted).color)
-                        .frame(maxWidth: .infinity).padding(.vertical, 4)
-                        .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder((current ? p.primary : p.border).color))
+                    Label(t(step.titleKey), systemImage: satisfied ? "checkmark.circle.fill" : "circle")
+                        .font(current ? .subheadline.weight(.semibold) : .subheadline)
+                        .foregroundStyle(current ? Color.primary : Color.secondary)
+                        .frame(maxWidth: .infinity)
+                        .accessibilityAddTraits(current ? .isSelected : [])
                 }
             }
         }
         .padding(.horizontal, 24).padding(.vertical, 16)
-        .overlay(alignment: .bottom) { Rectangle().fill(p.border.color).frame(height: 1) }
+        .overlay(alignment: .bottom) { Divider() }
     }
 
     private var footer: some View {
         VStack(alignment: .leading, spacing: 8) {
             if !model.state.hasUsableEngine, model.step == .practice {
-                caption(t("onboarding.noEngineWarning"), p.warning)
+                caption(t("onboarding.noEngineWarning"), Color.orange)
             }
-            if let notice = model.notice { caption(notice, p.textSecondary) }
+            if let notice = model.notice { caption(notice, Color.secondary) }
             HStack(spacing: 8) {
                 // 第一页没有「上一步」——那里本来就没有可回退的。其余步骤一律不拦（ARCHITECTURE §4.11）。
-                PrefButton(title: t("onboarding.prev"), disabled: model.step.previous == nil, palette: p) { model.previous() }
+                PrefButton(title: t("onboarding.prev"), disabled: model.step.previous == nil) { model.previous() }
                 Spacer(minLength: 0)
-                PrefButton(title: t("onboarding.skip"), palette: p) { Task { await model.finish() } }
+                PrefButton(title: t("onboarding.skip")) { Task { await model.finish() } }
                 if model.step.next != nil {
-                    PrefButton(title: t("onboarding.next"), prominent: true, palette: p) { model.next() }
+                    PrefButton(title: t("onboarding.next"), prominent: true) { model.next() }
                 } else {
-                    PrefButton(title: t("onboarding.finish"), prominent: true, palette: p) { Task { await model.finish() } }
+                    PrefButton(title: t("onboarding.finish"), prominent: true) { Task { await model.finish() } }
                 }
             }
         }
         .padding(.horizontal, 24).padding(.vertical, 16)
-        .overlay(alignment: .top) { Rectangle().fill(p.border.color).frame(height: 1) }
+        .overlay(alignment: .top) { Divider() }
     }
 
     // MARK: - 五步
@@ -102,20 +99,20 @@ struct OnboardingView: View {
         let items: [(String, String, String)] = [
             (t("onboarding.read"), keys("selectionHotkey"), t("onboarding.readDesc")),
             (t("onboarding.write"), keys("composeHotkey", "silentReplaceHotkey"), t("onboarding.writeDesc")),
-            (t("onboarding.see"), keys("ocrHotkey", "ocrSilentHotkey"), t("onboarding.seeDesc")),
+            (t("onboarding.see"), keys("ocrHotkey"), t("onboarding.seeDesc")),
         ]
         return VStack(alignment: .leading, spacing: 16) {
             lead(t("onboarding.intro"))
             VStack(alignment: .leading, spacing: 8) {
                 ForEach(items, id: \.0) { kind, keys, description in
                     HStack(alignment: .firstTextBaseline, spacing: 12) {
-                        Text(kind).font(.system(size: 12)).foregroundStyle(p.textTertiary.color).frame(width: 24, alignment: .leading)
-                        Keycap(text: keys, palette: p)
-                        Text(description).font(.system(size: 13)).foregroundStyle(p.textSecondary.color)
+                        Text(kind).font(.callout).foregroundStyle(Color.secondary).frame(width: 24, alignment: .leading)
+                        Keycap(text: keys)
+                        Text(description).font(.body).foregroundStyle(Color.secondary)
                     }
                 }
             }
-            caption(t("onboarding.walkthrough"), p.textMuted)
+            caption(t("onboarding.walkthrough"), Color.secondary)
         }
     }
 
@@ -131,7 +128,7 @@ struct OnboardingView: View {
                 PrefPicker(label: t("onboarding.secondaryTarget"), value: model.values.string("secondaryTargetLang"),
                            options: options, width: 220) { model.commit(["secondaryTargetLang": .string($0)]) }
             }
-            caption(t("onboarding.languagesNote"), p.textMuted)
+            caption(t("onboarding.languagesNote"), Color.secondary)
         }
     }
 
@@ -146,54 +143,54 @@ struct OnboardingView: View {
                 labeled(t("onboarding.apiKey")) {
                     SecureField(model.keyConfigured ? t("onboarding.keyPlaceholderConfigured")
                         : t("onboarding.keyPlaceholderEmpty"), text: $model.draftKey)
-                        .textFieldStyle(.roundedBorder).font(.system(size: 13))
+                        .textFieldStyle(.roundedBorder).font(.body)
                         .onSubmit { Task { await model.saveKey() } }
                 }
                 PrefButton(title: t("onboarding.save"), prominent: true,
-                           disabled: model.draftKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, palette: p) {
+                           disabled: model.draftKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty) {
                     Task { await model.saveKey() }
                 }
             }
             if let detail = model.draftDetail, !detail.keysUrl.isEmpty {
                 Button(t("onboarding.getKey", ["provider": detail.label])) { model.backend.openURL(detail.keysUrl) }
-                    .buttonStyle(.link).font(.system(size: 12))
+                    .buttonStyle(.link).font(.callout)
             }
-            Rectangle().fill(p.borderSecondary.color).frame(height: 1)
-            caption(t("onboarding.noKeyLead"), p.textMuted)
+            Divider()
+            caption(t("onboarding.noKeyLead"), Color.secondary)
             HStack(spacing: 8) {
-                PrefButton(title: t("onboarding.detectLocal"), disabled: model.detecting, palette: p) {
+                PrefButton(title: t("onboarding.detectLocal"), disabled: model.detecting) {
                     Task { await model.detectLocal() }
                 }
                 if model.detecting { ProgressView().controlSize(.small) }
                 if let found = model.localModel {
-                    caption(t("onboarding.detectedModel", ["model": model.detectedLabel(found)]), p.success)
+                    caption(t("onboarding.detectedModel", ["model": model.detectedLabel(found)]), Color.green)
                 }
             }
-            caption(t("onboarding.stepSkippable"), p.textMuted)
+            caption(t("onboarding.stepSkippable"), Color.secondary)
         }
     }
 
     private var permissions: some View {
-        let ocrKeys = keys("ocrHotkey", "ocrSilentHotkey")
+        let ocrKeys = keys("ocrHotkey")
         return VStack(alignment: .leading, spacing: 16) {
             lead(t("onboarding.permissionsLead"))
-            card(t("onboarding.accessibility"), granted: model.permissions.accessibility, grantedColor: p.warning,
+            card(t("onboarding.accessibility"), granted: model.permissions.accessibility, grantedColor: Color.orange,
                  description: t("onboarding.accessibilityDesc")) {
-                PrefButton(title: t("onboarding.openSystemSettings"), palette: p) {
+                PrefButton(title: t("onboarding.openSystemSettings")) {
                     model.backend.openSystemSettings(.accessibility)
                 }
-                PrefButton(title: t("onboarding.recheck"), palette: p) { Task { await model.recheckPermissions() } }
+                PrefButton(title: t("onboarding.recheck")) { Task { await model.recheckPermissions() } }
             }
-            card(t("onboarding.screenRecording"), granted: model.permissions.screenRecording, grantedColor: p.textMuted,
+            card(t("onboarding.screenRecording"), granted: model.permissions.screenRecording, grantedColor: Color.secondary,
                  description: t("onboarding.screenRecordingDesc", ["keys": ocrKeys])) {
-                PrefButton(title: t("onboarding.requestPermission"), palette: p) {
+                PrefButton(title: t("onboarding.requestPermission")) {
                     Task { await model.requestScreenRecording() }
                 }
-                PrefButton(title: t("onboarding.openSystemSettings"), palette: p) {
+                PrefButton(title: t("onboarding.openSystemSettings")) {
                     model.backend.openSystemSettings(.screenRecording)
                 }
             } footnote: {
-                caption(t("onboarding.systemDialogOnce"), p.textMuted)
+                caption(t("onboarding.systemDialogOnce"), Color.secondary)
             }
         }
     }
@@ -201,59 +198,57 @@ struct OnboardingView: View {
     private var practice: some View {
         VStack(alignment: .leading, spacing: 16) {
             lead(t("onboarding.practiceLead"))
-            Text(OnboardingModel.sampleText).font(.system(size: 13, design: .monospaced)).foregroundStyle(p.textPrimary.color)
-                .textSelection(.enabled)
-                .frame(maxWidth: .infinity, alignment: .leading).padding(16)
-                .background(p.surface.color)
-                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(p.border.color))
-            PrefButton(title: t("onboarding.practiceButton"), prominent: true, palette: p) { model.practice() }
-            if model.practiced { caption(t("onboarding.practiceSeen"), p.success) }
-            caption(t("onboarding.practiceHint"), p.textMuted)
+            GroupBox {
+                Text(OnboardingModel.sampleText).font(.body.monospaced())
+                    .textSelection(.enabled)
+                    .frame(maxWidth: .infinity, alignment: .leading).padding(8)
+            }
+            PrefButton(title: t("onboarding.practiceButton"), prominent: true) { model.practice() }
+            if model.practiced { caption(t("onboarding.practiceSeen"), Color.green) }
+            caption(t("onboarding.practiceHint"), Color.secondary)
         }
     }
 
     // MARK: - 积木
 
     private func lead(_ text: String) -> some View {
-        Text(text).font(.system(size: 14)).foregroundStyle(p.textPrimary.color).fixedSize(horizontal: false, vertical: true)
+        Text(text).font(.body).foregroundStyle(Color.primary).fixedSize(horizontal: false, vertical: true)
     }
 
-    private func caption(_ text: String, _ color: Palette.RGBA) -> some View {
-        Text(text).font(.system(size: 12)).foregroundStyle(color.color).fixedSize(horizontal: false, vertical: true)
+    private func caption(_ text: String, _ color: Color) -> some View {
+        Text(text).font(.callout).foregroundStyle(color).fixedSize(horizontal: false, vertical: true)
             .textSelection(.enabled)
     }
 
     private func labeled<Control: View>(_ title: String, @ViewBuilder _ control: () -> Control) -> some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text(title).font(.system(size: 12)).foregroundStyle(p.textSecondary.color)
+            Text(title).font(.callout).foregroundStyle(Color.secondary)
             control()
         }
     }
 
     /// 一项权限：标题、此刻状态（未授权时辅助功能用警告色——它是唯一必需的一项；屏幕录制用弱色）、说明与按钮。
-    private func card<Actions: View, Footnote: View>(_ title: String, granted: Bool?, grantedColor missing: Palette.RGBA,
+    private func card<Actions: View, Footnote: View>(_ title: String, granted: Bool?, grantedColor missing: Color,
                                                      description: String, @ViewBuilder actions: () -> Actions,
                                                      @ViewBuilder footnote: () -> Footnote = { EmptyView() }) -> some View
     {
-        let status: (String, Palette.RGBA) = switch granted {
-        case nil: (t("onboarding.reading"), p.textMuted)
-        case true?: (t("onboarding.granted"), p.success)
+        let status: (String, Color) = switch granted {
+        case nil: (t("onboarding.reading"), Color.secondary)
+        case true?: (t("onboarding.granted"), Color.green)
         case false?: (t("onboarding.notGranted"), missing)
         }
-        return VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 8) {
-                Text(title).font(.system(size: 13, weight: .semibold)).foregroundStyle(p.textPrimary.color)
-                Text(status.0).font(.system(size: 12)).foregroundStyle(status.1.color)
+        return GroupBox {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(spacing: 8) {
+                    Text(title).font(.headline)
+                    Text(status.0).font(.callout).foregroundStyle(status.1)
+                }
+                caption(description, Color.secondary)
+                HStack(spacing: 8, content: actions)
+                footnote()
             }
-            caption(description, p.textSecondary)
-            HStack(spacing: 8, content: actions)
-            footnote()
+            .padding(8)
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .padding(16)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(p.surface.color)
-        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(p.border.color))
     }
 }

@@ -10,14 +10,13 @@
 # 所以只要用同一把更新私钥签 Swift 版的 .app.tar.gz，已装 Tauri 版的用户就会被静默换成 Swift 版。
 #
 # **发之前先想清楚**（docs/SWIFTUI-MIGRATION.md「阶段 5」）：
-# - Swift 版目前**没有应用内更新**（Sparkle 还没接）。桥接过去的用户此后收不到任何更新，直到他们自己去官网下载。
-#   正常顺序是先接上 Sparkle，再用这个脚本发桥接版。
+# - Swift 版使用独立的 Sparkle EdDSA 通道。桥接发布前仍须实测 N → N+1 与旧版迁移。
 # - 没有 Developer ID 时是 ad-hoc 签名（与现在的 Tauri 版一样）：用户要重新授权辅助功能等权限、读 Key 弹一次授权框。
 # - Swift 版要 macOS 14+（LSMinimumSystemVersion 14.0），Tauri 版是 10.13+。Tauri 的更新器只比版本号与平台键、不看最低系统，
 #   macOS 13 及更早的用户也会被换成 Swift 版，之后「重启以更新」起不来、也没有退回的更新路径。
 #   所以 --publish 要显式确认 ACK_MIN_OS_14=1（先弄清 14 以下的用户占比再决定）。
 #
-# 前提：干净且与 origin/main 一致的 main、两个 rustup 目标、更新签名私钥、
+# 前提：干净且与 origin/main 一致的 main、两个 rustup 目标、旧通道与 Sparkle 两套更新签名私钥、
 # `bunx wrangler login`（只有 --publish 才用到）。签名与公证的环境变量见 apps/macos/scripts/bundle.sh。
 set -eu
 
@@ -53,6 +52,7 @@ fi
 echo "→ SwiftUI 版 ${VERSION}（commit $(git rev-parse --short HEAD)$([ "$publish" = 1 ] && echo '，构建后上传' || echo '，只构建')）"
 
 # ---- 门禁
+[ -n "${SPARKLE_PUBLIC_ED_KEY:-}" ] || fail "要设置 SPARKLE_PUBLIC_ED_KEY（Sparkle Ed25519 公钥）"
 bun run verify
 
 # ---- 构建：Rust 内核的版本号（User-Agent、导出配置里的 appVersion）只写进本次构建，结束时还原工作区
@@ -60,6 +60,8 @@ restore() { git checkout -- Cargo.toml Cargo.lock 2>/dev/null || true; }
 trap restore EXIT
 sed -i '' -E '/^\[workspace.package\]/,/^\[/ s/^version = ".*"/version = "'"$VERSION"'"/' Cargo.toml
 TAURI_SIGNING_PRIVATE_KEY_PATH=$KEY_PATH OUT_DIR=$OUT sh apps/macos/scripts/bundle.sh --version "$VERSION" --updater-sign
+
+bun scripts/sparkle-appcast.ts "$OUT" "$VERSION"
 
 dmg=$OUT/umuo_${VERSION}_universal.dmg
 tgz=$OUT/umuo.app.tar.gz
@@ -82,13 +84,15 @@ jq -n --arg version "$VERSION" --arg key "$dmg_key" --argjson size "$(stat -f%z 
   >"$OUT/latest.json"
 
 if [ "$publish" = 0 ]; then
-  echo "✓ 只构建：产物与 update.json / latest.json 在 ${OUT}，未上传（要发就加 --publish）"
+  echo "✓ 只构建：产物与 appcast.xml / update.json / latest.json 在 ${OUT}，未上传（要发就加 --publish）"
   exit 0
 fi
 
 # ---- 上传：安装包先传，清单最后写——清单指向的文件一定已经完整在线
 r2 put "$BUCKET/$dmg_key" --file "$dmg" --content-type application/x-apple-diskimage
 r2 put "$BUCKET/$tgz_key" --file "$tgz" --content-type application/gzip
+r2 put "$BUCKET/macos/appcast.xml" --file "$OUT/appcast.xml" \
+  --content-type application/xml --cache-control no-cache
 r2 put "$BUCKET/macos/update.json" --file "$OUT/update.json" \
   --content-type application/json --cache-control no-cache
 # latest.json 最后写：官网下载以它为准

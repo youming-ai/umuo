@@ -251,4 +251,36 @@ mod tests {
             .unwrap();
         assert_eq!(effects, SettingsEffects { hotkeys: true });
     }
+    #[test]
+    fn retired_hotkeys_and_statistics_survive_without_registration_effects() {
+        let core = open_in(
+            "retired",
+            &json!({
+                "compareHotkey": "Alt+P", "ocrSilentHotkey": "Alt+Shift+O", "speakHotkey": "Alt+R",
+                "sceneModels": { "compare": [{ "provider_id": "openai", "model": "old-model" }] },
+                "futureField": { "keep": true }
+            }),
+        );
+        let dir = core.config_dir.clone();
+        let stats = br#"{"comparePicks":{"openai:old-model":3},"futureCounter":7}"#;
+        std::fs::write(dir.join("stats.json"), stats).unwrap();
+        drop(core);
+        let core = AppCore::open(dir.clone(), Arc::new(NoHost)).unwrap();
+        let (settings, effects) = core.apply_settings_patch(json!({
+            "compareHotkey": "Alt+Cmd+P", "ocrSilentHotkey": "Alt+Cmd+S", "speakHotkey": "Alt+Cmd+R"
+        })).unwrap();
+        assert!(!effects.hotkeys, "退役键位不触发宿主重注册");
+        assert_eq!(settings.hotkeys().len(), 4);
+        let (_, effects) = core
+            .apply_settings_patch(json!({ "ocrHotkey": "Alt+P", "theme": "dark" }))
+            .unwrap();
+        assert!(effects.hotkeys, "活跃 OCR 键位仍然触发重注册");
+        let saved: serde_json::Value = serde_json::from_slice(&file_bytes(&core)).unwrap();
+        assert_eq!(saved["compareHotkey"], "Alt+Cmd+P");
+        assert_eq!(saved["ocrSilentHotkey"], "Alt+Cmd+S");
+        assert_eq!(saved["speakHotkey"], "Alt+Cmd+R");
+        assert_eq!(saved["sceneModels"]["compare"][0]["model"], "old-model");
+        assert_eq!(saved["futureField"]["keep"], true);
+        assert_eq!(std::fs::read(dir.join("stats.json")).unwrap(), stats);
+    }
 }

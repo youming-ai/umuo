@@ -15,7 +15,6 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
     private var window: NSWindow?
     private var model: SettingsModel?
     private var monitor: Any?
-    private var appearanceObservation: NSKeyValueObservation?
 
     init(app: AppModel) {
         self.app = app
@@ -26,7 +25,12 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
         let fresh = window == nil
         let window = window ?? makeWindow(model)
         let reopening = !fresh && !window.isVisible && !window.isMiniaturized
-        if reopening { window.contentView = NSHostingView(rootView: SettingsView(model: model)) }
+        if reopening {
+            // 换一套新的分区视图：文本框草稿、滚动位置都从头开始；窗口大小保持用户上次调的
+            let frame = window.frame
+            window.contentViewController = SettingsPaneController(model: model, updater: app.updater)
+            window.setFrame(frame, display: false)
+        }
         NSApp.activate(ignoringOtherApps: true)
         window.makeKeyAndOrderFront(nil)
         if reopening {
@@ -45,7 +49,6 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
 
     private func makeModel() -> SettingsModel {
         let model = SettingsModel(backend: EngineSettingsBackend(app: app))
-        model.prefersDark = Self.systemPrefersDark()
         // 快捷键重注册完成后重新读失败清单（比猜一个延时可靠）
         app.hotkeys.onRegistered = { [weak model] in model?.hotkeysRegistered() }
         self.model = model
@@ -53,26 +56,18 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
     }
 
     private func makeWindow(_ model: SettingsModel) -> NSWindow {
-        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 840, height: 700),
-                              styleMask: [.titled, .closable, .miniaturizable, .resizable],
-                              backing: .buffered, defer: true)
-        window.title = "umuo 设置"
-        window.minSize = NSSize(width: 720, height: 520)
+        // 偏好设置样式：顶部图标工具栏切分区，窗口标题跟着当前分区走（`NSTabViewController` 负责）
+        let window = NSWindow(contentViewController: SettingsPaneController(model: model, updater: app.updater))
+        window.styleMask = [.titled, .closable, .miniaturizable, .resizable]
+        window.toolbarStyle = .preference
+        window.contentMinSize = SettingsPaneController.paneSize
+        window.setContentSize(NSSize(width: 680, height: 560))
         window.isReleasedWhenClosed = false
-        window.contentView = NSHostingView(rootView: SettingsView(model: model))
         window.delegate = self
         window.center()
         self.window = window
         installKeyMonitor(window)
-        // 主题选「跟随系统」时，系统换外观要跟着换
-        appearanceObservation = NSApp.observe(\.effectiveAppearance) { [weak self] _, _ in
-            MainActor.assumeIsolated { self?.model?.prefersDark = Self.systemPrefersDark() }
-        }
         return window
-    }
-
-    private static func systemPrefersDark() -> Bool {
-        NSApp.effectiveAppearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
     }
 
     /// 录键：只在有一行在录、且事件发生在设置窗里时才接管；其余事件原样放行。

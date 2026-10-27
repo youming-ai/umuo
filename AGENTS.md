@@ -8,10 +8,12 @@ umuo 是 macOS 系统级 AI 翻译客户端，BYOK、闭源。客户端使用 Sw
 Rust 内核经 UniFFI 调用。2026-10-22 已按用户要求删除旧 Tauri 客户端、React UI、CSS tokens 与 Rust 平台适配层。
 官网及 Worker 在 `site/`，是独立 Bun 项目；修改它时先读 `site/AGENTS.md`。
 
-产品验收以 `docs/PRD-CONFORMANCE.md` 为准；动 PRD 功能前先读它，完成后更新实现证据与状态。
+开发功能、精简入口或调整收费前，先读 `docs/PRD.md`、`docs/PRD-CONFORMANCE.md` 与 `docs/IMPLEMENTATION-PLAN.md`；
+按开发计划推进，完成后更新验收清单的实现证据与状态。
 迁移、发布待办与兼容性见 `docs/SWIFTUI-MIGRATION.md`。只做 macOS，不为未来平台提前抽象。
-账号、官方额度与模型网关暂缓，服务端不在本仓库。收费许可证、客户端门控与打开 `CHECKOUT_ENABLED` 暂缓。
-跟读与 PRD §3.3 冲突，做之前必须由用户决定。
+当前核心为文字翻译（含原地替换）、OCR 截图翻译、语音输入后润色/翻译。收费改为一次性购买、纯 BYOK；
+账号、订阅、官方额度与 AI 网关退出范围。买断许可证进入开发计划，商业参数待定；定价页暂无购买入口，支付链路验收后再单独接入。
+语音主要参考 Handy，本地转写引擎先验证再选定；不引入 Tauri 外壳。旧范围与实现记录已归档，不据此恢复退出功能。
 
 ## 开发与验证
 
@@ -28,10 +30,10 @@ GitHub Actions 目前因账单问题不可用，合并前必须完成本机门�
 ## 目录与分层
 
 - `apps/macos/`：原生客户端；`Sources/Umuo` 按功能分目录，`Tests/UmuoTests` 使用 Swift Testing。
-- `crates/umuo-app/`：应用编排、Host、流水线、设置、历史、预算等业务逻辑。
-- `crates/umuo-core/`：翻译协议、Prompt、路由、计量与传输。
+- `crates/umuo-app/`：应用编排、Host、流水线、设置、历史等业务逻辑。
+- `crates/umuo-core/`：翻译协议、Prompt、计量与传输。
 - `crates/umuo-ffi/`：只做类型转换与导出，不写业务逻辑。
-- `crates/umuo-store/`：SQLite 历史、收藏与用量。
+- `crates/umuo-store/`：SQLite 历史、收藏与（已停写的）用量账本。
 - `scripts/`：图标生成与发布工具；`site/` 独立维护。
 
 `umuo-core` 与 `umuo-app` 不得依赖平台 API、Tauri 或 UniFFI，必须可在 Linux 编译测试。
@@ -44,7 +46,7 @@ GitHub Actions 目前因账单问题不可用，合并前必须完成本机门�
 界面与交互遵循 Apple Human Interface Guidelines，优先使用 SwiftUI 标准控件、系统语义颜色、字体与 SF Symbols。
 窗口、菜单、焦点、快捷键、键盘导航与辅助功能遵循 macOS 原生行为；特殊非激活浮窗使用 AppKit NSPanel。
 保留 VoiceOver、提高对比度与减少动态效果支持；不要把旧 WebView 的 CSS 布局当成原生规范。
-现有 `Theme/Palette.swift` 的自定义主题仍在，删除旧 CSS 不代表完成了全部原生视觉验收。
+不维护自己的设计令牌：颜色用系统语义色，字号用系统文字样式，分组用 `Form(.grouped)` / `GroupBox`，浮动窗口用 `floatingSurface`（macOS 26 的 Liquid Glass，更早回落系统材质）。外观只有跟随系统 / 浅色 / 深色三种，经 `ThemeChoice.apply` 设到整个应用；高对比度交给系统设置。
 
 ## 风格与测试
 

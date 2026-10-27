@@ -4,7 +4,7 @@ import { act } from 'react'
 import { hydrateRoot, type Root } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { App } from '../App'
-import { LOCALES } from '../config'
+import { LEGAL_EFFECTIVE, LOCALES } from '../config'
 import { render } from '../entry-server'
 import { pagePath, SITE_PAGES } from '../lib/pages'
 
@@ -59,15 +59,16 @@ describe('五种语言的预渲染均可 hydrate', () => {
           expect(container.querySelectorAll('main > section')).toHaveLength(1)
           expect(container.querySelector('#download')).not.toBeNull()
         } else if (page === 'pricing') {
-          // Waffo 要求下单前在网站上看到各方案价格与计费周期
-          expect(container.querySelector('main')?.textContent).toContain('$2.99')
-          expect(container.querySelector('main')?.textContent).toContain('$29.90')
+          // 买断价格未定：不能再出现旧订阅价格
+          expect(container.querySelector('main')?.textContent).not.toContain('$2.99')
+          expect(container.querySelectorAll('.pricing-page')).toHaveLength(2)
         } else if (page === 'activate') {
           // 预渲染时还不知道领取码，只能是「正在确认」；密钥一定是客户端拿到后才出现
           expect(container.querySelector('main code')).toBeNull()
         } else {
-          // 条款与隐私政策：Waffo 要求的支付处理方必须写明
-          expect(container.querySelector('main article')?.textContent).toContain('Waffo Pancake')
+          // 条款与隐私政策：支付处理方定案前不写名字；页面上带着生效日期
+          expect(container.querySelector('main article')?.textContent).not.toContain('Waffo')
+          expect(container.querySelector('main article')?.textContent).toContain(LEGAL_EFFECTIVE)
         }
         // 服务端未知访客主题，客户端主题不同也不得重建 DOM。
         document.documentElement.dataset.theme = 'light'

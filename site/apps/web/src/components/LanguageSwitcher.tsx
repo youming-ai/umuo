@@ -47,7 +47,7 @@ export function LanguageMenu({
         aria-label={label}
         title={label}
         onClick={() => setOpen((current) => !current)}
-        className="btn-ghost h-10 gap-2 px-3 text-xs"
+        className="btn-ghost h-10 gap-2 px-3 text-xs font-normal"
       >
         <GlobeIcon className="h-4 w-4" />
         <span className={placement === 'top' ? undefined : 'hidden sm:inline'}>

@@ -15,7 +15,7 @@ use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
-use crate::glossaries::Glossaries;
+use crate::legacy_glossaries::Glossaries;
 use crate::settings::Settings;
 
 /// 导出格式的版本。读到的比它新就拒绝——未来字段可能带语义，硬啃会出怪问题。
@@ -206,13 +206,39 @@ pub fn check_version(found: u32) -> Result<(), String> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::glossaries::Glossaries;
+    use crate::legacy_glossaries::Glossaries;
 
     fn settings_with_extra(pairs: serde_json::Value) -> Settings {
         Settings {
             extra: pairs.as_object().unwrap().clone(),
             ..Settings::default()
         }
+    }
+
+    #[test]
+    fn retired_data_round_trips_without_validation_or_normalization() {
+        // 旧编辑器会拒绝的重复 id、空指令、未知形状均只保留，不阻止用户保存其它设置。
+        let settings = Settings {
+            style_id: "old-style".into(),
+            custom_styles: vec![
+                serde_json::json!({"id":"duplicate", "instruction":"", "temperature":9, "future":[1]}),
+                serde_json::json!({"id":"duplicate", "future":{"x":true}}),
+            ],
+            ..Settings::default()
+        };
+        let glossaries: Glossaries = serde_json::from_value(serde_json::json!({
+            "lists":[{"id":"old", "entries":[{"source":"x","future":true}], "color":"teal"}],
+            "futureTop":[2]
+        }))
+        .unwrap();
+        let exported = export_json(&settings, &glossaries);
+        let mut prepared =
+            prepare_import(&exported, &Settings::default(), &Glossaries::default()).unwrap();
+        prepared.settings.theme = "dark".into();
+        prepared.settings.prepare_for_save(&settings).unwrap();
+        assert_eq!(prepared.settings.style_id, settings.style_id);
+        assert_eq!(prepared.settings.custom_styles, settings.custom_styles);
+        assert_eq!(prepared.glossaries, glossaries);
     }
 
     #[test]

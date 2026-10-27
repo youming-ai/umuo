@@ -51,7 +51,7 @@ impl ChatRequest {
     }
 
     pub fn temperature(mut self, t: f32) -> Self {
-        self.temperature = t;
+        self.temperature = if t.is_finite() { t } else { 0.2 };
         self
     }
 }
@@ -1166,21 +1166,7 @@ mod tests {
     fn a_nan_temperature_never_becomes_an_invalid_json_body() {
         // NaN 序列化进 JSON 会变成 null，供应商那边报参数错误，
         // 用户看到的却是一条无从下手的网络错误。
-        let odd = ChatRequest::new("s", "u").temperature(f32::NAN);
-        // 走的是「用户自建预设」那条路：先经过 StyleSpec 规范化。
-        let style = crate::prompt::CustomStyle {
-            extra: Default::default(),
-            id: "mine".into(),
-            label: "标签".into(),
-            instruction: "x".into(),
-            temperature: f32::NAN,
-            few_shot: Vec::new(),
-            explain: false,
-        }
-        .validated()
-        .unwrap();
-        let safe = ChatRequest::new("s", "u").temperature(style.temperature);
-        let _ = odd;
+        let safe = ChatRequest::new("s", "u").temperature(f32::NAN);
 
         let wire = build_chat_request(
             find_provider("openai").unwrap(),

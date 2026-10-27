@@ -6,7 +6,7 @@ import UmuoCore
 /// 测试换成只记调用的假实现——撰写窗的调度与提交规则因此不用真窗口、真 Engine 就能测。
 @MainActor
 protocol ComposeBackend: AnyObject {
-    /// 开始一次翻译（主译文或回译）。事件经 sink 回到 `ComposeSession.apply`。
+    /// 开始一次翻译。事件经 sink 回到 `ComposeSession.apply`。
     /// 没能发出去（内核还没打开）时返回给用户看的话——那条路径不会有 done / error 事件。
     func translate(_ request: TranslateRequest) -> String?
     /// 提交：写剪贴板 → 收起撰写窗 →（`paste`）把唤出撰写窗之前的应用叫回前台、确认后再 ⌘V。
@@ -20,14 +20,12 @@ protocol ComposeBackend: AnyObject {
 /// 撰写窗的视图模型（PRD §5.3），语义逐条一致。
 ///
 /// **输入框的内容是这里自己的状态**——它不能由 Engine 推来的 start 事件驱动，否则每翻译一次就会把
-/// 用户正在打的字重置一遍。主译文区与回译区各用一份浮窗那套 reducer（`PanelModel`）：两者共用同一组事件，
-/// 混在一起的话回译结果会覆盖主译文，⌘↩ 提交出去的就成了原语言（审查 M16）。
+/// 用户正在打的字重置一遍。译文区用浮窗那套 reducer（`PanelModel`）。回译与临时换模型已退出（第四批精简）。
 ///
 /// 只在 MainActor 上改。
 @MainActor @Observable
 final class ComposeSession {
     let main = PanelModel()
-    let back = PanelModel()
     var state: PanelState { main.state }
 
     /// 输入框。改了就重新计时防抖（关掉自动翻译时不计）。
@@ -39,23 +37,17 @@ final class ComposeSession {
         didSet { if autoTranslate != oldValue { scheduleDebounce() } }
     }
 
-    /// 语言 / 模型 / 风格（PRD §5.3）。改了也重新计时：Tauri 的防抖依赖里有 `send`，换一个下拉就按新选择再翻一次。
+    /// 源语言 / 目标语言（PRD §5.3）。改了也重新计时：换一个下拉就按新选择再翻一次。
     var overrides = ComposeRules.Overrides() {
         didSet { if overrides != oldValue { scheduleDebounce() } }
     }
 
-    /// 提交结果、回译失败这类一次性提示。
+    /// 提交结果这类一次性提示。
     var notice: String?
-    var providers: [ProviderDetail] = []
-    var styles: [StyleInfo] = []
     /// ⌘⇧↩ 要粘回的应用（pid）。每次唤出撰写窗时按来源重新算（`ComposeRules.ownerForCaller`），nil = 没有外部目标。
     var owner: String?
-    var theme: ResolvedTheme = .dark
     var locale: AppLocale = .source
-    var scale: Double = 1
-    var metrics: Palette.Metrics { Palette.Metrics(scale: scale) }
     var t: Translate { Translate(locale: locale) }
-    var palette: Palette { .of(theme) }
 
     weak var backend: ComposeBackend?
 
@@ -64,8 +56,6 @@ final class ComposeSession {
     @ObservationIgnored private var debounceTask: Task<Void, Never>?
     /// 防抖间隔。测试传 0，免得等真实的 500 ms。
     @ObservationIgnored let debounceDelay: Duration
-    /// 回译的目标语言从原文推断（Rust 的 `detectLanguage`）。测试可换。
-    @ObservationIgnored var detect: (String) -> String? = { detectLanguage(text: $0) }
 
     init(backend: ComposeBackend? = nil, debounce: Duration = ComposeRules.debounce) {
         self.backend = backend
@@ -117,34 +107,24 @@ final class ComposeSession {
 
     // MARK: - 事件
 
-    /// Engine 推来的事件：回译那条道只更新回译区，不碰主译文，也不推动调度队列。
+    /// Engine 推来的事件：更新译文区，done / error 推动调度队列。
     func apply(route: Route, event: TranslateEvent) {
         let action = PanelAction(route: route, event: event)
-        if route.back {
-            back.apply(action)
-            return
-        }
         main.apply(action)
         switch action {
-        case let .start(start):
-            // 主译文换了，旧的回译就不再对应它；比这次更早的回译事件也一并作废。
-            back.apply(.reset(requestId: start.requestId))
         case .done, .error:
             settle()
-        case .delta, .card, .reset:
+        case .start, .delta, .card, .reset:
             break
         }
     }
 
     // MARK: - 能做什么
 
-    /// 只有完成的译文才能提交或回译：流式中途提交会把半截译文粘进聊天框（审查 M18）；
-    /// 回译与主译文同在撰写窗这一个窗口上，流式中途发起回译会把还没翻完的主译文顶掉。
+    /// 只有完成的译文才能提交：流式中途提交会把半截译文粘进聊天框（审查 M18）。
     var settled: Bool {
         state.status == .done && !state.translation.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
-
-    var canBackTranslate: Bool { settled && !state.source.isEmpty }
 
     // MARK: - 操作
 
@@ -160,16 +140,6 @@ final class ComposeSession {
             } else {
                 notice = paste ? t("compose.copiedPasted") : t("compose.copied")
             }
-        }
-    }
-
-    func backTranslate() {
-        guard canBackTranslate else { return }
-        switch ComposeRules.backRequest(source: state.source, translation: state.translation, detect: detect) {
-        case let .failure(failure):
-            notice = failure.message
-        case let .success(request):
-            if let failure = backend?.translate(request) { notice = failure }
         }
     }
 

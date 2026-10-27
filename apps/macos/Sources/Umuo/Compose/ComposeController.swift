@@ -4,13 +4,13 @@ import UmuoCore
 
 /// 撰写窗的宿主：窗口的唤出、收起与快捷键，Engine 事件 → `ComposeSession`，以及 `ComposeBackend` 的正式实现。
 /// 对应 Tauri 的 `toggle_compose` / `show_compose` / `open_compose_with` / `compose_translate` /
-/// `compose_back_translate` / `compose_commit`。
+/// `compose_commit`。
 ///
 /// 线程（ARCHITECTURE §2.3）：这个类在 MainActor 上；Engine 的同步方法、AX（前台 pid、切回前台）、剪贴板与合成按键
 /// 一律在 `Task.detached` 里做，结果再回主线程。sink 只 `yield`（复用浮窗的 `PanelStreamSink`）。
 @MainActor
 final class ComposeController: ComposeBackend {
-    /// 撰写窗的请求登记名（`umuo_app::translate::Mode::Compose.surface()`）。主译文与回译同在这一个名下。
+    /// 撰写窗的请求登记名（`umuo_app::translate::Mode::Compose.surface()`）。
     nonisolated static let surface = "compose"
 
     let session = ComposeSession()
@@ -68,7 +68,6 @@ final class ComposeController: ComposeBackend {
 
     private func show() {
         refreshAppearance()
-        refreshChoices()
         // 每次唤出都重新居中：用户可能刚把窗口拖到别的屏幕
         window.center()
         window.makeKeyAndOrderFront(nil)
@@ -83,26 +82,9 @@ final class ComposeController: ComposeBackend {
 
     /// 主题、界面语言与界面缩放跟设置走，每次唤出时重读（与浮窗同一套规则）。
     private func refreshAppearance() {
-        let prefersDark = NSApp.effectiveAppearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
-        let appearance = PanelRules.appearance(settingsJson: app.settingsJson, prefersDark: prefersDark)
-        session.theme = appearance.theme
+        let appearance = PanelRules.appearance(settingsJson: app.settingsJson)
         session.locale = appearance.locale
-        session.scale = appearance.scale
         window.invalidateShadow()
-    }
-
-    /// 能选的供应商与风格。每次唤出都重读（Tauri 只在窗口建好时读一次，刚配的 Key 要重启才出现）。
-    /// `configuredProviders` 逐家读 Keychain，后台做。
-    private func refreshChoices() {
-        guard let engine = app.engine else { return }
-        Task.detached {
-            let providers = engine.configuredProviders()
-            let styles = engine.styleCatalog()
-            await MainActor.run {
-                self.session.providers = providers
-                self.session.styles = styles
-            }
-        }
     }
 
     /// 只接管撰写窗自己的按键；输入法组字时原样放行。

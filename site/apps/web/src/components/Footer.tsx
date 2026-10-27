@@ -28,7 +28,10 @@ export function Footer({
           <a href={pagePath(locale, 'privacy')}>{legal.privacy.title}</a>
         </div>
         <div className="flex flex-wrap items-center gap-5">
-          <a href={`mailto:${CONTACT_EMAIL}`} className="text-sm text-text-secondary">
+          <a
+            href={`mailto:${CONTACT_EMAIL}`}
+            className="text-xs text-text-tertiary hover:text-text-primary"
+          >
             {footer.contact}
           </a>
           <div className="flex items-center gap-1">

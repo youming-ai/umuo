@@ -136,7 +136,7 @@ describe('官网内容完整性', () => {
     }
     for (const locale of LOCALES) {
       expect(shape(locale), `${locale} 的法律文本结构与简体中文不一致`).toEqual(shape('zh-cn'))
-      expect(getContent(locale).legal.terms.sections, locale).toHaveLength(16)
+      expect(getContent(locale).legal.terms.sections, locale).toHaveLength(12)
     }
   })
 

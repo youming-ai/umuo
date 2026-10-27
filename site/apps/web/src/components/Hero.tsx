@@ -126,7 +126,7 @@ function HeroDemo({ demo }: { demo: SiteContent['hero']['demo'] }) {
             </span>
             <span className="demo-switch-name">
               {item.name}
-              {item.tag ? <span className="tag ms-1.5">{item.tag}</span> : null}
+              {item.tag ? <span className="tag">{item.tag}</span> : null}
             </span>
           </button>
         ))}

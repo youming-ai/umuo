@@ -4,7 +4,7 @@ import Testing
 import UmuoCore
 @testable import Umuo
 
-// 菜单栏：快捷面板的视图模型（暂停 / 恢复、当前模型、快速输入、复制最近一条）、菜单栏图标的样式与左右键分流、
+// 菜单栏：快捷面板的视图模型（暂停 / 恢复、当前模型、复制最近一条）、菜单栏图标与左右键分流、
 // 菜单项与 Tauri 托盘逐条一致、首次引导要不要自动弹。假 backend 只记调用：不碰剪贴板、不发请求。
 
 private struct Broken: Error, CustomStringConvertible {
@@ -17,8 +17,6 @@ private final class FakeQuick: QuickBackend {
     var paused = false
     var current: QuickState?
     var fail: String?
-    var translated: [String] = []
-    var translateError: Error?
     var copied: [String] = []
     var copyFailure: String?
     var opened: [String] = []
@@ -33,11 +31,6 @@ private final class FakeQuick: QuickBackend {
     func setPaused(_ paused: Bool) -> Bool {
         self.paused = paused
         return paused
-    }
-
-    func translate(_ text: String) throws {
-        if let translateError { throw translateError }
-        translated.append(text)
     }
 
     func copy(_ text: String) async -> String? {
@@ -98,27 +91,6 @@ struct QuickModelTests {
         #expect(!quick.paused)
     }
 
-    @Test func 快速输入只有空白时不发() {
-        let backend = FakeQuick()
-        let quick = model(backend)
-        quick.draft = "  \n"
-        #expect(!quick.canTranslate)
-        quick.translate()
-        #expect(backend.translated.isEmpty)
-        quick.draft = "good morning"
-        quick.translate()
-        #expect(backend.translated == ["good morning"])
-    }
-
-    @Test func 翻译失败说在面板上() {
-        let backend = FakeQuick()
-        backend.translateError = Broken(message: ComposeRules.emptyText)
-        let quick = model(backend)
-        quick.draft = "x"
-        quick.translate()
-        #expect(quick.notice == "没有可翻译的内容")
-    }
-
     @Test func 点最近一条复制译文() async {
         let backend = FakeQuick()
         let quick = model(backend)
@@ -135,30 +107,10 @@ struct QuickModelTests {
 
 @Suite("菜单栏图标")
 struct StatusBarTests {
-    @Test func 样式规范化认不出的回落模板() {
-        #expect(TrayIcon.style("brand") == "brand")
-        #expect(TrayIcon.style(" black ") == "black")
-        #expect(TrayIcon.style("不认识") == "template")
-        #expect(TrayIcon.style(nil) == "template")
-        #expect(TrayIcon.style(settingsJson: #"{"trayIconStyle":"brand"}"#) == "brand")
-        #expect(TrayIcon.style(settingsJson: nil) == "template")
-    }
-
-    @Test func 只有模板样式交给系统着色() {
-        #expect(TrayIcon.isTemplate("template"))
-        #expect(!TrayIcon.isTemplate("brand"))
-        #expect(!TrayIcon.isTemplate("black"))
-        #expect(TrayIcon.resource("brand") == "tray-brand")
-        #expect(TrayIcon.resource("black") == "tray-black")
-        #expect(TrayIcon.resource("template") == "tray")
-    }
-
-    @Test func 三份图标都打进了资源包() {
-        for style in ["template", "brand", "black"] {
-            let url = TrayIcon.url(style)
-            #expect(url != nil, "\(style)")
-            #expect(url.flatMap(NSImage.init(contentsOf:)) != nil, "\(style)")
-        }
+    @Test func 模板图标打进了资源包() {
+        let url = TrayIcon.url
+        #expect(url != nil)
+        #expect(url.flatMap(NSImage.init(contentsOf:)) != nil)
     }
 
     @Test func 左键开快捷面板右键与Control左键出菜单() {
@@ -175,15 +127,15 @@ struct StatusBarTests {
         #expect(QuickPanelController.shouldReopen(closedAt: -.infinity, now: 0))
     }
 
-    @Test func 菜单项与Tauri托盘逐条一致() {
+    @Test func 菜单只提供保留的功能入口() {
         let titles = StatusBarController.entries.map { $0?.title ?? "—" }
-        #expect(titles == ["翻译选中文本", "输入框原地替换", "撰写窗", "多模型对比", "截图翻译", "静默 OCR（只复制原文）", "—",
+        #expect(titles == ["翻译选中文本", "输入框原地替换", "撰写窗", "截图翻译", "—",
                            "快捷面板…", "翻译历史", "设置…", "检查更新…", "退出 umuo"])
         let actions = StatusBarController.entries.compactMap { entry -> HotkeyAction? in
             if case let .action(action)? = entry?.entry { return action }
             return nil
         }
-        #expect(actions == [.selection, .silentReplace, .compose, .compare, .ocr, .ocrSilent])
+        #expect(actions == [.selection, .silentReplace, .compose, .ocr])
     }
 }
 

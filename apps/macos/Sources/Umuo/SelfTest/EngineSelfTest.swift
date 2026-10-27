@@ -117,45 +117,28 @@ enum EngineSelfTest {
         SettingsSelfTest.run(engine, check)
     }
 
-    /// 阶段 3 的窗口要的 ops 导出：历史（上面那次翻译记了一条）、收藏、术语表 JSON 往返保留未知字段、
+    /// 阶段 3 的窗口要的 ops 导出：历史（上面那次翻译记了一条）、
     /// 宿主自己发提示时登记的请求 id。都在临时配置目录里，不碰用户的历史库。
     static func opsChecks(_ engine: Engine, _ check: (String, Bool, String) -> Void) {
-        do {
-            var records: [HistoryRecord] = []
-            wait { records = (try? engine.historyQuery(filter: nil, limit: 10, offset: 0)) ?? []; return !records.isEmpty }
-            let facets = try engine.historyFacets()
-            check("historyQuery", records.first?.translatedText == "你好世界" && facets.models.contains("gpt-4o-mini"),
-                  "\(records.count) 条，模型 \(facets.models)")
+        var records: [HistoryRecord] = []
+        wait { records = (try? engine.historyQuery(filter: nil, limit: 10, offset: 0)) ?? []; return !records.isEmpty }
+        check("historyQuery", records.first?.translatedText == "你好世界" && records.first?.model == "gpt-4o-mini",
+              "\(records.count) 条")
 
-            let starred = try engine.favoriteToggle(text: "umuo", translation: nil)
-            let status = try engine.favoritesStatus(texts: ["umuo", "other"])
-            let listed = try engine.favoritesList(limit: 5, offset: 0)
-            check("favoriteToggle", starred && status == [true, false] && listed.count == 1,
-                  "收藏后状态 \(status)")
+        let first = engine.beginRequest(surface: "panel")
+        let second = engine.beginRequest(surface: "panel")
+        check("beginRequest", second > first, "#\(first) → #\(second)")
 
-            let saved = try engine.glossarySaveJson(glossaryJson: #"{"id":"g","name":"术语","entries":[{"source":"a","target":"甲","note":"新字段"}],"color":"teal"}"#)
-            let kept = engine.glossaryListJson() == saved && saved.contains(#""color":"teal""#) && saved.contains(#""note":"新字段""#)
-            check("glossarySaveJson", kept, "未知字段保留：\(kept)")
-
-            let first = engine.beginRequest(surface: "panel")
-            let second = engine.beginRequest(surface: "panel")
-            check("beginRequest", second > first, "#\(first) → #\(second)")
-
-            // 取词黑名单（默认名单里有 1Password）：读取之前拦下，文案点名应用
-            let blocked = engine.selectionBlockNotice(appName: "1Password")
-            check("selectionBlockNotice",
-                  blocked == "「1Password」在取词黑名单里，没有读取选中的内容。可在设置里调整。"
-                      && engine.selectionBlockNotice(appName: "Safari") == nil,
-                  blocked ?? "nil")
-        } catch {
-            check("ops", false, "\(error)")
-        }
+        // 取词黑名单（默认名单里有 1Password）：读取之前拦下，文案点名应用
+        let blocked = engine.selectionBlockNotice(appName: "1Password")
+        check("selectionBlockNotice",
+              blocked == "「1Password」在取词黑名单里，没有读取选中的内容。可在设置里调整。"
+                  && engine.selectionBlockNotice(appName: "Safari") == nil,
+              blocked ?? "nil")
     }
 
     static func request(_ text: String) -> TranslateRequest {
-        TranslateRequest(text: text, mode: .selection, targetOverride: nil, providerOverride: nil,
-                         modelOverride: nil, styleOverride: nil, sourceOverride: nil,
-                         focusSource: nil, back: false)
+        TranslateRequest(text: text, mode: .selection, targetOverride: nil, sourceOverride: nil, focusSource: nil)
     }
 
     static func json(_ raw: String) -> [String: Any] {

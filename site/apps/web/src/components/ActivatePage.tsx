@@ -18,7 +18,7 @@ type ActivateState =
   | { kind: 'unknown' }
   | { kind: 'error' }
 
-function storage(action: (store: Storage) => string | null | void): string | null {
+function storage(action: (store: Storage) => string | null | undefined): string | null {
   try {
     return action(window.sessionStorage) ?? null
   } catch {
@@ -32,7 +32,7 @@ function takeClaim(): string | null {
   const params = new URLSearchParams(window.location.search)
   const fromUrl = params.get('claim')
   if (!fromUrl) return storage((store) => store.getItem(CLAIM_STORAGE))
-  storage((store) => store.setItem(CLAIM_STORAGE, fromUrl))
+  storage((store) => void store.setItem(CLAIM_STORAGE, fromUrl))
   params.delete('claim')
   const rest = params.toString()
   window.history.replaceState(
@@ -74,7 +74,7 @@ export function ActivatePage({ activate }: { activate: ActivateContent }) {
         )
         if (stopped) return
         if (response.status === 404) {
-          storage((store) => store.removeItem(CLAIM_STORAGE))
+          storage((store) => void store.removeItem(CLAIM_STORAGE))
           return setState({ kind: 'unknown' })
         }
         // 429、5xx 与网络错误一样算临时故障，下面统一退避重试

@@ -18,17 +18,17 @@ struct AppShellTests {
                                              productionBundleId: production))
     }
 
-    @Test func 七个功能各自分发到接上的处理函数() {
+    @Test func 核心功能各自分发到接上的处理函数() {
         let router = ActionRouter()
         var hits: [HotkeyAction] = []
-        for action in HotkeyAction.allCases where action != .speak {
+        for action in HotkeyAction.allCases where action != .ocr {
             router.handle(action) { hits.append(action) }
         }
         for action in HotkeyAction.allCases { router.perform(action) }
-        #expect(hits == HotkeyAction.allCases.filter { $0 != .speak })
+        #expect(hits == HotkeyAction.allCases.filter { $0 != .ocr })
         // 还没接上的功能不崩，只报告没人接
-        #expect(!router.perform(.speak))
-        #expect(router.handled.count == 6)
+        #expect(!router.perform(.ocr))
+        #expect(router.handled.count == 3)
     }
 
     @Test func 测试进程里的AppModel不注册快捷键() {
@@ -38,6 +38,15 @@ struct AppShellTests {
         #expect(model.hotkeys.registeredCombos == 0)
         model.settingsApplied(settingsJson: #"{"selectionHotkey":"Alt+D"}"#, hotkeysChanged: true)
         #expect(model.hotkeys.registeredCombos == 0)
+    }
+
+    @Test func 旧退役键位不进入全局注册计划() {
+        let values = HotkeyCenter.values(settingsJson: #"{"selectionHotkey":"Ctrl Ctrl","silentReplaceHotkey":"Alt Alt","composeHotkey":"Alt+Cmd+A","ocrHotkey":"Alt+Cmd+O","compareHotkey":"Alt+Cmd+O","ocrSilentHotkey":"Ctrl Ctrl","speakHotkey":"Alt Alt"}"#)
+        let plan = HotkeyCenter.plan(values)
+        #expect(plan.map(\.action) == [.selection, .silentReplace, .compose, .ocr])
+        #expect(values["compareHotkey"] == nil)
+        #expect(values["ocrSilentHotkey"] == nil)
+        #expect(values["speakHotkey"] == nil)
     }
 
     @Test func 设置JSON只取视图要的字段() {

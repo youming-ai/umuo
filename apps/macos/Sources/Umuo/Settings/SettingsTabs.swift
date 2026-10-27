@@ -29,8 +29,6 @@ enum SettingsTab: String, CaseIterable, Sendable {
 struct SettingsAttentionInput: Equatable, Sendable {
     /// 当前供应商是否已配 Key。
     var keyConfigured: Bool?
-    /// 本月是否有供应商已经花到上限。
-    var someProviderOverLimit = false
     /// 是否缺少某项系统权限。
     var permissionMissing: Bool?
 }
@@ -42,7 +40,6 @@ enum SettingsTabs {
         var tabs = Set<SettingsTab>()
         if input.keyConfigured == false { tabs.insert(.engine) }
         if input.permissionMissing == true { tabs.insert(.permissions) }
-        if input.someProviderOverLimit { tabs.insert(.advanced) }
         return tabs
     }
 

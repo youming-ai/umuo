@@ -13,9 +13,6 @@ private final class FakeBackend: PanelBackend {
     var copied: [String] = []
     var copyFailure: String?
     var spoken: [String] = []
-    var favoriteResult: Result<Bool, EngineError> = .success(true)
-    var favoriteToggles: [(String, String?)] = []
-    var favoriteStatusValue = false
     var replaceResult: String?
     var replaced: [(String, String?)] = []
     var composed: [(String, String?, String?)] = []
@@ -32,12 +29,6 @@ private final class FakeBackend: PanelBackend {
 
     func speak(_ text: String) { spoken.append(text) }
     func stopSpeaking() {}
-    func favoriteToggle(text: String, translation: String?) async throws -> Bool {
-        favoriteToggles.append((text, translation))
-        return try favoriteResult.get()
-    }
-
-    func favoriteStatus(_: String) async -> Bool { favoriteStatusValue }
     func replace(_ text: String, owner: String?) async -> String? {
         replaced.append((text, owner))
         return replaceResult
@@ -48,15 +39,15 @@ private final class FakeBackend: PanelBackend {
     func openSystemSettings(_ permission: PermissionKind) { systemSettings.append(permission) }
 }
 
-private func route(_ id: UInt64) -> Route { Route(surface: "panel", requestId: id, back: false) }
+private func route(_ id: UInt64) -> Route { Route(surface: "panel", requestId: id) }
 
 private func start(_ id: UInt64, _ text: String = "Hello world", mode: String = "selection") -> TranslateEvent {
     .start(text: text, provider: "OpenAI", model: "gpt-4o-mini", targetLang: "中文", wordMode: false, mode: mode)
 }
 
 private let doneEvent = TranslateEvent.done(warning: nil, model: "gpt-4o-mini", inputTokens: 1, outputTokens: 1,
-                                            estimated: false, costUsd: nil, firstTokenMs: nil, totalMs: 10,
-                                            replaced: false, offline: false)
+                                            estimated: false, firstTokenMs: nil, totalMs: 10,
+                                            replaced: false)
 
 /// 让 session 里起的 Task 跑完（假 backend 的方法都立即返回）。
 private func settle() async {
@@ -78,16 +69,12 @@ private func translatedSession(mode: String = "selection", text: String = "Hello
 @Suite("浮窗视图模型")
 @MainActor
 struct PanelSessionTests {
-    @Test func 新的一次翻译重置可改原文与提示并查一次收藏状态() async {
-        let backend = FakeBackend()
-        backend.favoriteStatusValue = true
-        let session = PanelSession(backend: backend)
+    @Test func 新的一次翻译重置可改原文与提示() {
+        let session = PanelSession(backend: FakeBackend())
         session.actionNotice = "上一次的提示"
         session.apply(route: route(1), event: start(1, "识别的原文", mode: "ocr"))
         #expect(session.draft == "识别的原文")
         #expect(session.actionNotice == nil)
-        await settle()
-        #expect(session.favorited)
     }
 
     @Test func 被顶掉的旧请求不改窗口状态() async {
@@ -97,17 +84,6 @@ struct PanelSessionTests {
         // 迟到的旧 start：丢掉，可改原文不跟着变
         #expect(!session.apply(route: route(1), event: start(1, "旧的")))
         #expect(session.draft == "新的")
-    }
-
-    @Test func 收藏状态回来时已经换了请求就不认() async {
-        let backend = FakeBackend()
-        backend.favoriteStatusValue = true
-        let session = PanelSession(backend: backend)
-        session.apply(route: route(1), event: start(1, "第一次"))
-        backend.favoriteStatusValue = false
-        session.apply(route: route(2), event: start(2, "第二次"))
-        await settle()
-        #expect(!session.favorited)
     }
 
     @Test func Esc翻译中取消_空闲时收起() {
@@ -121,16 +97,15 @@ struct PanelSessionTests {
         #expect(backend.cancelled == 1 && backend.hidden == 1)
     }
 
-    @Test func 半截译文不能复制替换收藏() {
+    @Test func 半截译文不能复制替换() {
         let backend = FakeBackend()
         let session = PanelSession(backend: backend)
         session.apply(route: route(1), event: start(1))
         session.apply(route: route(1), event: .delta(text: "你好"))
-        #expect(!session.canCopy && !session.canReplace && !session.canFavorite)
+        #expect(!session.canCopy && !session.canReplace)
         session.copy()
         session.replace()
-        session.toggleFavorite()
-        #expect(backend.copied.isEmpty && backend.replaced.isEmpty && backend.favoriteToggles.isEmpty)
+        #expect(backend.copied.isEmpty && backend.replaced.isEmpty)
     }
 
     @Test func 出错时保留的半段译文能复制但不能替换() {
@@ -171,42 +146,10 @@ struct PanelSessionTests {
         #expect(session.actionNotice == "复制失败：剪贴板不可用：写入失败")
     }
 
-    @Test func 收藏存完整译文_失败显示原因() async {
-        let (session, backend) = translatedSession()
-        session.toggleFavorite()
-        await settle()
-        #expect(backend.favoriteToggles.map(\.0) == ["Hello world"])
-        #expect(backend.favoriteToggles.map(\.1) == ["你好世界"])
-        #expect(session.favorited)
-
-        backend.favoriteResult = .failure(.Failed(message: "历史库打不开"))
-        session.toggleFavorite()
-        await settle()
-        #expect(session.actionNotice == "历史库打不开")
-        #expect(session.favorited)
-    }
-
-    @Test func 换模型只覆盖这一次并说明正在重译() {
-        let (session, backend) = translatedSession()
-        let provider = ProviderDetail(id: "deepseek", label: "DeepSeek", defaultModel: "deepseek-chat",
-                                      suggestedModels: [], keysUrl: "", requiresKey: true, requiresBaseUrl: false,
-                                      local: false)
-        session.switchModel(provider)
-        #expect(session.actionNotice == "正在用 DeepSeek 重译…")
-        let request = backend.translated.last
-        #expect(request?.mode == .selection)
-        #expect(request?.providerOverride == "deepseek")
-        #expect(request?.modelOverride == "deepseek-chat")
-        #expect(request?.styleOverride == nil)
-        #expect(request?.focusSource == nil)
-    }
-
     @Test func OCR结果窗的重译保住ocr模式() {
         let (session, backend) = translatedSession(mode: "ocr", text: "识别有错")
-        session.switchStyle("formal")
+        session.retry()
         #expect(backend.translated.last?.mode == .ocr)
-        #expect(backend.translated.last?.styleOverride == "formal")
-        #expect(session.actionNotice == "正在换风格重译…")
 
         // 没改原文、或改成空白：不给重译
         #expect(!session.canRetranslateDraft)
@@ -216,12 +159,6 @@ struct PanelSessionTests {
         session.retranslateDraft()
         #expect(backend.translated.last?.text == "识别无误")
         #expect(backend.translated.last?.mode == .ocr)
-    }
-
-    @Test func 换风格的空选项什么都不做() {
-        let (session, backend) = translatedSession()
-        session.switchStyle("")
-        #expect(backend.translated.isEmpty)
     }
 
     @Test func 重试_划词走首次翻译的路径_OCR保住模式() {

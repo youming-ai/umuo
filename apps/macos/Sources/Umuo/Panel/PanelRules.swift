@@ -24,30 +24,14 @@ enum PanelRules {
     }
 
     struct Appearance: Equatable {
-        var theme: ResolvedTheme
         var locale: AppLocale
-        /// 界面缩放（设置的 `uiScale`）。
-        var scale: Double
     }
 
-    /// 界面缩放的上下限：设置窗的四档（`UI_SCALES`）是 0.85–1.5。
-    static let scaleRange = 0.85 ... 1.5
-
-    /// 设置里的主题、界面语言与界面缩放 + 系统外观 → 浮窗用哪套。读不到设置（Engine 还没开好）就按系统来、不缩放。
-    ///
-    /// 缩放与 Tauri 的 `applyScale(settings.uiScale)` 一样取原值（不吸附到档位）；缺失、非数字、非有限或 ≤ 0 时按 1，
-    /// 手改配置写进来的越界值收进档位的范围，免得浮窗被放大到不能用。
-    static func appearance(settingsJson: String?, prefersDark: Bool,
-                           systemLanguages: [String] = Locale.preferredLanguages) -> Appearance
-    {
+    /// 设置里的界面语言 → 浮窗用哪套文案。读不到设置（Engine 还没开好）就按系统语言。
+    /// 配色与外观由 `ThemeChoice.apply` 统一设到整个应用上，这里不管。
+    static func appearance(settingsJson: String?, systemLanguages: [String] = Locale.preferredLanguages) -> Appearance {
         let settings = settingsJson.flatMap(JSONValue.object(json:))
-        let theme = ThemeChoice.resolve(settings?["theme"]?.stringValue, prefersDark: prefersDark)
-        let locale = AppLocale.resolve(setting: settings?["locale"]?.stringValue ?? "system",
-                                       systemLanguages: systemLanguages)
-        var scale = 1.0
-        if let raw = settings?["uiScale"]?.numberValue, raw.isFinite, raw > 0 {
-            scale = min(max(raw, scaleRange.lowerBound), scaleRange.upperBound)
-        }
-        return Appearance(theme: theme, locale: locale, scale: scale)
+        return Appearance(locale: AppLocale.resolve(setting: settings?["locale"]?.stringValue ?? "system",
+                                                    systemLanguages: systemLanguages))
     }
 }

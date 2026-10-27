@@ -1,10 +1,9 @@
-//! 一次翻译的规划：用哪个供应商、模型、风格、源语言，候选怎么取舍，收尾的提醒怎么写。
+//! 一次翻译的规划：用哪个供应商、模型、源语言，收尾的提醒怎么写。
 //!
 //! 全是纯函数与数据，不发请求、不碰宿主——流水线（`super`）按这里的结论去执行。
 
 use umuo_core::error::CoreError;
-use umuo_core::router::Scene;
-use umuo_core::{prompt, provider, usage};
+use umuo_core::provider;
 
 use crate::host::FocusSource;
 use crate::settings::Settings;
@@ -13,39 +12,6 @@ use crate::settings::Settings;
 pub const PANEL_SURFACE: &str = "panel";
 /// 撰写窗的窗口标签（PRD §5.3）。几个功能共用一套事件协议，靠窗口标签区分收件人。
 pub const COMPOSE_SURFACE: &str = "compose";
-
-/// 这个错误值不值得改用本机模型重试（PRD §7.5「离线时自动切换到本地模型」）。
-///
-/// **只有网络类错误算「离线」。** 限流、Key 无效、余额不足、上下文超长这些
-/// 换成 localhost 也解决不了；把它们也当离线，只会让用户看到「离线」字样
-/// 却仍然失败，比不标更让人困惑。
-pub fn should_fall_back_to_local(error: &CoreError) -> bool {
-    matches!(error, CoreError::Network { .. })
-}
-
-/// 候选循环里这个供应商可用的 Key；`None` 表示应跳过它。
-///
-/// **按 `requires_key()` 判断，不按「Keychain 里有没有条目」。** 本机供应商
-/// （Ollama / LM Studio）从来没有 Key 条目，按条目判断会把它们全部跳过——
-/// 首选设成 Ollama 的短句翻不了，离线回落追加的本机候选也永远发不出去（审查 H1）。
-/// 首选检查与分片路径用的是同一条规则。
-pub fn usable_key(provider: &provider::Provider, stored: Option<String>) -> Option<String> {
-    let key = stored.unwrap_or_default();
-    if provider.requires_key() && key.trim().is_empty() {
-        None
-    } else {
-        Some(key)
-    }
-}
-
-/// 分片路径一次翻译的费用：按**实际执行**的供应商与模型查内置价目表。
-pub(crate) fn chunk_cost_usd(
-    provider_id: &str,
-    model: &str,
-    usage: umuo_core::wire::TokenUsage,
-) -> Option<f64> {
-    usage::builtin_price(provider_id, model).map(|price| usage::cost_usd(usage, price))
-}
 
 /// 这次请求的源语言：用户钉住的优先，否则用自动检测的结果。
 ///
@@ -78,40 +44,12 @@ pub fn retranslate_mode(id: Option<&str>) -> Result<Mode, CoreError> {
     }
 }
 
-/// 这次请求该用哪个供应商 id：显式覆盖（浮窗重译）> 设置。
-pub fn resolve_provider_id<'a>(settings: &'a Settings, request: &'a Request) -> &'a str {
-    request
-        .provider_override
-        .as_deref()
-        .unwrap_or(&settings.provider_id)
-}
-
-/// 这次请求该用哪个模型：显式覆盖 > 设置里的模型 >供应商默认模型。
-///
-/// 「设置里为空就用供应商默认模型」这条一定要排在覆盖之后：
-/// 浮窗选了某个模型却因为它为空而回落到默认，用户会以为切换没生效。
-pub fn resolve_model(
-    settings: &Settings,
-    provider: &provider::Provider,
-    request: &Request,
-) -> String {
-    if let Some(model) = request.model_override.as_deref() {
-        if !model.trim().is_empty() {
-            return model.trim().to_string();
-        }
-    }
+/// 这次请求该用哪个模型：设置里的模型 > 供应商默认模型。只有一个当前模型，不按请求覆盖。
+pub fn resolve_model(settings: &Settings, provider: &provider::Provider) -> String {
     if settings.model.trim().is_empty() {
         provider.default_model.to_string()
     } else {
         settings.model.trim().to_string()
-    }
-}
-
-/// 这次请求该用哪个风格：显式覆盖 > 设置。
-pub fn resolve_style(settings: &Settings, request: &Request) -> prompt::StyleSpec {
-    match request.style_override.as_deref() {
-        Some(id) => prompt::find_style_with(&settings.custom_styles, id),
-        None => settings.style(),
     }
 }
 
@@ -159,15 +97,6 @@ impl Mode {
         }
     }
 
-    pub(crate) fn scene(self) -> Scene {
-        match self {
-            Mode::Selection => Scene::Selection,
-            Mode::SilentReplace => Scene::SilentReplace,
-            Mode::Compose => Scene::Compose,
-            Mode::Ocr => Scene::Ocr,
-        }
-    }
-
     /// 成功后是否把译文写回原处。只有静默翻译会。
     pub(crate) fn write_back(self) -> bool {
         self == Mode::SilentReplace
@@ -183,15 +112,8 @@ impl Mode {
 pub struct Request {
     pub text: String,
     pub mode: Mode,
-    /// 覆盖目标语言。回译用它把译文翻回**原文的语言**，而不是设置里的目标语言。
+    /// 覆盖目标语言（撰写窗的语言选择）。
     pub target_override: Option<String>,
-    /// 浮窗「换个模型 / 换个风格重译」用。
-    ///
-    /// **只影响这一次请求，不写回设置**：用户在浮窗上试一下别的模型，
-    /// 不该把他配置的默认模型悄悄改掉。
-    pub provider_override: Option<String>,
-    pub model_override: Option<String>,
-    pub style_override: Option<String>,
     /// 钉住源语言（PRD §5.3「支持选择源语言」）。为空则自动检测。
     ///
     /// 自动检测对短句经常猜不准，而用户明确知道自己在翻什么语言。
@@ -200,8 +122,6 @@ pub struct Request {
     ///
     /// 只有 [`Request::silent_replace`] 会设置它；为空就不写回。
     pub focus_source: Option<FocusSource>,
-    /// 撰写窗的回译：结果不能覆盖主译文，事件上要标出来（审查 M16）。
-    pub back: bool,
 }
 
 /// 一次请求的临时覆盖。
@@ -212,9 +132,6 @@ pub struct Request {
 pub struct Overrides {
     pub source_lang: Option<String>,
     pub target_lang: Option<String>,
-    pub provider_id: Option<String>,
-    pub model: Option<String>,
-    pub style_id: Option<String>,
 }
 
 impl Request {
@@ -224,22 +141,15 @@ impl Request {
             text: text.into(),
             mode,
             target_override: None,
-            provider_override: None,
-            model_override: None,
-            style_override: None,
             source_override: None,
             focus_source: None,
-            back: false,
         }
     }
 
-    /// 带临时覆盖的请求（撰写窗的语言 / 模型 / 风格选择用）。
+    /// 带临时覆盖的请求（撰写窗的语言选择用）。
     pub fn with_overrides(text: impl Into<String>, mode: Mode, overrides: Overrides) -> Self {
         Self {
             target_override: overrides.target_lang.filter(|v| !v.trim().is_empty()),
-            provider_override: overrides.provider_id.filter(|v| !v.trim().is_empty()),
-            model_override: overrides.model.filter(|v| !v.trim().is_empty()),
-            style_override: overrides.style_id.filter(|v| !v.trim().is_empty()),
             source_override: overrides.source_lang.filter(|v| !v.trim().is_empty()),
             ..Self::base(text, mode)
         }
@@ -249,20 +159,9 @@ impl Request {
         Self::base(text, Mode::Selection)
     }
 
-    /// 浮窗的「重译」：同一段原文，换供应商 / 模型 / 风格再翻一次。
-    pub fn retranslate(
-        text: impl Into<String>,
-        mode: Mode,
-        provider_id: Option<String>,
-        model: Option<String>,
-        style_id: Option<String>,
-    ) -> Self {
-        Self {
-            provider_override: provider_id,
-            model_override: model,
-            style_override: style_id,
-            ..Self::base(text, mode)
-        }
+    /// 浮窗的「重译」：同一段原文用当前模型再翻一次。
+    pub fn retranslate(text: impl Into<String>, mode: Mode) -> Self {
+        Self::base(text, mode)
     }
 
     pub fn silent_replace(text: impl Into<String>, source: FocusSource) -> Self {
@@ -276,25 +175,11 @@ impl Request {
     pub fn ocr(text: impl Into<String>) -> Self {
         Self::base(text, Mode::Ocr)
     }
-
-    /// 回译：把译文再翻回原文语言，用于自检（PRD §5.3）。
-    pub fn back_translate(text: impl Into<String>, target_language: impl Into<String>) -> Self {
-        Self {
-            target_override: Some(target_language.into()),
-            back: true,
-            ..Self::base(text, Mode::Compose)
-        }
-    }
 }
 
-/// 结果卡片上的提醒：月度上限的提醒与截断提醒（审查 M4）合在一起。
-pub(crate) fn done_warning(budget: Option<&str>, truncated: bool) -> Option<String> {
-    const TRUNCATED: &str = "译文可能不完整：输出触到了模型的长度上限，或连接中途断开";
-    match (budget, truncated) {
-        (Some(budget), true) => Some(format!("{TRUNCATED}；{budget}")),
-        (None, true) => Some(TRUNCATED.to_string()),
-        (budget, false) => budget.map(str::to_string),
-    }
+/// 结果卡片上的提醒：只有截断提醒（审查 M4）。
+pub(crate) fn done_warning(truncated: bool) -> Option<String> {
+    truncated.then(|| "译文可能不完整：输出触到了模型的长度上限，或连接中途断开".to_string())
 }
 
 /// 写回前的目标校验。
@@ -316,7 +201,7 @@ pub fn target_still_matches(before: Option<&str>, now: Option<String>) -> bool {
 }
 
 #[cfg(test)]
-mod override_tests {
+mod model_tests {
     use super::*;
     use crate::settings::Settings;
 
@@ -325,98 +210,21 @@ mod override_tests {
     }
 
     #[test]
-    fn without_overrides_the_settings_win() {
-        // 回归保护：浮窗重译引入的三个覆盖，绝不能改掉默认路径的行为。
+    fn the_configured_model_is_used() {
         let settings = Settings {
-            provider_id: "deepseek".to_string(),
-            model: "deepseek-chat".to_string(),
-            style_id: "academic".to_string(),
+            model: "gpt-4o".to_string(),
             ..Settings::default()
         };
-        let request = Request::selection("hello");
-        assert_eq!(resolve_provider_id(&settings, &request), "deepseek");
-        assert_eq!(
-            resolve_model(&settings, provider(), &request),
-            "deepseek-chat"
-        );
-        assert_eq!(resolve_style(&settings, &request).id, "academic");
-    }
-
-    #[test]
-    fn an_explicit_provider_override_wins() {
-        let settings = Settings::default();
-        let request = Request::retranslate(
-            "hello",
-            Mode::Selection,
-            Some("anthropic".into()),
-            None,
-            None,
-        );
-        assert_eq!(resolve_provider_id(&settings, &request), "anthropic");
-    }
-
-    #[test]
-    fn an_explicit_model_override_wins_over_the_configured_model() {
-        // 这正是「切换模型重译」的意义：临时用别的模型，而设置里仍留着原来的。
-        let settings = Settings {
-            model: "gpt-4o-mini".to_string(),
-            ..Settings::default()
-        };
-        let request =
-            Request::retranslate("hello", Mode::Selection, None, Some("gpt-4o".into()), None);
-        assert_eq!(resolve_model(&settings, provider(), &request), "gpt-4o");
-        // 设置本身没被改动。
-        assert_eq!(settings.model, "gpt-4o-mini");
-    }
-
-    #[test]
-    fn a_blank_model_override_falls_back_instead_of_sending_an_empty_name() {
-        // 空模型名发出去只会 404；这里应当回落，而不是把空串当成「用户的选择」。
-        let settings = Settings {
-            model: "gpt-4o-mini".to_string(),
-            ..Settings::default()
-        };
-        let request =
-            Request::retranslate("hello", Mode::Selection, None, Some("   ".into()), None);
-        assert_eq!(
-            resolve_model(&settings, provider(), &request),
-            "gpt-4o-mini"
-        );
+        assert_eq!(resolve_model(&settings, provider()), "gpt-4o");
     }
 
     #[test]
     fn an_empty_configured_model_falls_back_to_the_provider_default() {
         let settings = Settings {
-            model: String::new(),
+            model: "  ".to_string(),
             ..Settings::default()
         };
-        let request = Request::selection("hello");
-        assert_eq!(
-            resolve_model(&settings, provider(), &request),
-            "gpt-4o-mini"
-        );
-    }
-
-    #[test]
-    fn a_style_override_resolves_against_custom_presets_too() {
-        // 自建预设与内置走同一条查找路径（PRD §5.7），覆盖也应如此。
-        let settings = Settings::default();
-        let request = Request::retranslate(
-            "hello",
-            Mode::Selection,
-            None,
-            None,
-            Some("academic".into()),
-        );
-        assert_eq!(resolve_style(&settings, &request).id, "academic");
-
-        let unknown =
-            Request::retranslate("hello", Mode::Selection, None, None, Some("nope".into()));
-        assert_eq!(
-            resolve_style(&settings, &unknown).id,
-            umuo_core::prompt::DEFAULT_STYLE_ID,
-            "不认识的风格要回落，而不是失败"
-        );
+        assert_eq!(resolve_model(&settings, provider()), "gpt-4o-mini");
     }
 }
 
@@ -463,36 +271,6 @@ mod mode_tests {
 }
 
 #[cfg(test)]
-mod offline_fallback_tests {
-    use super::*;
-
-    #[test]
-    fn only_network_errors_count_as_being_offline() {
-        // 限流、Key 无效、余额不足、上下文超长换成本机模型也解决不了。
-        // 把它们也当「离线」，用户会看到「离线」字样却仍然失败——比不标更困惑。
-        assert!(should_fall_back_to_local(&CoreError::Network {
-            message: "无法连接".to_string()
-        }));
-
-        for error in [
-            CoreError::ServerError { status: 429 },
-            CoreError::ServerError { status: 401 },
-            CoreError::MissingKey,
-            CoreError::NoEngine,
-            CoreError::Cancelled,
-            CoreError::ContextTooLong,
-            CoreError::WriteTargetChanged,
-            CoreError::CustomEndpointMissing,
-        ] {
-            assert!(
-                !should_fall_back_to_local(&error),
-                "{error:?} 不该触发离线回落"
-            );
-        }
-    }
-}
-
-#[cfg(test)]
 mod override_source_tests {
     use super::*;
 
@@ -533,24 +311,17 @@ mod override_source_tests {
 
     #[test]
     fn blank_overrides_are_dropped_instead_of_becoming_empty_values() {
-        // 空串传下去会变成「用一个空语言码翻译」或「用一个空风格 id」——
-        // 后者会被 `find_style_with` 兜底，前者会让目标语言切换规则失灵。
+        // 空语言码会让目标语言切换规则失灵。
         let request = Request::with_overrides(
             "hi",
             Mode::Compose,
             Overrides {
                 source_lang: Some(String::new()),
                 target_lang: Some("  ".to_string()),
-                provider_id: Some(String::new()),
-                model: Some(String::new()),
-                style_id: Some(String::new()),
             },
         );
         assert!(request.source_override.is_none());
         assert!(request.target_override.is_none());
-        assert!(request.provider_override.is_none());
-        assert!(request.model_override.is_none());
-        assert!(request.style_override.is_none());
     }
 
     #[test]
@@ -561,16 +332,10 @@ mod override_source_tests {
             Overrides {
                 source_lang: Some(" en ".to_string()),
                 target_lang: Some("zh-TW".to_string()),
-                provider_id: Some("deepseek".to_string()),
-                model: Some("deepseek-chat".to_string()),
-                style_id: Some("academic".to_string()),
             },
         );
         assert_eq!(request.source_override.as_deref(), Some(" en "));
         assert_eq!(request.target_override.as_deref(), Some("zh-TW"));
-        assert_eq!(request.provider_override.as_deref(), Some("deepseek"));
-        assert_eq!(request.model_override.as_deref(), Some("deepseek-chat"));
-        assert_eq!(request.style_override.as_deref(), Some("academic"));
     }
 }
 
@@ -641,47 +406,6 @@ mod tests {
     use super::*;
 
     #[test]
-    fn only_back_translation_requests_are_marked_back() {
-        assert!(Request::back_translate("hello", "zh").back);
-        assert!(!Request::selection("hello").back);
-        assert!(!Request::with_overrides("hello", Mode::Compose, Overrides::default()).back);
-    }
-
-    #[test]
-    fn local_candidates_are_tried_without_a_key() {
-        // 本机供应商在 Keychain 里没有条目：必须照常发请求，而不是当成「没配 Key」跳过。
-        for id in ["ollama", "lmstudio"] {
-            let local = provider::find_provider(id).unwrap();
-            assert_eq!(usable_key(local, None), Some(String::new()));
-        }
-    }
-
-    #[test]
-    fn chunk_cost_follows_the_engine_that_actually_ran() {
-        // 分片路径离线回落到本机后，记账用的是本机那一对：费用为 0，
-        // 而不是把同样的 token 按云端单价算成正数记进云端账本。
-        let used = umuo_core::wire::TokenUsage {
-            input_tokens: 50_000,
-            output_tokens: 50_000,
-            estimated: true,
-        };
-        assert_eq!(chunk_cost_usd("ollama", "qwen2.5:7b", used), Some(0.0));
-        assert_eq!(chunk_cost_usd("lmstudio", "any-model", used), Some(0.0));
-        assert!(chunk_cost_usd("openai", "gpt-4o-mini", used).unwrap() > 0.0);
-    }
-
-    #[test]
-    fn cloud_candidates_without_a_key_are_skipped() {
-        let openai = provider::find_provider("openai").unwrap();
-        assert_eq!(usable_key(openai, None), None);
-        assert_eq!(usable_key(openai, Some("  ".to_string())), None);
-        assert_eq!(
-            usable_key(openai, Some("sk-x".to_string())),
-            Some("sk-x".to_string())
-        );
-    }
-
-    #[test]
     fn write_back_proceeds_when_the_same_app_is_still_frontmost() {
         assert!(target_still_matches(Some("4711"), Some("4711".to_string())));
     }
@@ -750,13 +474,7 @@ mod truncation_warning_tests {
     #[test]
     fn a_truncated_result_always_carries_a_warning() {
         // 审查 M4：半截译文照常显示，但卡片上必须说清它不完整。
-        assert!(done_warning(None, true).unwrap().contains("不完整"));
-        let both = done_warning(Some("本月已超上限"), true).unwrap();
-        assert!(both.contains("不完整") && both.contains("本月已超上限"));
-        assert_eq!(
-            done_warning(Some("本月已超上限"), false).as_deref(),
-            Some("本月已超上限")
-        );
-        assert_eq!(done_warning(None, false), None);
+        assert!(done_warning(true).unwrap().contains("不完整"));
+        assert_eq!(done_warning(false), None);
     }
 }

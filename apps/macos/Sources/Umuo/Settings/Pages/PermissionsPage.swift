@@ -10,23 +10,25 @@ struct PermissionsPage: View {
 
     var body: some View {
         let t = model.t
-        VStack(alignment: .leading, spacing: 12) {
+        Section {
             PermissionCard(model: model, title: t("prefs.permissions.accessibility"),
                            description: t("prefs.permissions.accessibilityHint"),
                            granted: model.permissions.accessibility) {
-                PrefButton(title: t("prefs.permissions.openSettings"), palette: model.palette) {
+                PrefButton(title: t("prefs.permissions.openSettings")) {
                     model.backend.openSystemSettings(.accessibility)
                 }
             }
+        }
+        Section {
             PermissionCard(model: model, title: t("prefs.permissions.screen"), description: t("prefs.permissions.screenHint"),
                            granted: model.permissions.screenRecording) {
-                PrefButton(title: t("prefs.permissions.request"), palette: model.palette) {
+                PrefButton(title: t("prefs.permissions.request")) {
                     Task {
                         await model.backend.requestScreenRecording()
                         await model.recheckPermissions()
                     }
                 }
-                PrefButton(title: t("prefs.permissions.openSettings"), palette: model.palette) {
+                PrefButton(title: t("prefs.permissions.openSettings")) {
                     model.backend.openSystemSettings(.screenRecording)
                 }
             }
@@ -42,35 +44,31 @@ struct PermissionCard<Actions: View>: View {
     @ViewBuilder let actions: () -> Actions
 
     var body: some View {
-        let p = model.palette
         let t = model.t
-        let state: (text: String, color: Palette.RGBA) = switch granted {
-        case nil: (t("prefs.permissions.unknown"), p.textTertiary)
-        case true?: (t("prefs.permissions.granted"), p.success)
-        case false?: (t("prefs.permissions.missing"), p.warning)
+        let state: (text: String, color: Color) = switch granted {
+        case nil: (t("prefs.permissions.unknown"), Color.secondary)
+        case true?: (t("prefs.permissions.granted"), Color.green)
+        case false?: (t("prefs.permissions.missing"), Color.orange)
         }
         VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .top, spacing: 16) {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(title).font(.system(size: 13, weight: .semibold)).foregroundStyle(p.textPrimary.color)
-                    Text(description).font(.system(size: 12)).foregroundStyle(p.textTertiary.color)
+                    Text(title).font(.headline).foregroundStyle(Color.primary)
+                    Text(description).font(.callout).foregroundStyle(Color.secondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 HStack(spacing: 6) {
-                    Circle().fill(state.color.color).frame(width: 6, height: 6)
-                    Text(state.text).font(.system(size: 12)).foregroundStyle(state.color.color)
+                    Circle().fill(state.color).frame(width: 6, height: 6)
+                    Text(state.text).font(.callout).foregroundStyle(state.color)
                 }
                 .accessibilityElement(children: .combine)
             }
             HStack(spacing: 8) {
                 if granted != true { actions() }
-                PrefButton(title: t("prefs.permissions.recheck"), palette: p) { Task { await model.recheckPermissions() } }
+                PrefButton(title: t("prefs.permissions.recheck")) { Task { await model.recheckPermissions() } }
             }
         }
-        .padding(.horizontal, 16).padding(.vertical, 12)
-        .background(p.surface.color)
-        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(p.border.color))
+        .padding(.vertical, 4)
     }
 }

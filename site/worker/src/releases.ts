@@ -4,7 +4,7 @@ import { json } from './http'
 /**
  * 客户端安装包的下载。
  *
- * 仓库的 Release 工作流每次合进 main 都会把新的 .dmg 传到 R2（`umuo-releases` 桶），
+ * 本机发布脚本显式 --publish 时把新的 .dmg 传到 R2（`umuo-releases` 桶），
  * 最后写 `macos/latest.json` 指向它。这里只认 latest.json：安装包没传完之前它还指着上一版，
  * 访客不会下到半个文件。
  */
@@ -113,19 +113,38 @@ export async function handleRelease(env: Env): Promise<Response> {
 /** 客户端自动更新（tauri-plugin-updater）的清单，由 Release 工作流在更新包传完后写入。 */
 export const UPDATE_KEY = 'macos/update.json'
 
-/** 只放行清单与更新包两种文件名：这条路由按地址读 R2，不能变成整个桶的浏览入口。 */
+/** 只放行两种更新清单与更新包：这条路由按地址读 R2，不能变成整个桶的浏览入口。 */
 const UPDATE_PACKAGE = /^umuo-\d+\.\d+\.\d+-universal\.app\.tar\.gz$/
 
 /**
- * `/download/macos/<文件>`：客户端自动更新读的两样东西。
+ * `/download/macos/<文件>`：旧版 Tauri 与原生 Sparkle 各读自己的清单，共用版本更新包。
+ *
+ * - `appcast.xml`：Sparkle RSS，未发布时返回空频道；
  *
  * - `update.json`：还没发过带更新包的版本时回 204 —— 更新插件把 204 当作「没有新版」，
  *   而不是报错；
  * - `umuo-<版本>-universal.app.tar.gz`：带版本号，内容永远不变，可以长缓存。
  *
- * 包的完整性不靠这里：客户端用内置公钥验 minisign 签名，Worker 或 R2 被换包也装不上。
+ * 包的完整性不靠这里：客户端用各自内置公钥验 minisign / EdDSA 签名，Worker 或 R2 被换包也装不上。
  */
 export async function handleMacosUpdateFile(env: Env, name: string): Promise<Response> {
+  if (name === 'appcast.xml') {
+    try {
+      const object = await env.RELEASES.get('macos/appcast.xml')
+      return new Response(
+        object?.body ??
+          '<?xml version="1.0"?><rss version="2.0"><channel><title>umuo</title><link>https://umuo.app</link><description>umuo macOS updates</description></channel></rss>',
+        {
+          headers: {
+            'content-type': 'application/xml; charset=utf-8',
+            'cache-control': 'no-store',
+          },
+        },
+      )
+    } catch {
+      return json({ ok: false, error: 'release_unavailable' }, 503)
+    }
+  }
   if (name === 'update.json') {
     const object = await env.RELEASES.get(UPDATE_KEY).catch(() => null)
     if (!object)

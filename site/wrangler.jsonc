@@ -22,9 +22,9 @@
 
   // 只有 umuo.app 一个自定义域名（没有 www）。
   "routes": [{ "pattern": "umuo.app", "custom_domain": true }],
-  // <name>.<subdomain>.workers.dev 与按版本的 Preview URL 在控制台上都是开着的。
-  "workers_dev": true,
-  "preview_urls": true,
+  // 仅保留 umuo.app；额外公开入口不经过该域名的 zone 规则。
+  "workers_dev": false,
+  "preview_urls": false,
 
   // `/`、`/pricing`、`/terms`、`/privacy`、语言前缀的旧地址、/api/* 与 /download/* 先交给 Worker，其余路径由静态资源层直接返回。
   // 地址里不放语言：`/` 与 `/pricing`、`/terms`、`/privacy` 由 Worker 按 cookie / 浏览器语言挑一份预渲染页（经 ASSETS 绑定读取）。
@@ -75,7 +75,7 @@
   // Waffo Pancake 收费配置。这里只放不敏感的 ID；私钥用 `wrangler secret put WAFFO_PRIVATE_KEY`，
   // 绝不进这个文件、也不进 git。任何一项缺失，收费接口都回 503（见 billing.ts 的 waffoConfig）。
   // WAFFO_ENV 是正式环境（prod）：正式收款还要等 Waffo 的店铺审核通过；在那之前 checkout 会被拒，
-  // 而定价页的 CHECKOUT_ENABLED 也还关着，访客碰不到。两个商品 ID 由 scripts/waffo-setup.ts 建好后写回这里
+  // 而定价页也还没有购买入口，访客碰不到。两个商品 ID 由 scripts/waffo-setup.ts 建好后写回这里
   // （脚本按「一行一个 "NAME": "值"」改写，别把这几项挤到同一行）。
   "vars": {
     "WAFFO_ENV": "prod",

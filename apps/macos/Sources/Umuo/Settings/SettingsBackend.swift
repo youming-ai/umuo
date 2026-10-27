@@ -8,7 +8,7 @@ struct PermissionStatus: Equatable, Sendable {
     var screenRecording: Bool?
 }
 
-/// 设置窗往外要做的事：Engine（设置、Key 状态、模型列表、术语表、导入导出、用量）、Keychain、权限、
+/// 设置窗往外要做的事：Engine（设置、Key 状态、模型列表、导入导出、用量）、Keychain、权限、
 /// 开机自启、快捷键、别的窗口。正式实现是 `EngineSettingsBackend`（同步的 Engine / Keychain / 文件调用一律在后台），
 /// 测试换成只记调用的假实现——设置窗的交互规则因此不碰真实 Keychain、剪贴板、TCC 就能测。
 @MainActor
@@ -17,7 +17,6 @@ protocol SettingsBackend: AnyObject {
     /// 只交改了的顶层键（`applySettingsPatch`），返回规范化之后的整份设置。快捷键变了由实现负责重注册。
     func applyPatch(_ patch: SettingsValues) async throws -> SettingsValues
     func providers() async -> [ProviderDetail]
-    func styles() async -> [StyleInfo]
     func keyStatus(_ providerId: String) async throws -> Bool
     func saveApiKey(_ providerId: String, _ key: String) async throws
     func deleteApiKey(_ providerId: String) async throws
@@ -36,18 +35,6 @@ protocol SettingsBackend: AnyObject {
     func hotkeyFailures() -> [String]
     /// 录键期间暂停全部全局快捷键（`HotkeyCenter.setRecording`）。
     func setHotkeyRecording(_ active: Bool)
-
-    func comparePicks() async -> [ComparePick]
-    func usageSummary() async -> UsageSummary?
-    func monthlySpend() async -> [ProviderUsage]
-
-    func glossaries() async throws -> [Glossary]
-    func saveGlossary(_ glossary: Glossary) async throws
-    func importGlossary(id: String, text: String) async throws -> UInt32
-    func exportGlossary(id: String) async throws -> String
-    func removeGlossary(id: String) async throws -> [Glossary]
-    /// 复制到剪贴板（用户点了「复制 CSV」）。失败返回原因。
-    func copyText(_ text: String) async -> String?
 
     func exportConfig() async throws -> String
     /// 导入后的新设置由实现负责交给应用（快捷键重注册、浮窗的主题语言）。
@@ -89,11 +76,6 @@ final class EngineSettingsBackend: SettingsBackend {
 
     func providers() async -> [ProviderDetail] {
         await Task.detached { providerDetails() }.value
-    }
-
-    func styles() async -> [StyleInfo] {
-        guard let engine = try? engine() else { return [] }
-        return await Task.detached { engine.styleCatalog() }.value
     }
 
     func keyStatus(_ providerId: String) async throws -> Bool {
@@ -170,52 +152,6 @@ final class EngineSettingsBackend: SettingsBackend {
     func setHotkeyRecording(_ active: Bool) {
         guard app.registersHotkeys else { return }
         app.hotkeys.setRecording(active)
-    }
-
-    func comparePicks() async -> [ComparePick] {
-        guard let engine = try? engine() else { return [] }
-        return await Task.detached { engine.comparePicks() }.value
-    }
-
-    func usageSummary() async -> UsageSummary? {
-        guard let engine = try? engine() else { return nil }
-        return await Task.detached { try? engine.usageSummary() }.value
-    }
-
-    func monthlySpend() async -> [ProviderUsage] {
-        guard let engine = try? engine() else { return [] }
-        return await Task.detached { (try? engine.monthlySpend()) ?? [] }.value
-    }
-
-    func glossaries() async throws -> [Glossary] {
-        let engine = try engine()
-        return await Task.detached { GlossaryEditor.decode(engine.glossaryListJson()) }.value
-    }
-
-    func saveGlossary(_ glossary: Glossary) async throws {
-        let engine = try engine()
-        let json = GlossaryEditor.encode(glossary)
-        _ = try await Task.detached { try engine.glossarySaveJson(glossaryJson: json) }.value
-    }
-
-    func importGlossary(id: String, text: String) async throws -> UInt32 {
-        let engine = try engine()
-        return try await Task.detached { try engine.glossaryImport(id: id, text: text) }.value
-    }
-
-    func exportGlossary(id: String) async throws -> String {
-        let engine = try engine()
-        return try await Task.detached { try engine.glossaryExport(id: id) }.value
-    }
-
-    func removeGlossary(id: String) async throws -> [Glossary] {
-        let engine = try engine()
-        return try await Task.detached { GlossaryEditor.decode(try engine.glossaryRemove(id: id)) }.value
-    }
-
-    func copyText(_ text: String) async -> String? {
-        // 拿剪贴板互斥锁：⌘C 取词降级的事务可能正在另一个线程上跑，不在主线程上等
-        await Task.detached { ScreenOCR.copy(text) }.value
     }
 
     func exportConfig() async throws -> String {

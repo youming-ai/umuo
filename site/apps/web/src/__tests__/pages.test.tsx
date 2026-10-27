@@ -4,8 +4,6 @@ import { act } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { App } from '../App'
-import { CheckoutForm } from '../components/PricingPage'
-import { getContent } from '../content'
 import { pageFromPath, pagePath } from '../lib/pages'
 import { localeHref } from '../lib/router'
 
@@ -171,19 +169,23 @@ describe('定价与激活', () => {
   /** 让轮询里的 fetch 与 setState 都跑完 */
   const settle = () => act(async () => {})
 
-  it('定价页：Free 放下载按钮，Premium 写明月付与年付；结账没开放时只放一句说明', () => {
+  it('定价页：两笔账（付给 umuo / 付给模型供应商），尚未开放购买时只放下载按钮与一句说明', () => {
     renderAt('/pricing')
-    const plans = [...host.querySelectorAll('.pricing-plans > li')]
-    expect(plans.map((plan) => plan.querySelector('h2')?.textContent)).toEqual(['Free', 'Premium'])
-    expect(plans[0]?.querySelector('a[href="/download/macos"]')).not.toBeNull()
-    expect(plans[1]?.textContent).toContain('$2.99')
-    expect(plans[1]?.textContent).toContain('$29.90')
-    expect(plans[1]?.querySelector('form')).toBeNull()
-    expect(plans[1]?.textContent).toContain('即将开放购买')
-    // 「在本页购买」「在客户端里管理订阅」这些说明在结账开放之前不成立，不显示
-    const notes = host.querySelector('.pricing-notes')?.textContent ?? ''
-    expect(notes).not.toContain('怎么购买')
-    expect(notes).toContain('退款')
+    const pages = [...host.querySelectorAll('.pricing-page')]
+    expect(pages.map((page) => page.querySelector('h2')?.textContent)).toEqual([
+      '付给 umuo',
+      '付给模型供应商',
+    ])
+    expect(pages[0]?.querySelector('a[href="/download/macos"]')).not.toBeNull()
+    expect(pages[0]?.textContent).toContain('尚未开放购买')
+    expect(host.querySelector('form')).toBeNull()
+    // 包含清单配默认快捷键；没发布的功能只标状态、不给键位
+    const rows = [...host.querySelectorAll('.pricing-included li')]
+    expect(rows[0]?.querySelectorAll('kbd')).toHaveLength(2)
+    expect(rows.find((row) => row.querySelector('.tag'))?.querySelector('kbd')).toBeFalsy()
+    // 订阅时代的承诺不能留在页面上
+    const text = host.textContent ?? ''
+    for (const stale of ['Premium', '月付', '年付', '订阅费']) expect(text).not.toContain(stale)
   })
 
   it('激活页：拿到密钥后显示密钥与 umuo:// 深链接', async () => {
@@ -251,84 +253,5 @@ describe('定价与激活', () => {
     await settle()
     expect(host.querySelector('main')?.textContent).toContain('已过期')
     expect(host.querySelector('main code')).toBeNull()
-  })
-})
-
-describe('结账表单（CHECKOUT_ENABLED 打开后的行为）', () => {
-  const checkout = getContent('zh-cn').pricing.checkout
-
-  function mountForm() {
-    act(() => root.render(<CheckoutForm checkout={checkout} />))
-    const input = host.querySelector<HTMLInputElement>('input[type="email"]')
-    if (!input) throw new Error('找不到邮箱输入框')
-    // React 受控输入：走原生 setter 再派发 input 事件，onChange 才会收到
-    act(() => {
-      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set?.call(
-        input,
-        'ada@example.com',
-      )
-      input.dispatchEvent(new Event('input', { bubbles: true }))
-    })
-  }
-
-  it('点「年付」：先同步开空白页，拿到收银台地址后把它导过去，并断开 opener', async () => {
-    const tab = { opener: {} as unknown, location: { href: '' }, close: vi.fn() }
-    vi.spyOn(window, 'open').mockReturnValue(tab as unknown as Window)
-    const fetchMock = vi.fn(async () =>
-      Response.json({ ok: true, checkoutUrl: 'https://pancake.waffo.ai/c#token=t' }),
-    )
-    vi.stubGlobal('fetch', fetchMock)
-    mountForm()
-    await act(async () =>
-      host.querySelector<HTMLButtonElement>('button[value="premium-yearly"]')?.click(),
-    )
-    expect(window.open).toHaveBeenCalledWith('', '_blank')
-    const [, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit]
-    expect(JSON.parse(String(init.body))).toEqual({
-      plan: 'premium-yearly',
-      email: 'ada@example.com',
-    })
-    expect(tab.location.href).toBe('https://pancake.waffo.ai/c#token=t')
-    expect(tab.opener).toBeNull()
-    // 打开之后留一个链接：访客没看到新标签页时可以再开一次
-    const link = host.querySelector('.checkout-status a')
-    expect(link?.textContent).toBe(checkout.opened)
-    expect(link?.getAttribute('href')).toBe('https://pancake.waffo.ai/c#token=t')
-  })
-
-  it('等待期间空白页被关掉时，退回一个让访客自己点的链接', async () => {
-    const tab = { opener: {} as unknown, closed: true, location: { href: '' }, close: vi.fn() }
-    vi.spyOn(window, 'open').mockReturnValue(tab as unknown as Window)
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () => Response.json({ ok: true, checkoutUrl: 'https://pancake.waffo.ai/c' })),
-    )
-    mountForm()
-    await act(async () =>
-      host.querySelector<HTMLButtonElement>('button[value="premium-monthly"]')?.click(),
-    )
-    expect(tab.location.href).toBe('')
-    expect(host.querySelector('.checkout-status a')?.textContent).toBe(checkout.openManually)
-  })
-
-  it('服务端拒绝时关掉空白页，显示对应的错误', async () => {
-    const tab = { opener: null, location: { href: '' }, close: vi.fn() }
-    vi.spyOn(window, 'open').mockReturnValue(tab as unknown as Window)
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () => Response.json({ ok: false, error: 'rate_limited' }, { status: 429 })),
-    )
-    mountForm()
-    await act(async () =>
-      host.querySelector<HTMLButtonElement>('button[value="premium-monthly"]')?.click(),
-    )
-    expect(tab.close).toHaveBeenCalled()
-    expect(host.querySelector('.checkout-status')?.textContent).toBe(checkout.errors.rateLimited)
-    // 错误关联到输入框，读屏能在焦点处读到它
-    const input = host.querySelector('input[type="email"]')
-    expect(input?.getAttribute('aria-invalid')).toBe('true')
-    expect(input?.getAttribute('aria-describedby')).toBe(host.querySelector('.checkout-status')?.id)
-    // 付款与试用说明不会被状态挤掉
-    expect(host.querySelector('.pricing-fineprint')?.textContent).toBe(checkout.fineprint)
   })
 })

@@ -52,8 +52,6 @@ final class OnboardingModel {
     var draftKey = ""
 
     var t = Translate(locale: .source)
-    var theme = ResolvedTheme.light
-    var palette: Palette { .of(theme) }
 
     @ObservationIgnored private var lastSave: Task<Void, Error>?
 

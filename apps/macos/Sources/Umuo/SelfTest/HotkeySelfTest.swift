@@ -75,14 +75,14 @@ enum HotkeySelfTest {
         """#)
         let plan = HotkeyCenter.plan(values)
         let option = UInt32(optionKey)
-        let ok = values.count == 6 && values["theme"] == nil
+        let ok = values.count == 4 && values["theme"] == nil
             && plan.map(\.field) == HotkeyCenter.table.map(\.field)
             && plan[0].plan == .doubleTap(DoubleTap(kind: .ctrl, side: nil))
             && plan[1].plan == .doubleTap(DoubleTap(kind: .alt, side: nil))
             && plan[2].plan == .combo(.combo(.init(keyCode: 0x00, modifiers: option | UInt32(cmdKey))))
-            && plan[3].plan == .combo(.combo(.init(keyCode: 0x23, modifiers: option)))
-            && plan[6].plan == .combo(.combo(.init(keyCode: 0x0F, modifiers: option)))
-        check("HotkeyCenter.plan", ok, "只读七个快捷键字段；⌃⌃ / ⌥⌥ 走连按不回落；解析不了与缺失的回落到 ⌥⌘A / ⌥R")
+            && plan[3].plan == .combo(.combo(.init(keyCode: 0x1F, modifiers: option | UInt32(cmdKey))))
+            && values["compareHotkey"] == nil && values["ocrSilentHotkey"] == nil && values["speakHotkey"] == nil
+        check("HotkeyCenter.plan", ok, "只读四个活跃字段；退役键位不注册；⌃⌃ / ⌥⌥ 分流，非法值回落到 ⌥⌘A")
     }
 
     /// 与 `modifier_tap.rs` 的四条测试同一组输入。
@@ -159,18 +159,18 @@ enum HotkeySelfTest {
     static func center(_ check: (String, Bool, String) -> Void) {
         let values = [
             "selectionHotkey": "Ctrl+Alt+Shift+Cmd+F13", "silentReplaceHotkey": "Ctrl+Alt+Shift+Cmd+F14",
-            "composeHotkey": "Ctrl+Alt+Shift+Cmd+F15", "compareHotkey": "Ctrl+Alt+Shift+Cmd+F16",
-            "ocrHotkey": "Ctrl+Alt+Shift+Cmd+F17", "ocrSilentHotkey": "Ctrl+Alt+Shift+Cmd+F17",
-            "speakHotkey": "Alt+F24",
+            "composeHotkey": "Ctrl+Alt+Shift+Cmd+F13", "ocrHotkey": "Alt+F24",
+            "compareHotkey": "Ctrl+Alt+Shift+Cmd+F16", "ocrSilentHotkey": "Ctrl+Alt+Shift+Cmd+F17",
+            "speakHotkey": "Alt+R",
         ]
         let center = HotkeyCenter { _ in }
         var notified = 0
         center.onRegistered = { notified += 1 }
         center.register(values)
-        let registered = center.registeredCombos == 5
-            && center.failures == ["ocrSilentHotkey", "speakHotkey"] && !center.doubleTapListening
+        let registered = center.registeredCombos == 2
+            && center.failures == ["composeHotkey", "ocrHotkey"] && !center.doubleTapListening
         check("HotkeyCenter.register", registered,
-              "5 个注册成功；与上一行重复的、没有键码的按字段名记失败：\(center.failures)；没有连按就不开监听")
+              "2 个注册成功；与上一行重复的、没有键码的按字段名记失败：\(center.failures)；没有连按就不开监听")
 
         center.paused = true
         let pausedBlocks = center.suspended
@@ -178,9 +178,9 @@ enum HotkeySelfTest {
         center.setRecording(true)
         let recording = center.suspended && center.registeredCombos == 0
         center.setRecording(false)
-        let restored = !center.suspended && center.registeredCombos == 5 && notified == 1
+        let restored = !center.suspended && center.registeredCombos == 2 && notified == 1
         center.reregister(values)
-        let reregistered = center.registeredCombos == 5 && center.failures.count == 2 && notified == 2
+        let reregistered = center.registeredCombos == 2 && center.failures.count == 2 && notified == 2
         // 收尾：注销全部，不留任何全局快捷键
         center.unregisterAll()
         let clean = center.registeredCombos == 0

@@ -1,6 +1,6 @@
-//! 应用层的状态：两个客户端共用的那一半。
+//! 应用层的状态与宿主能力边界。
 //!
-//! 窗口、托盘、快捷键这类状态留在各自的宿主里；这里只放设置、术语表、统计、历史库、
+//! 窗口、托盘、快捷键这类状态留在各自的宿主里；这里只放设置、历史库、
 //! HTTP 客户端与请求登记，以及向宿主要平台能力的 [`Host`]。
 
 use std::path::PathBuf;
@@ -9,11 +9,9 @@ use std::time::SystemTime;
 
 use umuo_store::Store;
 
-use crate::glossaries::Glossaries;
 use crate::host::Host;
 use crate::requests::Requests;
 use crate::settings::Settings;
-use crate::stats::Stats;
 
 pub struct AppCore {
     pub config_dir: PathBuf,
@@ -22,10 +20,6 @@ pub struct AppCore {
     /// 只在持有 `settings` 锁时读写。其它写设置的地方（按 App 记住目标语言、引导完成）不更新它：
     /// 下次保存时多重载一次内容相同的文件，无害。
     pub(crate) settings_mtime: Mutex<Option<SystemTime>>,
-    /// 对比偏好的本地统计（PRD §5.6）。与设置分开存，理由见 `stats.rs`。
-    pub stats: Mutex<Stats>,
-    /// 术语表（PRD §5.8）。单独一个文件，不塞进 settings.json。
-    pub glossaries: Mutex<Glossaries>,
     /// 翻译历史与用量的 SQLite 库（PRD §5.9）。
     ///
     /// `None` = 打开失败。**这时客户端照常启动**——历史不可用不该让整个翻译工具打不开，
@@ -41,14 +35,12 @@ pub struct AppCore {
 }
 
 impl AppCore {
-    /// 读配置目录里的设置、统计、术语表，建 HTTP 客户端，打开并清理历史库。
+    /// 读配置目录里的设置，建 HTTP 客户端，打开并清理历史库。
     ///
     /// 只有 HTTP 客户端建不起来才算失败；代理设置坏了、历史库打不开都照常启动。
     pub fn open(config_dir: PathBuf, host: Arc<dyn Host>) -> Result<Self, String> {
         let settings = Settings::load(&config_dir);
         let settings_mtime = crate::settings_patch::modified(&Settings::path_in(&config_dir));
-        let stats = Stats::load(&config_dir);
-        let glossaries = Glossaries::load(&config_dir);
         // 客户端按设置里的代理意图构建一次（PRD §8）。改代理需要重启——
         // 重建客户端要换掉所有已发出的连接，运行中做这件事的复杂度
         // 远大于它带来的便利（设置里已写明）。
@@ -82,8 +74,6 @@ impl AppCore {
             config_dir,
             settings: Mutex::new(settings),
             settings_mtime: Mutex::new(settings_mtime),
-            stats: Mutex::new(stats),
-            glossaries: Mutex::new(glossaries),
             store: Mutex::new(store),
             store_error,
             client,
@@ -136,7 +126,6 @@ mod tests {
             input_tokens: 1,
             output_tokens: 1,
             estimated: false,
-            cost_usd: Some(0.0),
         }
     }
 
@@ -158,27 +147,6 @@ mod tests {
         history::record(&core, draft());
         let records = history::with_store(&core, |s| s.recent(10, 0)).unwrap();
         assert_eq!(records[0].entry.source_app.as_deref(), Some("Safari"));
-    }
-
-    #[test]
-    fn going_over_the_limit_fails_over_to_a_provider_the_host_has_a_key_for() {
-        let core = open_in("failover");
-        let settings = Settings {
-            monthly_limits: vec![umuo_core::budget::ProviderLimit {
-                provider_id: "openai".into(),
-                limit_usd: 1.0,
-                extra: Default::default(),
-            }],
-            limit_action: umuo_core::budget::LimitAction::Failover,
-            ..Settings::default()
-        };
-        let spent = umuo_core::wire::TokenUsage::default();
-        history::record_usage(&core, "openai", "gpt-4o-mini", spent, Some(2.0));
-
-        let resolution = crate::budget::resolve(&core, &settings, "openai");
-        // FakeHost 只有 deepseek 的 Key
-        assert_eq!(resolution.provider_id, "deepseek");
-        assert!(resolution.warning.is_some());
     }
 
     #[test]

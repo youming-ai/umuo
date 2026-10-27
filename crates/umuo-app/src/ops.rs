@@ -1,4 +1,4 @@
-//! 界面命令的业务部分：历史、用量、收藏、术语表、配置导入导出、Key 状态、对比偏好、模型列表。
+//! 界面命令的业务部分：历史、用量、收藏、配置导入导出、Key 状态、模型列表。
 //!
 //! 宿主的命令层只做参数转发、调这里、再做窗口操作——业务规则不放进 Swift 或 FFI 导出层。
 //! 这里返回的 DTO 就是 IPC 契约（`ipc.ts` 按它们的 camelCase 字段读），改字段等于改契约。
@@ -12,14 +12,12 @@ use serde::{Deserialize, Serialize};
 use umuo_core::provider::{self, ProviderKind};
 
 use crate::config_io::ImportSummary;
-use crate::glossaries::Glossaries;
+use crate::legacy_glossaries::Glossaries;
 use crate::settings::Settings;
 use crate::settings_patch::SettingsEffects;
 use crate::{config_io, history, AppCore};
 
-const EMPTY_TEXT: &str = "没有可翻译的内容";
-
-// ---------------------------------------------------------------- 供应商与风格
+// ---------------------------------------------------------------- 供应商
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -34,15 +32,6 @@ pub struct ProviderDto {
     /// 必须由用户填 Base URL（Azure 的资源终结点、自定义端点）。
     pub requires_base_url: bool,
     pub local: bool,
-}
-
-#[derive(Debug, Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct StyleDto {
-    pub id: String,
-    pub label: String,
-    /// 是否用户自建（设置页据此决定能不能删）。
-    pub custom: bool,
 }
 
 pub fn provider_catalog() -> Vec<ProviderDto> {
@@ -118,91 +107,21 @@ pub async fn list_models(core: &AppCore, provider_id: &str) -> Result<Vec<String
     umuo_core::wire::parse_models_list(provider.protocol, &body).map_err(|e| e.to_string())
 }
 
-/// 翻译风格目录（内置 + 用户自建）。前端不该自己维护一份风格清单——那样两边一定会漂移。
-pub fn style_catalog(core: &AppCore) -> Vec<StyleDto> {
-    let settings = core.settings.lock().expect("设置锁不应中毒");
-    umuo_core::prompt::all_styles(&settings.custom_styles)
-        .into_iter()
-        .map(|s| StyleDto {
-            id: s.id,
-            label: s.label,
-            custom: s.custom,
-        })
-        .collect()
-}
-
-// ---------------------------------------------------------------- 多模型对比（PRD §5.6）
-
-#[derive(Debug, Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct PickDto {
-    pub provider_id: String,
-    pub model: String,
-    /// 被标记为「最佳」的次数。
-    pub count: u32,
-}
-
-pub fn picks_from(core: &AppCore) -> Vec<PickDto> {
-    core.stats
-        .lock()
-        .expect("统计锁不应中毒")
-        .ranking()
-        .into_iter()
-        .filter_map(|(key, count)| {
-            // 键里可能出现已经下架的供应商或模型名。跳过它们而不是把脏键丢给前端——
-            // 前端拿一个解析不了的名字只会显示成空白一行。
-            let (provider_id, model) = crate::stats::split_pick_key(&key)?;
-            Some(PickDto {
-                provider_id: provider_id.to_string(),
-                model: model.to_string(),
-                count,
-            })
-        })
-        .collect()
-}
-
-/// 记一次「选它」。返回更新后的完整排行，前端不必再发一次查询。
-pub fn record_compare_pick(
-    core: &AppCore,
-    provider_id: &str,
-    model: &str,
-) -> Result<Vec<PickDto>, String> {
-    if provider::find_provider(provider_id).is_none() {
-        return Err(format!("未知供应商：{provider_id}"));
-    }
-
-    {
-        let mut stats = core.stats.lock().expect("统计锁不应中毒");
-        stats.record_pick(provider_id, model);
-        // 写盘失败不让命令失败：这一次标记仍然生效于内存，只是重启后可能丢。
-        // 反过来（报错并回滚）会让用户以为没记上，实际却是记上了。
-        if let Err(error) = stats.save(&core.config_dir) {
-            eprintln!("umuo: 对比偏好写盘失败：{error}");
-        }
-    }
-
-    Ok(picks_from(core))
-}
-
 // ---------------------------------------------------------------- 翻译历史（PRD §5.9）
 
 /// 历史列表每页最多多少条。上限是给前端兜底的：一次拉几千条会让窗口卡住，
 /// 而用户真正会翻的也就是最近这些。
 const HISTORY_PAGE_MAX: u32 = 500;
 
-/// 历史检索条件（PRD §5.9）。三者可叠加，都是 AND。
+/// 历史检索条件（PRD §5.9）：只有关键词搜索。来源 App / 模型筛选已退出（第四批精简），
+/// 存储层的筛选能力保留不动。
 #[derive(Debug, Clone, Default, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct HistoryFilterDto {
     pub query: Option<String>,
-    pub source_app: Option<String>,
-    pub model: Option<String>,
 }
 
-/// 按条件查询历史。空条件等于「显示全部」。
-///
-/// 检索与筛选走同一条路径：分两个命令的话，「搜索 + 筛选」这种组合要么做不到，
-/// 要么就得在前端自己合并两份结果。
+/// 按关键词查询历史。空条件等于「显示全部」。
 pub fn history_query(
     core: &AppCore,
     filter: Option<HistoryFilterDto>,
@@ -214,19 +133,13 @@ pub fn history_query(
         store.query(
             &umuo_store::HistoryFilter {
                 query: filter.query,
-                source_app: filter.source_app,
-                model: filter.model,
+                ..Default::default()
             },
             limit.min(HISTORY_PAGE_MAX),
             offset,
         )
     })?;
     Ok(records_to_dto(rows))
-}
-
-/// 筛选下拉的候选值：历史里**真正出现过**的来源 App 与模型。
-pub fn history_facets(core: &AppCore) -> Result<umuo_store::Facets, String> {
-    history::with_store(core, |store| store.facets())
 }
 
 pub fn history_delete(core: &AppCore, id: i64) -> Result<bool, String> {
@@ -256,7 +169,6 @@ pub struct RecordDto {
     pub input_tokens: u32,
     pub output_tokens: u32,
     pub estimated: bool,
-    pub cost_usd: Option<f64>,
 }
 
 /// 存储层记录 → IPC 记录。
@@ -280,51 +192,8 @@ pub fn records_to_dto(rows: Vec<umuo_store::Record>) -> Vec<RecordDto> {
             input_tokens: row.entry.input_tokens,
             output_tokens: row.entry.output_tokens,
             estimated: row.entry.estimated,
-            cost_usd: row.entry.cost_usd,
         })
         .collect()
-}
-
-// ---------------------------------------------------------------- 用量与月度上限（PRD §5.10）
-
-#[derive(Debug, Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct UsageDto {
-    pub count: u32,
-    pub input_tokens: u32,
-    pub output_tokens: u32,
-    pub cost_usd: f64,
-    pub unpriced: u32,
-}
-
-/// 本月的次数、token 与费用。
-pub fn usage_summary(core: &AppCore) -> Result<UsageDto, String> {
-    let summary = history::month_usage(core)?;
-    Ok(UsageDto {
-        count: summary.count,
-        input_tokens: summary.input_tokens,
-        output_tokens: summary.output_tokens,
-        cost_usd: summary.cost_usd,
-        // 价格未知的条数要如实给出：否则用户会以为「这个月只花了这么点」，
-        // 而实际上一部分根本没算进总额。
-        unpriced: summary.unpriced,
-    })
-}
-
-/// 最近 `days` 天的按日用量。
-pub fn usage_daily(core: &AppCore, days: u32) -> Result<Vec<umuo_store::DayUsage>, String> {
-    // 上限给到一年：再长的窗口在界面上也读不完，而且会让查询与渲染都变慢。
-    let days = days.clamp(1, 365);
-    let since = history::now_unix() - i64::from(days) * 86_400;
-    history::with_store(core, |store| store.usage_by_day(since))
-}
-
-/// 本月各供应商的花费，供设置页显示「已用 x / 上限 y」。
-pub fn monthly_spend(core: &AppCore) -> Result<Vec<umuo_store::ProviderUsage>, String> {
-    history::with_store(core, |store| {
-        let since = store.month_start_unix()?;
-        store.usage_by_provider(since)
-    })
 }
 
 // ---------------------------------------------------------------- 菜单栏快捷面板（PRD §7.1）
@@ -406,7 +275,7 @@ pub fn trim_display(text: &str, limit: usize) -> String {
 /// 导出内容**不含 API Key**（Key 只在 Keychain，设置与术语表里都没有它）。
 pub fn export_config(core: &AppCore, home: &Path) -> Result<String, String> {
     let settings = core.settings.lock().expect("设置锁不应中毒").clone();
-    let glossaries = core.glossaries.lock().expect("术语表锁不应中毒").clone();
+    let glossaries = Glossaries::load(&core.config_dir);
 
     let path = config_io::export_path_in(home);
     if let Some(parent) = path.parent() {
@@ -434,14 +303,12 @@ pub fn import_config(core: &AppCore, path: &Path) -> Result<Imported, String> {
     // 先在内存里把整份包校验一遍，**任何一个文件都还没写**：不合法的包整份拒绝，
     // 不会因为设置校验失败而只导进来术语表。
     let current = core.settings.lock().expect("设置锁不应中毒").clone();
-    let mut glossaries = core.glossaries.lock().expect("术语表锁不应中毒");
+    let glossaries = Glossaries::load(&core.config_dir);
     let prepared = config_io::prepare_import(&raw, &current, &glossaries)?;
     prepared
         .glossaries
         .save(&core.config_dir)
         .map_err(|e| e.to_string())?;
-    *glossaries = prepared.glossaries;
-    drop(glossaries);
     let patch = serde_json::to_value(&prepared.settings).expect("设置结构体一定可序列化");
     let (settings, effects) = core.apply_settings_patch(patch)?;
     Ok(Imported {
@@ -449,164 +316,6 @@ pub fn import_config(core: &AppCore, path: &Path) -> Result<Imported, String> {
         settings,
         effects,
     })
-}
-
-// ---------------------------------------------------------------- 术语表（PRD §5.8）
-
-/// 全部术语表。前端拿它渲染管理界面，**不参与翻译**（翻译用的是命中块）。
-pub fn glossary_list(core: &AppCore) -> Vec<umuo_core::glossary::Glossary> {
-    core.glossaries
-        .lock()
-        .expect("术语表锁不应中毒")
-        .lists
-        .clone()
-}
-
-/// 保存（新建或覆盖）一张术语表。
-pub fn glossary_save(
-    core: &AppCore,
-    glossary: umuo_core::glossary::Glossary,
-) -> Result<Vec<umuo_core::glossary::Glossary>, String> {
-    edit_glossaries(core, |store| {
-        store.upsert(glossary);
-        Ok(store.lists.clone())
-    })
-}
-
-pub fn glossary_remove(
-    core: &AppCore,
-    id: &str,
-) -> Result<Vec<umuo_core::glossary::Glossary>, String> {
-    edit_glossaries(core, |store| {
-        store.remove(id);
-        Ok(store.lists.clone())
-    })
-}
-
-/// 从 CSV / TSV 文本导入，**替换**该表的全部条目。返回导入条数。
-pub fn glossary_import(core: &AppCore, id: &str, text: &str) -> Result<usize, String> {
-    edit_glossaries(core, |store| store.import_into(id, text))
-}
-
-/// 导出为 CSV 文本。
-pub fn glossary_export(core: &AppCore, id: &str) -> Result<String, String> {
-    core.glossaries.lock().expect("术语表锁不应中毒").export(id)
-}
-
-/// 在术语表锁里改，改成功才写盘。
-fn edit_glossaries<T>(
-    core: &AppCore,
-    edit: impl FnOnce(&mut Glossaries) -> Result<T, String>,
-) -> Result<T, String> {
-    let mut store = core.glossaries.lock().expect("术语表锁不应中毒");
-    let result = edit(&mut store)?;
-    store.save(&core.config_dir).map_err(|e| e.to_string())?;
-    Ok(result)
-}
-
-// ---------------------------------------------------------------- 收藏（PRD §5.9）
-
-#[derive(Debug, Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct FavoriteDto {
-    pub id: i64,
-    pub created_at: i64,
-    pub kind: String,
-    pub text: String,
-    pub translation: Option<String>,
-    pub source_lang: Option<String>,
-    pub target_lang: Option<String>,
-}
-
-/// 这段文本该算「单词」还是「句子」。
-///
-/// 复用核心层判定词卡模式的那条规则（≤3 个词、无句末标点、长度有限），
-/// 而不是在前端再写一遍——两处各写一遍，迟早会出现「同一个词在词卡里是词、
-/// 在收藏里是句」这种自相矛盾。
-pub fn favorite_kind_for(text: &str) -> umuo_store::FavoriteKind {
-    if umuo_core::word_card::is_word_mode(text) {
-        umuo_store::FavoriteKind::Word
-    } else {
-        umuo_store::FavoriteKind::Sentence
-    }
-}
-
-/// 切换收藏状态，返回**切换之后**的状态（true = 现在已收藏）。
-///
-/// 返回新状态而不是 `()`：星标按钮需要知道最终是亮的还是灭的。
-/// 让前端自己做乐观更新再与服务端对账，是这类小交互里最容易出现不一致的写法。
-pub fn favorite_toggle(
-    core: &AppCore,
-    text: &str,
-    translation: Option<String>,
-) -> Result<bool, String> {
-    let trimmed = text.trim().to_string();
-    if trimmed.is_empty() {
-        return Err(EMPTY_TEXT.to_string());
-    }
-    let kind = favorite_kind_for(&trimmed);
-
-    history::with_store(core, |store| {
-        // 按文本而不是 (kind, text) 判断：判定规则改过，旧收藏的 kind 可能与现在算出的不同。
-        if store.is_text_favorited(&trimmed)? {
-            store.remove_favorites_by_text_any_kind(&trimmed)?;
-            Ok(false)
-        } else {
-            store.add_favorite(&umuo_store::NewFavorite {
-                created_at: history::now_unix(),
-                kind,
-                text: trimmed,
-                translation,
-                source_lang: None,
-                target_lang: None,
-            })?;
-            Ok(true)
-        }
-    })
-}
-
-/// 给定若干条文本，返回它们**当前**是否已被收藏。
-///
-/// 历史列表一屏有一百来行，逐行去问一次是 100 次 IPC 往返；
-/// 这里一次问完。判定规则仍然在 Rust 侧，前端不需要知道 kind 怎么算。
-pub fn favorites_status(core: &AppCore, texts: &[String]) -> Result<Vec<bool>, String> {
-    history::with_store(core, |store| {
-        texts
-            .iter()
-            .map(|text| {
-                let trimmed = text.trim();
-                if trimmed.is_empty() {
-                    return Ok(false);
-                }
-                store.is_text_favorited(trimmed)
-            })
-            .collect::<Result<Vec<bool>, umuo_store::StoreError>>()
-    })
-}
-
-pub fn favorites_list(core: &AppCore, limit: u32, offset: u32) -> Result<Vec<FavoriteDto>, String> {
-    let rows = history::with_store(core, |store| {
-        store.favorites(limit.min(HISTORY_PAGE_MAX), offset)
-    })?;
-    Ok(rows
-        .into_iter()
-        .map(|row| FavoriteDto {
-            id: row.id,
-            created_at: row.created_at,
-            kind: match row.kind {
-                umuo_store::FavoriteKind::Word => "word".to_string(),
-                umuo_store::FavoriteKind::Sentence => "sentence".to_string(),
-            },
-            text: row.text,
-            translation: row.translation,
-            source_lang: row.source_lang,
-            target_lang: row.target_lang,
-        })
-        .collect())
-}
-
-pub fn favorite_remove(core: &AppCore, id: i64) -> Result<bool, String> {
-    history::with_store(core, |store| store.remove_favorite(id))
 }
 
 #[cfg(test)]
@@ -675,49 +384,6 @@ mod tests {
         assert!(ids.contains(&"deepseek".to_string()));
         assert!(!ids.contains(&"openai".to_string()));
         assert!(ids.contains(&"ollama".to_string()), "本地模型不要 Key");
-    }
-
-    #[test]
-    fn a_compare_pick_for_an_unknown_provider_is_rejected_and_a_known_one_is_ranked() {
-        let core = open_in("picks");
-        assert!(record_compare_pick(&core, "nope", "m").is_err());
-        let picks = record_compare_pick(&core, "deepseek", "deepseek-chat").unwrap();
-        assert_eq!(picks.len(), 1);
-        assert_eq!(picks[0].count, 1);
-        assert_eq!(picks_from(&core).len(), 1);
-    }
-
-    #[test]
-    fn favorites_toggle_on_and_off_by_text() {
-        let core = open_in("favorites");
-        assert!(favorite_toggle(&core, "  hello  ", None).unwrap());
-        assert_eq!(
-            favorites_status(&core, &["hello".into(), "".into(), "other".into()]).unwrap(),
-            vec![true, false, false]
-        );
-        assert_eq!(favorites_list(&core, 10, 0).unwrap()[0].kind, "word");
-        assert!(!favorite_toggle(&core, "hello", None).unwrap());
-        assert!(favorite_toggle(&core, "   ", None).is_err());
-    }
-
-    #[test]
-    fn a_failed_glossary_import_does_not_write_the_file() {
-        let core = open_in("glossary");
-        let glossary = umuo_core::glossary::Glossary {
-            id: "g1".into(),
-            name: "术语".into(),
-            source_lang: String::new(),
-            target_lang: String::new(),
-            entries: Vec::new(),
-            extra: Default::default(),
-        };
-        assert_eq!(glossary_save(&core, glossary).unwrap().len(), 1);
-        let saved = std::fs::read(core.config_dir.join("glossaries.json")).unwrap();
-        assert!(glossary_import(&core, "missing", "a,b").is_err());
-        assert_eq!(
-            std::fs::read(core.config_dir.join("glossaries.json")).unwrap(),
-            saved
-        );
     }
 
     #[test]

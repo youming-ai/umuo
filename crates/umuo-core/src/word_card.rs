@@ -93,16 +93,8 @@ pub struct WordSense {
     pub definition: String,
 }
 
-/// 例句。
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct WordExample {
-    #[serde(default, alias = "text", alias = "sentence")]
-    pub source: String,
-    #[serde(default, alias = "translation", alias = "target")]
-    pub target: String,
-}
-
-/// 一张词卡。字段全部允许缺失——模型少给一项不该让整张卡失败。
+/// 一张词卡：词、发音、语境释义。词形变化与例句这类学习内容已退出首版（第四批精简）；
+/// 模型多给的字段一律忽略。字段全部允许缺失——模型少给一项不该让整张卡失败。
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct WordCard {
     #[serde(alias = "text", alias = "term")]
@@ -111,10 +103,6 @@ pub struct WordCard {
     pub phonetic: Option<String>,
     #[serde(default, alias = "meanings", alias = "definitions")]
     pub senses: Vec<WordSense>,
-    #[serde(default, alias = "inflections", alias = "word_forms")]
-    pub forms: Vec<String>,
-    #[serde(default, alias = "sentences")]
-    pub examples: Vec<WordExample>,
 }
 
 /// 词卡请求。用 JSON 模式，并在 Prompt 里写死字段名——Anthropic 没有
@@ -126,22 +114,12 @@ pub fn build_request(word: &str, vars: &PromptVars<'_>) -> ChatRequest {
 {{\n\
   \"word\": \"原词\",\n\
   \"phonetic\": \"发音标注：英文等用国际音标，中文用拼音（带声调），日文用罗马字；没有则空串\",\n\
-  \"senses\": [{{\"part_of_speech\": \"词性\", \"definition\": \"用{target}写的释义\"}}],\n\
-  \"forms\": [\"词形变化，如时态/复数\"],\n\
-  \"examples\": [{{\"source\": \"例句原文\", \"target\": \"该例句的{target}译文\"}}]\n\
+  \"senses\": [{{\"part_of_speech\": \"词性\", \"definition\": \"用{target}写的释义\"}}]\n\
 }}\n\
-释义按常用度排序，最多 4 条；例句给 2 条，要能体现该词的典型用法。",
+释义按常用度排序，最多 4 条。",
         vars.source_lang.unwrap_or("多语言"),
         target = vars.target_lang,
     );
-    // 术语表对词卡同样生效（审查 L13）：划选 Transformer 时，释义与例句译文
-    // 都得用术语表里的强制译法，否则词卡和整句翻译给出两种说法。
-    let system = match vars.glossary.filter(|g| !g.trim().is_empty()) {
-        Some(glossary) => {
-            format!("{system}\n\n术语表（必须遵守，释义与例句译文都按它翻译）：\n{glossary}")
-        }
-        None => system,
-    };
     ChatRequest::new(system, word.to_string())
         .json()
         .temperature(0.3)
@@ -160,8 +138,6 @@ pub fn parse(text: &str) -> Result<WordCard, CoreError> {
     // 模型偶尔只给 phonetic 不给 senses；把空的 definition 过滤掉，
     // 免得 UI 上出现一排空白行。
     card.senses.retain(|s| !s.definition.trim().is_empty());
-    card.examples
-        .retain(|e| !e.source.trim().is_empty() || !e.target.trim().is_empty());
     if card.word.trim().is_empty() {
         return Err(CoreError::BadResponse {
             detail: "词卡缺少 word 字段".to_string(),
@@ -200,8 +176,6 @@ mod tests {
         PromptVars {
             source_lang: Some("English"),
             target_lang: target,
-            glossary: None,
-            app_name: None,
         }
     }
 
@@ -243,18 +217,6 @@ mod tests {
     }
 
     #[test]
-    fn the_word_card_prompt_carries_the_glossary_when_there_are_hits() {
-        // 审查 L13：词卡分支以前完全忽略术语表。
-        let mut with = vars("简体中文");
-        with.glossary = Some("- Transformer → 变换器");
-        let request = build_request("Transformer", &with);
-        assert!(request.system.contains("- Transformer → 变换器"));
-
-        let request = build_request("Transformer", &vars("简体中文"));
-        assert!(!request.system.contains("术语表"));
-    }
-
-    #[test]
     fn a_long_unbroken_cjk_run_is_not_a_single_word() {
         // 没有空格的长句（日语常见）不该被当成一个词。
         let long = "日本語の文章がそのまま長く続いている場合のテスト".repeat(2);
@@ -267,8 +229,12 @@ mod tests {
         assert!(request.json_mode, "词卡必须走 JSON 模式");
         assert!(request.system.contains("简体中文"));
         // 字段名写进 Prompt 是给没有 response_format 的 Anthropic 兜底的。
-        for field in ["word", "phonetic", "senses", "forms", "examples"] {
+        for field in ["word", "phonetic", "senses"] {
             assert!(request.system.contains(field), "Prompt 缺字段 {field}");
+        }
+        // 词形变化与例句已退出：不再为没人看的内容付 token。
+        for field in ["forms", "examples"] {
+            assert!(!request.system.contains(field), "Prompt 不该再要 {field}");
         }
         assert_eq!(request.user, "hello");
     }
@@ -291,7 +257,8 @@ mod tests {
         assert_eq!(card.word, "hello");
         assert_eq!(card.senses.len(), 1);
         assert_eq!(card.senses[0].definition, "你好");
-        assert_eq!(card.examples[0].target, "你好");
+        // 旧格式里的 forms / examples 照样解析得过，只是被忽略。
+        assert_eq!(card.phonetic.as_deref(), Some("/həˈloʊ/"));
     }
 
     #[test]

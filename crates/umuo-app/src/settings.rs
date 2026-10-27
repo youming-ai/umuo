@@ -16,21 +16,6 @@ fn default_theme() -> String {
     "system".to_string()
 }
 
-/// 默认菜单栏图标样式：模板（由系统按菜单栏明暗着色）。
-fn default_tray_icon_style() -> String {
-    "template".to_string()
-}
-
-/// 菜单栏图标的合法样式。认不出来的值回落模板——
-/// 一个不存在的图标样式不该让托盘消失。
-pub fn normalize_tray_icon_style(style: &str) -> String {
-    match style.trim() {
-        "brand" => "brand".to_string(),
-        "black" => "black".to_string(),
-        _ => "template".to_string(),
-    }
-}
-
 /// 取词黑名单的默认值：常见密码管理器。
 ///
 /// 这是**安全默认**，不是预设立场——用户随时可以在设置里增删。
@@ -102,6 +87,7 @@ pub struct Settings {
     pub target_lang: String,
     /// 第二目标语言：源语言与第一目标语言相同时改用它（PRD §5.2）。
     pub secondary_target_lang: String,
+    /// 旧选中风格，仅保留配置兼容，不参与请求或新历史。
     pub style_id: String,
     /// 划词翻译的全局快捷键。默认 ⌃⌃（连按两下 ⌃），与 Trancy Air 一致，
     /// 降低从同类工具迁过来的成本。旧版默认是 ⌥D（PRD §7.2），老用户的设置文件里仍是它。
@@ -110,31 +96,18 @@ pub struct Settings {
     pub silent_replace_hotkey: String,
     /// 撰写窗的全局快捷键，默认 ⌥⌘A。
     pub compose_hotkey: String,
-    /// 多模型对比的全局快捷键，默认 ⌥P。
+    /// 旧对比快捷键，仅保留读写兼容，不再注册。
     pub compare_hotkey: String,
     /// 截图 OCR 的全局快捷键，默认 ⌥⌘O。
     pub ocr_hotkey: String,
     /// 静默 OCR（识别后只复制原文，不翻译不弹窗）的快捷键，默认 ⌥⇧O（PRD §5.5）。
+    /// 旧静默 OCR 快捷键，仅保留读写兼容，不再注册。
     pub ocr_silent_hotkey: String,
     /// 朗读选中文本（PRD §7.2）。
+    /// 旧独立朗读快捷键，仅保留读写兼容；结果朗读仍可用。
     pub speak_hotkey: String,
     /// 自定义 OpenAI 兼容端点的 Base URL（PRD §6.1最后一行）。只在选「自定义端点」时用。
     pub custom_base_url: String,
-    /// 各供应商的月度费用上限（美元）。没列出的供应商 = 不设上限。
-    #[serde(default)]
-    pub monthly_limits: Vec<umuo_core::budget::ProviderLimit>,
-    /// 超限之后怎么办：提醒，或自动切到备用供应商（PRD §5.10）。
-    #[serde(default)]
-    pub limit_action: umuo_core::budget::LimitAction,
-    /// 分场景模型（PRD §6.3）。没配的场景回落到 `provider_id` + `model`。
-    ///
-    /// 允许指向另一家供应商：PRD 的例子是「静默替换用快模型，长段落用强模型」，
-    /// 而快模型与强模型常常不是同一家。
-    #[serde(default)]
-    pub scene_models: umuo_core::router::SceneModels,
-    /// 用户设定的备用顺序（PRD §6.3）。首选超时 / 429 / 额度不足时按它依次重试。
-    #[serde(default)]
-    pub fallback_models: Vec<umuo_core::wire::ModelRef>,
     /// 逐供应商的 Base URL 覆盖。
     ///
     /// Azure **必须**在这里填资源终结点（没有默认值可猜）；其它供应商留空即用内置地址。
@@ -154,9 +127,6 @@ pub struct Settings {
     /// 让"撞车换第二目标语言"的规则能正常工作。留空 = 不做假设。
     #[serde(default)]
     pub native_lang: String,
-    /// 菜单栏图标样式（PRD §7.3 通用）：`template` / `brand` / `black`。
-    #[serde(default = "default_tray_icon_style")]
-    pub tray_icon_style: String,
     /// 取词黑名单（PRD §7.3）：这些应用里**连读都不读**。
     ///
     /// 把密码管理器里选中的内容发给云端是安全事故，不是体验问题——
@@ -202,14 +172,10 @@ pub struct Settings {
     /// 下次启动不该又把引导糊到他脸上。
     #[serde(default)]
     pub onboarding_done: bool,
-    /// 用户自建的风格预设（PRD §5.7）。
-    ///
-    /// 存的是用户填的原始形态；运行时经 `CustomStyle::validated` 规范化。
-    /// **坏掉的预设不会让设置加载失败**：它们在装配时被跳过，用户能在设置页看到
-    /// 并改掉，而不是整个应用起不来。
+    /// 旧自建预设的完整 JSON，仅保留配置转移，不再解释或规范化。
     #[serde(default)]
-    pub custom_styles: Vec<umuo_core::prompt::CustomStyle>,
-    /// 参与对比的供应商 id（PRD §5.6）。**空 = 自动**：挑所有已配置 Key 的供应商。
+    pub custom_styles: Vec<serde_json::Value>,
+    /// 旧对比供应商列表，仅保留读写兼容，不参与请求。
     pub compare_providers: Vec<String>,
     /// 是否记录翻译历史（PRD §5.9）。关掉之后**一条都不写**。
     pub history_enabled: bool,
@@ -237,10 +203,7 @@ impl Default for Settings {
             ocr_silent_hotkey: "Alt+Shift+O".to_string(),
             speak_hotkey: "Alt+R".to_string(),
             custom_base_url: String::new(),
-            monthly_limits: Vec::new(),
-            limit_action: umuo_core::budget::LimitAction::default(),
             provider_base_urls: std::collections::BTreeMap::new(),
-            tray_icon_style: default_tray_icon_style(),
             selection_blacklist: default_selection_blacklist(),
             native_lang: String::new(),
             ui_scale: default_ui_scale(),
@@ -254,9 +217,7 @@ impl Default for Settings {
             privacy_mode: false,
             onboarding_done: false,
             custom_styles: Vec::new(),
-            scene_models: umuo_core::router::SceneModels::default(),
-            fallback_models: Vec::new(),
-            // 空 = 自动挑「已配置 Key 的供应商」，让刚填完一把 Key 的用户不必先配置。
+            // 退役对比的兼容字段；新版本不读取它来发请求。
             compare_providers: Vec::new(),
             history_enabled: true,
             history_retention_days: 90,
@@ -285,9 +246,6 @@ impl Settings {
     /// `previous` 是当前生效的设置：端点只校验**这次改动了的**条目——
     /// 老配置里已有的 `http://` 局域网地址不该让用户从此改不了任何设置。
     pub fn prepare_for_save(&mut self, previous: &Settings) -> Result<(), String> {
-        // 自建预设先规范化：能修的修（空标签、越界温度），修不了的明确报错。
-        // 报错而不是静默丢弃——用户会看到自己刚存的预设凭空消失，那更糟。
-        self.normalize_custom_styles()?;
         self.normalize_selection_blacklist();
         // 代理地址当场校验：填错了要在设置页立刻说，而不是等下次翻译莫名其妙地失败。
         self.proxy_choice()?;
@@ -334,60 +292,6 @@ impl Settings {
         true
     }
 
-    /// 当前生效的风格。内置与自建走同一条查找路径，找不到回落默认内置风格。
-    pub fn style(&self) -> umuo_core::prompt::StyleSpec {
-        umuo_core::prompt::find_style_with(&self.custom_styles, &self.style_id)
-    }
-
-    /// 保存前把自建预设规范化一遍，并把**坏掉的那些**挑出来告诉用户。
-    ///
-    /// 直接丢弃坏预设是错的：用户会看到自己刚存的预设凭空消失。
-    /// 但把它们原样存进去也不行——运行时每次都要重新判断一次。
-    /// 所以：能修的就修（空标签、越界温度），修不了的（id 冲突）报错。
-    pub fn normalize_custom_styles(&mut self) -> Result<(), String> {
-        let mut normalized = Vec::with_capacity(self.custom_styles.len());
-        for style in std::mem::take(&mut self.custom_styles) {
-            let label = style.label.clone();
-            let fixed = style
-                .clone()
-                .validated()
-                .map_err(|error| format!("预设「{label}」无法保存：{error}"))?;
-            // 存回规范化后的值，让设置文件与运行时行为一致。
-            normalized.push(umuo_core::prompt::CustomStyle {
-                // 规范化只动已知字段，新版本加的字段原样带过去
-                extra: style.extra,
-                id: fixed.id,
-                label: fixed.label,
-                instruction: fixed.instruction,
-                temperature: fixed.temperature,
-                few_shot: fixed
-                    .few_shot
-                    .into_iter()
-                    .map(|(source, target)| umuo_core::prompt::FewShotExample { source, target })
-                    .collect(),
-                explain: fixed.explain,
-            });
-        }
-        self.custom_styles = normalized;
-        // 当前选中的预设如果被删掉了，回落到默认——否则用户会看到一个
-        // 已经不存在于列表里的选中项。
-        if !umuo_core::prompt::all_styles(&self.custom_styles)
-            .iter()
-            .any(|style| style.id == self.style_id)
-        {
-            self.style_id = umuo_core::prompt::DEFAULT_STYLE_ID.to_string();
-        }
-        Ok(())
-    }
-
-    /// 这次请求该打到哪个地址。
-    ///
-    /// - `Ok(None)`：用供应商目录里的地址；
-    /// - `Ok(Some(url))`：覆盖（自定义端点，地址由用户填）；
-    /// - `Err`：选了自定义端点却没填地址。
-    ///
-    /// 最后一种必须拦住。不拦的话请求会打到一个空 URL，用户看到的是一条
-    /// 莫名其妙的网络错误，完全不知道是自己没填地址。
     /// 这个应用是否在取词黑名单里。
     ///
     /// 匹配规则：不区分大小写，**双向包含**——用户填 "keepass" 就能命中
@@ -405,8 +309,6 @@ impl Settings {
 
     /// 保存前归一化黑名单：去空白、去首尾空白、大小写不敏感去重。
     ///
-    /// 与 `normalize_custom_styles` 同一模式：能修的修，修不了的报错。
-    /// 黑名单没有"修不了"的情况，全部就地修。
     pub fn normalize_selection_blacklist(&mut self) {
         self.selection_blacklist = parse_selection_blacklist(&self.selection_blacklist.join("\n"));
     }
@@ -432,16 +334,13 @@ impl Settings {
             .unwrap_or(1.0)
     }
 
-    /// 全部快捷键，按固定顺序。保存设置时用它判断「快捷键是否变了、要不要重注册」。
-    pub fn hotkeys(&self) -> [&str; 7] {
+    /// 当前四个入口的快捷键，按固定顺序；退役字段仅为旧配置兼容保留。保存设置时用它判断「快捷键是否变了、要不要重注册」。
+    pub fn hotkeys(&self) -> [&str; 4] {
         [
             &self.selection_hotkey,
             &self.silent_replace_hotkey,
             &self.compose_hotkey,
-            &self.compare_hotkey,
             &self.ocr_hotkey,
-            &self.ocr_silent_hotkey,
-            &self.speak_hotkey,
         ]
     }
 
@@ -553,11 +452,19 @@ mod tests {
             r#"{
                 "customStyles":[{"id":"mine","label":"我的","futureKnob":3}],
                 "monthlyLimits":[{"providerId":"openai","limitUsd":5,"futureFlag":true}],
-                "sceneModels":{"compare":[],"futureScene":{"providerId":"openai","model":"m"}}
+                "limitAction":"failover",
+                "fallbackModels":[{"providerId":"deepseek","model":"deepseek-chat"}],
+                "sceneModels":{"compare":[],"futureScene":{"providerId":"openai","model":"m"}},
+                "trayIconStyle":"brand"
             }"#,
         );
         assert_eq!(saved["customStyles"][0]["futureKnob"], 3);
+        // 月度上限、超限动作、备用顺序与分场景模型已退出（第三批精简），旧值原样保留、不再参与请求。
         assert_eq!(saved["monthlyLimits"][0]["futureFlag"], true);
+        assert_eq!(saved["limitAction"], "failover");
+        assert_eq!(saved["fallbackModels"][0]["model"], "deepseek-chat");
+        // 菜单栏图标样式选择已退出（第五批精简），旧值同样原样保留。
+        assert_eq!(saved["trayIconStyle"], "brand");
         assert_eq!(
             saved["sceneModels"]["futureScene"],
             serde_json::json!({"providerId":"openai","model":"m"})
@@ -597,207 +504,6 @@ mod tests {
             reparsed
         );
         assert_eq!(first, fs::read_to_string(dir.join(SETTINGS_FILE)).unwrap());
-    }
-
-    fn preset(id: &str, label: &str) -> umuo_core::prompt::CustomStyle {
-        umuo_core::prompt::CustomStyle {
-            extra: Default::default(),
-            id: id.to_string(),
-            label: label.to_string(),
-            instruction: "简短。".to_string(),
-            temperature: 0.2,
-            few_shot: Vec::new(),
-            explain: false,
-        }
-    }
-
-    #[test]
-    fn saving_normalizes_custom_presets_in_place() {
-        let mut settings = Settings {
-            custom_styles: vec![umuo_core::prompt::CustomStyle {
-                label: "  没写名字  ".to_string(),
-                temperature: 9.0,
-                ..preset("mine", "")
-            }],
-            ..Settings::default()
-        };
-
-        settings.normalize_custom_styles().unwrap();
-        let stored = &settings.custom_styles[0];
-        assert_eq!(stored.label, "  没写名字  ".trim(), "标签应当被裁掉空白");
-        assert_eq!(stored.temperature, 2.0, "越界温度应当被夹回范围");
-    }
-
-    #[test]
-    fn a_preset_that_cannot_be_fixed_reports_which_one_failed() {
-        // 静默丢弃更糟：用户会看到自己刚存的预设凭空消失。
-        let mut settings = Settings {
-            custom_styles: vec![preset("standard", "我的标准")],
-            ..Settings::default()
-        };
-
-        let error = settings.normalize_custom_styles().unwrap_err();
-        assert!(error.contains("我的标准"), "错误里要指出是哪一条：{error}");
-        assert!(error.contains("standard"), "也要说清冲突的 id：{error}");
-    }
-
-    #[test]
-    fn deleting_the_preset_currently_in_use_falls_back_to_the_default_style() {
-        // 否则设置页会显示一个已经不在列表里的选中项，而翻译用它时只能回落到默认——
-        // 界面与实际行为不一致。
-        let mut settings = Settings {
-            style_id: "mine".to_string(),
-            custom_styles: vec![preset("mine", "我的")],
-            ..Settings::default()
-        };
-
-        settings.custom_styles.clear();
-        settings.normalize_custom_styles().unwrap();
-        assert_eq!(settings.style_id, umuo_core::prompt::DEFAULT_STYLE_ID);
-    }
-
-    #[test]
-    fn a_surviving_custom_preset_stays_selected() {
-        let mut settings = Settings {
-            style_id: "mine".to_string(),
-            custom_styles: vec![preset("mine", "我的")],
-            ..Settings::default()
-        };
-
-        settings.normalize_custom_styles().unwrap();
-        assert_eq!(settings.style_id, "mine", "还在用的预设不该被重置");
-    }
-
-    #[test]
-    fn an_unknown_style_id_falls_back_to_the_default_style() {
-        // 用户手改配置文件写了个不存在的 id：不该让翻译失败，回到标准是安全的。
-        let settings = Settings {
-            style_id: "nope".to_string(),
-            ..Settings::default()
-        };
-        assert_eq!(settings.style().id, umuo_core::prompt::DEFAULT_STYLE_ID);
-    }
-
-    fn model(provider_id: &str, name: &str) -> umuo_core::wire::ModelRef {
-        umuo_core::wire::ModelRef {
-            provider_id: provider_id.to_string(),
-            model: name.to_string(),
-        }
-    }
-
-    #[test]
-    fn a_scene_specific_model_reaches_the_route_plan() {
-        // 配了分场景模型却进不了计划，这个功能就等于没有。
-        let default = model("openai", "gpt-4o-mini");
-        let settings = Settings {
-            scene_models: umuo_core::router::SceneModels {
-                silent_replace: Some(model("deepseek", "deepseek-chat")),
-                ..Default::default()
-            },
-            ..Settings::default()
-        };
-
-        let plan = umuo_core::router::build_plan(
-            umuo_core::router::Scene::SilentReplace,
-            Some(&default),
-            &settings.scene_models,
-            &settings.fallback_models,
-        );
-        assert_eq!(plan.candidates[0], model("deepseek", "deepseek-chat"));
-        // PRD 的例子就是「静默替换用快模型」——它多半和默认模型不是同一家。
-        assert_eq!(plan.candidates[0].provider_id, "deepseek");
-    }
-
-    #[test]
-    fn an_unconfigured_scene_falls_back_to_the_default_model() {
-        let default = model("openai", "gpt-4o-mini");
-        let settings = Settings::default();
-        let plan = umuo_core::router::build_plan(
-            umuo_core::router::Scene::Selection,
-            Some(&default),
-            &settings.scene_models,
-            &settings.fallback_models,
-        );
-        assert_eq!(plan.candidates, vec![default]);
-    }
-
-    #[test]
-    fn the_users_fallback_order_comes_after_the_primary() {
-        let default = model("openai", "gpt-4o-mini");
-        let settings = Settings {
-            fallback_models: vec![
-                model("deepseek", "deepseek-chat"),
-                model("anthropic", "claude-sonnet-4-5"),
-            ],
-            ..Settings::default()
-        };
-
-        let plan = umuo_core::router::build_plan(
-            umuo_core::router::Scene::Selection,
-            Some(&default),
-            &settings.scene_models,
-            &settings.fallback_models,
-        );
-        assert_eq!(plan.candidates[0], default, "首选永远排第一");
-        assert_eq!(plan.candidates[1], model("deepseek", "deepseek-chat"));
-        assert_eq!(plan.candidates[2], model("anthropic", "claude-sonnet-4-5"));
-    }
-
-    #[test]
-    fn a_scene_model_that_equals_the_primary_is_not_duplicated() {
-        // 重复候选会让同一次失败被重试两遍，用户白等一轮。
-        let default = model("openai", "gpt-4o-mini");
-        let settings = Settings {
-            scene_models: umuo_core::router::SceneModels {
-                selection: Some(default.clone()),
-                ..Default::default()
-            },
-            fallback_models: vec![default.clone()],
-            ..Settings::default()
-        };
-
-        let plan = umuo_core::router::build_plan(
-            umuo_core::router::Scene::Selection,
-            Some(&default),
-            &settings.scene_models,
-            &settings.fallback_models,
-        );
-        assert_eq!(plan.candidates.len(), 1, "实际：{:?}", plan.candidates);
-    }
-
-    #[test]
-    fn scene_models_and_fallbacks_survive_a_save_load_round_trip() {
-        // 这两个字段是配置文件里的新形状；存不下来等于每次重启都要重配。
-        let settings = Settings {
-            scene_models: umuo_core::router::SceneModels {
-                compose: Some(model("anthropic", "claude-sonnet-4-5")),
-                compare: vec![
-                    model("openai", "gpt-4o"),
-                    model("deepseek", "deepseek-chat"),
-                ],
-                ..Default::default()
-            },
-            fallback_models: vec![model("deepseek", "deepseek-chat")],
-            ..Settings::default()
-        };
-
-        let json = serde_json::to_string(&settings).unwrap();
-        let back: Settings = serde_json::from_str(&json).unwrap();
-        assert_eq!(back, settings);
-    }
-
-    #[test]
-    fn a_custom_preset_is_what_the_translator_actually_uses() {
-        let settings = Settings {
-            style_id: "mine".to_string(),
-            custom_styles: vec![preset("mine", "我的")],
-            ..Settings::default()
-        };
-
-        let style = settings.style();
-        assert_eq!(style.id, "mine");
-        assert!(style.custom);
-        assert!(style.instruction.contains("简短"));
     }
 
     #[test]
@@ -850,15 +556,8 @@ mod tests {
         assert_eq!(settings.speak_hotkey, "Alt+R");
         // PRD §8：默认跟随系统语言，而不是写死简体中文。
         assert_eq!(settings.locale, "system");
-        // PRD §7.3：菜单栏图标默认是模板（由系统着色，最融入菜单栏）。
-        assert_eq!(settings.tray_icon_style, "template");
-        assert_eq!(normalize_tray_icon_style("brand"), "brand");
-        assert_eq!(normalize_tray_icon_style("不认识"), "template");
         assert!(settings.custom_base_url.is_empty(), "默认没有自定义端点");
         assert!(settings.custom_styles.is_empty(), "默认没有自建预设");
-        assert!(settings.fallback_models.is_empty(), "默认没有备用模型");
-        // 默认不配任何分场景模型：全部回落到用户选的默认模型。
-        assert!(settings.scene_models.selection.is_none());
         assert!(!settings.onboarding_done, "新装的客户端应当还没走过引导");
         assert!(!settings.privacy_mode, "默认不在隐私模式");
         // PRD §5.4：默认是「固定目标语言」，按 App 记忆要用户主动开。
@@ -866,12 +565,6 @@ mod tests {
         assert!(settings.app_target_langs.is_empty());
         assert!(!settings.uses_per_app_target());
 
-        assert!(settings.monthly_limits.is_empty(), "默认不设上限");
-        assert_eq!(
-            settings.limit_action,
-            umuo_core::budget::LimitAction::Warn,
-            "默认提醒而不是自动换供应商"
-        );
         assert!(settings.compare_providers.is_empty(), "默认应为自动模式");
         assert!(settings.history_enabled, "默认记录历史");
         assert_eq!(settings.history_retention_days, 90, "PRD §5.9 默认 90 天");
@@ -883,17 +576,10 @@ mod tests {
     }
 
     #[test]
-    fn the_two_hotkeys_are_different_out_of_the_box() {
-        // 三个功能绑同一个键的话，其中一个会永远触发不了（后注册的覆盖前者）。
+    fn active_hotkeys_are_different_out_of_the_box() {
+        // 只检查当前会注册的四项，退役字段不再占用键位。
         let settings = Settings::default();
-        let all = [
-            &settings.selection_hotkey,
-            &settings.silent_replace_hotkey,
-            &settings.compose_hotkey,
-            &settings.compare_hotkey,
-            &settings.ocr_hotkey,
-            &settings.ocr_silent_hotkey,
-        ];
+        let all = settings.hotkeys();
         let unique: std::collections::HashSet<_> = all.iter().collect();
         assert_eq!(unique.len(), all.len(), "默认快捷键不能重复：{all:?}");
     }

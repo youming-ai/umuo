@@ -95,10 +95,10 @@ mod tests {
     fn cancel_only_touches_the_requesting_surface() {
         let requests = Requests::default();
         let panel = requests.begin("panel");
-        let compare = requests.begin("compare");
-        requests.cancel("compare");
-        assert!(cancelled(&compare));
-        assert!(!cancelled(&panel), "对比窗按 Esc 不该停掉浮窗的翻译");
+        let compose = requests.begin("compose");
+        requests.cancel("compose");
+        assert!(cancelled(&compose));
+        assert!(!cancelled(&panel), "输入窗按 Esc 不该停掉浮窗的翻译");
     }
 
     #[test]

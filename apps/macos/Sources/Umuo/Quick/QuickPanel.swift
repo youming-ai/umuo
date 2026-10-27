@@ -4,7 +4,7 @@ import UmuoCore
 
 /// 快捷面板的宿主：从菜单栏图标下面弹出的 `NSPopover`（Tauri 的 `open_quick_panel`：340×420、置顶、无边框）。
 ///
-/// - 它是**要抢焦点**的（与翻译浮窗相反）：「快速输入」得能打字，所以弹出前先 `activate`。
+/// - 弹出前先 `activate`，面板成为 key window，按钮可用键盘操作（与翻译浮窗相反）。
 /// - 同一个入口既开又关：已经开着时再点一下就收起，比「再点一次没反应」好。
 /// - 点到面板外面就收起（`.transient`）。Tauri 版不会自己收起、要再点一次图标——菜单栏应用的面板通常都是点外面就收，这里照系统习惯。
 /// - 每次弹出都重读状态与外观（`QuickModel.refresh`）。
@@ -57,9 +57,7 @@ final class QuickPanelController: NSObject, QuickBackend, NSPopoverDelegate {
     func popoverDidClose(_: Notification) { closedAt = Self.now() }
 
     private func refreshAppearance() {
-        let prefersDark = NSApp.effectiveAppearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
-        let appearance = PanelRules.appearance(settingsJson: app.settingsJson, prefersDark: prefersDark)
-        model.theme = appearance.theme
+        let appearance = PanelRules.appearance(settingsJson: app.settingsJson)
         model.t = Translate(locale: appearance.locale)
     }
 
@@ -76,17 +74,6 @@ final class QuickPanelController: NSObject, QuickBackend, NSPopoverDelegate {
     func setPaused(_ paused: Bool) -> Bool {
         app.hotkeys.paused = paused
         return app.hotkeys.paused
-    }
-
-    /// 快速输入的「翻译」：收起面板，走与划词完全相同的流水线；浮窗自己弹出来（Tauri 的 `quick_translate`，审查 H3）。
-    func translate(_ text: String) throws {
-        guard let panel = app.panel else { throw EngineError.Failed(message: app.engineStatus) }
-        // 先校验再收起：空文本时面板留着，说明写在面板上
-        if text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            throw EngineError.Failed(message: ComposeRules.emptyText)
-        }
-        hide()
-        try panel.translateText(text, empty: ComposeRules.emptyText)
     }
 
     func copy(_ text: String) async -> String? {

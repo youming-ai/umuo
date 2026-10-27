@@ -5,7 +5,7 @@ import UmuoCore
 /// 历史窗的宿主：普通的可聚焦窗口（要打字搜索），一个进程只有一个，关掉再开复用同一个窗口与模型
 /// （Tauri 的 `open_history`：760×620、最小 560×420、标题「umuo 翻译历史」）。
 ///
-/// 常驻窗口关掉再打开只是重新显示：**每次成为 key 都重读**，否则期间新翻译的记录、新收藏都看不到（审查 L25）。
+/// 常驻窗口关掉再打开只是重新显示：**每次成为 key 都重读**，否则期间新翻译的记录都看不到（审查 L25）。
 @MainActor
 final class HistoryWindowController: NSObject, NSWindowDelegate {
     unowned let app: AppModel
@@ -44,9 +44,7 @@ final class HistoryWindowController: NSObject, NSWindowDelegate {
     }
 
     private func refreshAppearance() {
-        let prefersDark = NSApp.effectiveAppearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
-        let appearance = PanelRules.appearance(settingsJson: app.settingsJson, prefersDark: prefersDark)
-        model.theme = appearance.theme
+        let appearance = PanelRules.appearance(settingsJson: app.settingsJson)
         model.t = Translate(locale: appearance.locale)
     }
 
@@ -73,45 +71,10 @@ final class EngineHistoryBackend: HistoryBackend {
         return try await Task.detached { try engine.historyQuery(filter: filter, limit: limit, offset: 0) }.value
     }
 
-    func favoritesStatus(_ texts: [String]) async throws -> [Bool] {
-        let engine = try engine()
-        return try await Task.detached { try engine.favoritesStatus(texts: texts) }.value
-    }
-
-    func usageSummary() async throws -> UsageSummary {
-        let engine = try engine()
-        return try await Task.detached { try engine.usageSummary() }.value
-    }
-
-    func usageDaily(days: UInt32) async throws -> [DayUsage] {
-        let engine = try engine()
-        return try await Task.detached { try engine.usageDaily(days: days) }.value
-    }
-
-    func favorites(limit: UInt32) async throws -> [Favorite] {
-        let engine = try engine()
-        return try await Task.detached { try engine.favoritesList(limit: limit, offset: 0) }.value
-    }
-
-    func facets() async throws -> HistoryFacets {
-        let engine = try engine()
-        return try await Task.detached { try engine.historyFacets() }.value
-    }
-
     func privacyMode() async throws -> Bool {
         let engine = try engine()
         let json = await Task.detached { engine.settingsJson() }.value
         return JSONValue.object(json: json)?.bool("privacyMode") ?? false
-    }
-
-    func favoriteToggle(text: String, translation: String?) async throws -> Bool {
-        let engine = try engine()
-        return try await Task.detached { try engine.favoriteToggle(text: text, translation: translation) }.value
-    }
-
-    func favoriteRemove(id: Int64) async throws {
-        let engine = try engine()
-        _ = try await Task.detached { try engine.favoriteRemove(id: id) }.value
     }
 
     func delete(id: Int64) async throws {

@@ -21,6 +21,9 @@ use crate::wire::{
     WireRequest,
 };
 
+/// 等首个响应头的超时（PRD §6.3 默认 8 s）。只约束首字延迟，流式读取另有空闲超时。
+pub const DEFAULT_TIMEOUT: Duration = Duration::from_secs(8);
+
 /// 流中途允许的最大静默时间。超过它说明连接已经死了，继续等下去只会让用户干瞪眼。
 pub const STREAM_IDLE_TIMEOUT: Duration = Duration::from_secs(30);
 
@@ -251,7 +254,7 @@ pub struct StreamOptions<'a> {
 impl Default for StreamOptions<'_> {
     fn default() -> Self {
         Self {
-            timeout: crate::router::DEFAULT_TIMEOUT,
+            timeout: DEFAULT_TIMEOUT,
             cancel: None,
         }
     }

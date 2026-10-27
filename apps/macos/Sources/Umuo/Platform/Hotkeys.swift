@@ -2,9 +2,9 @@ import Foundation
 import os
 import UmuoCore
 
-/// 七个快捷键对应的功能。处理函数在阶段 3 随窗口接上（`HotkeyCenter.perform`）。
+/// 四个快捷键对应的功能。处理函数在阶段 3 随窗口接上（`HotkeyCenter.perform`）。
 enum HotkeyAction: String, CaseIterable, Sendable {
-    case selection, silentReplace, compose, compare, ocr, ocrSilent, speak
+    case selection, silentReplace, compose, ocr
 }
 
 /// 全局快捷键的注册、重注册、暂停与录键，对应 Tauri 外壳 `main.rs` 的 `register_hotkeys` /
@@ -21,10 +21,7 @@ final class HotkeyCenter {
         ("selectionHotkey", "Alt+D", .selection),
         ("silentReplaceHotkey", "Alt+Shift+T", .silentReplace),
         ("composeHotkey", "Alt+Cmd+A", .compose),
-        ("compareHotkey", "Alt+P", .compare),
         ("ocrHotkey", "Alt+Cmd+O", .ocr),
-        ("ocrSilentHotkey", "Alt+Shift+O", .ocrSilent),
-        ("speakHotkey", "Alt+R", .speak),
     ]
 
     /// 录快捷键最长持续多久。超过就当作被放弃，自动恢复全局快捷键。
@@ -49,7 +46,7 @@ final class HotkeyCenter {
         }
     }
 
-    /// 从 `Engine.settingsJson()` 里只取七个快捷键字段（不用 Codable 解整份设置，见迁移文档「必须守住的兼容性」）。
+    /// 从 `Engine.settingsJson()` 里只取四个快捷键字段（不用 Codable 解整份设置，见迁移文档「必须守住的兼容性」）。
     nonisolated static func values(settingsJson: String) -> [String: String] {
         let object = (try? JSONSerialization.jsonObject(with: Data(settingsJson.utf8))) as? [String: Any] ?? [:]
         return table.reduce(into: [:]) { values, row in values[row.field] = object[row.field] as? String }
@@ -110,7 +107,7 @@ final class HotkeyCenter {
                 let action = row.action
                 do {
                     try combos.register(parsed) { [weak self] in
-                        // 暂停与录键检查放在**这一处**而不是七个处理函数里
+                        // 暂停与录键检查放在**这一处**而不是四个处理函数里
                         guard let self, !self.suspended else { return }
                         self.perform(action)
                     }

@@ -17,11 +17,8 @@ use std::sync::Arc;
 use umuo_app::translate::{self, Mode, Request};
 use umuo_app::AppCore;
 
-use crate::event::{CompareSink, ForwardCompare, ForwardTranslate, TranslateSink};
+use crate::event::{ForwardTranslate, TranslateSink};
 use crate::host::{BridgeHost, FocusSource, HostBridge};
-
-/// 对比窗的窗口标签（与 Tauri 外壳的 `COMPARE_LABEL` 同值）：对比的请求登记在它名下。
-const COMPARE_SURFACE: &str = "compare";
 
 /// Engine 方法的失败。文案是给用户看的中文，Swift 端直接显示。
 #[derive(Debug, thiserror::Error, uniffi::Error)]
@@ -63,14 +60,9 @@ pub struct TranslateRequest {
     pub text: String,
     pub mode: TranslateMode,
     pub target_override: Option<String>,
-    pub provider_override: Option<String>,
-    pub model_override: Option<String>,
-    pub style_override: Option<String>,
     pub source_override: Option<String>,
     /// 只有静默翻译设置它；为空就不写回。
     pub focus_source: Option<FocusSource>,
-    /// 撰写窗的回译。
-    pub back: bool,
 }
 
 impl From<TranslateRequest> for Request {
@@ -79,23 +71,15 @@ impl From<TranslateRequest> for Request {
             text,
             mode,
             target_override,
-            provider_override,
-            model_override,
-            style_override,
             source_override,
             focus_source,
-            back,
         } = request;
         Self {
             text,
             mode: mode.into(),
             target_override,
-            provider_override,
-            model_override,
-            style_override,
             source_override,
             focus_source: focus_source.map(Into::into),
-            back,
         }
     }
 }
@@ -233,45 +217,6 @@ impl Engine {
         Some(Arc::new(handle))
     }
 
-    /// 开始一轮多模型对比，立即返回。上一轮对比随之取消；取消会落到每一路。
-    pub fn compare(&self, text: String, sink: Arc<dyn CompareSink>) -> Arc<RequestHandle> {
-        let ticket = self.core.requests.begin(COMPARE_SURFACE);
-        let handle = RequestHandle {
-            id: ticket.id,
-            cancel: ticket.cancel.clone(),
-        };
-        let core = self.core.clone();
-        let sink = ForwardCompare(sink);
-        self.rt().spawn(async move {
-            umuo_app::compare::run(&core, &sink, text, ticket).await;
-        });
-        Arc::new(handle)
-    }
-
-    /// 用按快捷键时 `begin_request("compare")` 登记的那张凭据开始对比，立即返回。
-    ///
-    /// 与 [`Engine::translate_with_ticket`] 同一个理由：取词慢的旧按键若在之后才登记，会拿到更大的 id、
-    /// 旧选区的四路结果反而顶掉新的（Tauri 的 `compare::trigger` 也是按键时登记、取词后沿用）。
-    /// 凭据已被更新的一轮顶掉时返回 None，什么都不跑，也就不会为一个看不见的结果计费。
-    pub fn compare_with_ticket(
-        &self,
-        text: String,
-        ticket_id: u64,
-        sink: Arc<dyn CompareSink>,
-    ) -> Option<Arc<RequestHandle>> {
-        let ticket = self.core.requests.ticket(COMPARE_SURFACE, ticket_id)?;
-        let handle = RequestHandle {
-            id: ticket.id,
-            cancel: ticket.cancel.clone(),
-        };
-        let core = self.core.clone();
-        let sink = ForwardCompare(sink);
-        self.rt().spawn(async move {
-            umuo_app::compare::run(&core, &sink, text, ticket).await;
-        });
-        Some(Arc::new(handle))
-    }
-
     /// 当前设置（JSON，字段名与 settings.json 一致）。Swift 只解码视图要用的字段。
     pub fn settings_json(&self) -> String {
         let settings = self.core.settings.lock().expect("设置锁不应中毒");
@@ -320,7 +265,7 @@ mod tests {
     use serde_json::{json, Value};
 
     use super::*;
-    use crate::event::{CompareEvent, Route, TranslateEvent};
+    use crate::event::{Route, TranslateEvent};
     use crate::host::HostFailure;
     use crate::stub::selftest_sse_stub;
 
@@ -349,12 +294,6 @@ mod tests {
     impl TranslateSink for Recorder<(Route, TranslateEvent)> {
         fn on_event(&self, route: Route, event: TranslateEvent) {
             let _ = self.0.lock().unwrap().send((route, event));
-        }
-    }
-
-    impl CompareSink for Recorder<CompareEvent> {
-        fn on_event(&self, event: CompareEvent) {
-            let _ = self.0.lock().unwrap().send(event);
         }
     }
 
@@ -413,12 +352,8 @@ mod tests {
             text: text.into(),
             mode: TranslateMode::Selection,
             target_override: None,
-            provider_override: None,
-            model_override: None,
-            style_override: None,
             source_override: None,
             focus_source: None,
-            back: false,
         }
     }
 
@@ -546,65 +481,6 @@ mod tests {
         );
     }
 
-    #[test]
-    fn compare_streams_one_card_per_keyed_provider() {
-        let engine = open_with_stub(&["你好"], 0, 0);
-        let (sink, rx) = recorder();
-        let handle = engine.compare(SENTENCE.into(), sink);
-        let events = collect(&rx, |e| {
-            matches!(
-                e,
-                CompareEvent::Done { .. }
-                    | CompareEvent::Error { .. }
-                    | CompareEvent::Notice { .. }
-            )
-        });
-        let CompareEvent::Start { run_id, cards, .. } = &events[0] else {
-            panic!("先发 start：{events:?}");
-        };
-        assert_eq!(*run_id, handle.id());
-        assert_eq!(cards.len(), 1, "只有 OpenAI 配了 Key");
-        assert!(
-            matches!(events.last(), Some(CompareEvent::Done { index: 0, .. })),
-            "{events:?}"
-        );
-    }
-
-    #[test]
-    fn compare_with_ticket_runs_only_the_latest_begun_run() {
-        let engine = open_with_stub(&["你好"], 0, 0);
-        // 按下 A、再按下 B；A 的取词更慢，取完时 B 已经登记过了
-        let a = engine.core.requests.begin(COMPARE_SURFACE).id;
-        let b = engine.core.requests.begin(COMPARE_SURFACE).id;
-
-        let (stale_sink, stale_rx) = recorder();
-        assert!(engine
-            .compare_with_ticket(SENTENCE.into(), a, stale_sink)
-            .is_none());
-        assert!(
-            stale_rx.recv_timeout(Duration::from_millis(300)).is_err(),
-            "被顶掉的一轮不发任何事件"
-        );
-
-        let (sink, rx) = recorder();
-        let handle = engine
-            .compare_with_ticket(SENTENCE.into(), b, sink)
-            .expect("B 仍是当前这一轮");
-        assert_eq!(handle.id(), b, "沿用按键时的 id，不再登记新的");
-        let events = collect(&rx, |e| {
-            matches!(
-                e,
-                CompareEvent::Done { .. }
-                    | CompareEvent::Error { .. }
-                    | CompareEvent::Notice { .. }
-            )
-        });
-        assert!(
-            matches!(events.first(), Some(CompareEvent::Start { run_id, .. }) if *run_id == b),
-            "{events:?}"
-        );
-    }
-
     /// 持有 Engine 最后一个引用的 sink：任务结束时它在运行时自己的工作线程上被丢掉。
     struct OwningSink {
         engine: Mutex<Option<Arc<Engine>>>,
@@ -637,15 +513,18 @@ mod tests {
             .expect("在工作线程上释放 Engine 不该 panic");
     }
 
-    /// 取 OpenAI 以外的 Key 时卡住（好比 Keychain 弹窗没人点），并报告自己被卡住了。
-    struct StuckHost(Mutex<Sender<()>>);
+    /// 放行之前取 Key 一律卡住（好比 Keychain 弹窗没人点），并报告自己被卡住了。
+    struct StuckHost {
+        stuck: Mutex<Sender<()>>,
+        released: AtomicBool,
+    }
 
     impl HostBridge for StuckHost {
-        fn api_key(&self, provider_id: String) -> Result<Option<String>, HostFailure> {
-            if provider_id == "openai" {
+        fn api_key(&self, _provider_id: String) -> Result<Option<String>, HostFailure> {
+            if self.released.load(Ordering::SeqCst) {
                 return Ok(Some("sk-test".into()));
             }
-            let _ = self.0.lock().unwrap().send(());
+            let _ = self.stuck.lock().unwrap().send(());
             std::thread::sleep(Duration::from_secs(3));
             Ok(None)
         }
@@ -660,22 +539,26 @@ mod tests {
         }
     }
 
-    fn open_stuck(stub_base: Option<String>) -> (Arc<Engine>, Receiver<()>) {
+    fn open_stuck(stub_base: Option<String>) -> (Arc<Engine>, Receiver<()>, Arc<StuckHost>) {
         let (tx, stuck) = channel();
         let mut settings = json!({ "providerId": "openai", "model": "gpt-4o-mini" });
         if let Some(base) = stub_base {
             settings["providerBaseUrls"] = json!({ "openai": base });
         }
-        let engine = open_with_host(settings, Arc::new(StuckHost(Mutex::new(tx))));
-        (engine, stuck)
+        let host = Arc::new(StuckHost {
+            stuck: Mutex::new(tx),
+            released: AtomicBool::new(false),
+        });
+        let engine = open_with_host(settings, host.clone());
+        (engine, stuck, host)
     }
 
     #[test]
     fn dropping_the_engine_does_not_wait_for_a_stuck_host_call() {
         // 普通的 Runtime drop 要等卡住的工作线程回来；在 Swift 主线程上这就是死锁的一半
-        let (engine, stuck) = open_stuck(None);
+        let (engine, stuck, _host) = open_stuck(None);
         let (sink, _rx) = recorder();
-        let _handle = engine.compare(SENTENCE.into(), sink);
+        let _handle = engine.translate(selection(SENTENCE), None, sink);
         stuck.recv_timeout(Duration::from_secs(5)).unwrap();
         let started = Instant::now();
         drop(engine);
@@ -688,18 +571,18 @@ mod tests {
 
     #[test]
     fn stuck_host_calls_do_not_stall_other_requests() {
-        // 比工作线程还多的对比卡在取 Key 上，一次翻译照样流完
+        // 比工作线程还多的翻译请求卡在取 Key 上，一次翻译照样流完
         let base = selftest_sse_stub(vec!["你好".into()], 0, 0).unwrap();
-        let (engine, stuck) = open_stuck(Some(base));
+        let (engine, stuck, host) = open_stuck(Some(base));
         let workers = std::thread::available_parallelism().map_or(8, |n| n.get());
         let mut parked = Vec::new();
         for _ in 0..workers + 4 {
             let (sink, rx) = recorder();
-            parked.push((engine.compare(SENTENCE.into(), sink), rx));
-        }
-        for _ in 0..workers + 4 {
+            parked.push((engine.translate(selection(SENTENCE), None, sink), rx));
+            // 确认此请求已经进入阻塞 Host，再发下一次，避免新请求提前取消尚未执行的旧请求。
             stuck.recv_timeout(Duration::from_secs(5)).unwrap();
         }
+        host.released.store(true, Ordering::SeqCst);
         let (sink, rx) = recorder();
         let _handle = engine.translate(selection(SENTENCE), None, sink);
         let deadline = Instant::now() + Duration::from_secs(2);

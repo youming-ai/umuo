@@ -17,11 +17,9 @@
 //! | [`provider`] | 供应商目录、协议与鉴权描述 | §6.1 |
 //! | [`key_detect`] | 按 Key 前缀推测供应商 | §6.2 |
 //! | [`wire`] | 请求构造、流式事件解析、错误分类 | §6.5、§7.5 |
-//! | [`prompt`] | 翻译风格 / Prompt 预设与变量渲染 | §5.7、§6.5 |
-//! | [`glossary`] | 术语表命中与注入 | §5.8 |
+//! | [`prompt`] | 内部翻译指令与语言信息 | §5.7、§6.5 |
 //! | [`chunk`] | 长文本按上下文切分 | §6.3 |
-//! | [`router`] | 分场景模型与故障转移策略 | §6.3 |
-//! | [`usage`] | Token 计量与费用估算 | §5.10 |
+//! | [`usage`] | Token 计量 | §6.5 |
 //! | [`lang`] | 语言判断与「源=目标」时的切换规则 | §5.2 |
 //! | [`word_card`] | 单词模式判定与词卡结构 | §5.2 |
 //! | [`transport`] | HTTP 发送与流式读取（唯一碰网络的地方） | §6.3、§8 |
@@ -33,17 +31,14 @@
 /// 为空时不输出任何键，现有的序列化结果不变。
 pub type UnknownFields = serde_json::Map<String, serde_json::Value>;
 
-pub mod budget;
 pub mod chunk;
 pub mod error;
-pub mod glossary;
 pub mod hotkey;
 pub mod key_detect;
 pub mod lang;
 pub mod prompt;
 pub mod provider;
 pub mod proxy;
-pub mod router;
 pub mod transport;
 pub mod usage;
 pub mod wire;

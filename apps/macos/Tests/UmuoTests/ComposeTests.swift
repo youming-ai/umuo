@@ -28,15 +28,15 @@ private final class FakeBackend: ComposeBackend {
     func speak(_ text: String) { spoken.append(text) }
 }
 
-private func route(_ id: UInt64, back: Bool = false) -> Route { Route(surface: "compose", requestId: id, back: back) }
+private func route(_ id: UInt64) -> Route { Route(surface: "compose", requestId: id) }
 
 private func start(_ text: String) -> TranslateEvent {
     .start(text: text, provider: "OpenAI", model: "gpt-4o-mini", targetLang: "en", wordMode: false, mode: "compose")
 }
 
 private let doneEvent = TranslateEvent.done(warning: nil, model: "gpt-4o-mini", inputTokens: 1, outputTokens: 1,
-                                            estimated: false, costUsd: nil, firstTokenMs: nil, totalMs: 10,
-                                            replaced: false, offline: false)
+                                            estimated: false, firstTokenMs: nil, totalMs: 10,
+                                            replaced: false)
 
 private func errorEvent(_ message: String) -> TranslateEvent {
     .error(message: message, actions: [], needsPermission: false, permission: nil, source: nil)
@@ -60,7 +60,6 @@ private func until(_ condition: () -> Bool) async {
 private func session(debounce: Duration = .zero) -> (ComposeSession, FakeBackend) {
     let backend = FakeBackend()
     let session = ComposeSession(backend: backend, debounce: debounce)
-    session.detect = { $0.contains("你") ? "zh-CN" : nil }
     return (session, backend)
 }
 
@@ -98,41 +97,16 @@ struct ComposeRulesTests {
         let plain = try #require(ComposeRules.request("  你好  ", .init()))
         #expect(plain.text == "你好")
         #expect(plain.mode == .compose)
-        #expect(!plain.back)
         #expect(plain.sourceOverride == nil && plain.targetOverride == nil)
-        #expect(plain.providerOverride == nil && plain.styleOverride == nil && plain.modelOverride == nil)
 
-        let chosen = try #require(ComposeRules.request("你好", .init(sourceLang: "zh-CN", targetLang: "ja",
-                                                                      providerId: "deepseek", styleId: "formal")))
+        let chosen = try #require(ComposeRules.request("你好", .init(sourceLang: "zh-CN", targetLang: "ja")))
         #expect(chosen.sourceOverride == "zh-CN")
         #expect(chosen.targetOverride == "ja")
-        #expect(chosen.providerOverride == "deepseek")
-        // 只选供应商、不选具体模型：由 Rust 取那家的默认模型
-        #expect(chosen.modelOverride == nil)
-        #expect(chosen.styleOverride == "formal")
         #expect(chosen.focusSource == nil)
     }
 
     @Test func 只有空白时不发请求() {
         #expect(ComposeRules.request(" \n\t ", .init()) == nil)
-    }
-
-    @Test func 回译翻回原文的语言并标成回译() throws {
-        let request = try ComposeRules.backRequest(source: "你好", translation: "  Hello  ") { _ in "zh-CN" }.get()
-        #expect(request.text == "Hello")
-        #expect(request.targetOverride == "zh-CN")
-        #expect(request.back)
-        #expect(request.mode == .compose)
-    }
-
-    @Test func 回译判断不出原文语言时不硬猜() {
-        let result = ComposeRules.backRequest(source: "???", translation: "Hello") { _ in nil }
-        #expect(result == .failure(ComposeRules.Failure("无法判断原文语言，回译不可用")))
-    }
-
-    @Test func 回译空译文时说没有可翻译的内容() {
-        let result = ComposeRules.backRequest(source: "你好", translation: "   ") { _ in "zh-CN" }
-        #expect(result == .failure(ComposeRules.Failure("没有可翻译的内容")))
     }
 
     @Test func 快捷键Esc收起_命令回车提交_带Shift还要粘贴() {
@@ -221,10 +195,10 @@ struct ComposeSessionTests {
         session.input = "你好"
         await settle()
         translate(session, id: 1)
-        session.overrides.styleId = "formal"
+        session.overrides.targetLang = "ja"
         await settle()
         #expect(backend.translated.count == 2)
-        #expect(backend.translated.last?.styleOverride == "formal")
+        #expect(backend.translated.last?.targetOverride == "ja")
     }
 
     @Test func 没能发出去时显示原因并且不卡在翻译中() async {
@@ -241,54 +215,15 @@ struct ComposeSessionTests {
         #expect(backend.translated.map(\.text) == ["第一版", "第二版"])
     }
 
-    @Test func 回译只进回译区_不覆盖主译文也不推动队列() async {
-        let (session, backend) = session()
-        session.input = "你好"
-        await settle()
-        translate(session, id: 1)
-        session.backTranslate()
-        #expect(backend.translated.last?.back == true)
-        session.apply(route: route(2, back: true), event: start("Hello"))
-        session.apply(route: route(2, back: true), event: .delta(text: "你好"))
-        session.apply(route: route(2, back: true), event: doneEvent)
-        #expect(session.state.translation == "Hello")
-        #expect(session.back.state.translation == "你好")
-        #expect(!session.queue.streaming)
-        #expect(backend.translated.count == 2)
-    }
-
-    @Test func 主译文重新开始时清掉旧的回译() async {
-        let (session, backend) = session()
-        defer { withExtendedLifetime(backend) {} }
-        translate(session, id: 1)
-        session.apply(route: route(2, back: true), event: start("Hello"))
-        session.apply(route: route(2, back: true), event: .delta(text: "你好"))
-        session.apply(route: route(3), event: start("你好呀"))
-        #expect(session.back.state.status == .idle)
-        #expect(session.back.state.translation.isEmpty)
-        // 比这次主译文更早的回译迟到的增量也作废
-        session.apply(route: route(2, back: true), event: .delta(text: "迟到"))
-        #expect(session.back.state.translation.isEmpty)
-    }
-
-    @Test func 流式中途不能回译也不能提交() async {
+    @Test func 流式中途不能提交() async {
         let (session, backend) = session()
         session.apply(route: route(1), event: start("你好"))
         session.apply(route: route(1), event: .delta(text: "Hel"))
-        #expect(!session.settled && !session.canBackTranslate)
-        session.backTranslate()
+        #expect(!session.settled)
         session.commit(paste: false)
         await settle()
         #expect(backend.translated.isEmpty)
         #expect(backend.commits.isEmpty)
-    }
-
-    @Test func 回译判断不出语言时说明原因不发请求() {
-        let (session, backend) = session()
-        translate(session, id: 1, source: "???", translation: "Hello")
-        session.backTranslate()
-        #expect(session.notice == "无法判断原文语言，回译不可用")
-        #expect(backend.translated.isEmpty)
     }
 
     @Test func 提交带上唤出时记下的目标并说明结果() async {

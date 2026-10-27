@@ -1,40 +1,12 @@
 import AppKit
 import UmuoCore
 
-/// 菜单栏图标的样式（PRD §7.3「菜单栏图标样式」，Tauri 的 `tray_icon_image` / `apply_tray_style`）。
-///
-/// 三份 PNG 与 Tauri 版是同一套（`Resources/Tray`）；认不出来的样式回落模板——手改配置不该让菜单栏图标消失。
-/// 模板图交给系统按浅色 / 深色菜单栏着色；品牌色与黑色两套保持原色，不能标成模板，否则彩色水獭会被重画成单色。
+/// 菜单栏图标：一份模板图，交给系统按浅色 / 深色菜单栏着色。
+/// 图标样式选择已退出（第五批精简）；旧配置里的 `trayIconStyle` 原样保留、不再读取。
 enum TrayIcon {
-    /// `settings::normalize_tray_icon_style` 的同一规则。
-    static func style(_ raw: String?) -> String {
-        switch raw?.trimmingCharacters(in: .whitespacesAndNewlines) {
-        case "brand": "brand"
-        case "black": "black"
-        default: "template"
-        }
-    }
-
-    /// 资源文件名（不带扩展名）。
-    static func resource(_ style: String) -> String {
-        switch style {
-        case "brand": "tray-brand"
-        case "black": "tray-black"
-        default: "tray"
-        }
-    }
-
-    /// 按规范化之后的样式判断：Tauri 用原始值判断，手改成认不出的值时模板图会以非模板显示（深色菜单栏上看不见）。
-    static func isTemplate(_ style: String) -> Bool { style == "template" }
-
     /// 资源包里那份 PNG。
-    static func url(_ style: String) -> URL? {
-        Bundle.module.url(forResource: resource(style), withExtension: "png", subdirectory: "Tray")
-    }
-
-    /// 读设置里的 `trayIconStyle`。
-    static func style(settingsJson: String?) -> String {
-        style(settingsJson.flatMap(JSONValue.object(json:))?["trayIconStyle"]?.stringValue)
+    static var url: URL? {
+        Bundle.module.url(forResource: "tray", withExtension: "png", subdirectory: "Tray")
     }
 }
 
@@ -52,10 +24,10 @@ enum StatusClick: Equatable {
 /// 菜单栏图标与菜单（Tauri 的 `build_tray`）。用 `NSStatusItem` 而不是 SwiftUI 的 `MenuBarExtra`：
 /// 后者分不出左右键，做不到「左键开快捷面板、右键出菜单」。
 ///
-/// 菜单项与顺序与 Tauri 版逐条一致（那边的文案是写死的中文、不在文案表里，这里照抄）。
+/// 菜单只列保留的翻译入口与应用操作。
 /// **不要**把菜单常挂在 `statusItem.menu` 上：挂着的话左键也弹菜单，按钮的 action 根本不触发；右键时临时挂上、弹完摘掉。
 @MainActor
-final class StatusBarController: NSObject {
+final class StatusBarController: NSObject, NSMenuItemValidation {
     unowned let app: AppModel
     private let item: NSStatusItem
     private lazy var menu = makeMenu()
@@ -70,14 +42,11 @@ final class StatusBarController: NSObject {
         ("翻译选中文本", .action(.selection)),
         ("输入框原地替换", .action(.silentReplace)),
         ("撰写窗", .action(.compose)),
-        ("多模型对比", .action(.compare)),
         ("截图翻译", .action(.ocr)),
-        ("静默 OCR（只复制原文）", .action(.ocrSilent)),
         nil,
         ("快捷面板…", .quick),
         ("翻译历史", .history),
         ("设置…", .settings),
-        // Tauri `updater::IDLE_TEXT`。应用内更新随阶段 5，现在点了说明去官网下载
         ("检查更新…", .checkUpdates),
         ("退出 umuo", .quit),
     ]
@@ -92,17 +61,11 @@ final class StatusBarController: NSObject {
             button.sendAction(on: [.leftMouseUp, .rightMouseUp])
             button.toolTip = "umuo"
         }
-        applyStyle(settingsJson: app.settingsJson)
-    }
-
-    /// 按设置换图标（设置里改了样式当场生效，不用重启）。
-    func applyStyle(settingsJson: String?) {
-        let style = TrayIcon.style(settingsJson: settingsJson)
-        let image = TrayIcon.url(style).flatMap(NSImage.init(contentsOf:))
+        let image = TrayIcon.url.flatMap(NSImage.init(contentsOf:))
             ?? NSImage(systemSymbolName: "character.bubble", accessibilityDescription: "umuo")
         // 44 px 的 PNG 按 @2x 显示：菜单栏图标 18 pt 见方
         image?.size = NSSize(width: 18, height: 18)
-        image?.isTemplate = TrayIcon.isTemplate(style)
+        image?.isTemplate = true
         item.button?.image = image
     }
 
@@ -140,6 +103,12 @@ final class StatusBarController: NSObject {
             menu.addItem(menuItem)
         }
         return menu
+    }
+
+    func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
+        guard let index = menuItem.representedObject as? Int,
+              Self.entries[index]?.entry == .checkUpdates else { return true }
+        return app.updater.canCheckForUpdates
     }
 
     @objc private func choose(_ sender: NSMenuItem) {
