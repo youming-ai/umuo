@@ -22,12 +22,12 @@ export function Footer({
     <footer className="site-footer container-page">
       <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
         {/* 条款与隐私政策作为小字跟在版权后面：手机上页脚仍是两行，首页不因此多出滚动 */}
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-text-tertiary">
+        <div className="footer-legal flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-text-tertiary">
           <p>{footer.copyright}</p>
           <a href={pagePath(locale, 'terms')}>{legal.terms.title}</a>
           <a href={pagePath(locale, 'privacy')}>{legal.privacy.title}</a>
         </div>
-        <div className="flex flex-wrap items-center gap-5">
+        <div className="footer-tools flex flex-wrap items-center gap-5">
           <a
             href={`mailto:${CONTACT_EMAIL}`}
             className="text-xs text-text-tertiary hover:text-text-primary"

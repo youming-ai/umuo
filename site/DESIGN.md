@@ -1,0 +1,280 @@
+---
+name: umuo.app
+description: macOS AI 翻译工具 umuo 的官网——排成一本双语对照本
+colors:
+  paper: "#fcf9f5"
+  paper-shade: "#f4ece1"
+  paper-white: "#ffffff"
+  ink: "#2a1f1a"
+  ink-soft: "#5c4638"
+  ink-faint: "#7d6252"
+  otter-coffee: "#a8734d"
+  otter-coffee-deep: "#7e5236"
+  otter-coffee-lift: "#8c5d3f"
+  otter-coffee-edge: "#553620"
+  cheek-cream: "#efd9bd"
+  rule: "#e6dccf"
+  rule-strong: "#cdbba7"
+  logo-water: "#0a84ff"
+typography:
+  display:
+    fontFamily: "Open Sans, -apple-system, PingFang SC, Hiragino Sans, Apple SD Gothic Neo, sans-serif"
+    fontSize: "clamp(2.25rem, min(4.4vw, 8svh), 4.25rem)"
+    fontWeight: 600
+    lineHeight: 1.08
+    letterSpacing: "-0.02em"
+  price:
+    fontFamily: "Open Sans, -apple-system, sans-serif"
+    fontSize: "clamp(3rem, 6vw, 4.5rem)"
+    fontWeight: 600
+    lineHeight: 1
+    letterSpacing: "-0.03em"
+    fontFeature: "tnum"
+  headline:
+    fontFamily: "Open Sans, -apple-system, PingFang SC, sans-serif"
+    fontSize: "clamp(1.75rem, 3vw, 2.5rem)"
+    fontWeight: 600
+    lineHeight: 1.2
+  title:
+    fontFamily: "Open Sans, -apple-system, PingFang SC, sans-serif"
+    fontSize: "1.3125rem"
+    fontWeight: 600
+    lineHeight: 1.4
+  lead:
+    fontFamily: "Open Sans, -apple-system, PingFang SC, sans-serif"
+    fontSize: "1.1875rem"
+    fontWeight: 400
+    lineHeight: 1.6
+  body:
+    fontFamily: "Open Sans, -apple-system, PingFang SC, sans-serif"
+    fontSize: "1.0625rem"
+    fontWeight: 400
+    lineHeight: 1.6
+  label:
+    fontFamily: "Open Sans, -apple-system, PingFang SC, sans-serif"
+    fontSize: "0.875rem"
+    fontWeight: 500
+    lineHeight: 1.4
+  keycap:
+    fontFamily: "-apple-system, BlinkMacSystemFont, Segoe UI, system-ui, sans-serif"
+    fontSize: "0.9375rem"
+    fontWeight: 500
+    lineHeight: 1
+rounded:
+  tag: "4px"
+  keycap: "5px"
+  control: "6px"
+  button: "1rem"
+  popover: "8px"
+  card: "10px"
+  demo: "12px"
+spacing:
+  gutter-mobile: "20px"
+  gutter: "24px"
+  page-max: "76rem"
+  nav-height: "4rem"
+  button-height: "3.5rem"
+  press-depth: "4px"
+components:
+  button-solid:
+    backgroundColor: "{colors.otter-coffee-deep}"
+    textColor: "{colors.paper-white}"
+    rounded: "{rounded.button}"
+    padding: "0 28px"
+    height: "3.5rem"
+  button-solid-hover:
+    backgroundColor: "{colors.otter-coffee-lift}"
+  button-secondary:
+    backgroundColor: "{colors.paper-white}"
+    textColor: "{colors.ink}"
+    rounded: "{rounded.button}"
+    padding: "0 28px"
+    height: "3.5rem"
+  keycap:
+    backgroundColor: "{colors.paper-white}"
+    textColor: "{colors.ink-soft}"
+    typography: "{typography.keycap}"
+    rounded: "{rounded.keycap}"
+    height: "36px"
+  tag:
+    textColor: "{colors.otter-coffee-deep}"
+    rounded: "{rounded.tag}"
+    padding: "1px 6px"
+  demo-panel:
+    backgroundColor: "{colors.paper-white}"
+    rounded: "{rounded.demo}"
+  demo-switch:
+    backgroundColor: "{colors.paper-shade}"
+    textColor: "{colors.ink-faint}"
+  demo-switch-active:
+    backgroundColor: "{colors.paper-white}"
+    textColor: "{colors.ink}"
+---
+
+# Design System: umuo.app
+
+## Overview
+
+**Creative North Star: "对照本"**
+
+官网排成一本双语对照本：暖白纸面、咖啡色墨字，原文与译文像左右两页一样并排。产品大部分时间藏在快捷键背后，
+所以页面不靠插画或渐变制造气氛，而是把**真实的键位、真实的选区、真实的前后对照**当作主角。
+
+颜色只取 logo 里那只水獭：皮毛咖啡、耳朵深咖、眼鼻墨色、脸颊奶油。logo 底色的蓝只留在 logo 图里，界面不用蓝。
+组件气质是 **Mac 原生的克制**，只有按钮例外：按钮沿用「节拍」设计语言的**厚底可按压**（多邻国式）。底部是实心厚边，悬停时微微上抬，按下时下沉，一眼就知道能按。
+键帽像真键盘；分隔靠细线和装订线，不靠卡片墙。
+首页恰好一屏、不滚动；定价、条款这些长页按书页排版。
+
+**Key Characteristics:**
+- 暖纸 + 咖啡墨的单色系，靠明度与线条分层，不靠第二种色相
+- 左对齐的文字，居中铺满的页面网格（最宽 76rem）
+- 区块头像书的章首：标题在左，描述在右
+- 全页只有一处自发动效：首屏译文逐字流出
+- 浅色 / 深色 / 高对比三套主题共用同一组语义令牌
+
+## Colors
+
+单一暖色系：纸、墨、咖啡三层，强调靠加深而不是换色。
+
+### Primary
+- **水獭咖啡 Otter Coffee** (`otter-coffee`)：皮毛色。用于装饰性线条，例如演示面板顶部的书脊线、定价表的装订线、键帽底边、焦点框、截图模式的虚线框。
+- **耳朵深咖 Otter Coffee Deep** (`otter-coffee-deep`)：唯一的「行动色」。实心下载按钮的底色、当前页导航、当前演示模式的顶线、可点链接的文字。在纸面上对比约 6:1，可以直接承载文字。
+- **抬起深咖 Otter Coffee Lift** (`otter-coffee-lift`)：实心按钮悬停时的底色，比常态略亮，像按钮被抬起。
+- **厚边深咖 Otter Coffee Edge** (`otter-coffee-edge`)：实心按钮底部 4px 厚边，比底色深一档，表现按钮的厚度。
+
+### Neutral
+- **暖纸 Paper** (`paper`)：全站底色。
+- **纸背 Paper Shade** (`paper-shade`)：演示切换条、提示条、许可证代码底色这类「次一级纸面」。
+- **白页 Paper White** (`paper-white`)：浮起的内页：演示面板、浮窗、键帽、次按钮。
+- **咖啡墨 Ink** (`ink`)：正文与标题。取自水獭眼鼻。
+- **淡墨 Ink Soft** (`ink-soft`)：副文、导读段落、原文。
+- **浅墨 Ink Faint** (`ink-faint`)：注释、页脚、未选中的演示模式。在纸背色上 4.79:1，已经是能承载小字的下限，不要再调浅。
+- **细线 Rule / 粗线 Rule Strong** (`rule`, `rule-strong`)：分隔线、边框、字符网格。
+- **脸颊奶油 Cheek Cream** (`cheek-cream`)：文字选区与演示中「被选中的原文」底色。
+
+### Logo only
+- **Logo 水蓝** (`logo-water`)：只存在于 logo 图（`LogoMark`、`public/favicon.svg`）。界面任何地方都不引用它。
+
+### Themes
+深色主题把纸换成深咖啡（`#181310` 起），墨换成奶油（`#f4e6d2`），强调色提亮为 `#c48d65` / `#e0b48f`，
+实心按钮改成浅咖底配深色字（`#c48d65` / `#1c140f`）。高对比主题用纯黑底、白字、`#ffbe8a` 强调。
+所有颜色都通过 `apps/web/src/styles/app.css` 的语义变量（`--paper`、`--ink`、`--accent`、`--accent-strong`、`--button-fill` 等）切换，组件不写死色值。
+
+### Named Rules
+**The No-Blue Rule.** 界面里不出现蓝色。蓝是 logo 的水，不是 umuo 的墨。
+**The One Action Color Rule.** 深咖是唯一的行动色，一屏之内实心深咖按钮只有一个。
+**The Token-Only Rule.** 组件只引用语义变量，三套主题才能同时成立。
+
+## Typography
+
+**Display Font:** Open Sans（自托管可变字体 400–700，回落 -apple-system）
+**Body Font:** Open Sans，中日韩字形由系统字体补齐（PingFang SC/TC、Hiragino Sans、Apple SD Gothic Neo）
+**Label/Mono Font:** 键帽用系统 UI 字体，让 ⌃ ⌥ ⌘ 与 macOS 的写法一致
+
+**Character:** 一款字体贯穿全站，靠字重与字号拉开层次；人文无衬线在中日韩系统字体旁边不抢戏。
+
+### Hierarchy
+- **Display**（600，`clamp(2.25rem, min(4.4vw, 8svh), 4.25rem)`，1.08）：首屏主标题，随视口高度缩放，保证一屏放下。中日文在文案里用换行符指定断点。
+- **Price**（600，`clamp(3rem, 6vw, 4.5rem)`，1，等宽数字）：定价页的金额。
+- **Headline**（600，`clamp(1.75rem, 3vw, 2.5rem)`，1.2）：页面标题、章首标题。
+- **Title**（600，1.3125rem）：长文页的二级标题、「包含」小节标题。
+- **Lead**（400，1.1875rem，1.6，最宽 34em）：标题下的导读。
+- **Body**（400，1.0625rem，1.6）：正文；长文页限宽 44rem。
+- **Label**（500，0.875rem）：演示模式名、付款对象、元信息。
+
+### Named Rules
+**The One Family Rule.** 只用自托管或系统字体，不引 Google Fonts 等外部字体服务。
+**The Weight-Not-Color Rule.** 强调靠字重和字号，不用渐变字，也不只把标题里的某个词单独染色。
+
+## Layout
+
+页面网格居中，最宽 76rem，左右留白 24px（手机 20px）；文字一律左对齐。页眉高 4rem，透明地压在内容上。
+
+首页恰好一屏：主内容吃掉页脚以外的高度，首屏垂直居中。左栏标题与下载（5fr），右栏演示面板（6fr），间距 `clamp(2rem, 5vw, 5.5rem)`。
+640–1023px（平板、Mac 半屏）仍是左右两栏；639px 以下改为单栏并收紧纵向节奏，演示按可用高度分档降级（见 Components › Demo Panel）。
+改动首页后要在 1280×720 与 390×844 下确认 `scrollHeight` 不超出一屏。
+
+定价页是一本摊开的书：两笔账左右两页，中间一道 `rule-strong` 装订线，顶部一道 2px 咖啡线；「不包含」清单放在右页下半，两页平衡。900px 以下上下堆叠。
+「包含」清单像书末的快捷键对照表：左页放标题，右页逐行列出功能与键位。
+
+## Elevation & Depth
+
+以纸面分层为主，阴影只用在演示面板上，像纸上放着一张卡纸。按钮的厚度不靠阴影，靠底部实心厚边（`--press-depth`）。
+阴影都带向下偏移和柔和模糊，色调取咖啡墨，不发光。
+
+### Shadow Vocabulary
+- **纸上卡纸**（`0 1px 0 var(--rule), 0 26px 52px -32px rgb(42 31 26 / 0.28)`）：演示面板。
+- **浮窗**（`0 14px 30px -18px rgb(126 82 54 / 0.22), 0 8px 20px -14px rgb(42 31 26 / 0.25)`）：演示里的翻译浮窗。
+- **键帽**（`0 1px 0 rgb(42 31 26 / 0.06)` + 2px 咖啡底边）：键帽的厚度主要靠底边表现。
+
+### Named Rules
+**The Flat Paper Rule.** 区块和列表不加阴影，用细线分隔。
+
+## Shapes
+
+小圆角，按「越大的东西圆角越大」递增：标签 4px、键帽 5px、控件 6px、浮窗 8px、卡片 10px、演示面板 12px、按钮 16px。
+不用胶囊形。线条语言是全站的骨架：1px 细线分隔，2–3px 咖啡线标出书脊与装订处，虚线只用来表示截图框选。
+
+## Components
+
+### Buttons
+**「节拍」厚底可按压**（多邻国式）。所有变体的几何只写一条共享规则，变体只声明颜色；新增变体请加进那条选择器列表，不要复制几何。
+
+- **Shape:** 圆角 16px（`--radius-button`），高 3.5rem，左右 28px，字重 700，字距 0.025em；2px 边框，底边加厚到 4px。不转大写，因为五种语言里有四种是中日韩文字。
+- **Press tokens:** `--press-depth` 4px（厚边）、`--press-depth-active` 1px（按下后剩下的厚度）、`--press-lift-hover` -1px（悬停上抬）、`--press-lift-active` 3px（按下下沉）。只定义一次，与主题无关。
+- **Solid（主行动）:** 深咖底、白字、更深一档的咖啡厚边（`--button-edge`）；悬停时底色变亮并上抬，按下时下沉、厚边收窄。全站只用于下载 / 购买。
+- **Primary（描边）:** 深咖字、深咖边框和厚边，配淡咖底。
+- **Secondary:** 白页底、浅咖边框和厚边；悬停时铺一层淡咖底。
+- **Ghost:** 没有厚边，用于页脚的语言 / 主题切换；悬停时铺淡咖底，按下时下沉 1px。
+- **Pending:** 安装包还没发布时，按钮不变灰、不响应按压，靠里面的状态标签说明。
+- **Reduced motion:** 去掉位移和厚边收窄，保留颜色反馈。
+- **Focus:** 2px 咖啡色描边，外扩 3px。
+
+### Download Panel
+首页与定价页共用一个下载区（`DownloadPanel`）：实心下载按钮、系统要求、未公证预览版的放行说明，两页说法一致。
+触屏设备（`hover: none` 且 `pointer: coarse`）拿不到能用的 Mac 安装包，换成一句「请在 Mac 上打开 umuo.app」加「复制网址」次按钮。两套都预渲染，由 CSS 显示其中一套。
+定价页在按钮上方用加粗正文写「预览版现在可以免费试用」，这是好消息，不当脚注。
+点了下载之后，系统要求与放行说明就地换成「下载已开始，接下来」三步：拖进应用程序、被拦截时怎么放行、选供应商填 Key。
+触屏上复制网址失败时要说出来，并给出手动记下的网址。
+手机上日文、英文的按钮放不下一行时允许折行，不被容器裁掉。
+
+### Keycap
+像真键盘：白页底、粗细线边框、2px 咖啡底边、5px 圆角，用系统字体写 ⌃ ⌥ ⌘。有 36px 和 28px 两档。
+当前模式的键帽换成咖啡色边框加深咖字。
+
+### Tag
+淡咖底、混了咖啡色的细边框、深咖字、4px 方角，12px 字。用来标「开发中」「预览版」这类状态。不做胶囊，也不放在标题上方当眉题。
+
+### Demo Panel（招牌组件）
+首屏右侧的对照演示：白页内页、顶部 3px 咖啡书脊线、12px 圆角、纸上卡纸阴影。
+
+- **书签式选项卡**在面板顶部一行排开，顺序是划词翻译、闪电替换、截图翻译、语音输入，默认第一项。每项两行：上面名称，下面小键帽（开发中的功能显示标签而不是键位）。当前项是白页、压住下边线和舞台连成一体，其余退到纸背色。标准 `tablist`：只有当前项可 Tab 进入，←/→ 循环、Home/End 到头尾，切换即选中。
+- **舞台**：四个场景叠在同一格里，只显示当前一个，舞台高度始终等于最高的场景，切换时页面不跳。闪电替换是同一个输入框里原文划掉、译文写在下面，下附一行安全边界；语音输入下附「开发中」说明。译文逐字流出，末尾跟一个咖啡色光标；再点一次当前项会重新流出；尊重 reduced-motion。
+- **底部提示**随当前模式变化，告诉访客怎样在这个页面上亲手试；触屏设备隐藏。
+- **响应式**：≤1023px 选项卡只留名称，「开发中」标签缩成名称后的小圆点。手机上只保留闪电替换的安全边界小字；≤820px 高收起选项卡、只留闪电替换（首屏标题讲的就是写回）；≤760px 高安全边界也让位；≤700px 高整个演示让位。
+- **光标**闪 6 下就停，不在流式结束后一直闪。
+
+### Language Grid
+首屏背景是由多种文字组成的字符网格，透明度 0.13（深色主题 0.1），只保留上下边缘，像对照本的页眉页脚。
+指针附近亮起一圈加深的咖啡色聚光，这是访客触发的效果，不算自发动效。
+
+### Navigation
+左边是 logo 加小写字样「umuo」，右边是「定价」。当前页的链接用深咖字加下划线。不放 GitHub 链接。
+
+## Do's and Don'ts
+
+### Do:
+- **Do** 用语义变量（`--accent-strong`、`--button-fill`、`--select`…），保证浅色、深色、高对比三套主题都成立。
+- **Do** 所有可点的按钮都用厚底按压：底部实心厚边，悬停上抬 1px，按下下沉 3px、厚边收窄到 1px。
+- **Do** 用真实键位和真实前后对照来展示产品，不用示意插画。
+- **Do** 用细线和装订线组织信息；标题在左、描述在右，像书的章首。
+- **Do** 改动首页后在 1280×720 与 390×844 下检查是否仍在一屏内，并抽查日文、韩文：韩文标题与导读用 `keep-all` 按词断行。
+- **Do** 让自发动效只保留首屏译文逐字流出这一处，并尊重 `prefers-reduced-motion`。
+
+### Don't:
+- **Don't** 在界面里用蓝色；`#0A84FF` / `#5FB2FF` 只属于 logo 图。
+- **Don't** 加回深色光晕或渐变、胶囊形眉题标签、标题里单独上色或用渐变的某个词、`A · B · C` 式的中间点分隔。
+- **Don't** 做千篇一律的圆角卡片墙，也不要加没有信息量的 01 / 02 / 03 编号。
+- **Don't** 引入外部字体服务，也不要在 Open Sans 之外再加一款展示字体。
+- **Don't** 用胶囊形按钮或胶囊形标签；按钮圆角固定 16px。
+- **Don't** 用模糊阴影或发光表现按钮的厚度，厚度只靠底部实心边。

@@ -1,5 +1,6 @@
 import AppKit
 import SwiftUI
+import UniformTypeIdentifiers
 
 /// 通用：外观、语言、开机启动、引导、菜单栏图标、配置导入导出。
 struct GeneralPage: View {
@@ -51,38 +52,45 @@ struct GeneralPage: View {
                     .toggleStyle(.switch).labelsHidden()
                 }
                 PrefRow(title: t("prefs.general.onboarding"), description: t("prefs.general.onboardingHint")) {
-                    LinkRowButton(label: t("prefs.general.onboarding")) { model.backend.openOnboarding() }
+                    PrefButton(title: t("prefs.general.onboardingRun")) { model.backend.openOnboarding() }
                 }
             }
 
             PrefGroup(title: t("prefs.general.configTitle")) {
-                PrefRow(title: t("prefs.general.export"), description: t("prefs.general.exportHint")) {
+                PrefRow(title: t("prefs.general.export"), description: t("prefs.general.exportHint"),
+                        note: general.exportNotice) {
+                    if let path = general.exportedPath {
+                        PrefButton(title: t("prefs.general.reveal")) {
+                            NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: path)])
+                        }
+                    }
                     PrefButton(title: t("prefs.general.exportAction")) {
                         Task { await general.exportConfig() }
                     }
                 }
-                PrefRow(title: t("prefs.general.import"), description: t("prefs.general.importHint"), note: general.configNotice) {
-                    TextField(t("prefs.general.importPath"), text: Binding(get: { general.configPath },
-                                                                          set: { general.configPath = $0 }),
-                              prompt: Text(t("prefs.general.importPath")))
-                        .textFieldStyle(.roundedBorder).labelsHidden().multilineTextAlignment(.leading).frame(width: 180)
-                        .accessibilityLabel(t("prefs.general.importPath"))
-                    PrefButton(title: t("prefs.general.importChoose")) { chooseFile() }
-                    PrefButton(title: t("prefs.general.importAction"), disabled: !general.canImport) {
-                        Task { await general.importConfig() }
-                    }
+                PrefRow(title: t("prefs.general.import"), description: t("prefs.general.importHint"),
+                        note: general.configNotice) {
+                    PrefButton(title: t("prefs.general.importChoose")) { chooseAndImport() }
                 }
             }
         }
     }
 
-    /// 选一个导出过的配置文件（Tauri 版只有路径输入框；这里多一个选择按钮，路径照样能手填）。
-    private func chooseFile() {
+    /// 选一个导出过的配置文件就直接导入：系统的打开面板，以表单附在设置窗上。
+    private func chooseAndImport() {
         let panel = NSOpenPanel()
         panel.canChooseFiles = true
         panel.canChooseDirectories = false
         panel.allowsMultipleSelection = false
-        if panel.runModal() == .OK, let url = panel.url { general.configPath = url.path }
+        panel.allowedContentTypes = [.json]
+        let picked: (NSApplication.ModalResponse) -> Void = { response in
+            guard response == .OK, let url = panel.url else { return }
+            general.configPath = url.path
+            Task { await general.importConfig() }
+        }
+        if let window = NSApp.keyWindow { panel.beginSheetModal(for: window, completionHandler: picked) } else {
+            picked(panel.runModal())
+        }
     }
 }
 

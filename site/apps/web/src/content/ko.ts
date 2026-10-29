@@ -24,14 +24,16 @@ export const ko: SiteContent = {
     themeToDark: '다크 테마로 전환',
   },
   hero: {
-    title: '어떤 앱에서든 단축키 하나로 번역',
-    subtitle: '선택하면 번역, 스크린샷도 번역, 쓰고 나면 외국어로.',
+    title: '쓰는 그 자리에서\n바로 번역',
+    subtitle:
+      '⌥를 두 번 누르면 입력창의 글이 그 자리에서 외국어로 바뀝니다. 선택한 텍스트와 스크린샷도 번역합니다.',
+    pricingNote: '1회 구매, 내 API 키 사용, 구독 없음',
     demo: {
       label: '번역 미리보기',
-      hint: '⌃를 두 번 눌러 바로 해 보세요',
       modes: [
         {
           id: 'read',
+          hint: '이 페이지에서 ⌃를 두 번 눌러 보세요',
           name: '선택 번역',
           keys: ['⌃', '⌃'],
           before: 'The quick brown fox jumps over the lazy dog.',
@@ -39,28 +41,53 @@ export const ko: SiteContent = {
         },
         {
           id: 'write',
-          name: '바로 교체',
+          hint: '이 페이지에서 ⌥를 두 번 눌러 보세요',
+          name: '번개 교체',
           keys: ['⌥', '⌥'],
           before: '내일 오후 3시에 회의 괜찮으세요?',
           after: 'Does 3 p.m. tomorrow work for the meeting?',
+          note: '같은 입력창일 때만 바꿉니다. 실패하거나 취소하면 원문은 그대로 둡니다.',
+        },
+        {
+          id: 'ocr',
+          hint: '스크린샷 번역은 Mac에서 ⌥⌘O로 영역을 선택합니다',
+          name: '스크린샷 번역',
+          keys: ['⌥', '⌘', 'O'],
+          before: 'Last train leaves Platform 2 at 11:40 p.m.',
+          after: '막차는 오후 11시 40분에 2번 승강장에서 출발합니다.',
         },
         {
           id: 'speak',
+          hint: '개발 중: 정식 지원 후 오른쪽 ⌥를 길게 눌러 말합니다',
           name: '음성 입력',
           tag: '개발 중',
-          keys: ['오른쪽 ⌥ 길게 누르기'],
+          keyHint: '길게',
+          keys: ['오른쪽 ⌥'],
           before: '음, 회의 금요일로 옮길 수 있을까',
           after: 'Could we move the meeting to Friday?',
+          note: '개발 중: 프리뷰에는 아직 음성 입력이 없습니다.',
         },
       ],
     },
     platforms: [
       {
         id: 'macos',
-        requirement: 'macOS 14 이상, Apple Silicon·Intel 지원',
+        requirement: 'macOS 14 이상, Apple Silicon(M 시리즈) 전용',
         actionLabel: 'macOS용 다운로드',
         statusLabel: '프리뷰',
         note: '아직 Apple 공증 전인 프리뷰입니다. 차단되면 「개인정보 보호 및 보안」에서 「그래도 열기」를 누르세요.',
+        mobileNote: 'umuo는 Mac 앱입니다. Mac에서 umuo.app을 열어 다운로드하세요.',
+        copyLink: '링크 복사',
+        copied: '복사됨',
+        copyFailed: '복사하지 못했습니다. umuo.app을 따로 적어 두세요',
+        afterDownload: {
+          title: '다운로드를 시작했습니다. 다음 단계:',
+          steps: [
+            '받은 설치 파일을 열고 umuo를 「응용 프로그램」 폴더로 끌어 놓습니다.',
+            '처음 열 때 차단되면 「시스템 설정 › 개인정보 보호 및 보안」에서 「그래도 열기」를 누릅니다.',
+            '안내에 따라 모델 제공업체를 고르고 API 키를 입력합니다. 선택 번역에는 손쉬운 사용 권한이 필요합니다.',
+          ],
+        },
       },
     ],
   },
@@ -70,24 +97,28 @@ export const ko: SiteContent = {
     languageLabel: '언어',
   },
   pricing: {
-    title: '요금제',
-    description: 'umuo 요금제: 앱 1회 구매, 내 모델 API 키 사용, 구독과 계정 없음.',
+    title: '가격',
+    description: 'umuo 가격: 앱 US$9 1회 구매, 내 모델 API 키 사용, 구독과 계정 없음.',
     lead: 'umuo는 한 번 구매하고, 모델은 내 것을 씁니다. 구독도, umuo 계정도, 모델 사용량 판매도 없습니다.',
     bills: [
       {
-        payee: 'umuo에 지불',
-        amount: '가격 미정',
+        payee: 'umuo에 결제',
+        amount: 'US$9',
         cadence: '1회 구매',
-        body: '1회 구매 가격, 활성화할 수 있는 기기 수, 체험, 환불, 업데이트 혜택은 아직 정해지지 않았습니다. 구매를 시작하기 전에 이 페이지와 이용약관에 함께 명시합니다.',
+        body: '활성화할 수 있는 기기 수, 체험, 환불, 업데이트 혜택은 아직 정해지지 않았습니다. 구매를 시작하기 전에 이 페이지와 이용약관에 함께 명시합니다.',
       },
       {
-        payee: '모델 공급자에게 지불',
+        payee: '모델 공급자에게 결제',
         amount: '사용한 만큼',
         cadence: '내 API 키로',
         body: '비용은 공급자와 직접 정산하며, 로컬 모델은 호출 비용이 들지 않습니다. 요청은 내 Mac에서 설정한 주소로 직접 전송되며 umuo 서버를 거치지 않습니다.',
       },
     ],
-    unavailable: '아직 구매할 수 없습니다. 프리뷰는 무료로 다운로드해 사용해 볼 수 있습니다.',
+    unavailable: '지금은 프리뷰를 무료로 다운로드해 써 볼 수 있습니다. 구매는 나중에 열립니다.',
+    excluded: {
+      title: '포함되지 않는 것',
+      items: ['구독이나 갱신 요금', 'umuo 계정', '모델 사용량이나 충전', 'umuo 서버를 거치는 요청'],
+    },
     included: '포함 기능',
     includedNote: '표시된 키는 기본 단축키이며 설정에서 바꿀 수 있습니다.',
     features: [
@@ -116,6 +147,9 @@ export const ko: SiteContent = {
     missing: '이 페이지의 주소가 완전하지 않습니다. 결제 완료 후 이동된 링크로 열어 주세요.',
     unknown: `이 결제를 찾을 수 없거나 받기 링크가 만료되었습니다(7일). 결제되었다면 ${CONTACT_EMAIL}로 연락해 주세요.`,
     error: '지금은 서버에 연결할 수 없습니다. 잠시 후 이 페이지를 새로 고치세요.',
+    home: '홈으로',
+    contact: '이메일 문의',
+    retry: '새로고침',
   },
   legal: {
     terms: {
@@ -135,7 +169,7 @@ export const ko: SiteContent = {
           heading: '2. 소프트웨어 안내',
           body: [
             { heading: '2.1 기능' },
-            'umuo는 macOS 메뉴 막대에 상주하는 번역 도구로, 선택 번역, 입력 번역, 입력란 제자리 교체, 스크린샷 OCR 번역을 제공합니다. 음성 입력과 음성 번역은 아직 개발 중이며, 출시 전에는 본 약관이 보장하는 기능에 포함되지 않습니다.',
+            'umuo는 macOS 메뉴 막대에 상주하는 번역 도구로, 선택 번역, 입력 번역, 번개 교체(입력란 제자리 교체), 스크린샷 OCR 번역을 제공합니다. 음성 입력과 음성 번역은 아직 개발 중이며, 출시 전에는 본 약관이 보장하는 기능에 포함되지 않습니다.',
             { heading: '2.2 내 모델 사용' },
             '소프트웨어 자체는 AI 모델, 모델 사용량 또는 프록시 서비스를 제공하지 않습니다. 귀하는 제3자 모델 공급자의 API 키, 사용자 지정 엔드포인트 또는 로컬 모델을 직접 설정해야 하며, 요청은 귀하의 기기에서 설정한 주소로 직접 전송됩니다. 귀하와 모델 공급자 사이의 계약, 비용 및 데이터 처리는 귀하와 해당 공급자가 별도로 정하며, 당사는 제3자 서비스의 이용 가능 여부, 비용 또는 출력물에 대해 책임지지 않습니다.',
             { heading: '2.3 프리뷰 버전' },

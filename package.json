@@ -21,7 +21,9 @@
     "bundle:macos": "sh apps/macos/scripts/bundle.sh",
     "release:swift": "sh scripts/release-swift-local.sh",
     "verify": "bun run lint && bun run type-check && bun run test:tools && bun run fmt:rust && bun run clippy && bun run test:rust && bun run verify:macos",
-    "test:tools": "bun test scripts/sparkle-appcast.test.ts"
+    "test:tools": "bun test scripts/sparkle-appcast.test.ts scripts/asr-fixtures.test.ts scripts/asr-eval.test.ts",
+    "asr:fixtures": "bun run scripts/asr-fixtures.ts",
+    "asr:eval": "bun run scripts/asr-eval.ts"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.3",

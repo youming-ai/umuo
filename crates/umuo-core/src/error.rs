@@ -276,15 +276,49 @@ fn extract_quoted(message: &str) -> Option<String> {
     None
 }
 
-/// 错误体可能很长（有的供应商会回整段 Markdown），截断后再进 UI。
+/// 错误体可能很长（有的供应商会回整段 Markdown），截断后再进 UI；
+/// 同时对常见的 Key 前缀（如 `sk-...`、`Bearer ...`）做脱敏，防止第三方端点在 400/500 错误里原样回显 Key。
 fn summarize(body: &str) -> String {
     let trimmed = body.trim();
     if trimmed.is_empty() {
         return "（空响应体）".to_string();
     }
-    let mut out: String = trimmed.chars().take(200).collect();
-    if trimmed.chars().count() > 200 {
+    let redacted = redact_secrets(trimmed);
+    let mut out: String = redacted.chars().take(200).collect();
+    if redacted.chars().count() > 200 {
         out.push('…');
+    }
+    out
+}
+
+fn redact_secrets(input: &str) -> String {
+    let mut out = String::with_capacity(input.len());
+    let mut rest = input;
+    while !rest.is_empty() {
+        if let Some(after_bearer) = rest
+            .strip_prefix("Bearer ")
+            .or_else(|| rest.strip_prefix("bearer "))
+        {
+            out.push_str("Bearer [REDACTED]");
+            let token_len = after_bearer
+                .find(|c: char| c.is_whitespace() || matches!(c, '"' | '\'' | ',' | '}' | ')'))
+                .unwrap_or(after_bearer.len());
+            rest = &after_bearer[token_len..];
+            continue;
+        }
+        if rest.starts_with("sk-") {
+            let token_len = rest
+                .find(|c: char| !(c.is_ascii_alphanumeric() || c == '-' || c == '_'))
+                .unwrap_or(rest.len());
+            if token_len >= 8 {
+                out.push_str("[REDACTED]");
+                rest = &rest[token_len..];
+                continue;
+            }
+        }
+        let ch = rest.chars().next().unwrap();
+        out.push(ch);
+        rest = &rest[ch.len_utf8()..];
     }
     out
 }
@@ -456,6 +490,20 @@ mod tests {
             },
         ] {
             assert!(error.actions().is_empty(), "{error:?} 不该给任何动作");
+        }
+    }
+
+    #[test]
+    fn error_summary_redacts_echoed_api_keys_and_bearer_tokens() {
+        let body = r#"{"error":{"message":"Upstream rejected Bearer sk-proj-1234567890abcdef and key sk-abcdef123456"}}"#;
+        let err = classify_http_error(400, body, None);
+        match err {
+            CoreError::BadResponse { detail } => {
+                assert!(!detail.contains("sk-proj-1234567890abcdef"), "{detail}");
+                assert!(!detail.contains("sk-abcdef123456"), "{detail}");
+                assert!(detail.contains("[REDACTED]"), "{detail}");
+            }
+            other => panic!("期望 BadResponse，实际 {other:?}"),
         }
     }
 }

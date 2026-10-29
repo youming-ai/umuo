@@ -24,31 +24,31 @@ enum StatusClick: Equatable {
 /// 菜单栏图标与菜单（Tauri 的 `build_tray`）。用 `NSStatusItem` 而不是 SwiftUI 的 `MenuBarExtra`：
 /// 后者分不出左右键，做不到「左键开快捷面板、右键出菜单」。
 ///
-/// 菜单只列保留的翻译入口与应用操作。
+/// 菜单只列保留的翻译入口与应用操作；标题走字符串表，每次弹出时按当前界面语言重建。
 /// **不要**把菜单常挂在 `statusItem.menu` 上：挂着的话左键也弹菜单，按钮的 action 根本不触发；右键时临时挂上、弹完摘掉。
 @MainActor
 final class StatusBarController: NSObject, NSMenuItemValidation {
     unowned let app: AppModel
     private let item: NSStatusItem
-    private lazy var menu = makeMenu()
 
-    /// Tauri 托盘菜单的项：标题、对应的动作。nil 是分隔线。
+    /// Tauri 托盘菜单的项：字符串键、对应的动作。nil 是分隔线。
     enum Entry: Equatable {
         case action(HotkeyAction)
         case quick, history, settings, checkUpdates, quit
     }
 
-    nonisolated static let entries: [(title: String, entry: Entry)?] = [
-        ("翻译选中文本", .action(.selection)),
-        ("输入框原地替换", .action(.silentReplace)),
-        ("撰写窗", .action(.compose)),
-        ("截图翻译", .action(.ocr)),
+    /// 「快捷面板」直接弹出、不再要求输入，按 HIG 不带省略号；设置、检查更新会打开窗口，带省略号。
+    nonisolated static let entries: [(key: String, entry: Entry)?] = [
+        ("menu.selection", .action(.selection)),
+        ("menu.silentReplace", .action(.silentReplace)),
+        ("menu.compose", .action(.compose)),
+        ("menu.ocr", .action(.ocr)),
         nil,
-        ("快捷面板…", .quick),
-        ("翻译历史", .history),
-        ("设置…", .settings),
-        ("检查更新…", .checkUpdates),
-        ("退出 umuo", .quit),
+        ("menu.quickPanel", .quick),
+        ("menu.history", .history),
+        ("menu.settings", .settings),
+        ("menu.checkUpdates", .checkUpdates),
+        ("menu.quit", .quit),
     ]
 
     init(app: AppModel) {
@@ -60,11 +60,13 @@ final class StatusBarController: NSObject, NSMenuItemValidation {
             button.action = #selector(clicked(_:))
             button.sendAction(on: [.leftMouseUp, .rightMouseUp])
             button.toolTip = "umuo"
+            button.setAccessibilityLabel("umuo")
         }
         let image = TrayIcon.url.flatMap(NSImage.init(contentsOf:))
             ?? NSImage(systemSymbolName: "character.bubble", accessibilityDescription: "umuo")
-        // 44 px 的 PNG 按 @2x 显示：菜单栏图标 18 pt 见方
-        image?.size = NSSize(width: 18, height: 18)
+        image?.accessibilityDescription = "umuo"
+        // 40 px 的 PNG 按 @2x 显示，避免 Retina 菜单栏再次缩放。
+        image?.size = NSSize(width: 20, height: 20)
         image?.isTemplate = true
         item.button?.image = image
     }
@@ -76,7 +78,7 @@ final class StatusBarController: NSObject, NSMenuItemValidation {
             app.toggleQuickPanel()
         case .menu:
             app.hideQuickPanel()
-            item.menu = menu
+            item.menu = makeMenu(t: Translate(locale: PanelRules.appearance(settingsJson: app.settingsJson).locale))
             sender.performClick(nil)
             item.menu = nil
         }
@@ -85,16 +87,16 @@ final class StatusBarController: NSObject, NSMenuItemValidation {
     /// 「快捷面板…」从菜单里打开时也挂在图标下面。
     var anchor: NSView? { item.button }
 
-    private func makeMenu() -> NSMenu {
+    func makeMenu(t: Translate) -> NSMenu {
         let menu = NSMenu()
-        for entry in Self.entries {
+        for (index, entry) in Self.entries.enumerated() {
             guard let entry else {
                 menu.addItem(.separator())
                 continue
             }
-            let menuItem = NSMenuItem(title: entry.title, action: #selector(choose(_:)), keyEquivalent: "")
+            let menuItem = NSMenuItem(title: t(entry.key), action: #selector(choose(_:)), keyEquivalent: "")
             menuItem.target = self
-            menuItem.representedObject = Self.entries.firstIndex { $0?.title == entry.title }
+            menuItem.representedObject = index
             switch entry.entry {
             case .settings: menuItem.keyEquivalent = ","
             case .quit: menuItem.keyEquivalent = "q"

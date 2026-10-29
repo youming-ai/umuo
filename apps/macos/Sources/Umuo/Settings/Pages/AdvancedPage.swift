@@ -21,7 +21,8 @@ struct AdvancedPage: View {
                 if advanced.proxyMode == "custom" {
                     PrefRow(title: t("prefs.advanced.proxyUrl"), description: t("prefs.advanced.proxyUrlHint"),
                             error: advanced.proxyError) {
-                        DraftField(value: s.string("proxyUrl"), placeholder: "socks5://127.0.0.1:1080", width: 220) { url in
+                        DraftField(value: s.string("proxyUrl"), placeholder: "socks5://127.0.0.1:1080",
+                                   label: t("prefs.advanced.proxyUrl")) { url in
                             advanced.proxyError = nil
                             let pending = advanced.commitProxyUrl(url)
                             return Task {
@@ -44,12 +45,14 @@ struct AdvancedPage: View {
                 }
                 PrefRow(title: t("prefs.advanced.retention"), description: t("prefs.advanced.retentionHint"),
                         error: advanced.retentionError) {
-                    DraftField(value: SettingsRules.format(s.number("historyRetentionDays")), width: 72) {
+                    DraftField(value: SettingsRules.format(s.number("historyRetentionDays")), width: 72,
+                               label: t("prefs.advanced.retention")) {
                         advanced.commitRetention($0)
                     }
                 }
-                PrefRow(title: t("prefs.advanced.openHistory")) {
-                    LinkRowButton(label: t("prefs.advanced.openHistory")) { model.backend.openHistory() }
+                HStack {
+                    Spacer(minLength: 0)
+                    PrefButton(title: t("prefs.advanced.openHistory")) { model.backend.openHistory() }
                 }
             }
         }

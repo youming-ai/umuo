@@ -5,10 +5,10 @@ name: Site
 on:
   push:
     branches: [main]
-    paths: ['site/**', '.github/workflows/site.yml']
+    paths: ['site/**', 'scripts/cf-r2.sh', 'scripts/release-swift-local.sh', '.github/workflows/site.yml']
   pull_request:
     branches: [main]
-    paths: ['site/**', '.github/workflows/site.yml']
+    paths: ['site/**', 'scripts/cf-r2.sh', 'scripts/release-swift-local.sh', '.github/workflows/site.yml']
 
 concurrency:
   group: site-${{ github.ref }}
@@ -24,6 +24,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '24.22.1'
 
       - name: Set up Bun
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
@@ -43,6 +48,6 @@ jobs:
       - name: Tests (Vitest)
         run: bun run test:run
 
-      - name: Build landing page
-        run: bun run build:web
+      - name: Build site and Worker
+        run: bun run build
 

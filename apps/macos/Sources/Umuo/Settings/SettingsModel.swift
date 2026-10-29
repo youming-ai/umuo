@@ -455,7 +455,13 @@ final class HotkeyEditor {
 final class GeneralEditor {
     @ObservationIgnored private unowned let model: SettingsModel
     /// 导入路径不是设置项，不走「失焦才提交」：按钮要随着输入立刻可点。
+    /// 要导入的文件（打开面板选中的路径）。
     var configPath = ""
+    /// 上次导出写到哪里：有了才显示「在访达中显示」。
+    var exportedPath: String?
+    /// 导出的结果（写到了哪里，或失败原因），显示在「导出」那一行。
+    var exportNotice: String?
+    /// 导入的结果（摘要或失败原因），显示在「导入」那一行。
     var configNotice: String?
     var autostartError: String?
 
@@ -463,6 +469,8 @@ final class GeneralEditor {
 
     func reset() {
         configPath = ""
+        exportedPath = nil
+        exportNotice = nil
         configNotice = nil
         autostartError = nil
     }
@@ -470,10 +478,10 @@ final class GeneralEditor {
     func exportConfig() async {
         do {
             let path = try await model.backend.exportConfig()
-            configPath = path
-            configNotice = model.t("prefs.general.exported", ["path": path])
+            exportedPath = path
+            exportNotice = model.t("prefs.general.exported", ["path": path])
         } catch {
-            configNotice = SettingsRules.message(error)
+            exportNotice = SettingsRules.message(error)
         }
     }
 

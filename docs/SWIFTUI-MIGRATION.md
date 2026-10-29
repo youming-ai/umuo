@@ -84,7 +84,8 @@ GitHub Actions 目前因账单问题不可用，先在本机跑 `bun run verify`
 在 `apps/macos/dist` 生成 `update.json` / `latest.json`，默认不上传。
 显式 `--publish` 才按「DMG、更新包、update.json、latest.json」顺序传 R2，避免清单指向未传完的文件。
 `appcast.xml` 由 Sparkle `sign_update` 签更新包，并用包内公钥再次验签后生成；上传包之后、旧清单之前上传。
-上传使用 `site/` 已有的 Wrangler 配置与登录态；此处只记录现有发布脚本，不部署官网。
+上传使用 `site/` 固定版本的 `cf` 与其登录态；清单的 `no-store` 由官网 Worker 响应设置。
+此处只记录现有发布脚本，不部署官网。
 
 旧用户的 Tauri Updater 验 minisign 签名、替换安装目录，再按新 Info.plist 重启，因此可以接收 Swift 包。
 仅 `--updater-sign` 显式请求时运行固定版本 `@tauri-apps/cli@2.12.1` 的 signer；它不再是项目依赖，也不构建旧客户端。
@@ -125,6 +126,19 @@ bun scripts/sparkle-appcast.ts "$PWD/apps/macos/dist" X.Y.Z
 ```
 
 `generate_keys` 首次会创建签名密钥，需妥善备份。本次代码接入没有创建或读取正式签名密钥。
+
+备份与交给发版流程（私钥只出现在本机的临时文件里，用完即删）：
+
+```bash
+bin=apps/macos/.build/artifacts/sparkle/Sparkle/bin
+"$bin/generate_keys" --account app.umuo.desktop -x ~/Desktop/umuo-sparkle-private.key  # 导出私钥
+# 把这个文件存进密码管理器（1Password 等）作为离线备份
+gh variable set SPARKLE_PUBLIC_ED_KEY --body "$("$bin/generate_keys" --account app.umuo.desktop -p)"
+gh secret set SPARKLE_PRIVATE_KEY < ~/Desktop/umuo-sparkle-private.key
+rm -P ~/Desktop/umuo-sparkle-private.key
+```
+
+换电脑时用 `generate_keys --account app.umuo.desktop -f <备份文件>` 导回 Keychain。丢了私钥，已发出去的版本就再也收不到更新。
 默认 `sign_update --account app.umuo.desktop` 读专用 Keychain；自动化可用 `SPARKLE_PRIVATE_KEY_PATH` 指向官方导出的私钥文件，
 不把私钥放命令参数、日志或仓库。签名后脚本验证包内公钥，阻止误用另一把签名密钥。
 Release 工作流使用 repository variable `SPARKLE_PUBLIC_ED_KEY` 与 secret `SPARKLE_PRIVATE_KEY`，后者写入权限 600 的临时文件并在退出时删除。

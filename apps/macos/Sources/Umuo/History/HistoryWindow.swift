@@ -6,21 +6,34 @@ import UmuoCore
 /// （Tauri 的 `open_history`：760×620、最小 560×420、标题「umuo 翻译历史」）。
 ///
 /// 常驻窗口关掉再打开只是重新显示：**每次成为 key 都重读**，否则期间新翻译的记录都看不到（审查 L25）。
+///
+/// 搜索与「清空」在系统工具栏里（同访达、邮件）：搜索框是 `NSSearchToolbarItem`，边打边搜。
 @MainActor
-final class HistoryWindowController: NSObject, NSWindowDelegate {
+final class HistoryWindowController: NSObject, NSWindowDelegate, NSToolbarDelegate, NSToolbarItemValidation {
     unowned let app: AppModel
     let model: HistoryModel
+
+    private static let searchItem = NSToolbarItem.Identifier("search")
+    private static let clearItem = NSToolbarItem.Identifier("clear")
+    private let search = NSSearchToolbarItem(itemIdentifier: searchItem)
+    private let clear = NSToolbarItem(itemIdentifier: clearItem)
 
     private lazy var window: NSWindow = {
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 760, height: 620),
                               styleMask: [.titled, .closable, .miniaturizable, .resizable],
                               backing: .buffered, defer: true)
-        window.title = "umuo 翻译历史"
         window.minSize = NSSize(width: 560, height: 420)
         window.isReleasedWhenClosed = false
         window.contentView = NSHostingView(rootView: HistoryView(model: model))
+        let toolbar = NSToolbar(identifier: "History")
+        toolbar.delegate = self
+        toolbar.displayMode = .iconOnly
+        window.toolbar = toolbar
+        window.toolbarStyle = .unified
         window.delegate = self
         window.center()
+        // 记住上次的位置与大小：系统窗口的习惯
+        window.setFrameAutosaveName("History")
         return window
     }()
 
@@ -28,6 +41,13 @@ final class HistoryWindowController: NSObject, NSWindowDelegate {
         self.app = app
         model = HistoryModel(backend: EngineHistoryBackend(app: app))
         super.init()
+        search.searchField.sendsSearchStringImmediately = true
+        search.searchField.target = self
+        search.searchField.action = #selector(searchChanged(_:))
+        clear.image = NSImage(systemSymbolName: "trash", accessibilityDescription: nil)
+        clear.isBordered = true
+        clear.target = self
+        clear.action = #selector(clearAll)
     }
 
     /// 菜单栏应用开窗前要先 `activate`，否则窗口开在当前前台应用的后面。
@@ -46,6 +66,46 @@ final class HistoryWindowController: NSObject, NSWindowDelegate {
     private func refreshAppearance() {
         let appearance = PanelRules.appearance(settingsJson: app.settingsJson)
         model.t = Translate(locale: appearance.locale)
+        // 标题跟随界面语言（原来写死中文）
+        window.title = model.t("menu.history")
+        search.searchField.placeholderString = model.t("history.searchPlaceholder")
+        search.label = model.t("history.searchPlaceholder")
+        clear.label = model.t("history.clear")
+        clear.toolTip = model.t("history.clear")
+        clear.image?.accessibilityDescription = model.t("history.clear")
+    }
+
+    // MARK: - 工具栏
+
+    func toolbarDefaultItemIdentifiers(_: NSToolbar) -> [NSToolbarItem.Identifier] {
+        [.flexibleSpace, Self.clearItem, Self.searchItem]
+    }
+
+    func toolbarAllowedItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
+        toolbarDefaultItemIdentifiers(toolbar)
+    }
+
+    func toolbar(_: NSToolbar, itemForItemIdentifier id: NSToolbarItem.Identifier,
+                 willBeInsertedIntoToolbar _: Bool) -> NSToolbarItem?
+    {
+        switch id {
+        case Self.searchItem: search
+        case Self.clearItem: clear
+        default: nil
+        }
+    }
+
+    /// 没有记录、也没在搜索时「清空」不可点（与原来页头按钮的条件一致）。
+    func validateToolbarItem(_ item: NSToolbarItem) -> Bool {
+        item.itemIdentifier != Self.clearItem || !(model.records.isEmpty && model.query.isEmpty)
+    }
+
+    @objc private func searchChanged(_ field: NSSearchField) {
+        model.query = field.stringValue
+    }
+
+    @objc private func clearAll() {
+        Task { await model.clearAll() }
     }
 
     func windowDidBecomeKey(_: Notification) {
@@ -87,8 +147,8 @@ final class EngineHistoryBackend: HistoryBackend {
         return try await Task.detached { try engine.historyClear() }.value
     }
 
-    func confirmClear(_ message: String, confirm: String, cancel: String) -> Bool {
-        PrefConfirm.ask(message, confirm: confirm, cancel: cancel)
+    func confirmClear(_ message: String, confirm: String, cancel: String) async -> Bool {
+        await PrefConfirm.ask(message, confirm: confirm, cancel: cancel)
     }
 
     func copy(_ text: String) async -> String? {

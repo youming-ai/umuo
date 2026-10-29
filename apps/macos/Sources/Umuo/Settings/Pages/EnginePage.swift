@@ -30,7 +30,7 @@ struct EnginePage: View {
                             error: engine.keyError) {
                         SecureField(t("prefs.engine.apiKey"), text: $engine.apiKey,
                                     prompt: Text(model.keyConfigured == true ? t("prefs.engine.keyKeep") : t("prefs.engine.keyPaste")))
-                            .textFieldStyle(.roundedBorder).labelsHidden().multilineTextAlignment(.leading).frame(width: 180)
+                            .textFieldStyle(.roundedBorder).labelsHidden().multilineTextAlignment(.leading).frame(width: 240)
                             .accessibilityLabel(t("prefs.engine.apiKey"))
                         PrefButton(title: t("prefs.engine.keySave"), disabled: !engine.canSaveKey) {
                             Task { await engine.saveKey() }
@@ -54,7 +54,8 @@ struct EnginePage: View {
                     PrefRow(title: t("prefs.engine.azureEndpoint"), description: t("prefs.engine.azureEndpointHint"),
                             error: model.rowErrors["endpoint"]) {
                         DraftField(value: s.object("providerBaseUrls").string("azure"),
-                                   placeholder: "https://<name>.openai.azure.com", width: 260) { url in
+                                   placeholder: "https://<name>.openai.azure.com", width: 280,
+                                   label: t("prefs.engine.azureEndpoint")) { url in
                             var urls = s.object("providerBaseUrls")
                             urls["azure"] = .string(url)
                             return model.commitRow("endpoint", ["providerBaseUrls": .object(urls)])
@@ -65,7 +66,8 @@ struct EnginePage: View {
                 if provider?.id == "custom" {
                     PrefRow(title: t("prefs.engine.customBaseUrl"), description: t("prefs.engine.customBaseUrlHint"),
                             error: model.rowErrors["endpoint"]) {
-                        DraftField(value: s.string("customBaseUrl"), placeholder: "https://gateway.internal/v1", width: 260) {
+                        DraftField(value: s.string("customBaseUrl"), placeholder: "https://gateway.internal/v1", width: 280,
+                                   label: t("prefs.engine.customBaseUrl")) {
                             model.commitRow("endpoint", ["customBaseUrl": .string($0)])
                         }
                     }
@@ -75,19 +77,11 @@ struct EnginePage: View {
                         description: provider?.id == "azure" ? t("prefs.engine.modelAzureHint") : t("prefs.engine.modelHint"),
                         note: engine.modelNotice,
                         error: model.rowErrors["model"]) {
-                    DraftField(value: s.string("model"), placeholder: provider?.defaultModel ?? "", width: 180) {
+                    // 系统组合框：能手填，下拉里是拉到的模型列表，没拉过就是内置的推荐模型（Tauri 的 datalist）
+                    DraftField(value: s.string("model"), placeholder: provider?.defaultModel ?? "",
+                               suggestions: engine.models.isEmpty ? (provider?.suggestedModels ?? []) : engine.models,
+                               label: t("prefs.engine.model")) {
                         model.commitRow("model", ["model": .string($0)])
-                    }
-                    // 下拉里的候选：拉到的模型列表，没拉过就是内置的推荐模型（Tauri 的 datalist）
-                    let suggestions = engine.models.isEmpty ? (provider?.suggestedModels ?? []) : engine.models
-                    if !suggestions.isEmpty {
-                        Menu {
-                            ForEach(suggestions, id: \.self) { name in
-                                Button(name) { model.commitRow("model", ["model": .string(name)]) }
-                            }
-                        } label: { Image(systemName: "chevron.down") }
-                            .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
-                            .accessibilityLabel(t("prefs.engine.model"))
                     }
                     PrefButton(title: t("prefs.engine.fetchModels")) { Task { await engine.fetchModels() } }
                 }

@@ -1,7 +1,7 @@
 import AppKit
 import SwiftUI
 
-/// 撰写窗本体（PRD §7.1「居中浮窗，类 Spotlight」）：无边框、透明、置顶、可缩放，与 Tauri 的 `build_compose` 同尺寸。
+/// 撰写窗本体（PRD §7.1「居中浮窗，类 Spotlight」）：系统外壳（`FloatingPanelChrome`）、置顶、可缩放，与 Tauri 的 `build_compose` 同尺寸。
 ///
 /// 与浮窗相反，它**要**成为 key——用户按 ⌥⌘A 就是为了打字。但它仍是 `.nonactivatingPanel`：成为 key、收键盘输入，
 /// 却**不激活** umuo，唤出它之前的应用一直是前台应用。这样：
@@ -13,28 +13,19 @@ final class ComposeWindow: NSPanel {
 
     init(rootView: some View) {
         super.init(contentRect: NSRect(origin: .zero, size: Self.initialSize),
-                   styleMask: [.borderless, .nonactivatingPanel, .resizable],
-                   backing: .buffered, defer: true)
+                   styleMask: FloatingPanelChrome.styleMask, backing: .buffered, defer: true)
         isFloatingPanel = true
         level = .floating
         collectionBehavior = [.moveToActiveSpace, .fullScreenAuxiliary]
         // 置顶、失焦不收起（与 Tauri 一样）：收起只靠 Esc、「收起」按钮、⌥⌘A 与提交
         hidesOnDeactivate = false
         isReleasedWhenClosed = false
-        isMovableByWindowBackground = false
-        isMovable = true
-        backgroundColor = .clear
-        isOpaque = false
-        hasShadow = true
         minSize = Self.minSize
         animationBehavior = .utilityWindow
-
-        let hosting = NSHostingView(rootView: rootView)
-        hosting.sizingOptions = []
-        contentView = hosting
+        FloatingPanelChrome.apply(to: self, rootView: rootView)
     }
 
-    // 无边框窗口默认不能成为 key：输入框要打字。
+    // 输入框要打字。
     override var canBecomeKey: Bool { true }
     override var canBecomeMain: Bool { false }
 

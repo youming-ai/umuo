@@ -1,18 +1,24 @@
-import { type CSSProperties, useEffect, useId, useState } from 'react'
-import { MACOS_DOWNLOAD_URL } from '../config'
+import {
+  type CSSProperties,
+  type KeyboardEvent as ReactKeyboardEvent,
+  useEffect,
+  useId,
+  useState,
+} from 'react'
 import type { DemoMode, DemoModeId, Locale, SiteContent } from '../content/types'
-import { DownloadButton } from './DownloadButton'
+import { pagePath } from '../lib/pages'
+import { DownloadPanel } from './DownloadButton'
 
 /**
  * 首页唯一的一屏：左边是标题与下载，右边是可以亲手试的演示。
- * 演示有读 / 写 / 说三种模式，点下面的键位或直接在页面上按快捷键切换；
+ * 演示有划词 / 闪电替换 / 截图 / 语音四种模式，点上面的选项卡切换，划词、替换与语音也能直接按快捷键；
+ * 默认停在第一项「划词翻译」；顺序由文案数据决定。
  * 切换时译文重新逐字流出（由访客触发的动效），首次加载时流一次。
  */
-export function Hero({ content }: { content: SiteContent; locale: Locale }) {
+export function Hero({ content, locale }: { content: SiteContent; locale: Locale }) {
   const { hero } = content
   const headingId = useId()
   const macos = hero.platforms.find((platform) => platform.id === 'macos')
-  const noteId = 'platform-macos-note'
 
   return (
     <section id="download" aria-labelledby={headingId} className="hero-stage">
@@ -24,18 +30,14 @@ export function Hero({ content }: { content: SiteContent; locale: Locale }) {
           <p className="lead hero-gap">{hero.subtitle}</p>
           {macos ? (
             <div className="hero-gap-lg">
-              <DownloadButton
-                label={macos.actionLabel}
-                status={macos.statusLabel}
-                describedBy={noteId}
-                className="btn-solid"
+              <DownloadPanel
+                platform={macos}
+                aside={
+                  <a href={pagePath(locale, 'pricing')} className="hero-pricing-link">
+                    {hero.pricingNote}
+                  </a>
+                }
               />
-              <p id={noteId} className="mt-3 text-sm text-text-tertiary">
-                {macos.requirement}
-              </p>
-              {MACOS_DOWNLOAD_URL ? (
-                <p className="mt-1 max-w-md text-xs text-text-tertiary">{macos.note}</p>
-              ) : null}
             </div>
           ) : null}
         </div>
@@ -46,17 +48,18 @@ export function Hero({ content }: { content: SiteContent; locale: Locale }) {
 }
 
 function HeroDemo({ demo }: { demo: SiteContent['hero']['demo'] }) {
-  const [modeId, setModeId] = useState<DemoModeId>('read')
-  // 首次渲染的流式动画要等首屏稳定后再开始；之后每次切换立即开始
-  const [switched, setSwitched] = useState(false)
+  const [modeId, setModeId] = useState<DemoModeId>(demo.modes[0].id)
+  // 首次渲染的流式动画要等首屏稳定后再开始；之后每次切换（含再点一次当前模式）立即重新流出
+  const [run, setRun] = useState(0)
   const mode = demo.modes.find((item) => item.id === modeId) ?? demo.modes[0]
 
   useEffect(() => {
     const choose = (id: DemoModeId) => {
       setModeId(id)
-      setSwitched(true)
+      setRun((value) => value + 1)
     }
-    // 与客户端同一套规则：连按两下 ⌃ 是划词、连按两下 ⌥ 是原地替换——每一下 ≤250ms、
+    // ⌥⌘O 是浏览器与系统都可能占用的组合，截图模式只能点按钮切换。
+    // 与客户端同一套规则：连按两下 ⌃ 是划词、连按两下 ⌥ 是闪电替换——每一下 ≤250ms、
     // 两下间隔 ≤350ms、同一个物理键、中间没按别的键；单独按住右 ⌥ 超过 250ms 是「按住说话」。
     let press: { code: string; at: number } | null = null
     let lastTap: { code: string; at: number } | null = null
@@ -100,45 +103,104 @@ function HeroDemo({ demo }: { demo: SiteContent['hero']['demo'] }) {
     }
   }, [])
 
+  const baseId = useId()
+  const tabId = (id: DemoModeId) => `${baseId}-tab-${id}`
+  const select = (id: DemoModeId, focus = false) => {
+    setModeId(id)
+    setRun((value) => value + 1)
+    if (focus) document.getElementById(tabId(id))?.focus()
+  }
+  // 标准选项卡的键盘操作：←/→ 循环切换，Home/End 到头尾，切换即选中
+  const onTabKey = (event: ReactKeyboardEvent<HTMLButtonElement>, index: number) => {
+    const count = demo.modes.length
+    const next =
+      event.key === 'ArrowRight'
+        ? (index + 1) % count
+        : event.key === 'ArrowLeft'
+          ? (index - 1 + count) % count
+          : event.key === 'Home'
+            ? 0
+            : event.key === 'End'
+              ? count - 1
+              : -1
+    if (next < 0) return
+    event.preventDefault()
+    select(demo.modes[next].id, true)
+  }
+
   return (
     <figure aria-label={demo.label} className="hero-demo">
-      <div key={mode.id} className="demo-stage" aria-live="polite">
-        <DemoStage mode={mode} delay={switched ? 250 : 700} />
+      {/* 书签式选项卡：当前一页是白页、和下面的舞台连成一体，其余退到纸背 */}
+      <div className="demo-tabs" role="tablist" aria-label={demo.label}>
+        {demo.modes.map((item, index) => {
+          const selected = item.id === mode.id
+          return (
+            <button
+              key={item.id}
+              id={tabId(item.id)}
+              type="button"
+              role="tab"
+              aria-selected={selected}
+              aria-controls={`${baseId}-panel`}
+              tabIndex={selected ? 0 : -1}
+              onClick={() => select(item.id)}
+              onKeyDown={(event) => onTabKey(event, index)}
+            >
+              <span className="demo-tab-name">{item.name}</span>
+              {item.tag ? (
+                <span className="tag">{item.tag}</span>
+              ) : (
+                <span className="demo-keys" aria-hidden="true">
+                  {item.keyHint ? <span className="demo-key-hint">{item.keyHint}</span> : null}
+                  {item.keys.map((key, keyIndex) => (
+                    // biome-ignore lint/suspicious/noArrayIndexKey: 键帽是静态列表，且连按会出现两个相同的键
+                    <kbd key={keyIndex} className="keycap keycap-xs">
+                      {key}
+                    </kbd>
+                  ))}
+                </span>
+              )}
+            </button>
+          )
+        })}
       </div>
-      <div className="demo-switch">
-        {demo.modes.map((item) => (
-          <button
-            key={item.id}
-            type="button"
-            aria-pressed={item.id === mode.id}
-            onClick={() => {
-              setModeId(item.id)
-              setSwitched(true)
-            }}
-          >
-            <span className="flex gap-1" aria-hidden="true">
-              {item.keys.map((key, index) => (
-                // biome-ignore lint/suspicious/noArrayIndexKey: 键帽是静态列表，且连按会出现两个相同的键
-                <kbd key={index} className="keycap keycap-sm">
-                  {key}
-                </kbd>
-              ))}
-            </span>
-            <span className="demo-switch-name">
-              {item.name}
-              {item.tag ? <span className="tag">{item.tag}</span> : null}
-            </span>
-          </button>
-        ))}
+      {/* 四个场景叠在同一格里，只显示当前的一个：舞台高度始终等于最高的场景，切换时页面不跳 */}
+      <div
+        id={`${baseId}-panel`}
+        className="demo-stage"
+        role="tabpanel"
+        aria-labelledby={tabId(mode.id)}
+        aria-live="polite"
+      >
+        {demo.modes.map((item) =>
+          item.id === mode.id ? (
+            <div
+              key={`${item.id}-${run}`}
+              className="demo-scene"
+              data-mode={item.id}
+              data-active="true"
+            >
+              <DemoStage mode={item} delay={run > 0 ? 250 : 700} />
+            </div>
+          ) : (
+            <div key={item.id} className="demo-scene" data-mode={item.id} aria-hidden="true">
+              <DemoStage mode={item} />
+            </div>
+          ),
+        )}
       </div>
-      <figcaption className="demo-hint">{demo.hint}</figcaption>
+      <figcaption className="demo-hint">{mode.hint}</figcaption>
     </figure>
   )
 }
 
-/** 演示的上半部分：上一行经快捷键变成下一行。三种模式同一套记号：蓝色选区、灰色原话、墨色结果。 */
-function DemoStage({ mode, delay }: { mode: DemoMode; delay: number }) {
-  const result = <Stream text={mode.after} delay={delay} />
+/**
+ * 演示的上半部分：上一行经快捷键变成下一行。四种模式同一套记号：奶油选区或截图虚线框、灰色原话、墨色结果。
+ * 不带 delay 时是占位用的静态场景（只撑高度，不流式）。
+ */
+function DemoStage({ mode, delay }: { mode: DemoMode; delay?: number }) {
+  const result = delay === undefined ? mode.after : <Stream text={mode.after} delay={delay} />
+  const note = mode.note ? <p className="demo-note">{mode.note}</p> : null
 
   if (mode.id === 'read') {
     return (
@@ -151,25 +213,41 @@ function DemoStage({ mode, delay }: { mode: DemoMode; delay: number }) {
     )
   }
 
+  if (mode.id === 'ocr') {
+    return (
+      <>
+        <p className="demo-shot source-text">{mode.before}</p>
+        <div className="demo-popover translation-text">{result}</div>
+      </>
+    )
+  }
+
+  // 闪电替换：同一个输入框里，原文划掉、译文写在它下面——静止时也是一组前后对照，看得出「换掉了」
   if (mode.id === 'write') {
     return (
       <>
-        <p className="demo-replaced">{mode.before}</p>
-        <p className="demo-field translation-text">{result}</p>
+        <div className="demo-field demo-field-replace">
+          <p className="demo-replaced">{mode.before}</p>
+          <p className="translation-text">{result}</p>
+        </div>
+        {note}
       </>
     )
   }
 
   return (
     <>
-      <div className="demo-wave" aria-hidden="true">
-        {WAVE.map((height, index) => (
-          // biome-ignore lint/suspicious/noArrayIndexKey: 固定序列，下标就是身份
-          <span key={index} style={{ '--h': `${height}%`, '--i': index } as CSSProperties} />
-        ))}
+      <div className="demo-speak">
+        <div className="demo-wave" aria-hidden="true">
+          {WAVE.map((height, index) => (
+            // biome-ignore lint/suspicious/noArrayIndexKey: 固定序列，下标就是身份
+            <span key={index} style={{ '--h': `${height}%`, '--i': index } as CSSProperties} />
+          ))}
+        </div>
+        <p className="source-text">{mode.before}</p>
       </div>
-      <p className="source-text">{mode.before}</p>
       <p className="demo-field translation-text">{result}</p>
+      {note}
     </>
   )
 }

@@ -27,6 +27,7 @@ struct HistorySceneTests {
         #expect(HistoryFormat.sceneLabel("selection", t) == "划词")
         #expect(HistoryFormat.sceneLabel("silentReplace", t) == "原地替换")
         #expect(HistoryFormat.sceneLabel("compose", t) == "撰写窗")
+        #expect(HistoryFormat.sceneLabel("ocr", t) == "截图")
         #expect(HistoryFormat.sceneLabel("compare", t) == "对比")
     }
 
@@ -93,11 +94,13 @@ private final class FakeHistory: HistoryBackend {
     var copied: [String] = []
     var composed: [(String, String)] = []
     var privacy = false
+    var limits: [UInt32] = []
 
-    func query(_ filter: HistoryFilter, limit _: UInt32) async throws -> [HistoryRecord] {
+    func query(_ filter: HistoryFilter, limit: UInt32) async throws -> [HistoryRecord] {
         filters.append(filter)
+        limits.append(limit)
         if fail { throw Broken() }
-        return rows
+        return Array(rows.prefix(Int(limit)))
     }
 
     func privacyMode() async throws -> Bool { privacy }
@@ -113,7 +116,7 @@ private final class FakeHistory: HistoryBackend {
         return UInt32(rows.count)
     }
 
-    func confirmClear(_ message: String, confirm _: String, cancel _: String) -> Bool {
+    func confirmClear(_ message: String, confirm _: String, cancel _: String) async -> Bool {
         confirmed.append(message)
         return confirm
     }
@@ -139,6 +142,39 @@ struct HistoryModelTests {
         await model.reload()
         #expect(model.records.map(\.id) == [1])
         #expect(model.status == nil)
+    }
+
+    @Test func 超过一页时不静默截断_显示更多再读一页_换搜索词回到第一页() async {
+        let backend = FakeHistory()
+        let page = Int(HistoryModel.pageSize)
+        backend.rows = (1 ... page * 2 + 5).map { id in with { $0.id = Int64(id) } }
+        let model = HistoryModel(backend: backend, sleep: instant)
+        model.t = t
+        await model.reload()
+        #expect(model.records.count == page)
+        #expect(model.hasMore)
+        await model.loadMore()
+        #expect(model.records.count == page * 2)
+        #expect(model.hasMore)
+        await model.loadMore()
+        #expect(model.records.count == page * 2 + 5)
+        #expect(!model.hasMore)
+        await model.loadMore()
+        #expect(model.pages == 3)
+
+        model.query = "Hello"
+        for _ in 0 ..< 200 where backend.filters.last?.query != "Hello" { await Task.yield() }
+        #expect(model.pages == 1)
+        #expect(backend.limits.last == HistoryModel.pageSize + 1)
+    }
+
+    @Test func 正好一页时不给显示更多() async {
+        let backend = FakeHistory()
+        backend.rows = (1 ... Int(HistoryModel.pageSize)).map { id in with { $0.id = Int64(id) } }
+        let model = HistoryModel(backend: backend, sleep: instant)
+        await model.reload()
+        #expect(model.records.count == Int(HistoryModel.pageSize))
+        #expect(!model.hasMore)
     }
 
     @Test func 搜索词改了就送后端() async {
@@ -197,6 +233,47 @@ struct HistoryModelTests {
         await model.delete(1)
         #expect(backend.deleted == [1])
         #expect(model.records.isEmpty)
+    }
+
+    @Test func 重载保留仍可见的选择并清理筛选外的选择() async {
+        let backend = FakeHistory()
+        let model = HistoryModel(backend: backend, sleep: instant)
+        await model.reload()
+        model.selection = 1
+        await model.reload()
+        #expect(model.selection == 1)
+
+        backend.rows = [with { $0.id = 2 }]
+        await model.reload()
+        #expect(model.records.map(\.id) == [2])
+        #expect(model.selection == nil)
+    }
+
+    @Test func 失效的删除任务不能删除当前列表外的记录() async {
+        let backend = FakeHistory()
+        let model = HistoryModel(backend: backend, sleep: instant)
+        await model.reload()
+        backend.rows = []
+        await model.reload()
+        // 模拟搜索前已排队的 Delete 任务，以及系统列表尚未清理的选择。
+        model.selection = 1
+        await model.delete(1)
+        #expect(backend.deleted.isEmpty)
+    }
+
+    @Test func 删除或清空后清理已不存在的选择() async {
+        let backend = FakeHistory()
+        let model = HistoryModel(backend: backend, sleep: instant)
+        await model.reload()
+        model.selection = 1
+        await model.delete(1)
+        #expect(model.selection == nil)
+
+        backend.rows = [record]
+        await model.reload()
+        model.selection = 1
+        await model.clearAll()
+        #expect(model.selection == nil)
     }
 
     @Test func 再次编辑把原文与译文带进撰写窗() {

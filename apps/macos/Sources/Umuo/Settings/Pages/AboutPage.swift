@@ -36,15 +36,12 @@ struct AboutPage: View {
             }
 
             PrefGroup(title: t("prefs.about.links")) {
-                PrefRow(title: t("prefs.about.feedback"), description: t("prefs.about.feedbackHint")) {
-                    LinkRowButton(label: t("prefs.about.feedback"), external: true) {
-                        model.backend.openURL(Self.feedbackURL)
-                    }
+                // 外链直接把地址写成链接（同系统「关于」窗口），点了交给默认的邮件与浏览器
+                PrefRow(title: t("prefs.about.feedback")) {
+                    Button("hello@umuo.app") { model.backend.openURL(Self.feedbackURL) }.buttonStyle(.link)
                 }
                 PrefRow(title: t("prefs.about.website")) {
-                    LinkRowButton(label: t("prefs.about.website"), external: true) {
-                        model.backend.openURL(Self.siteURL)
-                    }
+                    Button("umuo.app") { model.backend.openURL(Self.siteURL) }.buttonStyle(.link)
                 }
             }
 

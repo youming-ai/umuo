@@ -42,6 +42,11 @@ final class ComposeSession {
         didSet { if overrides != oldValue { scheduleDebounce() } }
     }
 
+    /// 当前译文是按哪一版原文与语言选择发出去的（发请求时记下）。提交前要和输入框比对：
+    /// 改了原文、还在防抖或关着自动翻译时，译文区里的是上一版的结果，不能拿去提交。
+    private(set) var sentText: String?
+    private(set) var sentOverrides: ComposeRules.Overrides?
+
     /// 提交结果这类一次性提示。
     var notice: String?
     /// ⌘⇧↩ 要粘回的应用（pid）。每次唤出撰写窗时按来源重新算（`ComposeRules.ownerForCaller`），nil = 没有外部目标。
@@ -90,6 +95,8 @@ final class ComposeSession {
 
     private func send(_ text: String) {
         guard let request = ComposeRules.request(text, overrides) else { return settle() }
+        sentText = request.text
+        sentOverrides = overrides
         guard let failure = backend?.translate(request) else { return }
         // 没能发出去：没有 id，算作当前这次的结果。这条路径不会推 done / error 事件，
         // 调度器必须在这里自己收尾，否则会永远停在 streaming 上再也不翻译。
@@ -121,9 +128,11 @@ final class ComposeSession {
 
     // MARK: - 能做什么
 
-    /// 只有完成的译文才能提交：流式中途提交会把半截译文粘进聊天框（审查 M18）。
+    /// 只有完成的、而且就是当前输入的译文才能提交：流式中途提交会把半截译文粘进聊天框（审查 M18）；
+    /// 改了原文或语言之后，防抖期间、关着自动翻译时，译文区里还是上一版的结果，提交出去就错了。
     var settled: Bool {
         state.status == .done && !state.translation.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            && sentText == input.trimmingCharacters(in: .whitespacesAndNewlines) && sentOverrides == overrides
     }
 
     // MARK: - 操作

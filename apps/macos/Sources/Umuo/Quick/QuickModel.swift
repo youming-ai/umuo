@@ -24,6 +24,11 @@ final class QuickModel {
     let backend: QuickBackend
     private(set) var state: QuickState?
     var notice: String?
+    /// 用户在这次打开期间切过的暂停状态：以它为准。面板打开时的读取是异步的，读取途中切了开关，
+    /// 晚到的旧结果不能把它盖回去；第一次读取失败（`state` 还是 nil）时也要能显示切换后的状态。
+    private(set) var pausedOverride: Bool?
+    /// 切换次数：判断一次读取期间有没有切过开关。
+    @ObservationIgnored private var toggles = 0
 
     var t = Translate(locale: .source)
 
@@ -31,7 +36,7 @@ final class QuickModel {
         self.backend = backend
     }
 
-    var paused: Bool { state?.paused ?? false }
+    var paused: Bool { pausedOverride ?? state?.paused ?? false }
 
     /// 「当前模型」那一行；还没读到时是省略号。
     var modelLine: String {
@@ -41,8 +46,16 @@ final class QuickModel {
 
     /// 显示时刷新。第一次读不到要说出原因；之后的刷新失败不打扰（面板上的旧值仍然有用）。
     func refresh() async {
+        let before = toggles
         do {
-            state = try await backend.state()
+            var fresh = try await backend.state()
+            if toggles == before {
+                // 读取期间没切过：读到的就是最新状态
+                pausedOverride = nil
+            } else if let pausedOverride {
+                fresh.paused = pausedOverride
+            }
+            state = fresh
         } catch {
             if state == nil { notice = t("quick.unavailable", ["reason": SettingsRules.message(error)]) }
         }
@@ -50,6 +63,8 @@ final class QuickModel {
 
     func togglePause() {
         let now = backend.setPaused(!paused)
+        toggles += 1
+        pausedOverride = now
         state?.paused = now
     }
 

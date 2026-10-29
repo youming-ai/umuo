@@ -18,7 +18,7 @@ struct WordCardView: View {
                     Text(phonetic).font(.callout).foregroundStyle(Color.secondary)
                 }
                 Spacer(minLength: 0)
-                PanelButton(t("wordCard.speak"), action: speak)
+                PanelButton(t("wordCard.speak"), systemImage: "speaker.wave.2", action: speak)
             }
 
             if !card.senses.isEmpty {

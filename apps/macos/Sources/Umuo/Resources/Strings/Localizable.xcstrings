@@ -757,6 +757,35 @@
         }
       }
     },
+    "history.loadMore": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "显示更多"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "顯示更多"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show more"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "さらに表示"
+          }
+        }
+      }
+    },
     "history.privacyNotice": {
       "extractionState": "manual",
       "localizations": {
@@ -840,6 +869,35 @@
           "stringUnit": {
             "state": "translated",
             "value": "作成ウィンドウ"
+          }
+        }
+      }
+    },
+    "history.sceneOcr": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "截图"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "截圖"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Screenshot"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "スクリーンショット"
           }
         }
       }
@@ -931,34 +989,35 @@
         }
       }
     },
-    "history.title": {
+    "history.shown": {
       "extractionState": "manual",
       "localizations": {
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "umuo 数据"
+            "value": "已显示最近 %1$@ 条"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "umuo 資料"
+            "value": "已顯示最近 %1$@ 筆"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "umuo data"
+            "value": "Showing the latest %1$@"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "umuo データ"
+            "value": "最新 %1$@ 件を表示中"
           }
         }
-      }
+      },
+      "comment": "placeholders: count"
     },
     "history.unavailable": {
       "extractionState": "manual",
@@ -989,6 +1048,267 @@
         }
       },
       "comment": "placeholders: reason"
+    },
+    "menu.checkUpdates": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "检查更新…"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "檢查更新…"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Check for Updates…"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "アップデートを確認…"
+          }
+        }
+      }
+    },
+    "menu.compose": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "撰写窗"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "撰寫視窗"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Compose"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "作成ウィンドウ"
+          }
+        }
+      }
+    },
+    "menu.history": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "翻译历史"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "翻譯歷史"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "History"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "翻訳履歴"
+          }
+        }
+      }
+    },
+    "menu.ocr": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "截图翻译"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "截圖翻譯"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Translate Screenshot"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "スクリーンショットを翻訳"
+          }
+        }
+      }
+    },
+    "menu.quickPanel": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "快捷面板"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "快捷面板"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Quick Panel"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "クイックパネル"
+          }
+        }
+      }
+    },
+    "menu.quit": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "退出 umuo"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "結束 umuo"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Quit umuo"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "umuo を終了"
+          }
+        }
+      }
+    },
+    "menu.selection": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "翻译选中文本"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "翻譯選取文字"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Translate Selection"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "選択テキストを翻訳"
+          }
+        }
+      }
+    },
+    "menu.settings": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "设置…"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "設定…"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Settings…"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "設定…"
+          }
+        }
+      }
+    },
+    "menu.silentReplace": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "输入框原地替换"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "輸入框原地替換"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Replace in Text Field"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "入力欄をその場で置換"
+          }
+        }
+      }
     },
     "onboarding.accessibility": {
       "extractionState": "manual",
@@ -1223,35 +1543,6 @@
         }
       },
       "comment": "placeholders: provider"
-    },
-    "onboarding.granted": {
-      "extractionState": "manual",
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "已授权"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "已授權"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Granted"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "許可済み"
-          }
-        }
-      }
     },
     "onboarding.intro": {
       "extractionState": "manual",
@@ -1598,35 +1889,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "キーが無い場合でも、Ollama / LM Studio があれば完全オフラインで翻訳できます（無料、外部に出ません）。"
-          }
-        }
-      }
-    },
-    "onboarding.notGranted": {
-      "extractionState": "manual",
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "未授权"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "未授權"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Not granted"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "未許可"
           }
         }
       }
@@ -2034,35 +2296,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "どこでもテキストを選ぶと、近くのパネルに訳が表示されます"
-          }
-        }
-      }
-    },
-    "onboarding.reading": {
-      "extractionState": "manual",
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "读取中…"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "讀取中…"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Reading…"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "読み込み中…"
           }
         }
       }
@@ -2852,6 +3085,35 @@
         }
       }
     },
+    "panel.collapseSource": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "收起原文"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "收合原文"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show less"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "原文を折りたたむ"
+          }
+        }
+      }
+    },
     "panel.compose": {
       "extractionState": "manual",
       "localizations": {
@@ -2935,6 +3197,35 @@
           "stringUnit": {
             "state": "translated",
             "value": "（推定）"
+          }
+        }
+      }
+    },
+    "panel.expandSource": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "展开原文"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "展開原文"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show full source"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "原文をすべて表示"
           }
         }
       }
@@ -3810,35 +4101,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "フィードバックを送る"
-          }
-        }
-      }
-    },
-    "prefs.about.feedbackHint": {
-      "extractionState": "manual",
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "写信到 hello@umuo.app。"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "寫信到 hello@umuo.app。"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Email hello@umuo.app."
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "hello@umuo.app にメールします。"
           }
         }
       }
@@ -5415,35 +5677,6 @@
         }
       }
     },
-    "prefs.general.importAction": {
-      "extractionState": "manual",
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "导入"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "匯入"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Import"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "読み込む"
-          }
-        }
-      }
-    },
     "prefs.general.importChoose": {
       "extractionState": "manual",
       "localizations": {
@@ -5479,54 +5712,25 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "填入导出文件的路径。导入后需要重新填写 API Key。"
+            "value": "选择导出过的文件。导入后需要重新填写 API Key。"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "填入匯出檔的路徑。匯入後需要重新填寫 API Key。"
+            "value": "選擇匯出過的檔案。匯入後需要重新填寫 API Key。"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Enter the path of an exported file. You will need to re-enter API keys afterwards."
+            "value": "Choose a file you exported before. You will need to re-enter API keys afterwards."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "書き出したファイルのパスを入力します。読み込み後は API キーを入力し直してください。"
-          }
-        }
-      }
-    },
-    "prefs.general.importPath": {
-      "extractionState": "manual",
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "文件路径"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "檔案路徑"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "File path"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "ファイルのパス"
+            "value": "書き出したファイルを選びます。読み込み後は API キーを入力し直してください。"
           }
         }
       }
@@ -5821,6 +6025,64 @@
           "stringUnit": {
             "state": "translated",
             "value": "言語・エンジン・権限・ショートカットの設定をもう一度行います。"
+          }
+        }
+      }
+    },
+    "prefs.general.onboardingRun": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "重新开始"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "重新開始"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Start Again"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "もう一度始める"
+          }
+        }
+      }
+    },
+    "prefs.general.reveal": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在访达中显示"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在 Finder 中顯示"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show in Finder"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Finder に表示"
           }
         }
       }
@@ -7951,25 +8213,25 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "已暂停：全局快捷键暂时不响应。再点一次「恢复」即可。"
+            "value": "已暂停：全局快捷键暂时不响应，关掉「暂停」即可恢复。"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "已暫停：全域快捷鍵暫時不回應。再按一次「恢復」即可。"
+            "value": "已暫停：全域快捷鍵暫時不回應，關閉「暫停」即可恢復。"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Paused: global shortcuts are ignored until you resume."
+            "value": "Paused: global shortcuts are ignored until you turn Pause off."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "一時停止中：グローバルショートカットは反応しません。「再開」でもとに戻ります。"
+            "value": "一時停止中：グローバルショートカットは反応しません。「一時停止」をオフにすると元に戻ります。"
           }
         }
       }
@@ -7999,35 +8261,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "最近の翻訳"
-          }
-        }
-      }
-    },
-    "quick.resume": {
-      "extractionState": "manual",
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "恢复"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "恢復"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Resume"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "再開"
           }
         }
       }

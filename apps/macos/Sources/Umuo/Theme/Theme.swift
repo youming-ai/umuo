@@ -1,4 +1,5 @@
 import AppKit
+import SwiftUI
 
 /// 外观（PRD §7.3：浅色 / 深色 / 跟随系统）。颜色、字号、材质全部交给系统：不维护自己的设计令牌，
 /// 高对比度走系统的「增强对比度」，所以这里只决定整个应用用哪种 `NSAppearance`。
@@ -27,18 +28,15 @@ enum ThemeChoice: String, CaseIterable, Sendable {
     }
 }
 
-import SwiftUI
-
 extension View {
-    /// 浮动窗口（划词浮窗、输入翻译窗、菜单栏面板）的底板：macOS 26 起用系统的 Liquid Glass，
-    /// 更早的系统用标准材质。形状与圆角跟着系统窗口走，不另定义设计令牌。
+    /// 浮动面板的底板：macOS 26 使用 Liquid Glass，更早系统由 `FloatingPanelChrome` 提供材质。
+    /// 内容铺满窗口，圆角与裁切交给系统窗口外壳，避免再叠一套不匹配的圆角。
     @ViewBuilder
-    func floatingSurface(cornerRadius: CGFloat = 16) -> some View {
-        let shape = RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+    func floatingSurface() -> some View {
         if #available(macOS 26.0, *) {
-            glassEffect(.regular, in: shape)
+            glassEffect(.regular, in: Rectangle())
         } else {
-            background(.regularMaterial, in: shape).clipShape(shape)
+            self
         }
     }
 }

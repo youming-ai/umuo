@@ -2,8 +2,8 @@ import AppKit
 import SwiftUI
 
 /// 设置窗的排版积木：系统的分组表单（`Form` + `.formStyle(.grouped)`，同 macOS 自带应用与 TablePro 的设置页）。
-/// 一组是一个 `Section`；每行左边只有名字，右边是控件。解释性的说明放进悬停提示（`.help`），
-/// 只有「此刻的状态」（Key 是否已配置、当前引擎、导入结果）才作为 `note` 常显在名字下面。
+/// 一组是一个 `Section`；每行左边是名字，右边是控件。名字下面常显两种次要文字（同系统设置）：
+/// 这一项做什么（`description`），以及此刻的状态（`note`：Key 是否已配置、当前引擎、导入结果）。
 ///
 /// 所有控件都是「改了就存」：下拉框与开关立刻提交；文本框是草稿，失焦或回车才提交（`DraftField`），
 /// 提交失败就退回上一次存好的值，并把原因写在这一行下面——而不是让人去页面底部找。
@@ -25,7 +25,7 @@ struct PrefGroup<Content: View>: View {
 
 struct PrefRow<Control: View, Extra: View>: View {
     let title: String
-    /// 解释这一项做什么：悬停提示，不常显。
+    /// 解释这一项做什么：常显在名字下面。
     var description: String?
     /// 此刻的状态：常显在名字下面。
     var note: String?
@@ -39,6 +39,7 @@ struct PrefRow<Control: View, Extra: View>: View {
                 HStack(spacing: 8) { control() }.fixedSize(horizontal: true, vertical: false)
             } label: {
                 Text(title)
+                if let description { Text(description) }
                 if let note { Text(note).textSelection(.enabled) }
             }
             if let error {
@@ -48,7 +49,6 @@ struct PrefRow<Control: View, Extra: View>: View {
             }
             extra()
         }
-        .help(description ?? "")
     }
 }
 
@@ -80,12 +80,11 @@ extension PrefRow where Control == EmptyView, Extra == EmptyView {
     }
 }
 
-/// 下拉框：选项是（值, 文字）。当前值不在选项里（手改过的配置）时显示为空，不擅自改掉它。
+/// 下拉框：选项是（值, 文字）。当前值不在选项里（手改过的配置）时显示为空，不擅自改掉它。宽度随内容。
 struct PrefPicker<Value: Hashable>: View {
     let label: String
     let value: Value
     let options: [(Value, String)]
-    var width: CGFloat? = 180
     let onChange: (Value) -> Void
 
     var body: some View {
@@ -95,7 +94,7 @@ struct PrefPicker<Value: Hashable>: View {
             }
         }
         .labelsHidden()
-        .frame(width: width)
+        .fixedSize()
     }
 }
 
@@ -117,36 +116,23 @@ struct PrefButton: View {
     }
 }
 
-/// 右侧那种「›」或「↗」样式的跳转。
-struct LinkRowButton: View {
-    let label: String
-    var external = false
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            Image(systemName: external ? "arrow.up.right" : "chevron.right").foregroundStyle(.secondary)
-        }
-        .buttonStyle(.borderless)
-        .accessibilityLabel(label)
-        .help(label)
-    }
-}
-
 /// 文本草稿：边打边改本地值，失焦或回车才提交；提交失败退回 `value`。
 /// 外部值变化（导入、回滚、别处写入）时同步草稿——但用户正在这个框里打字时不同步，否则一次迟到的保存失败回滚
 /// 会把他刚敲的内容冲掉。
+///
+/// 给了 `suggestions` 就是系统的组合框（`NSComboBox`）：能手填，也能从下拉里挑一个候选，挑中即提交。
 struct DraftField: NSViewRepresentable {
     let value: String
     var placeholder = ""
-    var width: CGFloat = 220
+    var width: CGFloat = 240
     var secure = false
     var multiline = false
+    var suggestions: [String]?
     var label: String?
     /// 返回保存任务（nil = 这次不提交，例如数字认不出来，草稿留着让用户改）。失败时草稿退回 `value`。
     let onCommit: (String) -> Task<Void, Error>?
 
-    @MainActor final class Coordinator: NSObject, NSTextFieldDelegate, NSTextViewDelegate {
+    @MainActor final class Coordinator: NSObject, NSComboBoxDelegate, NSTextViewDelegate {
         var parent: DraftField
         /// 上次同步进框里的外部值：外部值没变时不重设，免得把用户的草稿盖掉。
         var shown: String?
@@ -156,6 +142,13 @@ struct DraftField: NSViewRepresentable {
         func controlTextDidEndEditing(_ note: Notification) {
             guard let field = note.object as? NSTextField else { return }
             commit(field.stringValue) { field.stringValue = $0 }
+        }
+
+        /// 从下拉里挑中：此时 `stringValue` 还是旧值，要读选中的那一项。
+        func comboBoxSelectionDidChange(_ note: Notification) {
+            guard let box = note.object as? NSComboBox, let picked = box.objectValueOfSelectedItem as? String else { return }
+            box.stringValue = picked
+            commit(picked) { box.stringValue = $0 }
         }
 
         func textDidEndEditing(_ note: Notification) {
@@ -192,7 +185,17 @@ struct DraftField: NSViewRepresentable {
             text.setAccessibilityLabel(label)
             return scroll
         }
-        let field = secure ? NSSecureTextField() : NSTextField()
+        let field: NSTextField
+        if let suggestions {
+            let box = NSComboBox()
+            box.completes = true
+            box.numberOfVisibleItems = 12
+            box.addItems(withObjectValues: suggestions)
+            field = box
+        } else {
+            field = secure ? NSSecureTextField() : NSTextField()
+            field.bezelStyle = .roundedBezel
+        }
         field.placeholderString = placeholder
         field.delegate = context.coordinator
         field.lineBreakMode = .byTruncatingTail
@@ -203,7 +206,12 @@ struct DraftField: NSViewRepresentable {
     }
 
     func updateNSView(_ view: NSView, context: Context) {
+        let previous = context.coordinator.parent.suggestions
         context.coordinator.parent = self
+        if let box = view as? NSComboBox, let suggestions, suggestions != previous {
+            box.removeAllItems()
+            box.addItems(withObjectValues: suggestions)
+        }
         guard context.coordinator.shown != value else { return }
         if let field = view as? NSTextField {
             field.placeholderString = placeholder
@@ -216,8 +224,10 @@ struct DraftField: NSViewRepresentable {
         context.coordinator.shown = value
     }
 
-    func sizeThatFits(_ proposal: ProposedViewSize, nsView _: NSView, context _: Context) -> CGSize? {
-        multiline ? CGSize(width: proposal.width ?? width, height: 88) : CGSize(width: width, height: 22)
+    /// 单行框给一个起始宽度（地址、模型名够用），多行框占满整行。高度取控件自己的（组合框比文本框高）。
+    func sizeThatFits(_ proposal: ProposedViewSize, nsView: NSView, context _: Context) -> CGSize? {
+        multiline ? CGSize(width: proposal.width ?? width, height: 88)
+            : CGSize(width: width, height: nsView.intrinsicContentSize.height)
     }
 }
 
@@ -263,7 +273,8 @@ struct PlainTextEditor: NSViewRepresentable {
 
     func updateNSView(_ scroll: NSScrollView, context: Context) {
         context.coordinator.parent = self
-        guard let view = scroll.documentView as? NSTextView, view.string != text else { return }
+        // 输入法正在组字时不回写：浮窗里译文流式刷新会触发重绘，回写会把未上屏的拼音冲掉
+        guard let view = scroll.documentView as? NSTextView, !view.hasMarkedText(), view.string != text else { return }
         view.string = text
     }
 
@@ -272,26 +283,21 @@ struct PlainTextEditor: NSViewRepresentable {
     }
 }
 
-/// 键帽（快捷键的显示）。
-struct Keycap: View {
-    let text: String
-
-    var body: some View {
-        Text(text).font(.callout.weight(.medium))
-            .padding(.horizontal, 6).padding(.vertical, 2)
-            .background(.quaternary, in: RoundedRectangle(cornerRadius: 5))
-    }
-}
-
-/// 确认对话框（Tauri 的 `window.confirm`）。
+/// 破坏性操作前的确认（Tauri 的 `window.confirm`）：系统警告框，以表单附在当前窗口上（没有窗口时才是独立对话框）。
+/// 确认按钮标成破坏性；回车落在「取消」上，免得顺手一按就删了。
 @MainActor
 enum PrefConfirm {
-    static func ask(_ message: String, confirm: String, cancel: String) -> Bool {
+    static func ask(_ message: String, confirm: String, cancel: String) async -> Bool {
         let alert = NSAlert()
         alert.messageText = message
-        alert.addButton(withTitle: confirm)
-        alert.addButton(withTitle: cancel)
         alert.alertStyle = .warning
-        return alert.runModal() == .alertFirstButtonReturn
+        let destructive = alert.addButton(withTitle: confirm)
+        destructive.hasDestructiveAction = true
+        destructive.keyEquivalent = ""
+        alert.addButton(withTitle: cancel).keyEquivalent = "\r"
+        guard let window = NSApp.keyWindow else { return alert.runModal() == .alertFirstButtonReturn }
+        return await withCheckedContinuation { done in
+            alert.beginSheetModal(for: window) { done.resume(returning: $0 == .alertFirstButtonReturn) }
+        }
     }
 }

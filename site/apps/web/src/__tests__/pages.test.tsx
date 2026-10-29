@@ -69,10 +69,33 @@ describe('首页一屏', () => {
   })
 
   it('演示可以点击切换，也可以直接按快捷键', () => {
-    const pressed = () => host.querySelector('.demo-switch [aria-pressed="true"]')?.textContent
+    const pressed = () => host.querySelector('.demo-tabs [aria-selected="true"]')?.textContent
+    // 默认停在第一项划词翻译
     expect(pressed()).toContain('划词翻译')
-    click('.demo-switch button:nth-child(2)')
-    expect(pressed()).toContain('原地替换')
+    // 标准选项卡：只有当前一项可以 Tab 进入，提示随模式变化
+    expect(host.querySelectorAll('.demo-tabs [tabindex="0"]')).toHaveLength(1)
+    expect(host.querySelector('.demo-hint')?.textContent).toContain('⌃')
+    click('.demo-tabs [role="tab"]:nth-child(2)')
+    expect(pressed()).toContain('闪电替换')
+    expect(host.querySelector('.demo-hint')?.textContent).toContain('⌥')
+    expect(host.querySelector('.demo-field-replace')?.textContent).toContain('明天下午三点')
+    // ←/→ 在选项卡之间循环切换
+    const arrow = (k: string) =>
+      act(() =>
+        host
+          .querySelector('.demo-tabs [aria-selected="true"]')
+          ?.dispatchEvent(new KeyboardEvent('keydown', { key: k, bubbles: true })),
+      )
+    arrow('ArrowLeft')
+    expect(pressed()).toContain('划词翻译')
+    arrow('ArrowLeft')
+    expect(pressed()).toContain('语音输入')
+    arrow('Home')
+    expect(pressed()).toContain('划词翻译')
+    click('.demo-tabs [role="tab"]:nth-child(3)')
+    expect(pressed()).toContain('截图翻译')
+    expect(host.querySelector('.demo-shot')?.textContent).toContain('Platform 2')
+    click('.demo-tabs [role="tab"]:nth-child(2)')
     const key = (type: string, init: KeyboardEventInit) =>
       act(() => window.dispatchEvent(new KeyboardEvent(type, init)))
     let now = 0
@@ -88,14 +111,14 @@ describe('首页一屏', () => {
     expect(pressed()).toContain('划词翻译')
     tap('AltLeft', 'altKey')
     tap('AltLeft', 'altKey')
-    expect(pressed()).toContain('原地替换')
+    expect(pressed()).toContain('闪电替换')
     // 左 ⌃ 接右 ⌃、中间按了别的键，都不算连按
     tap('ControlLeft', 'ctrlKey')
     tap('ControlRight', 'ctrlKey')
     tap('ControlLeft', 'ctrlKey')
     key('keydown', { code: 'KeyC' })
     tap('ControlLeft', 'ctrlKey')
-    expect(pressed()).toContain('原地替换')
+    expect(pressed()).toContain('闪电替换')
     // 按住右 ⌥ 才是「按住说话」
     key('keydown', { code: 'AltRight', altKey: true })
     now += 400
@@ -169,7 +192,7 @@ describe('定价与激活', () => {
   /** 让轮询里的 fetch 与 setState 都跑完 */
   const settle = () => act(async () => {})
 
-  it('定价页：两笔账（付给 umuo / 付给模型供应商），尚未开放购买时只放下载按钮与一句说明', () => {
+  it('定价页：两笔账（付给 umuo US$9 / 付给模型供应商），尚未开放购买时只放下载按钮与一句说明', () => {
     renderAt('/pricing')
     const pages = [...host.querySelectorAll('.pricing-page')]
     expect(pages.map((page) => page.querySelector('h2')?.textContent)).toEqual([
@@ -177,10 +200,12 @@ describe('定价与激活', () => {
       '付给模型供应商',
     ])
     expect(pages[0]?.querySelector('a[href="/download/macos"]')).not.toBeNull()
-    expect(pages[0]?.textContent).toContain('尚未开放购买')
+    expect(pages[0]?.textContent).toContain('正式购买尚未开放')
     expect(host.querySelector('form')).toBeNull()
     // 包含清单配默认快捷键；没发布的功能只标状态、不给键位
-    const rows = [...host.querySelectorAll('.pricing-included li')]
+    expect(pages[0]?.querySelector('.pricing-amount')?.textContent).toBe('US$9')
+    expect(host.querySelectorAll('.pricing-excluded li').length).toBeGreaterThan(0)
+    const rows = [...host.querySelectorAll('.pricing-features li')]
     expect(rows[0]?.querySelectorAll('kbd')).toHaveLength(2)
     expect(rows.find((row) => row.querySelector('.tag'))?.querySelector('kbd')).toBeFalsy()
     // 订阅时代的承诺不能留在页面上

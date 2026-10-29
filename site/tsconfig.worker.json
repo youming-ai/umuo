@@ -6,5 +6,5 @@
     "lib": ["es2022"],
     "types": ["@cloudflare/workers-types"]
   },
-  "include": ["worker/src/**/*.ts", "middleware/**/*.ts", "void-staging/middleware/**/*.ts"]
+  "include": ["worker/src/**/*.ts", "middleware/**/*.ts"]
 }

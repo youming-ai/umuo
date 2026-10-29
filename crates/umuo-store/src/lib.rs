@@ -125,15 +125,16 @@ impl Store {
             Err(error) if error.is_corruption() => {
                 let stamp = std::time::SystemTime::now()
                     .duration_since(std::time::UNIX_EPOCH)
-                    .map(|d| d.as_secs())
+                    .map(|d| d.as_millis())
                     .unwrap_or(0);
                 let backup = with_suffix(path, &format!(".corrupt-{stamp}"));
                 std::fs::rename(path, &backup).map_err(|e| StoreError::Io(e.to_string()))?;
                 // WAL 模式的旁路文件属于旧库，留着会被新库当成自己的日志重放。
                 for side in ["-wal", "-shm"] {
                     let from = with_suffix(path, side);
-                    if from.exists() {
-                        let _ = std::fs::rename(&from, with_suffix(&backup, side));
+                    if from.exists() && std::fs::rename(&from, with_suffix(&backup, side)).is_err()
+                    {
+                        let _ = std::fs::remove_file(&from);
                     }
                 }
                 Ok((Self::open(path)?, Some(backup)))
@@ -150,6 +151,7 @@ impl Store {
     fn from_connection(conn: Connection) -> Result<Self, StoreError> {
         // 外键与 WAL：历史是「写多读少」的追加型数据，WAL 让写入不阻塞读取。
         // 单文件本地库上 WAL 的代价可以忽略。
+        conn.busy_timeout(std::time::Duration::from_millis(2000))?;
         conn.pragma_update(None, "journal_mode", "WAL")?;
         conn.pragma_update(None, "foreign_keys", "ON")?;
         let store = Self { conn };

@@ -1,0 +1,240 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-29T06:11:37.890012+00:00",
+  "title": "Design System: umuo.app",
+  "extensions": {
+    "colorMeta": {
+      "paper": {
+        "role": "neutral",
+        "displayName": "暖纸 Paper",
+        "tonalRamp": [
+          "#181310",
+          "#221b17",
+          "#3b2f27",
+          "#6b594b",
+          "#a9998b",
+          "#d9cfc3",
+          "#f4ece1",
+          "#fcf9f5"
+        ]
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "咖啡墨 Ink",
+        "tonalRamp": [
+          "#1a120e",
+          "#2a1f1a",
+          "#3f2f26",
+          "#5c4638",
+          "#876c5a",
+          "#b09a89",
+          "#d8cabe",
+          "#f4e6d2"
+        ]
+      },
+      "otter-coffee": {
+        "role": "primary",
+        "displayName": "水獭咖啡 Otter Coffee",
+        "tonalRamp": [
+          "#3a2414",
+          "#5a3a24",
+          "#7e5236",
+          "#a8734d",
+          "#c48d65",
+          "#d9ad8b",
+          "#ead0b8",
+          "#f6ebe0"
+        ]
+      },
+      "otter-coffee-deep": {
+        "role": "primary",
+        "displayName": "耳朵深咖 Otter Coffee Deep"
+      },
+      "cheek-cream": {
+        "role": "neutral",
+        "displayName": "脸颊奶油 Cheek Cream"
+      },
+      "logo-water": {
+        "role": "tertiary",
+        "displayName": "Logo 水蓝（仅 logo 图）"
+      },
+      "otter-coffee-lift": {
+        "role": "primary",
+        "displayName": "抬起深咖 Otter Coffee Lift"
+      },
+      "otter-coffee-edge": {
+        "role": "primary",
+        "displayName": "厚边深咖 Otter Coffee Edge"
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "首屏主标题，随视口高度缩放。"
+      },
+      "price": {
+        "displayName": "Price",
+        "purpose": "定价页金额，等宽数字。"
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "页面与章首标题。"
+      },
+      "keycap": {
+        "displayName": "Keycap",
+        "purpose": "键帽里的 ⌃ ⌥ ⌘，用系统字体。"
+      }
+    },
+    "shadows": [
+      {
+        "name": "paper-card",
+        "value": "0 1px 0 var(--rule), 0 26px 52px -32px rgb(42 31 26 / 0.28)",
+        "purpose": "演示面板。"
+      },
+      {
+        "name": "popover",
+        "value": "0 14px 30px -18px rgb(126 82 54 / 0.22), 0 8px 20px -14px rgb(42 31 26 / 0.25)",
+        "purpose": "演示里的翻译浮窗。"
+      }
+    ],
+    "motion": [
+      {
+        "name": "press",
+        "value": "transform 100ms ease, border-bottom-width 100ms ease；--press-depth 4px / --press-depth-active 1px / --press-lift-hover -1px / --press-lift-active 3px",
+        "purpose": "「节拍」厚底可按压：悬停上抬、按下下沉并收窄厚边。"
+      },
+      {
+        "name": "state",
+        "value": "150ms ease",
+        "purpose": "按钮、链接、切换条的状态过渡。"
+      },
+      {
+        "name": "stream-in",
+        "value": "每字 45ms，起始延迟 600ms",
+        "purpose": "首屏译文逐字流出，全站唯一的自发动效。"
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "mobile",
+        "value": "639px"
+      },
+      {
+        "name": "pricing-spread",
+        "value": "900px"
+      },
+      {
+        "name": "hero-single-column",
+        "value": "1023px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Solid Button",
+      "kind": "button",
+      "refersTo": "button-solid",
+      "description": "全站唯一的实心行动按钮：下载 / 购买。「节拍」厚底可按压。",
+      "html": "<button class=\"ds-btn ds-btn-solid\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 16 16\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\"><path d=\"M8 2v8m0 0L5 7m3 3 3-3M3 13h10\"/></svg>下载 macOS 版<span class=\"ds-status\">预览版</span></button>",
+      "css": ".ds-btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:3.5rem;padding:0 28px;font:700 .9375rem/1 'Open Sans',-apple-system,sans-serif;letter-spacing:.025em;border:2px solid transparent;border-bottom-width:4px;border-radius:16px;cursor:pointer;transition:background-color 150ms ease,border-color 150ms ease,transform 100ms ease,border-bottom-width 100ms ease}.ds-btn:hover{transform:translateY(-1px)}.ds-btn:active{transform:translateY(3px);border-bottom-width:1px}.ds-btn:focus-visible{outline:2px solid var(--accent,#a8734d);outline-offset:3px}.ds-btn-solid{color:var(--button-text,#fff);background:var(--button-fill,#7e5236);border-color:var(--button-fill,#7e5236);border-bottom-color:var(--button-edge,#553620)}.ds-btn-solid:hover{background:var(--button-fill-hover,#8c5d3f);border-color:var(--button-fill-hover,#8c5d3f);border-bottom-color:var(--button-edge,#553620)}.ds-status{margin-inline-start:4px;padding:1px 6px;border-radius:4px;border:1px solid rgb(255 255 255/.28);background:rgb(255 255 255/.18);font-size:.75rem}"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "次要操作，白页底、浅咖厚边。",
+      "html": "<button class=\"ds-btn ds-btn-secondary\">复制密钥</button>",
+      "css": ".ds-btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:3.5rem;padding:0 28px;font:700 .9375rem/1 'Open Sans',-apple-system,sans-serif;letter-spacing:.025em;border:2px solid transparent;border-bottom-width:4px;border-radius:16px;cursor:pointer;transition:background-color 150ms ease,border-color 150ms ease,transform 100ms ease,border-bottom-width 100ms ease}.ds-btn:hover{transform:translateY(-1px)}.ds-btn:active{transform:translateY(3px);border-bottom-width:1px}.ds-btn:focus-visible{outline:2px solid var(--accent,#a8734d);outline-offset:3px}.ds-btn-secondary{color:var(--ink,#2a1f1a);background:var(--paper-elevated,#fff);border-color:var(--rule-strong,#cdbba7)}.ds-btn-secondary:hover{background:var(--coffee-soft,rgb(168 115 77/.12))}"
+    },
+    {
+      "name": "Keycap",
+      "kind": "custom",
+      "refersTo": "keycap",
+      "description": "真键盘式键帽，展示默认快捷键。",
+      "html": "<span class=\"ds-keys\"><kbd class=\"ds-keycap\">⌥</kbd><kbd class=\"ds-keycap\">⌘</kbd><kbd class=\"ds-keycap\">O</kbd></span>",
+      "css": ".ds-keys{display:inline-flex;gap:4px}.ds-keycap{display:inline-flex;align-items:center;justify-content:center;height:36px;min-width:36px;padding:0 10px;font:500 .9375rem/1 -apple-system,BlinkMacSystemFont,system-ui,sans-serif;color:var(--ink-2,#5c4638);background:var(--paper-elevated,#fff);border:1px solid var(--rule-strong,#cdbba7);border-bottom:2px solid var(--coffee,#a8734d);border-radius:5px;box-shadow:0 1px 0 rgb(42 31 26/.06)}"
+    },
+    {
+      "name": "Status Tag",
+      "kind": "chip",
+      "refersTo": "tag",
+      "description": "「开发中」「预览版」等状态标记，方角不做胶囊。",
+      "html": "<span class=\"ds-tag\">开发中</span>",
+      "css": ".ds-tag{display:inline-block;padding:1px 6px;font:500 .75rem/1.4 'Open Sans',-apple-system,sans-serif;color:var(--coffee-strong,#7e5236);background:var(--coffee-soft,rgb(168 115 77/.12));border:1px solid color-mix(in srgb,var(--coffee,#a8734d) 45%,var(--rule-strong,#cdbba7));border-radius:4px}"
+    },
+    {
+      "name": "Demo Panel",
+      "kind": "card",
+      "refersTo": "demo-panel",
+      "description": "首屏对照演示：选区 + 浮窗 + 模式切换条。",
+      "html": "<figure class=\"ds-demo\"><div class=\"ds-stage\"><p><mark class=\"ds-sel\">The quick brown fox jumps over the lazy dog.</mark></p><div class=\"ds-pop\">敏捷的棕色狐狸跳过了那只懒狗。</div></div><div class=\"ds-switch\"><button aria-pressed=\"true\">划词翻译</button><button>原地替换</button><button>截图翻译</button></div></figure>",
+      "css": ".ds-demo{margin:0;max-width:560px;background:var(--paper-elevated,#fff);border:1px solid var(--rule-strong,#cdbba7);border-top:3px solid var(--coffee,#a8734d);border-radius:12px;box-shadow:0 1px 0 var(--rule,#e6dccf),0 26px 52px -32px rgb(42 31 26/.28);overflow:hidden;font-family:'Open Sans',-apple-system,sans-serif}.ds-stage{padding:28px;display:flex;flex-direction:column;gap:14px;color:var(--ink-2,#5c4638);font-size:1.1875rem}.ds-stage p{margin:0}.ds-sel{background:var(--select,#efd9bd);color:var(--ink,#2a1f1a);padding:.1em .15em;border-radius:3px}.ds-pop{align-self:flex-start;padding:12px 16px;color:var(--ink,#2a1f1a);background:var(--paper-elevated,#fff);border:1px solid color-mix(in srgb,var(--accent,#a8734d) 35%,var(--rule-strong,#cdbba7));border-radius:8px;box-shadow:0 14px 30px -18px rgb(126 82 54/.22),0 8px 20px -14px rgb(42 31 26/.25)}.ds-switch{display:grid;grid-template-columns:repeat(3,1fr);border-top:1px solid var(--rule,#e6dccf);background:var(--paper-2,#f4ece1)}.ds-switch button{position:relative;padding:14px 16px;text-align:start;font:500 .875rem/1.4 inherit;color:var(--ink-3,#876c5a);background:transparent;border:0;cursor:pointer;transition:background-color 150ms ease,color 150ms ease}.ds-switch button+button{border-inline-start:1px solid var(--rule,#e6dccf)}.ds-switch button:hover{color:var(--ink-2,#5c4638)}.ds-switch button[aria-pressed=true]{background:var(--paper-elevated,#fff);color:var(--ink,#2a1f1a)}.ds-switch button[aria-pressed=true]::before{content:'';position:absolute;inset:-1px 0 auto;height:2.5px;background:var(--accent-strong,#7e5236)}"
+    },
+    {
+      "name": "Navigation",
+      "kind": "nav",
+      "description": "左 logo + 小写字样，右「定价」。",
+      "html": "<nav class=\"ds-nav\"><span class=\"ds-brand\"><span class=\"ds-logo\"></span>umuo</span><a href=\"#\" aria-current=\"page\">定价</a></nav>",
+      "css": ".ds-nav{display:flex;align-items:center;justify-content:space-between;height:64px;padding:0 24px;font-family:'Open Sans',-apple-system,sans-serif}.ds-brand{display:flex;align-items:center;gap:10px;font-size:1.25rem;font-weight:600;color:var(--ink,#2a1f1a)}.ds-logo{width:40px;height:40px;border-radius:9px;background:#0a84ff;box-shadow:0 3px 10px -3px rgb(42 31 26/.3)}.ds-nav a{font-size:.9375rem;font-weight:500;color:var(--ink-2,#5c4638);text-decoration:none}.ds-nav a:hover{color:var(--ink,#2a1f1a)}.ds-nav a[aria-current=page]{color:var(--accent-strong,#7e5236);text-decoration:underline;text-underline-offset:.4em;text-decoration-color:var(--accent,#a8734d)}"
+    }
+  ],
+  "narrative": {
+    "northStar": "对照本",
+    "overview": "官网排成一本双语对照本：暖白纸面、咖啡色墨字，原文与译文像左右两页一样并排。产品大部分时间藏在快捷键背后，\n所以页面不靠插画或渐变制造气氛，而是把**真实的键位、真实的选区、真实的前后对照**当作主角。\n\n颜色只取 logo 里那只水獭：皮毛咖啡、耳朵深咖、眼鼻墨色、脸颊奶油。logo 底色的蓝只留在 logo 图里，界面不用蓝。\n组件气质是 **Mac 原生的克制**，只有按钮例外：按钮沿用「节拍」设计语言的**厚底可按压**（多邻国式）。底部是实心厚边，悬停时微微上抬，按下时下沉，一眼就知道能按。\n键帽像真键盘；分隔靠细线和装订线，不靠卡片墙。\n首页恰好一屏、不滚动；定价、条款这些长页按书页排版。",
+    "keyCharacteristics": [
+      "暖纸 + 咖啡墨的单色系，靠明度与线条分层，不靠第二种色相",
+      "左对齐的文字，居中铺满的页面网格（最宽 76rem）",
+      "区块头像书的章首：标题在左，描述在右",
+      "全页只有一处自发动效：首屏译文逐字流出",
+      "浅色 / 深色 / 高对比三套主题共用同一组语义令牌"
+    ],
+    "rules": [
+      {
+        "name": "The No-Blue Rule",
+        "body": "界面里不出现蓝色。蓝是 logo 的水，不是 umuo 的墨。",
+        "section": "colors"
+      },
+      {
+        "name": "The One Action Color Rule",
+        "body": "深咖是唯一的行动色，一屏之内实心深咖按钮只有一个。",
+        "section": "colors"
+      },
+      {
+        "name": "The Token-Only Rule",
+        "body": "组件只引用语义变量，三套主题才能同时成立。",
+        "section": "colors"
+      },
+      {
+        "name": "The One Family Rule",
+        "body": "只用自托管或系统字体，不引 Google Fonts 等外部字体服务。",
+        "section": "typography"
+      },
+      {
+        "name": "The Weight-Not-Color Rule",
+        "body": "强调靠字重和字号，不用渐变字，也不只把标题里的某个词单独染色。",
+        "section": "typography"
+      },
+      {
+        "name": "The Flat Paper Rule",
+        "body": "区块和列表不加阴影，用细线分隔。",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "**Do** 用语义变量（`--accent-strong`、`--button-fill`、`--select`…），保证浅色、深色、高对比三套主题都成立。",
+      "**Do** 所有可点的按钮都用厚底按压：底部实心厚边，悬停上抬 1px，按下下沉 3px、厚边收窄到 1px。",
+      "**Do** 用真实键位和真实前后对照来展示产品，不用示意插画。",
+      "**Do** 用细线和装订线组织信息；标题在左、描述在右，像书的章首。",
+      "**Do** 改动首页后在 1280×720 与 390×844 下检查是否仍在一屏内，并抽查日文、韩文：韩文标题与导读用 `keep-all` 按词断行。",
+      "**Do** 让自发动效只保留首屏译文逐字流出这一处，并尊重 `prefers-reduced-motion`。"
+    ],
+    "donts": [
+      "**Don't** 在界面里用蓝色；`#0A84FF` / `#5FB2FF` 只属于 logo 图。",
+      "**Don't** 加回深色光晕或渐变、胶囊形眉题标签、标题里单独上色或用渐变的某个词、`A · B · C` 式的中间点分隔。",
+      "**Don't** 做千篇一律的圆角卡片墙，也不要加没有信息量的 01 / 02 / 03 编号。",
+      "**Don't** 引入外部字体服务，也不要在 Open Sans 之外再加一款展示字体。",
+      "**Don't** 用胶囊形按钮或胶囊形标签；按钮圆角固定 16px。",
+      "**Don't** 用模糊阴影或发光表现按钮的厚度，厚度只靠底部实心边。"
+    ]
+  }
+}

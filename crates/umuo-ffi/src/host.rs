@@ -3,8 +3,8 @@
 //! 四个方法与 `umuo_app::Host` 一一对应，**全部同步**：流水线在 tokio 工作线程上调用它们，
 //! [`BridgeHost`] 用 `block_in_place` 包住每次调用，回调慢了也不会占住工作线程、拖停其他流和取消轮询。
 //! 迁移计划 §4 里 `write_back` 写的是 async，但 `umuo_app::Host::write_back` 是同步的、在流水线的
-//! future 里直接调用；做成 async 就得在运行时里 `block_on`。Swift 的实现从工作线程调用，
-//! 需要主线程时可以 `DispatchQueue.main.sync`（这时主线程没有在等 Rust）。
+//! future 里直接调用；做成 async 就得在运行时里 `block_on`。
+//! **注意：Swift 的实现绝不能 `DispatchQueue.main.sync` 等待主线程**（主线程也会同步调用 `Engine` 方法，互等即死锁）。
 
 use std::sync::Arc;
 

@@ -13,7 +13,7 @@ protocol HistoryBackend: AnyObject {
     /// 返回删掉了几条。
     func clear() async throws -> UInt32
     /// 清空前的确认（Tauri 的 `window.confirm`）。
-    func confirmClear(_ message: String, confirm: String, cancel: String) -> Bool
+    func confirmClear(_ message: String, confirm: String, cancel: String) async -> Bool
     /// 复制到剪贴板。失败返回原因。
     func copy(_ text: String) async -> String?
     /// 「再次编辑」：在撰写窗里打开这条记录。
@@ -35,9 +35,21 @@ final class HistoryModel {
     private(set) var privacyMode = false
     /// 页头的一行状态（已清除、错误原因）。
     var status: String?
+    /// 列表里选中的那一条：右键菜单与 Delete 键作用于它。
+    var selection: Int64?
+    /// 已经读了几页。库里的查询只有条数上限、没有偏移，「显示更多」就是多读一页重查。
+    private(set) var pages = 1
+    /// 后面还有没显示的记录：列表末尾给出「显示更多」，而不是静默截断。
+    private(set) var hasMore = false
 
-    /// 搜索关键词。改了就（防抖后）重查。
-    var query = "" { didSet { if query != oldValue { scheduleReload() } } }
+    /// 搜索关键词。改了就（防抖后）从第一页重查。
+    var query = "" {
+        didSet {
+            guard query != oldValue else { return }
+            pages = 1
+            scheduleReload()
+        }
+    }
 
     var t = Translate(locale: .source)
 
@@ -65,11 +77,19 @@ final class HistoryModel {
     func reload() async {
         generation += 1
         let mine = generation
+        // 多读一条：读到了就说明后面还有
+        let limit = Self.pageSize * UInt32(pages)
         do {
-            let rows = try await backend.query(HistoryFilter(query: query), limit: Self.pageSize)
+            let fetched = try await backend.query(HistoryFilter(query: query), limit: limit + 1)
             let privacy = try await backend.privacyMode()
             guard mine == generation else { return }
+            hasMore = fetched.count > Int(limit)
+            let rows = Array(fetched.prefix(Int(limit)))
             records = rows
+            // 搜索或重载后不能让 Delete 仍指向列表外的旧记录。
+            if let selection, !rows.contains(where: { $0.id == selection }) {
+                self.selection = nil
+            }
             privacyMode = privacy
             status = nil
         } catch {
@@ -78,7 +98,16 @@ final class HistoryModel {
         }
     }
 
+    /// 列表末尾的「显示更多」：多读一页。
+    func loadMore() async {
+        guard hasMore else { return }
+        pages += 1
+        await reload()
+    }
+
     func delete(_ id: Int64) async {
+        // 异步按钮任务执行时，搜索结果可能已更新；只删除当前列表中的记录。
+        guard records.contains(where: { $0.id == id }) else { return }
         do {
             try await backend.delete(id: id)
             await reload()
@@ -89,10 +118,11 @@ final class HistoryModel {
 
     /// 清空是破坏性操作，先确认。旧收藏数据不受影响。
     func clearAll() async {
-        guard backend.confirmClear(t("history.confirmClear"), confirm: t("history.clear"),
-                                          cancel: t("common.cancel")) else { return }
+        guard await backend.confirmClear(t("history.confirmClear"), confirm: t("history.clear"),
+                                                cancel: t("common.cancel")) else { return }
         do {
             let removed = try await backend.clear()
+            pages = 1
             await reload()
             status = t("history.cleared", ["count": "\(removed)"])
         } catch {

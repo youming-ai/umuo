@@ -46,7 +46,7 @@ final class PanelController: PanelBackend {
         refreshAppearance()
         place()
         window.orderFrontRegardless()
-        armEscape()
+        syncEscape()
         startWatchdog()
         showGeneration += 1
         let generation = showGeneration
@@ -71,7 +71,7 @@ final class PanelController: PanelBackend {
             place()
             window.orderFrontRegardless()
         }
-        armEscape()
+        syncEscape()
         startWatchdog()
     }
 
@@ -80,6 +80,15 @@ final class PanelController: PanelBackend {
         escapeKey.unregisterAll()
         watchdog?.cancel()
         watchdog = nil
+    }
+
+    /// 按 `session.capturesGlobalEscape` 同步全局 Esc：未钉住或正在流式翻译时挂载，已钉住且空闲时注销。
+    func syncEscape() {
+        guard window.isVisible, session.capturesGlobalEscape else {
+            escapeKey.unregisterAll()
+            return
+        }
+        armEscape()
     }
 
     /// 浮窗可见期间把 Esc 注册成系统级热键（Carbon，无需 TCC 权限），收起时注销。
@@ -92,12 +101,26 @@ final class PanelController: PanelBackend {
         guard escapeKey.count == 0 else { return }
         do {
             try escapeKey.register(.combo(HotkeyCombo(keyCode: Self.escapeKeyCode, modifiers: 0))) { [weak self] in
-                self?.session.escape()
+                guard let self else { return }
+                // 系统级热键先于输入法拿到 Esc：OCR 原文框里正在组字（拼音、日文候选）时，这一下只取消组字
+                if self.cancelComposition() { return }
+                self.session.escape()
             }
         } catch {
             // 注册不上（极少见）就退回窗口自己的 keyDown：浮窗是 key 时照样能按
             print("umuo: 注册浮窗 Esc 失败：\(error)")
         }
+    }
+
+    /// 浮窗是 key、第一响应者是正在组字的文本视图时，丢弃未上屏的组字（等同输入法自己处理 Esc），返回 true。
+    private func cancelComposition() -> Bool {
+        guard window.isKeyWindow, let view = window.firstResponder as? NSTextView, view.hasMarkedText() else {
+            return false
+        }
+        view.inputContext?.discardMarkedText()
+        // 输入法没有同步清掉时，自己把标记区换成空串
+        if view.hasMarkedText() { view.insertText("", replacementRange: view.markedRange()) }
+        return true
     }
 
     /// kVK_Escape
@@ -115,7 +138,6 @@ final class PanelController: PanelBackend {
     private func refreshAppearance() {
         let appearance = PanelRules.appearance(settingsJson: app.settingsJson)
         session.locale = appearance.locale
-        window.invalidateShadow()
     }
 
     /// 「切走就收起」看门狗（PRD §7.1：失焦关闭，可钉住）。

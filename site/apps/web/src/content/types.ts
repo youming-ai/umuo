@@ -8,8 +8,8 @@
 
 export type Locale = 'zh-cn' | 'zh-tw' | 'en' | 'ja' | 'ko'
 
-/** 首屏演示的三种模式：读 / 写 / 说 */
-export type DemoModeId = 'read' | 'write' | 'speak'
+/** 首屏演示的四种模式：划词 / 闪电替换 / 截图 / 语音 */
+export type DemoModeId = 'read' | 'write' | 'ocr' | 'speak'
 
 /** 首屏下载按钮对应的平台 */
 export type PlatformId = 'macos'
@@ -39,6 +39,17 @@ export interface PlatformCard {
   statusLabel: string
   /** 按钮下方的补充说明：未公证的预览版首次打开怎么放行 */
   note: string
+  /** 触屏设备上替代下载按钮的说明：这是 Mac 应用 */
+  mobileNote: string
+  /** 触屏设备上「复制网址」按钮的文字、复制成功与失败后的文字 */
+  copyLink: string
+  copied: string
+  copyFailed: string
+  /** 点了下载之后就地出现的收尾：下载后接下来要做的几步 */
+  afterDownload: {
+    title: string
+    steps: string[]
+  }
 }
 
 /** 首屏演示的一种模式：上一行经快捷键变成下一行 */
@@ -48,8 +59,14 @@ export interface DemoMode {
   name: string
   /** 状态标记，例如「开发中」；已发布的功能留空 */
   tag?: string
-  /** 触发键位，键帽逐个渲染；带文字的（如「按住右 ⌥」）也写在这里，随语言翻译 */
+  /** 触发键位，键帽逐个渲染；键帽里只放键名（如「右 ⌥」），动作写进 keyHint */
   keys: string[]
+  /** 键帽前的动作说明，例如「按住」；连按、组合键留空 */
+  keyHint?: string
+  /** 结果下方的一行补充，例如闪电替换的安全边界 */
+  note?: string
+  /** 演示底部的提示：怎样在这个页面上亲手试（触屏设备上隐藏） */
+  hint: string
   /** 原文 / 草稿 / 口述 */
   before: string
   /** 译文 / 替换结果 / 整理后的文字 */
@@ -59,10 +76,11 @@ export interface DemoMode {
 export interface HeroContent {
   title: string
   subtitle: string
+  /** 下载按钮旁的一句商业模式说明，链到定价页 */
+  pricingNote: string
   demo: {
     label: string
-    /** 提示访客在页面上直接按快捷键（触屏设备上隐藏） */
-    hint: string
+    /** 第一项是默认展示的模式 */
     modes: DemoMode[]
   }
   platforms: PlatformCard[]
@@ -93,7 +111,7 @@ export interface LegalDoc {
 /** 定价页的一笔账：付给谁、多少、怎么付 */
 export interface PricingBill {
   payee: string
-  /** 金额；未定时写「价格待定」 */
+  /** 金额：付给 umuo 的写带币种的 US$9；付给供应商的写「按用量」 */
   amount: string
   /** 一次性 / 按用量 */
   cadence: string
@@ -128,6 +146,10 @@ export interface ActivateContent {
   /** 领取码不存在或已过期 */
   unknown: string
   error: string
+  /** 非成功状态下的出口：回首页、发邮件、刷新重试 */
+  home: string
+  contact: string
+  retry: string
 }
 
 export interface PricingContent {
@@ -140,6 +162,8 @@ export interface PricingContent {
   bills: [PricingBill, PricingBill]
   /** 购买入口还没做（买断方案与许可证流程验收前）时，放在下载按钮下的说明 */
   unavailable: string
+  /** 不包含：用一份短清单把「买断 + 自带 Key」反过来说清楚 */
+  excluded: { title: string; items: string[] }
   /** 「包含」区块的标题 */
   included: string
   /** 标题下的一句：键位是默认值、可以改 */

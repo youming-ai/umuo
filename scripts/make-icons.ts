@@ -300,7 +300,7 @@ function otterHead(colored: boolean): Layer[] {
 }
 
 /** 剪影的镂空：眼睛和鼻子挖成透明，模板图由系统着色时也认得出脸 */
-const HEAD_HOLES = [ellipse(34, 46, 5, 6), ellipse(66, 46, 5, 6), ellipse(50, 58, 8.5, 5.5)]
+const HEAD_HOLES = [ellipse(34, 46, 6.5, 7), ellipse(66, 46, 6.5, 7), ellipse(50, 59, 10, 6)]
 
 function punch(canvas: Canvas, view: View, holes: Shape[]): void {
   const S = 4
@@ -446,9 +446,9 @@ mkdirSync(TRAY_DIR, { recursive: true })
 // 菜单栏图标：三个样式各一份。template 是默认；运行时按设置换载哪一份。
 for (const style of ['template', 'brand', 'black'] as const) {
   const name = style === 'template' ? 'tray.png' : `tray-${style}.png`
-  const png = encodePng(renderTrayIcon(44, style))
+  const png = encodePng(renderTrayIcon(40, style))
   writeFileSync(join(TRAY_DIR, name), png)
-  console.log(`写入 ${name} (44×44, ${png.length} 字节)`)
+  console.log(`写入 ${name} (40×40, ${png.length} 字节)`)
 }
 
 const icns = encodeIcns([

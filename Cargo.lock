@@ -1499,7 +1499,6 @@ checksum = "e421abadd41a4225275504ea4d6566923418b7f05506fbc9c0fe86ba7396114b"
 name = "umuo-app"
 version = "0.1.0"
 dependencies = [
- "futures-util",
  "reqwest",
  "serde",
  "serde_json",
@@ -1530,7 +1529,6 @@ dependencies = [
  "tokio",
  "umuo-app",
  "umuo-core",
- "umuo-store",
  "uniffi",
 ]
 

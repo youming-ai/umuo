@@ -63,9 +63,11 @@ private func session(debounce: Duration = .zero) -> (ComposeSession, FakeBackend
     return (session, backend)
 }
 
-/// 一次完整的主译文：start → delta → done。
+/// 一次完整的主译文：在输入框里写下原文、等它真的发出去，再 start → delta → done。
 @MainActor
-private func translate(_ session: ComposeSession, id: UInt64, source: String = "你好", translation: String = "Hello") {
+private func translate(_ session: ComposeSession, id: UInt64, source: String = "你好", translation: String = "Hello") async {
+    session.input = source
+    await until { session.sentText == source }
     session.apply(route: route(id), event: start(source))
     session.apply(route: route(id), event: .delta(text: translation))
     session.apply(route: route(id), event: doneEvent)
@@ -194,7 +196,7 @@ struct ComposeSessionTests {
         let (session, backend) = session()
         session.input = "你好"
         await settle()
-        translate(session, id: 1)
+        await translate(session, id: 1)
         session.overrides.targetLang = "ja"
         await settle()
         #expect(backend.translated.count == 2)
@@ -229,7 +231,7 @@ struct ComposeSessionTests {
     @Test func 提交带上唤出时记下的目标并说明结果() async {
         let (session, backend) = session()
         session.owner = "7"
-        translate(session, id: 1)
+        await translate(session, id: 1)
         session.commit(paste: true)
         await settle()
         #expect(backend.commits.count == 1)
@@ -242,10 +244,42 @@ struct ComposeSessionTests {
         #expect(session.notice == "已复制译文")
     }
 
+    @Test func 改了原文之后旧译文不能提交() async {
+        let (session, backend) = session(debounce: .seconds(60))
+        session.input = "你好"
+        session.flushInput()
+        session.apply(route: route(1), event: start("你好"))
+        session.apply(route: route(1), event: .delta(text: "Hello"))
+        session.apply(route: route(1), event: doneEvent)
+        #expect(session.settled)
+        // 防抖还没到点：译文区仍是上一版，不能提交
+        session.input = "你好呀"
+        #expect(!session.settled)
+        session.commit(paste: false)
+        await settle()
+        #expect(backend.commits.isEmpty)
+        // 改回同一版原文（只差首尾空白）又能提交
+        session.input = " 你好 "
+        #expect(session.settled)
+    }
+
+    @Test func 关掉自动翻译后改了原文或语言都不能提交旧译文() async {
+        let (session, _) = session()
+        await translate(session, id: 1)
+        #expect(session.settled)
+        session.autoTranslate = false
+        session.input = "再见"
+        #expect(!session.settled)
+        session.input = "你好"
+        #expect(session.settled)
+        session.overrides.targetLang = "ja"
+        #expect(!session.settled)
+    }
+
     @Test func 提交失败时说出原因() async {
         let (session, backend) = session()
         backend.commitFailure = "译文已复制到剪贴板，但原来的应用没能回到前台，没有自动粘贴。可以手动 ⌘V。"
-        translate(session, id: 1)
+        await translate(session, id: 1)
         session.commit(paste: true)
         await settle()
         #expect(session.notice == "提交失败：译文已复制到剪贴板，但原来的应用没能回到前台，没有自动粘贴。可以手动 ⌘V。")

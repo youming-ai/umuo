@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { CONTACT_EMAIL } from '../config'
 import type { ActivateContent } from '../content/types'
 
 /** 轮询间隔与次数：webhook 通常几秒内到，等满一分半还没到就让访客稍后刷新 */
@@ -131,17 +132,43 @@ export function ActivatePage({ activate }: { activate: ActivateContent }) {
             </ol>
           </>
         ) : (
-          <p className="lead">
-            {state.kind === 'missing'
-              ? activate.missing
-              : state.kind === 'unknown'
-                ? activate.unknown
-                : state.kind === 'slow'
-                  ? activate.slow
-                  : state.kind === 'error'
-                    ? activate.error
-                    : activate.pending}
-          </p>
+          <>
+            {/* 预渲染与首次 effect 之前是 loading：先不说话，免得把「正在确认付款」闪给没付款的人看 */}
+            <p className="lead">
+              {state.kind === 'loading'
+                ? null
+                : state.kind === 'missing'
+                  ? activate.missing
+                  : state.kind === 'unknown'
+                    ? activate.unknown
+                    : state.kind === 'slow'
+                      ? activate.slow
+                      : state.kind === 'error'
+                        ? activate.error
+                        : activate.pending}
+            </p>
+            {/* 走不下去的状态都给出口：地址不完整就回首页；付款结果迟迟不到或出错，可以刷新或直接发邮件 */}
+            {state.kind === 'missing' ? (
+              <div className="activate-actions">
+                <a className="btn-secondary" href="/">
+                  {activate.home}
+                </a>
+              </div>
+            ) : state.kind === 'unknown' || state.kind === 'slow' || state.kind === 'error' ? (
+              <div className="activate-actions">
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  onClick={() => window.location.reload()}
+                >
+                  {activate.retry}
+                </button>
+                <a className="btn-secondary" href={`mailto:${CONTACT_EMAIL}`}>
+                  {activate.contact}
+                </a>
+              </div>
+            ) : null}
+          </>
         )}
       </div>
     </article>

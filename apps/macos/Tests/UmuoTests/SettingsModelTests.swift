@@ -245,6 +245,15 @@ struct SettingsModelTests {
         #expect(model.general.configNotice?.isEmpty == false)
     }
 
+    @Test func 导出的结果只显示在导出那一行并记下文件位置() async {
+        let backend = FakeBackend(base)
+        let model = await loaded(backend)
+        await model.general.exportConfig()
+        #expect(model.general.exportedPath == "/tmp/umuo-config.json")
+        #expect(model.general.exportNotice?.contains("/tmp/umuo-config.json") == true)
+        #expect(model.general.configNotice == nil)
+    }
+
     @Test func 聚焦时跟上别处写进来的值() async {
         let backend = FakeBackend(base)
         let model = await loaded(backend)

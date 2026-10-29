@@ -74,13 +74,16 @@ impl From<TranslateRequest> for Request {
             source_override,
             focus_source,
         } = request;
-        Self {
+        let mut out = Self::with_overrides(
             text,
-            mode: mode.into(),
-            target_override,
-            source_override,
-            focus_source: focus_source.map(Into::into),
-        }
+            mode.into(),
+            umuo_app::translate::Overrides {
+                source_lang: source_override,
+                target_lang: target_override,
+            },
+        );
+        out.focus_source = focus_source.map(Into::into);
+        out
     }
 }
 
@@ -125,9 +128,8 @@ pub struct Engine {
     rt: Option<tokio::runtime::Runtime>,
 }
 
-/// 最后一个引用可能在任意线程上释放：Swift 主线程（这时工作线程可能正在
-/// `DispatchQueue.main.sync`），或者运行时自己的工作线程（任务结束时丢掉的 sink 持有 Engine）。
-/// 普通的 `Runtime` drop 会等工作线程退出——前者互相等死，后者 tokio 直接 panic。
+/// 最后一个引用可能在任意线程上释放：Swift 主线程，或者运行时自己的工作线程（任务结束时丢掉的 sink 持有 Engine）。
+/// 普通的 `Runtime` drop 会等工作线程退出——在运行时工作线程上 drop 会导致 tokio 直接 panic，在主线程上也会阻塞界面。
 /// 所以只发关闭信号、不等：还在跑的任务在下一个 await 点被丢弃。
 impl Engine {
     pub(crate) fn rt(&self) -> &tokio::runtime::Runtime {

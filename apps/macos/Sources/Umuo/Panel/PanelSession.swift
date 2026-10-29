@@ -10,6 +10,8 @@ protocol PanelBackend: AnyObject {
     func translate(_ request: TranslateRequest)
     /// Esc：取消浮窗当前这次请求（只是浮窗，别的窗口不受影响）。
     func cancelTranslation()
+    /// 按当前钉住与请求状态同步全局 Esc 热键（钉住且空闲时释放全局 Esc，免得吞掉别的应用的按键）。
+    func syncEscape()
     func hidePanel()
     /// 复制到剪贴板。失败返回给用户看的话。
     func copy(_ text: String) async -> String?
@@ -21,6 +23,10 @@ protocol PanelBackend: AnyObject {
     func openCompose(text: String, translation: String?, owner: String?)
     func openSettings()
     func openSystemSettings(_ permission: PermissionKind)
+}
+
+extension PanelBackend {
+    func syncEscape() {}
 }
 
 /// 浮窗的视图模型：翻译状态（`PanelModel`）之外，窗口自己的那些一次性状态——钉住、提示、OCR 的可改原文、
@@ -38,6 +44,10 @@ final class PanelSession {
     var actionNotice: String?
     /// OCR 结果窗的原文可以改了再翻（PRD §5.5）。识别错字是常态，逼用户重新框选一次是最没必要的摩擦。
     var draft = ""
+    /// 非 OCR 的原文默认只显示三行；长原文要能展开看全，才能和译文逐句对照。每次新的翻译开始时收回。
+    var sourceExpanded = false
+    /// 原文在三行内放不下（由视图实测后写回），只有这时才给「展开原文」。
+    var sourceTruncated = false
     /// 这次翻译属于哪个前台应用（pid）。看门狗据此判断用户是否切走；「替换原文」写回它。
     /// 本应用自己的 pid = 没有源应用（截图 OCR）。nil = 还没取到，看门狗不收起。
     var owner: String?
@@ -62,6 +72,7 @@ final class PanelSession {
     func apply(_ action: PanelAction) -> Bool {
         guard model.apply(action) else { return false }
         if case let .start(start) = action { started(start) }
+        backend?.syncEscape()
         return true
     }
 
@@ -69,6 +80,7 @@ final class PanelSession {
     private func started(_ start: PanelStart) {
         draft = start.text
         actionNotice = nil
+        sourceExpanded = false
     }
 
     // MARK: - 能做什么（按钮的显示条件，与 panel.tsx 一致）
@@ -98,12 +110,19 @@ final class PanelSession {
 
     // MARK: - 操作
 
+    /// 是否需要全局拦截 Esc：未钉住时按 Esc 收起浮窗，流式翻译中按 Esc 取消请求；
+    /// 已钉住且不在流式请求中时不抢全局 Esc，避免吞掉其他前台应用的 Esc 或误关已钉住的浮窗。
+    var capturesGlobalEscape: Bool { !pinned || state.status == .streaming }
+
     /// 翻译中按 Esc = 取消请求；空闲时按 Esc = 收起浮窗。
     func escape() {
         if state.status == .streaming { backend?.cancelTranslation() } else { backend?.hidePanel() }
     }
 
-    func togglePin() { pinned.toggle() }
+    func togglePin() {
+        pinned.toggle()
+        backend?.syncEscape()
+    }
 
     func copy() {
         guard canCopy else { return }

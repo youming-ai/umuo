@@ -221,13 +221,15 @@ pub fn build_chat_request_at(
             if req.json_mode {
                 body["generationConfig"]["responseMimeType"] = json!("application/json");
             }
+            let model = model.trim();
+            let model = model.strip_prefix("models/").unwrap_or(model);
             Ok(WireRequest {
                 method: "POST",
                 // 模型名进路径是 Gemini 的协议特点，不是笔误。
                 url: format!(
                     "{}/models/{}:{}",
                     base_url.trim_end_matches('/'),
-                    model,
+                    urlencoding::encode(model),
                     verb
                 ),
                 headers,
@@ -263,7 +265,7 @@ fn azure_chat_url(base_url: &str, deployment: &str) -> String {
     format!(
         "{}/openai/deployments/{}/chat/completions?api-version={AZURE_API_VERSION}",
         base_url.trim_end_matches('/'),
-        deployment.trim()
+        urlencoding::encode(deployment.trim())
     )
 }
 
@@ -1240,5 +1242,41 @@ mod tests {
         let err =
             build_chat_request(ollama, "", "", &ChatRequest::new("s", "u"), true).unwrap_err();
         assert!(matches!(err, CoreError::ModelUnavailable { .. }));
+    }
+
+    #[test]
+    fn gemini_and_azure_encode_model_and_deployment_in_url_path() {
+        let gemini = find_provider("gemini").unwrap();
+        let g_wire = build_chat_request(
+            gemini,
+            " models/gemini 2.0/exp?foo=1 ",
+            "AIza-x",
+            &ChatRequest::new("s", "u"),
+            true,
+        )
+        .unwrap();
+        assert!(
+            g_wire
+                .url
+                .ends_with("/models/gemini%202.0%2Fexp%3Ffoo%3D1:streamGenerateContent?alt=sse"),
+            "实际 URL：{}",
+            g_wire.url
+        );
+
+        let a_wire = build_chat_request_at(
+            azure(),
+            "https://x.openai.azure.com",
+            " my dep/v1?x=2 ",
+            "secret",
+            &ChatRequest::new("s", "u"),
+            false,
+        )
+        .unwrap();
+        assert_eq!(
+            a_wire.url,
+            format!(
+                "https://x.openai.azure.com/openai/deployments/my%20dep%2Fv1%3Fx%3D2/chat/completions?api-version={AZURE_API_VERSION}"
+            )
+        );
     }
 }

@@ -197,7 +197,7 @@ strftime('%s', datetime('now', 'localtime', 'start of month', 'utc'))
 `context_window_for` 的前缀表**顺序有意义**：`gpt-4.1` 必须排在 `gpt-4` 前面，
 否则前者会被当成 8k 的老模型（有测试钉住）。
 
-**② 并发用 `FuturesUnordered`，不是 spawn。** `StreamOptions.cancel` 是引用，
+**② 并发用 `buffer_unordered`，不是 spawn。** `StreamOptions.cancel` 是引用，
 spawn 需要 `'static`；在同一个任务里并发轮询既满足「同时推进」又能借用调用方的数据。
 
 **③ 并发完成顺序不确定，但输出必须按原文顺序。**
@@ -220,7 +220,7 @@ Anthropic `stop_reason: max_tokens`、Gemini `finishReason: MAX_TOKENS`；Gemini
 
 ## 4.3 单一当前模型
 
-PRD §6.3 首版只用一个当前文字模型：`translate` 解析 `provider_id` + `model`（浮窗重译的临时覆盖优先），
+PRD §6.3 首版只用一个当前文字模型：`translate` 解析 `provider_id` + `model`（设置里的模型或供应商默认模型），
 没配 Key（本机供应商除外）报 `MissingKey`，自定义端点没填地址报 `CustomEndpointMissing`，不发请求。
 请求失败、超时、限流都如实交给用户重试或换模型；不按场景选模型、不按备用顺序重试、不因断网改用本机模型，
 所以同一请求只有一个 Start。超时（`transport::DEFAULT_TIMEOUT`，8 s 首字）、Esc 取消、长文分片与截断保护不变。

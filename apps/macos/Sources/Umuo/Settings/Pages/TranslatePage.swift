@@ -85,6 +85,7 @@ struct HotkeyRecorderButton: View {
 }
 
 /// 语言规则：目标语言模式（按 App 记住）、第二目标语言、取词黑名单。
+/// 记住的应用单独成组，一个应用一行，右边是「忘记」。
 struct LanguageRules: View {
     let model: SettingsModel
 
@@ -97,27 +98,6 @@ struct LanguageRules: View {
                 PrefPicker(label: t("prefs.translate.targetMode"), value: s.string("targetLangMode", "fixed"), options: [
                     ("fixed", t("prefs.translate.targetFixed")), ("perApp", t("prefs.translate.targetPerApp")),
                 ]) { model.commit(["targetLangMode": .string($0)]) }
-            } extra: {
-                if s.string("targetLangMode") == "perApp" {
-                    if remembered.isEmpty {
-                        Text(t("prefs.translate.rememberedEmpty")).font(.callout).foregroundStyle(Color.secondary)
-                    } else {
-                        VStack(alignment: .leading, spacing: 4) {
-                            ForEach(remembered, id: \.key) { app, code in
-                                HStack {
-                                    Text("\(app) → \(Languages.label(code.stringValue ?? ""))").font(.callout)
-                                        .foregroundStyle(Color.secondary).lineLimit(1).truncationMode(.tail)
-                                    Spacer(minLength: 0)
-                                    PrefButton(title: t("prefs.translate.forget")) {
-                                        var next = s.object("appTargetLangs")
-                                        next[app] = nil
-                                        model.commit(["appTargetLangs": .object(next)])
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
             }
             PrefRow(title: t("prefs.translate.secondaryLang"), description: t("prefs.translate.secondaryLangHint")) {
                 LanguagePicker(label: t("prefs.translate.secondaryLang"), value: s.string("secondaryTargetLang")) {
@@ -130,6 +110,25 @@ struct LanguageRules: View {
                            label: t("prefs.translate.blacklist")) { text in
                     model.commitRow("selectionBlacklist",
                                     ["selectionBlacklist": .array(SettingsRules.blacklist(text).map(JSONValue.string))])
+                }
+            }
+        }
+        if s.string("targetLangMode") == "perApp" {
+            PrefGroup(title: t("prefs.translate.targetPerApp")) {
+                if remembered.isEmpty {
+                    Text(t("prefs.translate.rememberedEmpty")).foregroundStyle(Color.secondary)
+                }
+                ForEach(remembered, id: \.key) { app, code in
+                    LabeledContent(app) {
+                        HStack(spacing: 8) {
+                            Text(Languages.label(code.stringValue ?? ""))
+                            PrefButton(title: t("prefs.translate.forget")) {
+                                var next = s.object("appTargetLangs")
+                                next[app] = nil
+                                model.commit(["appTargetLangs": .object(next)])
+                            }
+                        }
+                    }
                 }
             }
         }

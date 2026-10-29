@@ -17,20 +17,23 @@
 #   所以 --publish 要显式确认 ACK_MIN_OS_14=1（先弄清 14 以下的用户占比再决定）。
 #
 # 前提：干净且与 origin/main 一致的 main、两个 rustup 目标、旧通道与 Sparkle 两套更新签名私钥、
-# `bunx wrangler login`（只有 --publish 才用到）。签名与公证的环境变量见 apps/macos/scripts/bundle.sh。
+# `bunx cf auth login`（只有 --publish 才用到）。签名与公证的环境变量见 apps/macos/scripts/bundle.sh。
 set -eu
 
 cd "$(dirname "$0")/.."
 BUCKET=umuo-releases
 KEY_PATH=${TAURI_SIGNING_PRIVATE_KEY_PATH:-$HOME/.tauri/umuo-updater.key}
 OUT="$PWD/apps/macos/dist"
-r2() { (cd site && bunx wrangler r2 object "$@" --remote); }
+. ./scripts/cf-r2.sh
 fail() { echo "✗ $*" >&2; exit 1; }
 
-[ $# -ge 1 ] || fail "要给版本号：sh scripts/release-swift-local.sh X.Y.Z [--publish]"
+[ $# -ge 1 ] && [ $# -le 2 ] || fail "用法：sh scripts/release-swift-local.sh X.Y.Z [--publish]"
 VERSION=$1
 publish=0
-[ "${2:-}" = --publish ] && publish=1
+if [ $# -eq 2 ]; then
+  [ "$2" = --publish ] || fail "未知参数：$2（只支持 --publish）"
+  publish=1
+fi
 echo "$VERSION" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$' || fail "版本号要是 X.Y.Z：$VERSION"
 
 # ---- 前置检查：都在动手之前，失败不留任何痕迹
@@ -43,7 +46,8 @@ git fetch -q origin main
 if [ "$publish" = 1 ]; then
   [ "${ACK_MIN_OS_14:-}" = 1 ] ||
     fail "Swift 版要 macOS 14+，桥接会让 macOS 13 及更早的 Tauri 用户装上起不来的版本；确认可以接受后设 ACK_MIN_OS_14=1 再 --publish"
-  current=$(r2 get "$BUCKET/macos/latest.json" --pipe 2>/dev/null | jq -r '.version // empty' || true)
+  current=$(r2_current_version macos/latest.json "$BUCKET") ||
+    fail "无法核对线上版本，停止发布"
   # 线上已是同版或更新的版本就不覆盖：本机重跑一次不能把线上版本退回去
   if [ -n "$current" ] && [ "$(printf '%s\n' "$current" "$VERSION" | sort -V | tail -1)" = "$current" ]; then
     fail "线上已是 ${current}，不用 $VERSION 覆盖"
@@ -89,15 +93,13 @@ if [ "$publish" = 0 ]; then
 fi
 
 # ---- 上传：安装包先传，清单最后写——清单指向的文件一定已经完整在线
-r2 put "$BUCKET/$dmg_key" --file "$dmg" --content-type application/x-apple-diskimage
-r2 put "$BUCKET/$tgz_key" --file "$tgz" --content-type application/gzip
-r2 put "$BUCKET/macos/appcast.xml" --file "$OUT/appcast.xml" \
-  --content-type application/xml --cache-control no-cache
-r2 put "$BUCKET/macos/update.json" --file "$OUT/update.json" \
-  --content-type application/json --cache-control no-cache
+r2 put "$dmg_key" --bucket-name "$BUCKET" --file "$dmg" --content-type application/x-apple-diskimage
+r2 put "$tgz_key" --bucket-name "$BUCKET" --file "$tgz" --content-type application/gzip
+# 官网 Worker 对清单响应显式设置 no-store；cf 的 R2 对象上传不支持设置 Cache-Control 元数据。
+r2 put macos/appcast.xml --bucket-name "$BUCKET" --file "$OUT/appcast.xml" --content-type application/xml
+r2 put macos/update.json --bucket-name "$BUCKET" --file "$OUT/update.json" --content-type application/json
 # latest.json 最后写：官网下载以它为准
-r2 put "$BUCKET/macos/latest.json" --file "$OUT/latest.json" \
-  --content-type application/json --cache-control no-cache
+r2 put macos/latest.json --bucket-name "$BUCKET" --file "$OUT/latest.json" --content-type application/json
 
 echo "✓ 已发布 SwiftUI 版 $VERSION"
 curl -s https://umuo.app/download/macos/update.json | jq -r .version

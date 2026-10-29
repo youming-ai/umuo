@@ -11,17 +11,15 @@ struct PermissionsPage: View {
     var body: some View {
         let t = model.t
         Section {
-            PermissionCard(model: model, title: t("prefs.permissions.accessibility"),
-                           description: t("prefs.permissions.accessibilityHint"),
-                           granted: model.permissions.accessibility) {
+            PermissionRow(t: t, title: t("prefs.permissions.accessibility"),
+                          description: t("prefs.permissions.accessibilityHint"),
+                          granted: model.permissions.accessibility) {
                 PrefButton(title: t("prefs.permissions.openSettings")) {
                     model.backend.openSystemSettings(.accessibility)
                 }
             }
-        }
-        Section {
-            PermissionCard(model: model, title: t("prefs.permissions.screen"), description: t("prefs.permissions.screenHint"),
-                           granted: model.permissions.screenRecording) {
+            PermissionRow(t: t, title: t("prefs.permissions.screen"), description: t("prefs.permissions.screenHint"),
+                          granted: model.permissions.screenRecording) {
                 PrefButton(title: t("prefs.permissions.request")) {
                     Task {
                         await model.backend.requestScreenRecording()
@@ -33,42 +31,54 @@ struct PermissionsPage: View {
                 }
             }
         }
+        Section {
+            HStack {
+                Spacer(minLength: 0)
+                PrefButton(title: t("prefs.permissions.recheck")) { Task { await model.recheckPermissions() } }
+            }
+        }
     }
 }
 
-struct PermissionCard<Actions: View>: View {
-    let model: SettingsModel
+/// 一项权限，一行：名字与说明在左，右边是此刻的状态（系统的多色符号）与没授权时的操作按钮。
+/// 设置窗与首次引导共用。
+struct PermissionRow<Actions: View>: View {
+    let t: Translate
     let title: String
     let description: String
     let granted: Bool?
     @ViewBuilder let actions: () -> Actions
 
     var body: some View {
-        let t = model.t
-        let state: (text: String, color: Color) = switch granted {
-        case nil: (t("prefs.permissions.unknown"), Color.secondary)
-        case true?: (t("prefs.permissions.granted"), Color.green)
-        case false?: (t("prefs.permissions.missing"), Color.orange)
-        }
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(alignment: .top, spacing: 16) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(title).font(.headline).foregroundStyle(Color.primary)
-                    Text(description).font(.callout).foregroundStyle(Color.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
+        LabeledContent {
+            VStack(alignment: .trailing, spacing: 6) {
+                PermissionStateLabel(t: t, granted: granted)
+                if granted != true {
+                    HStack(spacing: 8) { actions() }
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                HStack(spacing: 6) {
-                    Circle().fill(state.color).frame(width: 6, height: 6)
-                    Text(state.text).font(.callout).foregroundStyle(state.color)
-                }
-                .accessibilityElement(children: .combine)
             }
-            HStack(spacing: 8) {
-                if granted != true { actions() }
-                PrefButton(title: t("prefs.permissions.recheck")) { Task { await model.recheckPermissions() } }
-            }
+            .fixedSize()
+        } label: {
+            Text(title)
+            Text(description)
         }
-        .padding(.vertical, 4)
+    }
+}
+
+/// 权限状态：已授权是绿色对勾，未授权是黄色警告三角，还没读出来只有文字。
+struct PermissionStateLabel: View {
+    let t: Translate
+    let granted: Bool?
+
+    var body: some View {
+        switch granted {
+        case nil:
+            Text(t("prefs.permissions.unknown")).foregroundStyle(Color.secondary)
+        case true?:
+            Label(t("prefs.permissions.granted"), systemImage: "checkmark.circle.fill").symbolRenderingMode(.multicolor)
+        case false?:
+            Label(t("prefs.permissions.missing"), systemImage: "exclamationmark.triangle.fill")
+                .symbolRenderingMode(.multicolor)
+        }
     }
 }

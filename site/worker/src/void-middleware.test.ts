@@ -1,5 +1,4 @@
 /// <reference types="node" />
-import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 // Void 运行时里真正包住应用的两层（与构建生成的 .void/entry.ts 一致）。void 锁在 1.2.1，路径稳定。
 import {
@@ -14,9 +13,9 @@ import { legacyMiddleware } from './void-middleware'
 /**
  * 迁到 Void 的前提：同一个请求，两种部署回的状态码、响应头、正文完全一样。
  *
- * - 「现状」：Cloudflare 资源层 + wrangler 入口。`run_worker_first` 里的路径先进 Worker；
+ * - 「旧版」：Cloudflare 资源层 + 旧入口。`run_worker_first` 里的路径先进 Worker；
  *   其余 GET / HEAD 先问资源层，命中就直接回，没命中（或别的方法）才进 Worker。
- *   列表直接读 wrangler.jsonc，改了配置这里跟着变。
+ *   列表固定为迁移前已发布的路径，避免配置删除后丢失回归基线。
  * - 「Void」：所有请求先进 Worker（`run_worker_first: ["/**"]`），经 Void 的 createWorkerFetch →
  *   中间件 → createAssetFallback（参数照抄生成的入口：notFound none、不做 SPA 兜底）。
  */
@@ -126,11 +125,30 @@ const WITH_RELEASE = {
 
 // ---------- 两种部署 ----------
 
-const runWorkerFirst = (() => {
-  const config = readFileSync(`${import.meta.dirname}/../../wrangler.jsonc`, 'utf8')
-  const list = config.match(/"run_worker_first":\s*\[([\s\S]*?)\]/)?.[1] ?? ''
-  return [...list.matchAll(/"([^"]+)"/g)].map((m) => m[1] ?? '')
-})()
+const runWorkerFirst = [
+  '/',
+  '/index.html',
+  '/pricing',
+  '/pricing/',
+  '/terms',
+  '/terms/',
+  '/privacy',
+  '/privacy/',
+  '/activate',
+  '/activate/',
+  '/zh-cn',
+  '/zh-cn/*',
+  '/zh-tw',
+  '/zh-tw/*',
+  '/en',
+  '/en/*',
+  '/ja',
+  '/ja/*',
+  '/ko',
+  '/ko/*',
+  '/api/*',
+  '/download/*',
+]
 
 function workerFirst(pathname: string): boolean {
   return runWorkerFirst.some((pattern) =>
@@ -164,6 +182,7 @@ const viaVoid = createWorkerFetch({
   filterBindings: (e) => e,
   internalRoute: async () => null,
   collectPrerenderPaths: async () => [],
+  versionMetadataBinding: 'VERSION_METADATA',
 })
 
 /** 经 Void 运行时处理一个请求 */
@@ -236,7 +255,7 @@ const CASES: Case[] = [
 ]
 
 describe('Void 中间件与现状逐字节一致', () => {
-  it('wrangler.jsonc 的 run_worker_first 读得到', () => {
+  it('旧版的 run_worker_first 快照包括下载路由', () => {
     expect(runWorkerFirst).toContain('/download/*')
     expect(runWorkerFirst.length).toBeGreaterThan(10)
   })
@@ -280,5 +299,18 @@ describe('Void 中间件与现状逐字节一致', () => {
     )
     expect(response).toBeUndefined()
     expect(passed).toBe(true)
+  })
+
+  it('就绪检查返回候选版本的元数据', async () => {
+    const response = await viaVoid(
+      new Request('https://umuo.app/__void/ready'),
+      { ...env({}), VERSION_METADATA: { id: 'candidate-version' } } as unknown as Record<
+        string,
+        unknown
+      >,
+      {} as ExecutionContext,
+    )
+    expect(await response.json()).toEqual({ ready: true, versionId: 'candidate-version' })
+    expect(response.headers.get('cache-control')).toBe('no-store')
   })
 })

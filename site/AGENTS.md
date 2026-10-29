@@ -13,22 +13,20 @@
 ```bash
 bun install
 bun run dev:web        # 官网
-bun run dev:worker     # Worker（wrangler dev，本地 KV）
-bun run verify         # 提交前门禁：lint + type-check + vitest + build:web
+bun run build:web      # 生成本地 Worker 所需的预渲染页面
+bun run dev:worker     # Vite + Void，本地 KV / R2
+bun run verify         # lint + type-check + vitest + 官网及 Void Worker 构建
 ```
 
-正在从 wrangler 迁到 Void，**线上仍是 `wrangler deploy`**。Worker 的路由只有一份 `worker/src/dispatch.ts`：wrangler 入口 `worker/src/index.ts`
-与 Void 的中间件 `middleware/01.legacy.ts` 都只是调它。根目录的 `vite.config.ts` / `void.config.ts` 只给 Void 构建用
-（`bun run build:web && mise exec node@24 -- bunx vite build`，Void 要 Node ≥ 24.21），不要在这里跑 `void deploy`。
-**眼下这条 Void 构建会直接报错**「Run `void migrate` …」：void@1.2.1 的 voidPlugin 发现根目录同时有 `void.config.ts` 与 `wrangler.jsonc` 就拒绝构建
-（`void/dist/cloudflare-config-*.mjs` 的 `materializeCloudflareConfig`），要等迁移 PR 4 把配置并进 `void.config.ts` 才恢复；
-在那之前要试 Void 构建，就在临时目录里删掉 `wrangler.jsonc` 再跑。不要为此在仓库里跑 `void migrate`，它会把线上部署用的 `wrangler.jsonc` 挪走。
-`void-staging/` 是 staging Worker `umuo-app-void-staging` 的第二份 Void 配置（Void 只认 cwd 下的 `void.config.ts`，只能分目录），
-绑预览资源、不挂域名；除 `cloudflare` 与 `worker.vars` 外要与根 `void.config.ts` 一致（`scripts/void-config.test.ts`）。
-迁移的部署、验证与回滚命令都在 `docs/VOID-MIGRATION.md`，只由负责人执行。
-`wrangler` 在 `devDependencies` 里钉死确切版本，`bunx wrangler deploy`（线上部署命令）用的就是它；升 `void` 时一起核对（见 `docs/DEPLOY.md`）。
-Worker 配置是 `wrangler.jsonc`（Void 不认 TOML，别再加回 `wrangler.toml`）；域名、workers.dev、Preview URL、日志都按控制台现状显式写着，
-改它们就是改线上。`vars` 每项独占一行：`scripts/waffo-setup.ts` 按行改写、保留注释。
+Node 需 ≥ 24.21；本机默认版本较低时用 `mise exec node@24 -- bun run verify`。
+`void.config.ts` 是正式 Worker 配置的唯一来源：域名、资源 ID、访问开关和日志均显式声明，改它们会影响部署。
+Void 中间件与 `worker/src/index.ts` 共用 `worker/src/dispatch.ts`；正式配置由 `scripts/void-config.test.ts` 检查。
+`cf` 管理 Cloudflare 资源与预构建部署（`scripts/cf-deploy.ts` 转换 Void 构建产物后调 `cf deploy --prebuilt`）；
+Vite + Void 负责开发和构建。Waffo 变量每项独占一行，供 `scripts/waffo-setup.ts` 改写；私钥只放远端 secret。
+生成的 `.void-wrangler.jsonc` 和 `.void/` 不提交。
+
+线上已由 Void 构建接管；调整 Workers Builds 或回滚前，先读 `docs/VOID-MIGRATION.md`。
+迁移的部署、远端验证与回滚只由负责人执行；本地构建、测试和 cf 的 dry-run 可独立运行。
 
 ## 官网的硬约束
 
@@ -36,9 +34,9 @@ Worker 配置是 `wrangler.jsonc`（Void 不认 TOML，别再加回 `wrangler.to
   `content.test.ts` 会拦空串与漏翻。组件不写死句子。
 - **预渲染必须能 hydrate**：渲染期不读 `window`、不用随机数和计时器，副作用放进 effect（`hydration.test.tsx` 守着）。
 - **不放假下载链接**：`MACOS_DOWNLOAD_URL` 指向 Worker 的 `/download/macos`（读 R2 最新版）；设回 `null` 时下载按钮变为不可点。
-- 目前站点是首页一屏，外加 `/pricing`（定价，页眉右侧链接）与页脚链接的 `/terms`（服务条款）、`/privacy`（隐私政策）三张长文页。页眉左边 logo（蓝底、从水里探出头的小水獭，`LogoMark` 与 `public/favicon.svg` 是同一张图），右边定价（仓库是私有的，不放 GitHub 链接）。页面清单在 `apps/web/src/lib/pages.ts`，Worker 的 `PAGES`（`worker/src/locale.ts`）要同步。
+- 目前站点是首页一屏，外加 `/pricing`（定价，页眉右侧链接）、页脚链接的 `/terms`（服务条款）与 `/privacy`（隐私政策），以及 `/activate`（激活码领取页）。页眉左边 logo（蓝底、从水里探出头的小水獭，`LogoMark` 与 `public/favicon.svg` 是同一张图），右边定价（仓库是私有的，不放 GitHub 链接）。页面清单在 `apps/web/src/lib/pages.ts`，Worker 的 `PAGES`（`worker/src/locale.ts`）要同步。
 - **产品范围**：文字翻译、OCR 截图翻译、语音输入后润色/翻译，一次性购买、纯 BYOK。修改产品或收费页面前读根目录 `docs/PRD.md` 与 `docs/PRD-CONFORMANCE.md`；只宣称已发布能力，语音和购买授权尚未实现。账号、订阅、官方额度与 AI 网关退出范围，不继续宣传为即将推出。
-- **收费文案**：价格、设备数、试用、退款与更新权益确定后，在定价页及条款中一致说明；模型调用费用由用户另向供应商支付。定案前定价页只写「价格待定、尚未开放购买」，勿把讨论中的价格或参考产品的政策当成已定案。旧的订阅结账表单已删除；支付验收完成后按买断商品单独接入购买入口（Worker 的 `/api/checkout` 仍是旧订阅实现，届时一起改）。
+- **收费文案**：买断价格已定为 US$9；设备数、试用、退款与更新权益确定后，在定价页及条款中一致说明；模型调用费用由用户另向供应商支付。其余商业参数定案前定价页展示 US$9 并注明尚未开放购买，勿把未定案的参考产品政策当成已定案。旧的订阅结账表单已删除；支付验收完成后按买断商品单独接入购买入口（Worker 的 `/api/checkout` 仍是旧订阅实现，届时一起改）。
 - **条款与隐私政策**：已按买断授权与请求直连边界改写（v2.0）；购买规则与支付处理方定案后再补进条款与隐私政策。支付处理方按最终集成如实填写；现有 Waffo 实现先审查，尚未决定更换服务商。经营者、国家与版本/生效日期仍集中在 `config.ts` 的 `LEGAL_*`；改条款时更新版本与日期，并履行已有通知承诺。
 - **地址不带语言前缀**：只有 `umuo.app/`。Worker（`worker/src/locale.ts`）按 cookie `umuo-lang` → `Accept-Language` → 简体中文挑一份 `dist/<locale>/index.html` 返回；页面上切换语言只写 cookie、就地换内容；`/en/` 这类旧地址 301 回 `/`。
 
@@ -47,7 +45,8 @@ Worker 配置是 `wrangler.jsonc`（Void 不认 TOML，别再加回 `wrangler.to
 官网排成一本双语对照本，这是定过的方向，别退回通用的 landing 模板：
 
 - **首页只有一屏、不滚动**：左边标题与下载，右边可切换读 / 写 / 说的演示；改动后用 1280×720 与 390×844 量一下 `scrollHeight`。
-- 白纸墨字，全站自托管 Open Sans（中日韩回落系统字体）；唯一的颜色是 macOS 文字选区蓝（logo 是例外：它是满底色的彩色图标，别按这条规则去色）。
+- 暖纸咖啡墨字，全站自托管 Open Sans（中日韩回落系统字体）；主题色只取水獭本身的咖啡色系（`#A8734D` / `#7E5236` / `#2A1F1A` / `#F4E6D2`）。
+  **界面不用蓝**：logo 底色的蓝（`#0A84FF` / `#5FB2FF`）只留在 logo 图里。令牌与组件规范见 `DESIGN.md`。
 - 左对齐，但页面网格居中并铺满（最宽约 76rem）；区块头像书的章首，标题左、描述右。
 - 字体只用自托管或系统字体，不引 Google Fonts 等外部服务（大陆访问不稳且阻塞首屏）。
 - **不要加回**：深色光晕 / 渐变、胶囊形 eyebrow 标签、标题里单个渐变词、`A · B · C` 式中间点、千篇一律的圆角卡片墙、无意义的 01/02/03 编号。

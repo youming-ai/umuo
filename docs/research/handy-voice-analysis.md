@@ -111,6 +111,7 @@ Handy 主项目为 MIT；实际复制代码需保留版权与许可声明。模�
 5. 性能验收保持 macOS 14+ 和 Intel / Apple Silicon 双架构目标；记录模型版本、下载体积、phys_footprint、冷/热延迟和卸载效果。不能沿用旧 PRD 的云端 P50≤2s 作为本地模型承诺。
 
 待验证：transcribe-cpp / whisper.cpp 等候选的真实 API、构建与模型许可、Metal 与 Intel 兼容性、进程隔离必要性、模型首次下载体验、中文精度与内存。
+版本、许可、平台与公开基准的核对见 [本地转写引擎与模型选型](local-transcription-engines.md)；真机精度与内存仍待实验。
 
 ## 产品文档衔接
 

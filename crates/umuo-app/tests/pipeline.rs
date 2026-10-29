@@ -831,3 +831,106 @@ async fn silent_replace_also_refuses_when_the_frontmost_app_can_no_longer_be_rea
     assert_eq!(events.last().unwrap().name, "translate://error");
     assert!(env.fake.writes().is_empty());
 }
+
+#[tokio::test]
+async fn silent_replace_never_writes_back_if_cancelled_just_as_stream_completes() {
+    let env = Env::new(|hit| match hit.path.as_str() {
+        "/openai/chat/completions" => sse(&["完整译文"]),
+        _ => not_found(),
+    })
+    .await;
+
+    struct CancelOnDelta {
+        core: Arc<AppCore>,
+        events: Mutex<Vec<Ev>>,
+    }
+    impl TranslateSink for CancelOnDelta {
+        fn send(&self, route: Route, event: TranslateEvent) {
+            if event.name() == "translate://delta" {
+                self.core.requests.cancel(PANEL_LABEL);
+            }
+            self.events.lock().unwrap().push(Ev {
+                request_id: route.request_id,
+                name: event.name(),
+                body: serde_json::to_value(&event).unwrap(),
+            });
+        }
+    }
+
+    let sink = CancelOnDelta {
+        core: env.core.clone(),
+        events: Mutex::new(Vec::new()),
+    };
+    let ticket = env.core.requests.begin(PANEL_LABEL);
+    translate::run(
+        &env.core,
+        &sink,
+        silent(SENTENCE),
+        Some("pid-1".into()),
+        ticket,
+    )
+    .await;
+
+    let events = sink.events.lock().unwrap().clone();
+    assert_eq!(events.last().unwrap().name, "translate://error");
+    assert_eq!(
+        events.last().unwrap().str("message"),
+        CoreError::Cancelled.to_string()
+    );
+    assert!(
+        env.fake.writes().is_empty(),
+        "流完成瞬间取消也绝不能写回原文"
+    );
+    assert_eq!(env.history_count(), 0);
+}
+
+#[tokio::test]
+async fn per_app_target_ignores_blank_overrides_and_trims_valid_ones() {
+    let env = Env::new(|hit| match hit.path.as_str() {
+        "/openai/chat/completions" => sse(&["译文"]),
+        _ => not_found(),
+    })
+    .await;
+    env.settings(|s| {
+        s.target_lang_mode = "perApp".into();
+    });
+
+    let blank = Request::with_overrides(
+        SENTENCE,
+        translate::Mode::Compose,
+        translate::Overrides {
+            source_lang: Some("   ".into()),
+            target_lang: Some("   ".into()),
+        },
+    );
+    let _ = env.translate(blank, None).await;
+    assert!(
+        env.core
+            .settings
+            .lock()
+            .unwrap()
+            .app_target_langs
+            .is_empty(),
+        "空白覆盖不能写入 app_target_langs"
+    );
+
+    let chosen = Request::with_overrides(
+        SENTENCE,
+        translate::Mode::Compose,
+        translate::Overrides {
+            source_lang: None,
+            target_lang: Some(" ja ".into()),
+        },
+    );
+    let _ = env.translate(chosen, None).await;
+    assert_eq!(
+        env.core
+            .settings
+            .lock()
+            .unwrap()
+            .app_target_langs
+            .get("TextEdit")
+            .map(String::as_str),
+        Some("ja")
+    );
+}

@@ -84,7 +84,6 @@ final class ComposeController: ComposeBackend {
     private func refreshAppearance() {
         let appearance = PanelRules.appearance(settingsJson: app.settingsJson)
         session.locale = appearance.locale
-        window.invalidateShadow()
     }
 
     /// 只接管撰写窗自己的按键；输入法组字时原样放行。

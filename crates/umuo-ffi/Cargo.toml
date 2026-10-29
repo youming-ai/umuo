@@ -19,8 +19,6 @@ path = "uniffi-bindgen.rs"
 umuo-core = { path = "../umuo-core" }
 uniffi = { version = "0.32", features = ["cli"] }
 umuo-app = { path = "../umuo-app" }
-# 只为了在换型时点名历史与用量的 DTO（`umuo_app::ops` 直接返回它们）
-umuo-store = { path = "../umuo-store" }
 # 自建的多线程运行时跑流式请求。**不开 uniffi 的 `tokio` feature**：导出的流式方法都是同步启动，
 # 用不到它；开了反而多一套运行时上下文（迁移计划 §4）。
 tokio = { workspace = true, features = ["rt-multi-thread"] }

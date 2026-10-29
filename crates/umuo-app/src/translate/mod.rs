@@ -140,8 +140,14 @@ async fn translate(
     // 用户为这个 App 手动选过语言：记下来，下次不用再选（PRD §5.4）。
     // **不做隐式学习**：只记用户明确选过的，因为"我们记住了什么"必须能被看见和删掉。
     if per_app {
-        if let (Some(app), Some(chosen)) = (app_name.as_deref(), request.target_override.as_deref())
-        {
+        if let (Some(app), Some(chosen)) = (
+            app_name.as_deref(),
+            request
+                .target_override
+                .as_deref()
+                .map(str::trim)
+                .filter(|v| !v.is_empty()),
+        ) {
             if settings.app_target_langs.get(app).map(String::as_str) != Some(chosen) {
                 // 在锁里对**最新**设置打补丁，而不是把请求开始时的快照整份写回：
                 // 中间隔着 Keychain 与 AX 查询，这段时间里用户在设置窗改的东西会被冲掉。
@@ -181,6 +187,9 @@ async fn translate(
         word_mode,
         mode: mode.as_str(),
     };
+    if ticket.cancel.load(std::sync::atomic::Ordering::Relaxed) {
+        return Err(CoreError::Cancelled);
+    }
     send(deps.sink, route, start);
 
     let options = StreamOptions {
@@ -254,6 +263,10 @@ async fn translate(
         )
         .await?
     };
+
+    if ticket.cancel.load(std::sync::atomic::Ordering::Relaxed) {
+        return Err(CoreError::Cancelled);
+    }
 
     // 静默翻译在这里把结果写回原处。上面任何失败都已经提前返回、没碰用户的内容，
     // 这是 §5.4「失败时不修改原文」的落点：不是靠 try/finally，而是靠「只有成功才走到这里」。

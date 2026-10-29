@@ -1,8 +1,10 @@
 import SwiftUI
 import UmuoCore
 
-/// 菜单栏快捷面板（PRD §7.1）：页头（暂停 / 恢复）、暂停提示、当前模型与「配置」、
+/// 菜单栏快捷面板（PRD §7.1）：页头（标题 + 暂停开关）、暂停提示、当前模型与「配置」、
 /// 最近翻译（点一下复制译文）、提示行。末尾多一行打开窗口的入口（历史、设置）。
+///
+/// 照控制中心的写法：开关用系统开关，列表是普通行加系统分隔线，入口是无边框按钮；不描边、不染色。
 struct QuickView: View {
     @Bindable var model: QuickModel
 
@@ -11,17 +13,15 @@ struct QuickView: View {
     var body: some View {
         VStack(spacing: 0) {
             HStack {
-                Text("umuo").font(.callout.weight(.semibold)).foregroundStyle(Color.primary)
+                Text("umuo").font(.headline)
                 Spacer(minLength: 0)
-                small(model.paused ? t("quick.resume") : t("quick.pause"), tint: model.paused ? .orange : nil) {
-                    model.togglePause()
-                }
+                Toggle(t("quick.pause"), isOn: Binding(get: { model.paused }, set: { _ in model.togglePause() }))
+                    .toggleStyle(.switch).controlSize(.small)
             }
             .padding(.horizontal, 12).padding(.vertical, 8)
             divider
             if model.paused {
-                Text(t("quick.pausedHint")).font(.subheadline).foregroundStyle(Color.orange)
-                    .fixedSize(horizontal: false, vertical: true)
+                NoticeLine(text: t("quick.pausedHint"), systemImage: "pause.circle.fill")
                     .frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, 12).padding(.vertical, 6)
                 divider
             }
@@ -30,17 +30,19 @@ struct QuickView: View {
                     Text(model.modelLine).font(.callout).foregroundStyle(Color.secondary)
                         .lineLimit(1).truncationMode(.tail)
                     Spacer(minLength: 0)
-                    small(t("quick.configure")) { model.backend.openSettings() }
+                    link(t("quick.configure")) { model.backend.openSettings() }
                 }
             }
             divider
             ScrollView {
-                VStack(alignment: .leading, spacing: 6) {
+                VStack(alignment: .leading, spacing: 0) {
                     Text(t("quick.recent")).font(.subheadline).foregroundStyle(Color.secondary)
+                        .padding(.bottom, 4)
                     if let state = model.state, state.recent.isEmpty {
-                        Text(t("quick.noRecent")).font(.subheadline).foregroundStyle(Color.secondary)
+                        Text(t("quick.noRecent")).font(.callout).foregroundStyle(Color.secondary)
                     }
-                    ForEach(model.state?.recent ?? [], id: \.id) { record in
+                    let recent = model.state?.recent ?? []
+                    ForEach(recent, id: \.id) { record in
                         Button { Task { await model.copy(record) } } label: {
                             VStack(alignment: .leading, spacing: 1) {
                                 Text(record.source).font(.subheadline).foregroundStyle(Color.secondary)
@@ -48,12 +50,12 @@ struct QuickView: View {
                             }
                             .lineLimit(1).truncationMode(.tail)
                             .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(.horizontal, 8).padding(.vertical, 4)
+                            .padding(.vertical, 6)
                             .contentShape(Rectangle())
-                            .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(Color(nsColor: .separatorColor)))
                         }
                         .buttonStyle(.plain)
                         .help(t("quick.copyTranslation"))
+                        if record.id != recent.last?.id { divider }
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -62,16 +64,16 @@ struct QuickView: View {
             .frame(maxHeight: .infinity)
             if let notice = model.notice {
                 divider
-                Text(notice).font(.subheadline).foregroundStyle(Color.secondary).lineLimit(2)
+                Text(notice).font(.callout).foregroundStyle(Color.secondary).lineLimit(2)
                     .frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, 12).padding(.vertical, 4)
             }
             divider
-            HStack(spacing: 8) {
-                small(t("quick.openHistory")) { model.backend.openHistory() }
-                small(t("quick.openSettings")) { model.backend.openSettings() }
+            HStack(spacing: 16) {
+                link(t("quick.openHistory")) { model.backend.openHistory() }
+                link(t("quick.openSettings")) { model.backend.openSettings() }
                 Spacer(minLength: 0)
             }
-            .padding(.horizontal, 12).padding(.vertical, 6)
+            .padding(.horizontal, 12).padding(.vertical, 8)
         }
         // 不画底色：NSPopover 自带系统材质（macOS 26 起是 Liquid Glass）
         .frame(width: QuickPanelController.size.width, height: QuickPanelController.size.height)
@@ -87,7 +89,8 @@ struct QuickView: View {
         .padding(.horizontal, 12).padding(.vertical, 8)
     }
 
-    private func small(_ title: String, tint: Color? = nil, action: @escaping () -> Void) -> some View {
-        Button(title, action: action).buttonStyle(.bordered).controlSize(.small).tint(tint)
+    /// 打开窗口的入口：无边框文字按钮，与控制中心底部的「…设置」一致。
+    private func link(_ title: String, action: @escaping () -> Void) -> some View {
+        Button(title, action: action).buttonStyle(.borderless).controlSize(.small)
     }
 }

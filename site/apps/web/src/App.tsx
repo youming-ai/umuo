@@ -33,7 +33,7 @@ export function App() {
       >
         {content.nav.skipToContent}
       </a>
-      <Nav locale={locale} />
+      <Nav locale={locale} page={page} />
       <main id="main">
         {page === 'home' ? (
           <Hero content={content} locale={locale} />

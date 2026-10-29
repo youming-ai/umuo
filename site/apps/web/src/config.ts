@@ -32,8 +32,8 @@ export const LEGAL_COUNTRY = {
 } as const
 
 /** 条款版本与生效日期；改条款时一起改，重大变更需提前 14 天邮件通知现有用户 */
-export const LEGAL_VERSION = '2.0'
-export const LEGAL_EFFECTIVE = '2026-10-23'
+export const LEGAL_VERSION = '2.1'
+export const LEGAL_EFFECTIVE = '2026-10-29'
 
 /**
  * macOS 安装包地址。由 Worker 读 R2 里的 macos/latest.json 给出最新版（见 worker/src/releases.ts）；

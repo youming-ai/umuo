@@ -114,7 +114,7 @@ pub fn summarize(
 /// 手改配置或别的版本误写进 `extra` 的东西不能随一个会被分享的文件流出去。
 pub fn export_json(settings: &Settings, glossaries: &Glossaries) -> String {
     let mut settings = settings.clone();
-    settings.extra.retain(|key, _| !looks_like_a_secret(key));
+    settings.strip_secret_looking_extras();
     let bundle = Bundle {
         version: BUNDLE_VERSION,
         app_version: env!("CARGO_PKG_VERSION").to_string(),
@@ -127,8 +127,8 @@ pub fn export_json(settings: &Settings, glossaries: &Glossaries) -> String {
 }
 
 /// 键名看起来像凭据（不区分大小写，忽略 `_` 与 `-`）。宁可多去掉一个未知字段，
-/// 也不能让 Key 进导出文件。
-fn looks_like_a_secret(key: &str) -> bool {
+/// 也不能让 Key 进配置文件或导出文件。
+pub(crate) fn looks_like_a_secret(key: &str) -> bool {
     let key: String = key
         .chars()
         .filter(|c| *c != '_' && *c != '-')

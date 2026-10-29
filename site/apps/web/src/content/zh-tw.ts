@@ -17,7 +17,7 @@ export const zhTw: SiteContent = {
   seo: {
     title: 'umuo — 讀與寫，一鍵翻譯 | Mac AI 翻譯軟體',
     description:
-      'umuo 是 macOS 上的 AI 翻譯軟體：⌃⌃ 劃詞翻譯、⌥⌘A 輸入翻譯、⌥⌥ 輸入框原地替換、⌥⌘O 截圖翻譯。接上自己的金鑰（GPT、Claude、Gemini 等）或本機模型即可使用，一次性購買，無訂閱、不需帳號；語音輸入開發中。',
+      'umuo 是 macOS 上的 AI 翻譯軟體：⌃⌃ 劃詞翻譯、⌥⌘A 輸入翻譯、⌥⌥ 閃電替換、⌥⌘O 截圖翻譯。接上自己的金鑰（GPT、Claude、Gemini 等）或本機模型即可使用，一次性購買，無訂閱、不需帳號；語音輸入開發中。',
     ogLocale: 'zh_TW',
   },
   nav: {
@@ -27,14 +27,15 @@ export const zhTw: SiteContent = {
     themeToDark: '切換為深色主題',
   },
   hero: {
-    title: '任何 App 裡，\n一鍵翻譯',
-    subtitle: '選取即譯，截圖也能譯，寫完一鍵換成外語。',
+    title: '在哪裡寫，\n就在哪裡譯',
+    subtitle: '寫完按兩下 ⌥，輸入框裡的文字原地換成外語；劃詞、截圖也能譯。',
+    pricingNote: '一次性購買，自帶金鑰，無訂閱',
     demo: {
       label: '翻譯預覽',
-      hint: '連按兩下 ⌃ 試試',
       modes: [
         {
           id: 'read',
+          hint: '在這個頁面連按兩下 ⌃ 試試',
           name: '劃詞翻譯',
           keys: ['⌃', '⌃'],
           before: 'The quick brown fox jumps over the lazy dog.',
@@ -42,28 +43,53 @@ export const zhTw: SiteContent = {
         },
         {
           id: 'write',
-          name: '原地替換',
+          hint: '在這個頁面連按兩下 ⌥ 試試',
+          name: '閃電替換',
           keys: ['⌥', '⌥'],
           before: '明天下午三點開會可以嗎？',
           after: 'Does 3 p.m. tomorrow work for the meeting?',
+          note: '確認仍是同一個輸入框才替換；失敗或取消時原文不動。',
+        },
+        {
+          id: 'ocr',
+          hint: '截圖翻譯要在 Mac 上按 ⌥⌘O 框選',
+          name: '截圖翻譯',
+          keys: ['⌥', '⌘', 'O'],
+          before: 'Last train leaves Platform 2 at 11:40 p.m.',
+          after: '末班車晚上 11:40 從 2 號月台發車。',
         },
         {
           id: 'speak',
+          hint: '開發中：正式支援後按住右 ⌥ 說話',
           name: '語音輸入',
           tag: '開發中',
-          keys: ['按住右 ⌥'],
+          keyHint: '按住',
+          keys: ['右 ⌥'],
           before: '嗯，那個，會議能改到禮拜五嗎',
           after: 'Could we move the meeting to Friday?',
+          note: '開發中：預覽版暫不包含語音輸入。',
         },
       ],
     },
     platforms: [
       {
         id: 'macos',
-        requirement: 'macOS 14+，支援 Apple Silicon 與 Intel',
+        requirement: 'macOS 14+，僅支援 Apple Silicon（M 系列晶片）',
         actionLabel: '下載 macOS 版',
         statusLabel: '預覽版',
         note: '預覽版未經 Apple 公證，首次打開若被攔下，到「隱私權與安全性」點「仍要打開」。',
+        mobileNote: 'umuo 是 Mac App，請在 Mac 上開啟 umuo.app 下載。',
+        copyLink: '複製網址',
+        copied: '已複製',
+        copyFailed: '沒能複製，請手動記下 umuo.app',
+        afterDownload: {
+          title: '下載已開始，接下來：',
+          steps: [
+            '打開下載的安裝檔，把 umuo 拖進「應用程式」資料夾。',
+            '首次打開若被攔下，到「系統設定 › 隱私權與安全性」點「仍要打開」。',
+            '依引導選擇模型供應商、填入你的 API 金鑰；劃詞翻譯需要授予輔助使用權限。',
+          ],
+        },
       },
     ],
   },
@@ -74,14 +100,14 @@ export const zhTw: SiteContent = {
   },
   pricing: {
     title: '定價',
-    description: 'umuo 定價：一次性購買用戶端，自帶模型金鑰，無訂閱、不需帳號。',
+    description: 'umuo 定價：US$9 一次性購買用戶端，自帶模型金鑰，無訂閱、不需帳號。',
     lead: '買一次 umuo，模型用你自己的。沒有訂閱，沒有 umuo 帳號，也不賣模型額度。',
     bills: [
       {
         payee: '付給 umuo',
-        amount: '價格待定',
+        amount: 'US$9',
         cadence: '一次性購買',
-        body: '買斷價格、可啟用的裝置數、試用、退款與更新權益尚未確定，開放購買前會在本頁與服務條款中一併寫明。',
+        body: '可啟用的裝置數、試用、退款與更新權益尚未確定，開放購買前會在本頁與服務條款中一併寫明。',
       },
       {
         payee: '付給模型供應商',
@@ -90,13 +116,17 @@ export const zhTw: SiteContent = {
         body: '費用由你直接與供應商結算，本機模型不會產生呼叫費用。請求從你的 Mac 直接送往你設定的位址，不經過 umuo 的伺服器。',
       },
     ],
-    unavailable: '尚未開放購買。預覽版可免費下載試用。',
+    unavailable: '預覽版現在可以免費下載試用；正式購買尚未開放。',
+    excluded: {
+      title: '不包含',
+      items: ['訂閱或續費', 'umuo 帳號', '模型額度或儲值', '經 umuo 伺服器轉送的請求'],
+    },
     included: '包含',
     includedNote: '鍵位為預設快速鍵，可在設定中修改。',
     features: [
       { name: '劃詞翻譯', keys: ['⌃', '⌃'] },
       { name: '輸入翻譯', keys: ['⌥', '⌘', 'A'] },
-      { name: '輸入框原地替換', keys: ['⌥', '⌥'] },
+      { name: '閃電替換', keys: ['⌥', '⌥'] },
       { name: '截圖 OCR 翻譯', keys: ['⌥', '⌘', 'O'] },
       { name: '語音輸入與語音翻譯', tag: '開發中' },
       { name: '自帶金鑰、本機模型或自訂端點' },
@@ -119,6 +149,9 @@ export const zhTw: SiteContent = {
     missing: '這個頁面的網址不完整。請從付款完成後的跳轉進入。',
     unknown: `找不到這筆付款，或領取連結已過期（7 天）。如果已經扣款，請寄信至 ${CONTACT_EMAIL}。`,
     error: '暫時無法連線伺服器，請稍後重新整理本頁。',
+    home: '回到首頁',
+    contact: '寄信聯絡我們',
+    retry: '重新整理',
   },
   legal: {
     terms: {
@@ -137,7 +170,7 @@ export const zhTw: SiteContent = {
           heading: '2. 軟體說明',
           body: [
             { heading: '2.1 功能' },
-            'umuo 是常駐 macOS 選單列的翻譯工具，提供劃詞翻譯、輸入翻譯、輸入框原地替換與截圖 OCR 翻譯。語音輸入與語音翻譯仍在開發中，發布前不屬於本條款承諾的功能。',
+            'umuo 是常駐 macOS 選單列的翻譯工具，提供劃詞翻譯、輸入翻譯、閃電替換（在輸入框中原地替換）與截圖 OCR 翻譯。語音輸入與語音翻譯仍在開發中，發布前不屬於本條款承諾的功能。',
             { heading: '2.2 自帶模型' },
             '軟體本身不提供 AI 模型、模型額度或代理服務。您需要自行設定第三方模型供應商的 API Key、自訂端點或本機模型；請求由您的裝置直接送往您設定的位址。您與模型供應商之間的協議、費用與資料處理，由您與該供應商另行約定，我們不對第三方服務的可用性、費用或輸出負責。',
             { heading: '2.3 預覽版' },

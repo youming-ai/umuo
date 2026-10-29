@@ -4,7 +4,7 @@ import UmuoCore
 /// 撰写窗的界面：上面是源 / 目标语言两个下拉，下面依次是状态行、输入框、译文区与底部按钮。
 ///
 /// 它不做任何决策：调度、提交都在 `ComposeSession` 里（也因此能测）。不用 `@State`：只装 CLT 时编不过。
-/// 控件与底板都用系统的（`floatingSurface`：macOS 26 的 Liquid Glass）。
+/// 控件用系统的；底板、圆角与阴影由窗口外壳负责（`FloatingPanelChrome`）。
 struct ComposeView: View {
     @Bindable var session: ComposeSession
 
@@ -22,7 +22,6 @@ struct ComposeView: View {
             divider
             footer
         }
-        .floatingSurface()
     }
 
     // MARK: - 源语言 / 目标语言（PRD §5.3）
@@ -32,7 +31,7 @@ struct ComposeView: View {
         HStack(spacing: 8) {
             picker($session.overrides.sourceLang, hint: t("compose.sourceLangHint"),
                    none: t("compose.autoDetect"), options: Languages.all.map { ($0.code, $0.label) })
-            Text("→").font(.subheadline).foregroundStyle(Color.secondary)
+            Image(systemName: "arrow.right").foregroundStyle(Color.secondary).accessibilityHidden(true)
             picker($session.overrides.targetLang, hint: t("compose.targetLangHint"),
                    none: t("compose.bySettings"), options: Languages.all.map { ($0.code, $0.label) })
             Spacer(minLength: 0)
@@ -68,7 +67,6 @@ struct ComposeView: View {
             Spacer(minLength: 0)
             Toggle(t("compose.autoTranslate"), isOn: $session.autoTranslate)
                 .toggleStyle(.checkbox)
-                .font(.callout).foregroundStyle(Color.secondary)
                 .fixedSize()
             PanelButton(t("compose.close"), systemImage: "xmark") { session.escape() }
                 .fixedSize()
@@ -85,6 +83,7 @@ struct ComposeView: View {
             .font(.body).foregroundStyle(Color.primary)
             .scrollContentBackground(.hidden)
             .autocorrectionDisabled()
+            .accessibilityLabel(t("compose.placeholder"))
             .padding(.horizontal, 8).padding(.vertical, 6)
             .frame(minHeight: 112, maxHeight: .infinity)
             .overlay(alignment: .topLeading) {
@@ -110,9 +109,11 @@ struct ComposeView: View {
             } else if !state.translation.isEmpty {
                 Text(state.translation)
                     .font(.body).foregroundStyle(Color.primary)
-                    .lineSpacing(3)
                     .textSelection(.enabled)
                     .fixedSize(horizontal: false, vertical: true)
+            }
+            if let warning = state.warning {
+                NoticeLine(text: warning, systemImage: "exclamationmark.triangle.fill")
             }
             if state.status == .error { errorBlock(state.error ?? "") }
         }
@@ -122,23 +123,20 @@ struct ComposeView: View {
 
     private func errorBlock(_ message: String) -> some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text(message).font(.subheadline).foregroundStyle(Color.red)
-                .textSelection(.enabled)
-                .fixedSize(horizontal: false, vertical: true)
+            ErrorLine(message: message)
             PanelButton(t("compose.retry"), bordered: true) {
                 session.retry()
             }
         }
-        .padding(8)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.red.opacity(0.12), in: RoundedRectangle(cornerRadius: 8))
     }
 
     // MARK: - 底部：复制 / 复制并粘贴 + 提示
 
+    /// 「复制」是 ⌘↩ 对应的默认操作，用系统的强调按钮；⌘↩ 由窗口的按键监听处理（输入法组字时不误触），这里不再挂快捷键。
     private var footer: some View {
         HStack(spacing: 4) {
-            PanelButton(t("compose.copy"), bordered: true) {
+            PanelButton(t("compose.copy"), prominent: true) {
                 session.commit(paste: false)
             }
             .disabled(!session.settled)
@@ -148,12 +146,11 @@ struct ComposeView: View {
             .disabled(!session.settled)
             Spacer(minLength: 8)
             if let notice = session.notice {
-                Text(notice).font(.subheadline).foregroundStyle(Color.secondary)
+                Text(notice).font(.callout).foregroundStyle(Color.secondary)
                     .lineLimit(1).truncationMode(.tail)
             }
-            WindowResizeGrip(color: .secondaryLabelColor).frame(width: 12, height: 12)
         }
-        .padding(.leading, 12).padding(.trailing, 6).padding(.vertical, 8)
+        .padding(.horizontal, 12).padding(.vertical, 8)
     }
 
     private var divider: some View { Divider() }

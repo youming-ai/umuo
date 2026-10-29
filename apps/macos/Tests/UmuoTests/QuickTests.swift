@@ -20,8 +20,12 @@ private final class FakeQuick: QuickBackend {
     var copied: [String] = []
     var copyFailure: String?
     var opened: [String] = []
+    /// 为 true 时读取挂起，直到测试用 `waiting` 交回一个结果：模拟读取途中用户切了开关。
+    var hold = false
+    var waiting: CheckedContinuation<QuickState, Never>?
 
     func state() async throws -> QuickState {
+        if hold { return await withCheckedContinuation { waiting = $0 } }
         if let fail { throw Broken(message: fail) }
         return current ?? QuickState(paused: paused, providerLabel: "OpenAI", model: "gpt-4o-mini", recent: [
             QuickRecord(id: 3, source: "Hello", translation: "你好", model: "gpt-4o-mini"),
@@ -52,6 +56,39 @@ private func model(_ backend: FakeQuick) -> QuickModel {
 @MainActor
 @Suite("快捷面板")
 struct QuickModelTests {
+    @Test func 读取途中切了开关_晚到的旧结果不盖回去() async {
+        let backend = FakeQuick()
+        backend.hold = true
+        let quick = model(backend)
+        let reading = Task { await quick.refresh() }
+        for _ in 0 ..< 200 where backend.waiting == nil {
+            try? await Task.sleep(for: .milliseconds(5))
+        }
+        quick.togglePause()
+        #expect(quick.paused)
+        // 读取开始时还没暂停：晚到的结果里 paused 是 false
+        backend.waiting?.resume(returning: QuickState(paused: false, providerLabel: "OpenAI", model: "m", recent: []))
+        await reading.value
+        #expect(quick.paused)
+        #expect(backend.paused)
+        // 下一次干净的读取以后端为准
+        backend.hold = false
+        await quick.refresh()
+        #expect(quick.paused)
+    }
+
+    @Test func 第一次读取失败时切换开关也显示切换后的状态() async {
+        let backend = FakeQuick()
+        backend.fail = "内核启动中…"
+        let quick = model(backend)
+        await quick.refresh()
+        #expect(quick.state == nil)
+        quick.togglePause()
+        #expect(quick.paused)
+        quick.togglePause()
+        #expect(!quick.paused)
+    }
+
     @Test func 显示时读状态当前模型一行() async {
         let backend = FakeQuick()
         let quick = model(backend)
@@ -128,9 +165,14 @@ struct StatusBarTests {
     }
 
     @Test func 菜单只提供保留的功能入口() {
-        let titles = StatusBarController.entries.map { $0?.title ?? "—" }
-        #expect(titles == ["翻译选中文本", "输入框原地替换", "撰写窗", "截图翻译", "—",
-                           "快捷面板…", "翻译历史", "设置…", "检查更新…", "退出 umuo"])
+        let titles = { (locale: AppLocale) in
+            StatusBarController.entries.map { $0.map { Translate(locale: locale)($0.key) } ?? "—" }
+        }
+        #expect(titles(.zhCN) == ["翻译选中文本", "输入框原地替换", "撰写窗", "截图翻译", "—",
+                                  "快捷面板", "翻译历史", "设置…", "检查更新…", "退出 umuo"])
+        // 菜单跟随界面语言，不再写死中文
+        #expect(titles(.en) == ["Translate Selection", "Replace in Text Field", "Compose", "Translate Screenshot", "—",
+                                "Quick Panel", "History", "Settings…", "Check for Updates…", "Quit umuo"])
         let actions = StatusBarController.entries.compactMap { entry -> HotkeyAction? in
             if case let .action(action)? = entry?.entry { return action }
             return nil

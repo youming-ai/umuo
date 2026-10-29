@@ -246,10 +246,19 @@ impl Settings {
     /// `previous` 是当前生效的设置：端点只校验**这次改动了的**条目——
     /// 老配置里已有的 `http://` 局域网地址不该让用户从此改不了任何设置。
     pub fn prepare_for_save(&mut self, previous: &Settings) -> Result<(), String> {
+        self.strip_secret_looking_extras();
         self.normalize_selection_blacklist();
         // 代理地址当场校验：填错了要在设置页立刻说，而不是等下次翻译莫名其妙地失败。
         self.proxy_choice()?;
         self.validate_endpoints(previous)
+    }
+
+    /// 剥离未知字段中键名看起来像凭据的条目（不区分大小写，忽略 `_` 与 `-`）。
+    ///
+    /// Key 只存 Keychain，无论是保存补丁、导入配置还是导出配置，都不能让疑似凭据的未知字段落入配置文件。
+    pub fn strip_secret_looking_extras(&mut self) {
+        self.extra
+            .retain(|key, _| !crate::config_io::looks_like_a_secret(key));
     }
 
     /// 自定义端点与需要 Key 的供应商覆盖只接受 https（本机回环地址例外）。
@@ -284,6 +293,10 @@ impl Settings {
     /// 调用方要在设置锁里、对**最新值**调用它——拿请求开始时的快照整份写回，
     /// 会把这期间用户在设置窗里改的东西冲掉。
     pub fn remember_app_target(&mut self, app: &str, lang: &str) -> bool {
+        let (app, lang) = (app.trim(), lang.trim());
+        if app.is_empty() || lang.is_empty() {
+            return false;
+        }
         if self.app_target_langs.get(app).map(String::as_str) == Some(lang) {
             return false;
         }
@@ -890,7 +903,9 @@ mod tests {
             theme: "dark".to_string(),
             ..Settings::default()
         };
-        assert!(latest.remember_app_target("Safari", "ja"));
+        assert!(!latest.remember_app_target("Safari", "   "), "空白语言不记");
+        assert!(!latest.remember_app_target("   ", "ja"), "空白应用名不记");
+        assert!(latest.remember_app_target(" Safari ", " ja "));
         assert_eq!(latest.theme, "dark", "其它字段保持最新值");
         assert_eq!(
             latest.app_target_langs.get("Safari").map(String::as_str),
@@ -899,6 +914,24 @@ mod tests {
         assert!(
             !latest.remember_app_target("Safari", "ja"),
             "没变就不用写盘"
+        );
+    }
+
+    #[test]
+    fn prepare_for_save_strips_secret_looking_unknown_fields() {
+        let mut next = Settings::default();
+        next.extra
+            .insert("openaiApiKey".into(), serde_json::json!("sk-secret"));
+        next.extra
+            .insert("custom_token".into(), serde_json::json!("tok-123"));
+        next.extra
+            .insert("futurePreference".into(), serde_json::json!(true));
+        next.prepare_for_save(&Settings::default()).unwrap();
+        assert!(!next.extra.contains_key("openaiApiKey"));
+        assert!(!next.extra.contains_key("custom_token"));
+        assert_eq!(
+            next.extra.get("futurePreference"),
+            Some(&serde_json::json!(true))
         );
     }
 }

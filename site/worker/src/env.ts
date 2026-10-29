@@ -1,7 +1,7 @@
 /**
  * Worker 的绑定。
  *
- * 这里手写而不跑 `wrangler types` 生成：生成物要么提交（会与 wrangler.jsonc 漂移），
+ * 这里手写而不提交生成类型：生成物要么提交（会与 void.config.ts 漂移），
  * 要么每次构建前重跑（构建多一步、失败多一种）。我们只用到 KV 的两个方法，
  * 手写反而更不容易出错。
  *
@@ -31,7 +31,7 @@ export interface AssetFetcher {
 }
 
 export interface Env {
-  /** 官网静态产物（wrangler.jsonc 的 assets.binding） */
+  /** 官网静态产物（Void 生成的 assets.binding） */
   ASSETS: AssetFetcher
   /** 上线通知的邮箱列表（KV namespace: umuo-notify，见 docs/DEPLOY.md） */
   NOTIFY_KV: NotifyStore
@@ -40,7 +40,7 @@ export interface Env {
   /** Premium 许可证、结账领取码与 webhook 去重（KV namespace: umuo-licenses，见 worker/src/billing.ts） */
   LICENSES: NotifyStore
   /**
-   * Waffo Pancake 收费配置。`WAFFO_PRIVATE_KEY` 是 `wrangler secret`，其余是 wrangler.jsonc 的 vars。
+   * Waffo Pancake 收费配置。`WAFFO_PRIVATE_KEY` 是远端 secret，其余是 void.config.ts 的 vars。
    * 缺任何一项，收费接口都回 503（见 `waffoConfig`）。
    */
   WAFFO_ENV?: string

@@ -77,6 +77,14 @@ struct PanelSessionTests {
         #expect(session.actionNotice == nil)
     }
 
+    @Test func 展开的长原文在下一次翻译开始时收回() {
+        let session = PanelSession(backend: FakeBackend())
+        session.apply(route: route(1), event: start(1, "很长的原文"))
+        session.sourceExpanded = true
+        session.apply(route: route(2), event: start(2, "下一段"))
+        #expect(!session.sourceExpanded)
+    }
+
     @Test func 被顶掉的旧请求不改窗口状态() async {
         let backend = FakeBackend()
         let session = PanelSession(backend: backend)
@@ -220,9 +228,16 @@ struct PanelSessionTests {
 
     @Test func 钉住是窗口状态() {
         let session = PanelSession()
+        #expect(session.capturesGlobalEscape)
         session.togglePin()
         #expect(session.pinned)
+        #expect(!session.capturesGlobalEscape, "钉住且空闲时不应抢占全局 Esc")
+        session.apply(route: route(1), event: start(1))
+        #expect(session.capturesGlobalEscape, "钉住状态下流式翻译进行中仍可按 Esc 取消")
+        session.apply(route: route(1), event: doneEvent)
+        #expect(!session.capturesGlobalEscape, "流式翻译完成后再次释放全局 Esc")
         session.togglePin()
         #expect(!session.pinned)
+        #expect(session.capturesGlobalEscape)
     }
 }

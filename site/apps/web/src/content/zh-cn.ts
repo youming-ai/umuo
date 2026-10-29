@@ -17,7 +17,7 @@ export const zhCn: SiteContent = {
   seo: {
     title: 'umuo — 读与写，一键翻译 | macOS AI 翻译',
     description:
-      'umuo 是 macOS 上的 AI 翻译工具：⌃⌃ 划词翻译、⌥⌘A 输入翻译、⌥⌥ 输入框原地替换、⌥⌘O 截图翻译。接上自己的 Key（GPT、Claude、Gemini 等）或本地模型即可使用，一次性购买，无订阅、无需账号；语音输入开发中。',
+      'umuo 是 macOS 上的 AI 翻译工具：⌃⌃ 划词翻译、⌥⌘A 输入翻译、⌥⌥ 闪电替换、⌥⌘O 截图翻译。接上自己的 Key（GPT、Claude、Gemini 等）或本地模型即可使用，一次性购买，无订阅、无需账号；语音输入开发中。',
     ogLocale: 'zh_CN',
   },
   nav: {
@@ -27,14 +27,15 @@ export const zhCn: SiteContent = {
     themeToDark: '切换到深色主题',
   },
   hero: {
-    title: '任何应用里，\n一键翻译',
-    subtitle: '选中即译，截图也能译，写完一键换成外语。',
+    title: '在哪里写，\n就在哪里译',
+    subtitle: '写完按两下 ⌥，输入框里的文字原地换成外语；划词、截图也能译。',
+    pricingNote: '一次性购买，自带 Key，无订阅',
     demo: {
       label: '翻译预览',
-      hint: '连按两下 ⌃ 试试',
       modes: [
         {
           id: 'read',
+          hint: '在这个页面连按两下 ⌃ 试试',
           name: '划词翻译',
           keys: ['⌃', '⌃'],
           before: 'The quick brown fox jumps over the lazy dog.',
@@ -42,28 +43,53 @@ export const zhCn: SiteContent = {
         },
         {
           id: 'write',
-          name: '原地替换',
+          hint: '在这个页面连按两下 ⌥ 试试',
+          name: '闪电替换',
           keys: ['⌥', '⌥'],
           before: '明天下午三点开会可以吗？',
           after: 'Does 3 p.m. tomorrow work for the meeting?',
+          note: '确认还是同一个输入框才替换；失败或取消时原文不动。',
+        },
+        {
+          id: 'ocr',
+          hint: '截图翻译要在 Mac 上按 ⌥⌘O 框选',
+          name: '截图翻译',
+          keys: ['⌥', '⌘', 'O'],
+          before: 'Last train leaves Platform 2 at 11:40 p.m.',
+          after: '末班车晚上 11:40 从 2 号站台发车。',
         },
         {
           id: 'speak',
+          hint: '开发中：正式支持后按住右 ⌥ 说话',
           name: '语音输入',
           tag: '开发中',
-          keys: ['按住右 ⌥'],
+          keyHint: '按住',
+          keys: ['右 ⌥'],
           before: '嗯，那个，会议能改到周五吗',
           after: 'Could we move the meeting to Friday?',
+          note: '开发中：预览版暂不包含语音输入。',
         },
       ],
     },
     platforms: [
       {
         id: 'macos',
-        requirement: 'macOS 14+，支持 Apple Silicon 与 Intel',
+        requirement: 'macOS 14+，仅支持 Apple Silicon（M 系列芯片）',
         actionLabel: '下载 macOS 版',
         statusLabel: '预览版',
         note: '预览版未经 Apple 公证，首次打开如被拦截，到「隐私与安全性」点「仍要打开」。',
+        mobileNote: 'umuo 是 Mac 应用，请在 Mac 上打开 umuo.app 下载。',
+        copyLink: '复制网址',
+        copied: '已复制',
+        copyFailed: '没能复制，请手动记下 umuo.app',
+        afterDownload: {
+          title: '下载已开始，接下来：',
+          steps: [
+            '打开下载的安装包，把 umuo 拖进「应用程序」文件夹。',
+            '首次打开如被拦截，到「系统设置 › 隐私与安全性」点「仍要打开」。',
+            '按引导选模型供应商、填入你的 API Key；划词翻译需要授予辅助功能权限。',
+          ],
+        },
       },
     ],
   },
@@ -74,14 +100,14 @@ export const zhCn: SiteContent = {
   },
   pricing: {
     title: '定价',
-    description: 'umuo 定价：一次性购买客户端，自带模型 Key，无订阅、无需账号。',
+    description: 'umuo 定价：US$9 一次性购买客户端，自带模型 Key，无订阅、无需账号。',
     lead: '买一次 umuo，模型用你自己的。没有订阅，没有 umuo 账号，也不卖模型额度。',
     bills: [
       {
         payee: '付给 umuo',
-        amount: '价格待定',
+        amount: 'US$9',
         cadence: '一次性购买',
-        body: '买断价格、可激活的设备数、试用、退款与更新权益尚未确定，开放购买前会在本页与服务条款中一并写明。',
+        body: '可激活的设备数、试用、退款与更新权益尚未确定，开放购买前会在本页与服务条款中一并写明。',
       },
       {
         payee: '付给模型供应商',
@@ -90,13 +116,17 @@ export const zhCn: SiteContent = {
         body: '费用由你直接与供应商结算，本地模型不产生调用费用。请求从你的 Mac 直接发往你配置的地址，不经过 umuo 的服务器。',
       },
     ],
-    unavailable: '尚未开放购买。预览版可免费下载试用。',
+    unavailable: '预览版现在可以免费下载试用；正式购买尚未开放。',
+    excluded: {
+      title: '不包含',
+      items: ['订阅或续费', 'umuo 账号', '模型额度或充值', '经 umuo 服务器中转的请求'],
+    },
     included: '包含',
     includedNote: '键位为默认快捷键，可在设置里修改。',
     features: [
       { name: '划词翻译', keys: ['⌃', '⌃'] },
       { name: '输入翻译', keys: ['⌥', '⌘', 'A'] },
-      { name: '输入框原地替换', keys: ['⌥', '⌥'] },
+      { name: '闪电替换', keys: ['⌥', '⌥'] },
       { name: '截图 OCR 翻译', keys: ['⌥', '⌘', 'O'] },
       { name: '语音输入与语音翻译', tag: '开发中' },
       { name: '自带 Key、本地模型或自定义端点' },
@@ -119,6 +149,9 @@ export const zhCn: SiteContent = {
     missing: '这个页面的地址不完整。请从付款完成后的跳转进入。',
     unknown: `找不到这次付款，或领取链接已过期（7 天）。如果已经扣款，请发邮件至 ${CONTACT_EMAIL}。`,
     error: '暂时无法连接服务器，请稍后刷新本页。',
+    home: '回到首页',
+    contact: '发邮件联系我们',
+    retry: '刷新',
   },
   legal: {
     terms: {
@@ -129,7 +162,7 @@ export const zhCn: SiteContent = {
         {
           heading: '1. 条款接受',
           body: [
-            `欢迎使用 umuo。umuo 由 ${LEGAL_NAME}（以下简称"我们"）提供，${LEGAL_NAME} 是依据${LEGAL_COUNTRY['zh-cn']}法律经营的个人经营者。本服务条款（"条款"）规范您对 umuo macOS 应用（"软件"）及网站 ${SITE_URL}（合称"服务"）的使用。`,
+            `欢迎使用 umuo。umuo 由 ${LEGAL_NAME}（以下简称「我们」）提供，${LEGAL_NAME} 是依据${LEGAL_COUNTRY['zh-cn']}法律经营的个人经营者。本服务条款（「条款」）规范您对 umuo macOS 应用（「软件」）及网站 ${SITE_URL}（合称「服务」）的使用。`,
             '下载、安装或使用本服务，即表示您已年满 18 周岁，并已阅读、理解且同意本条款与我们的隐私政策。如不同意，请停止使用本服务。',
           ],
         },
@@ -137,7 +170,7 @@ export const zhCn: SiteContent = {
           heading: '2. 软件说明',
           body: [
             { heading: '2.1 功能' },
-            'umuo 是常驻 macOS 菜单栏的翻译工具，提供划词翻译、输入翻译、输入框原地替换与截图 OCR 翻译。语音输入与语音翻译仍在开发中，发布前不属于本条款承诺的功能。',
+            'umuo 是常驻 macOS 菜单栏的翻译工具，提供划词翻译、输入翻译、闪电替换（在输入框中原地替换）与截图 OCR 翻译。语音输入与语音翻译仍在开发中，发布前不属于本条款承诺的功能。',
             { heading: '2.2 自带模型' },
             '软件本身不提供 AI 模型、模型额度或代理服务。您需要自行配置第三方模型供应商的 API Key、自定义端点或本地模型；请求由您的设备直接发往您配置的地址。您与模型供应商之间的协议、费用与数据处理，由您与该供应商另行约定，我们不对第三方服务的可用性、费用或输出负责。',
             { heading: '2.3 预览版' },
@@ -165,7 +198,7 @@ export const zhCn: SiteContent = {
         {
           heading: '5. 您的内容与 AI 输出',
           body: [
-            '您通过软件处理的文本与截图（"输入内容"）及模型生成的结果（"输出内容"）归您所有。输入内容在本机处理或由您的设备直接发往您配置的模型供应商，不经过我们的服务器，我们不会将其用于训练 AI 模型。',
+            '您通过软件处理的文本与截图（「输入内容」）及模型生成的结果（「输出内容」）归您所有。输入内容在本机处理或由您的设备直接发往您配置的模型供应商，不经过我们的服务器，我们不会将其用于训练 AI 模型。',
             'AI 生成的内容（包括译文）可能有错误、遗漏或已过时。请在依赖输出内容之前自行审阅，不要把它当作法律、医疗、金融等专业意见。',
           ],
         },
@@ -189,7 +222,7 @@ export const zhCn: SiteContent = {
         {
           heading: '8. 免责声明与责任限制',
           body: [
-            '本服务以"现状"和"如可用"的方式提供，不作任何明示或隐含的保证，包括适销性、特定用途适用性或 AI 输出准确性。',
+            '本服务以「现状」和「如可用」的方式提供，不作任何明示或隐含的保证，包括适销性、特定用途适用性或 AI 输出准确性。',
             `在适用法律允许的最大范围内，${LEGAL_NAME} 不对任何间接、附带、后果性或惩罚性损害承担责任。我们的总责任以您在索赔事件发生前 12 个月内为本服务向我们支付的金额为限。`,
           ],
         },
@@ -226,7 +259,7 @@ export const zhCn: SiteContent = {
         'umuo 隐私政策：哪些数据只留在你的 Mac 上，翻译请求发往哪里，以及网站与我们会收到什么。',
       meta: `版本 ${LEGAL_VERSION}，最后更新 ${LEGAL_EFFECTIVE}`,
       intro: [
-        `${LEGAL_NAME}（以下简称"我们"）尊重并保护您的隐私。本隐私政策说明您使用 umuo macOS 应用（"软件"）与网站 ${SITE_URL}（合称"服务"）时，哪些数据在您的设备上处理、哪些会到达我们或第三方，以及您享有的权利。`,
+        `${LEGAL_NAME}（以下简称「我们」）尊重并保护您的隐私。本隐私政策说明您使用 umuo macOS 应用（「软件」）与网站 ${SITE_URL}（合称「服务」）时，哪些数据在您的设备上处理、哪些会到达我们或第三方，以及您享有的权利。`,
         'umuo 不需要账号。我们没有自己的翻译服务器，也不接收您翻译的内容。',
       ],
       sections: [

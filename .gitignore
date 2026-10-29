@@ -22,10 +22,11 @@ coverage/
 # 日志
 *.log
 
-# 编辑器 / 系统
+# 编辑器 / 系统 / 设计工具审查快照
 .vscode/
 .idea/
 .DS_Store
+/.impeccable/
 
 # 其它包管理器（本仓库用 Bun；bun.lock 与 Cargo.lock 都提交）
 package-lock.json
