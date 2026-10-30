@@ -47,8 +47,14 @@ final class SettingsModel {
     private var keyCheck = 0
     private var keyCheckedProvider: String?
 
-    init(backend: SettingsBackend) {
+    /// 许可证页的模型（应用级，设置窗关掉也在）。nil = 没接上（测试里的设置窗）。
+    @ObservationIgnored let license: LicenseManager?
+    /// 下次载入时直接落在这一页（试用到期弹窗的「输入许可证」），用过即清。
+    @ObservationIgnored var preferredTab: SettingsTab?
+
+    init(backend: SettingsBackend, license: LicenseManager? = nil) {
         self.backend = backend
+        self.license = license
     }
 
     /// 界面上此刻的设置（含尚在保存中的改动）。
@@ -92,10 +98,12 @@ final class SettingsModel {
         let needsKey = providers.first { $0.id == current.string("providerId") }?.requiresKey ?? true
         keyConfigured = needsKey ? key : true
         keyCheckedProvider = current.string("providerId")
-        tab = SettingsTabs.initial(SettingsAttentionInput(
+        tab = preferredTab ?? SettingsTabs.initial(SettingsAttentionInput(
             keyConfigured: keyConfigured,
             permissionMissing: SettingsTabs.missingPermission(perms.accessibility, perms.screenRecording)
         ))
+        preferredTab = nil
+        license?.refresh()
 
         // 下面这些都是参考信息：读不到不该拖垮设置窗。
         hotkeyFailures = backend.hotkeyFailures()
@@ -119,6 +127,7 @@ final class SettingsModel {
     func windowClosed() {
         hotkeys.stop()
         engine.apiKey = ""
+        license?.keyDraft = ""
     }
 
     private func resetDrafts() {
@@ -308,8 +317,8 @@ final class EngineEditor {
 
 // MARK: - 快捷键：每行的冲突检查与录键
 
-/// 四个活跃入口的快捷键（翻译页）。录键期间暂停所有全局快捷键——否则录 ⌥D 的那一下会顺手触发一次划词翻译；
-/// 同一时刻只有一行在录（`recording`），开始录另一行就先停掉这一行。
+/// 四个翻译入口与两个语音键的快捷键（翻译页）。录键期间暂停所有全局快捷键——否则录 ⌥D 的那一下会顺手触发一次划词翻译；
+/// 同一时刻只有一行在录（`recording`），开始录另一行就先停掉这一行。六个键互相做冲突检查。
 @MainActor @Observable
 final class HotkeyEditor {
     /// 设置字段名 → 文案键（功能名）。顺序即冲突检查里「别的功能」的顺序。
@@ -318,7 +327,16 @@ final class HotkeyEditor {
         ("silentReplaceHotkey", "prefs.translate.silent"),
         ("composeHotkey", "prefs.translate.compose"),
         ("ocrHotkey", "prefs.translate.ocr"),
+        (HotkeyCenter.voiceField, "prefs.voice.tidy"),
+        (HotkeyCenter.voiceTranslateField, "prefs.voice.translate"),
     ]
+
+    /// 按住说话的键：只接受组合键（要按下与松开两个事件），连按两下修饰键不行。
+    static let comboOnly: Set<String> = Set(HotkeyCenter.voiceTable.map(\.field))
+
+    static func isDoubleTap(_ value: String) -> Bool {
+        if case .doubleTap = parseHotkey(value: value) { true } else { false }
+    }
 
     /// 录键最多等这么久就自动放弃（`HotkeyCenter` 的暂停截止是 30 秒，这里留出余量）。
     nonisolated static let recordTimeout: Duration = .seconds(25)
@@ -350,6 +368,7 @@ final class HotkeyEditor {
         let t = model.t
         if let error = errors[field] { return error }
         let value = model.values.string(field)
+        if Self.comboOnly.contains(field), Self.isDoubleTap(value) { return t("prefs.hotkey.comboOnly") }
         if model.hotkeyFailures.contains(field) {
             if case .doubleTap = parseHotkey(value: value) { return t("prefs.hotkey.tapFailed") }
             return t("prefs.hotkey.registerFailed")
@@ -435,6 +454,10 @@ final class HotkeyEditor {
     func commit(_ field: String, _ value: String) -> Task<Void, Error>? {
         guard Self.names.contains(where: { $0.field == field }) else { return nil }
         errors[field] = nil
+        if Self.comboOnly.contains(field), Self.isDoubleTap(value) {
+            errors[field] = model.t("prefs.hotkey.comboOnly")
+            return nil
+        }
         if let clash = HotkeyConflict.check(value, others: others(field)), clash.kind == .duplicate {
             errors[field] = model.t("prefs.hotkey.duplicate", ["name": clash.subject ?? ""])
             return nil

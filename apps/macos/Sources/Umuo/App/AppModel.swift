@@ -23,7 +23,13 @@ final class AppModel {
     private(set) var settingsJson: String?
     /// 朗读（浮窗与撰写窗共用一个：「停上一段再念」只有一个合成器时才成立）。
     let speech = Speech()
+    /// 全局 Esc 的唯一注册者：翻译浮窗与语音浮层同时可见时按最近弹出的一方路由。没有认领者时不注册。
+    let escape = EscapeRouter()
     let updater = AppUpdater()
+    /// 买断许可证与试用。构造时不做 I/O，`start()` 里才读 Keychain、开后台验证。
+    let license: LicenseManager
+    @ObservationIgnored private var presentingLicenseAlert = false
+    @ObservationIgnored private var deepLinks: DeepLinkReceiver?
     /// 划词浮窗。`start()` 里才建：`swift test` 会构造 AppModel，那里不该开窗口。
     @ObservationIgnored private(set) var panel: PanelController?
 
@@ -42,8 +48,13 @@ final class AppModel {
     @ObservationIgnored private(set) var onboarding: OnboardingWindowController?
     @ObservationIgnored private(set) var quick: QuickPanelController?
     @ObservationIgnored private(set) var statusBar: StatusBarController?
+    /// 语音输入（按住录音、松开转写，再整理或翻译，交付到录音开始时的输入框）。`start()` 里才建，理由同 `panel`。
+    @ObservationIgnored private(set) var voice: VoiceController?
 
-    init(arguments: [String] = CommandLine.arguments, bundleIdentifier: String? = Bundle.main.bundleIdentifier) {
+    init(arguments: [String] = CommandLine.arguments, bundleIdentifier: String? = Bundle.main.bundleIdentifier,
+         license: LicenseManager? = nil)
+    {
+        self.license = license ?? LicenseManager.live()
         registersHotkeys = HotkeyPolicy.shouldRegister(
             arguments: arguments, bundleIdentifier: bundleIdentifier, productionBundleId: bundleId()
         )
@@ -58,6 +69,17 @@ final class AppModel {
         NSApplication.shared.setActivationPolicy(.accessory)
         frontmost.start()
         updater.start()
+        license.bootstrap()
+        license.startBackgroundVerify()
+        deepLinks = DeepLinkReceiver { [weak self] key in
+            guard let self else { return }
+            self.license.keyDraft = key
+            self.openSettings(tab: .license)
+        }
+        actions.gate = LicenseGate.gate(license) { [weak self] state in
+            // 等快捷键 / 菜单的事件处理返回之后再弹模态框
+            DispatchQueue.main.async { self?.licenseBlocked(state) }
+        }
         let panel = PanelController(app: self)
         self.panel = panel
         actions.handle(.selection) { panel.triggerSelection() }
@@ -79,6 +101,7 @@ final class AppModel {
         onboardingOpener = { onboarding.show() }
         quick = QuickPanelController(app: self)
         statusBar = StatusBarController(app: self)
+        startVoice()
         if !registersHotkeys {
             print("umuo: 不是正式客户端（Bundle ID 不是 \(bundleId())），不注册全局快捷键；要注册请加 --hotkeys")
         }
@@ -95,14 +118,42 @@ final class AppModel {
         }
     }
 
+    /// 语音的宿主装配：录音器、本地转写、模型清单都在这里接上，快捷键在 Engine 打开后随其它快捷键一起注册。
+    /// 不下载、不加载任何东西：模型只在用户第一次按语音键、在浮层里点「下载」时才下（PRD §7.4）。
+    private func startVoice() {
+        // 上次崩溃或强退留下的临时音频：启动时清掉（默认不保存音频）
+        let files = VoiceAudioFiles.standard
+        Task.detached(priority: .utility) { files.sweep() }
+        guard let dir = defaultConfigDir() else { return print("umuo: 拿不到配置目录，语音不可用") }
+        let info = voiceModelInfo(configDir: dir)
+        guard let spec = VoiceModelStore.Spec(info) else { return print("umuo: 语音模型地址不合法：\(info.url)") }
+        let models = VoiceModelStore(spec: spec, fetcher: URLSessionModelFetcher())
+        let transcriber = LocalTranscriber(modelPath: info.path, idleUnload: TimeInterval(info.idleUnloadSecs))
+        let controller = VoiceController(
+            recorder: SystemVoiceRecorder(), transcriber: transcriber, models: models, files: files,
+            maxRecordingMs: info.maxRecordingMs,
+            copyText: { text in await Task.detached { ScreenOCR.copy(text) }.value }
+        )
+        let panel = VoicePanelController(model: controller.overlay, escape: escape)
+        panel.settingsJson = { [weak self] in self?.settingsJson }
+        controller.presenter = panel
+        controller.postProcessor = EngineVoicePostProcessor { [weak self] in self?.engine }
+        controller.deliverer = FocusedFieldDelivery()
+        controller.overlay.hotkeyLabels = HotkeyCenter.voiceLabels([:])
+        controller.overlay.onOpenMicSettings = { NSWorkspace.shared.open(MicrophoneAccess.settingsURL) }
+        hotkeys.voice = (press: { controller.press($0) }, release: { controller.release() })
+        voice = controller
+    }
+
     private func opened(_ result: Result<Engine, Error>, settingsJson: String?) {
         switch result {
         case let .success(engine):
             self.engine = engine
             self.settingsJson = settingsJson
             engineStatus = "内核已连接：\(providerCatalog().count) 家供应商"
-            if registersHotkeys, let settingsJson {
-                hotkeys.register(HotkeyCenter.values(settingsJson: settingsJson))
+            if let settingsJson {
+                voice?.overlay.hotkeyLabels = HotkeyCenter.voiceLabels(HotkeyCenter.values(settingsJson: settingsJson))
+                if registersHotkeys { hotkeys.register(HotkeyCenter.values(settingsJson: settingsJson)) }
             }
             settingsWindow?.engineReady()
             history?.engineReady()
@@ -118,6 +169,9 @@ final class AppModel {
     func settingsApplied(settingsJson: String, hotkeysChanged: Bool) {
         self.settingsJson = settingsJson
         ThemeChoice.apply(settingsJson: settingsJson)
+        if hotkeysChanged {
+            voice?.overlay.hotkeyLabels = HotkeyCenter.voiceLabels(HotkeyCenter.values(settingsJson: settingsJson))
+        }
         guard hotkeysChanged, registersHotkeys else { return }
         hotkeys.reregister(HotkeyCenter.values(settingsJson: settingsJson))
     }
@@ -125,6 +179,29 @@ final class AppModel {
     func openSettings() {
         guard let settingsOpener else { return print("umuo: 设置窗还没接上（阶段 3 的设置组）") }
         settingsOpener()
+    }
+
+    /// 打开设置并直接落在某一页（试用到期弹窗的「输入许可证」）。
+    func openSettings(tab: SettingsTab) {
+        guard let settingsWindow else { return openSettings() }
+        settingsWindow.show(tab: tab)
+    }
+
+    /// 翻译入口被授权门控拦下：说明原因，让用户去购买或输入许可证。
+    private func licenseBlocked(_ state: LicenseState) {
+        // 警告框开着时再按快捷键：模态 run loop 里还会派发进来，不叠第二个
+        guard !presentingLicenseAlert else { return }
+        presentingLicenseAlert = true
+        defer { presentingLicenseAlert = false }
+        let t = Translate(locale: PanelRules.appearance(settingsJson: settingsJson).locale)
+        switch LicenseGate.ask(state, t: t) {
+        case .purchase:
+            if let url = URL(string: LicenseManager.purchaseURL) { NSWorkspace.shared.open(url) }
+        case .enterLicense:
+            openSettings(tab: .license)
+        case .cancel:
+            break
+        }
     }
 
     func openHistory() {

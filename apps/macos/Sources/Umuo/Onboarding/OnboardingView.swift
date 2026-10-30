@@ -109,7 +109,10 @@ struct OnboardingView: View {
         } header: {
             lead(t("onboarding.intro"))
         } footer: {
-            note(t("onboarding.walkthrough"))
+            VStack(alignment: .leading, spacing: 4) {
+                note(t("onboarding.walkthrough"))
+                note(t("onboarding.trial"))
+            }
         }
     }
 

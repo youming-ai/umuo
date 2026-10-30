@@ -119,11 +119,11 @@ describe('首页一屏', () => {
     key('keydown', { code: 'KeyC' })
     tap('ControlLeft', 'ctrlKey')
     expect(pressed()).toContain('闪电替换')
-    // 按住右 ⌥ 才是「按住说话」
+    // 按住修饰键不切换模式：语音（⌃⌘V）与截图一样只能点选项卡
     key('keydown', { code: 'AltRight', altKey: true })
     now += 400
     key('keyup', { code: 'AltRight' })
-    expect(pressed()).toContain('语音输入')
+    expect(pressed()).toContain('闪电替换')
   })
 
   it('Footer 向上展开五种语言，切换后关闭菜单', () => {
@@ -176,6 +176,8 @@ describe('首页一屏', () => {
     expect(download?.textContent).toContain('预览版')
     expect(host.querySelector('#download')?.textContent).toContain('仍要打开')
     expect(host.querySelector('form')).toBeNull()
+    // 购买开关默认关闭：首页下载区不出现购买按钮
+    expect(host.querySelector('#download')?.textContent).not.toContain('购买 US$9')
   })
 })
 
@@ -202,6 +204,10 @@ describe('定价与激活', () => {
     expect(pages[0]?.querySelector('a[href="/download/macos"]')).not.toBeNull()
     expect(pages[0]?.textContent).toContain('正式购买尚未开放')
     expect(host.querySelector('form')).toBeNull()
+    // 购买开关（config.ts 的 PURCHASE_OPEN）默认关闭：没有购买按钮，商业规则照常写明
+    expect(host.textContent).not.toContain('购买 US$9')
+    expect(pages[0]?.textContent).toContain('3 台 Mac')
+    expect(pages[0]?.textContent).toContain('14 天内可退款')
     // 包含清单配默认快捷键；没发布的功能只标状态、不给键位
     expect(pages[0]?.querySelector('.pricing-amount')?.textContent).toBe('US$9')
     expect(host.querySelectorAll('.pricing-excluded li').length).toBeGreaterThan(0)
@@ -215,7 +221,7 @@ describe('定价与激活', () => {
 
   it('激活页：拿到密钥后显示密钥与 umuo:// 深链接', async () => {
     const fetchMock = vi.fn(async () =>
-      Response.json({ ok: true, status: 'ready', key: 'UMUO-ABCDE-FGHJK-MNPQR-STVWX' }),
+      Response.json({ licenseKey: 'UMUO-ABCDE-FGHJK-MNPQR-STVWX' }),
     )
     vi.stubGlobal('fetch', fetchMock)
     renderAt('/activate?claim=c1')
@@ -231,7 +237,7 @@ describe('定价与激活', () => {
 
   it('激活页：刷新后（地址里已没有领取码）从本标签页存下的继续', async () => {
     window.sessionStorage.setItem('umuo-claim', 'c2')
-    const fetchMock = vi.fn(async () => Response.json({ ok: true, status: 'pending' }))
+    const fetchMock = vi.fn(async () => Response.json({ status: 'pending' }))
     vi.stubGlobal('fetch', fetchMock)
     renderAt('/activate')
     await settle()
@@ -244,9 +250,7 @@ describe('定价与激活', () => {
       const fetchMock = vi
         .fn()
         .mockRejectedValueOnce(new TypeError('network'))
-        .mockResolvedValueOnce(
-          Response.json({ ok: true, status: 'ready', key: 'UMUO-ABCDE-FGHJK-MNPQR-STVWX' }),
-        )
+        .mockResolvedValueOnce(Response.json({ licenseKey: 'UMUO-ABCDE-FGHJK-MNPQR-STVWX' }))
       vi.stubGlobal('fetch', fetchMock)
       renderAt('/activate?claim=c3')
       await settle()

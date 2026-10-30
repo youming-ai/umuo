@@ -1,6 +1,6 @@
 # PRD 实现与验收清单
 
-2026-10-23 · 对应 [PRD v0.5](PRD.md)；开发次序见 [IMPLEMENTATION-PLAN.md](IMPLEMENTATION-PLAN.md)。
+2026-10-30 · 对应 [PRD v0.6](PRD.md)；开发次序见 [IMPLEMENTATION-PLAN.md](IMPLEMENTATION-PLAN.md)。
 本表区分已有代码、新范围调整、未实现与真机验收。范围确认不会自动把未实现项标成完成。
 精简前的完整实现证据保存在 [v0.4 快照](archive/PRD-CONFORMANCE-v0.4.md)，其中退出范围的条目不再作为首版要求。
 
@@ -12,8 +12,8 @@
 | 编号 | PRD | 要求 | 状态 | 实现证据与剩余验收 |
 | --- | --- | --- | --- | --- |
 | T1 | §5.2 | AX 取词、复制降级与剪贴板保护 | ✅ | `Platform/Selection.swift`、`Pasteboard.swift`；Swift 规则/selftest 已有，真实应用兼容继续走查 |
-| T2 | §5.1–5.2 | 非激活流式浮窗、复制/朗读/钉住/拖动/缩放 | 🟡 | `Panel/`、`Platform/Speech.swift`；#107 通过 `FloatingPanelChrome` 使用非激活系统面板，顶部拖动、四边缩放；macOS 26 使用 `floatingSurface` Liquid Glass，14–15 回落系统材质；焦点、缩放、外观与多显示器仍需真机验收 |
-| T3 | §5.3 | 简单输入翻译窗 | 🟡 | `Compose/`：第四批已移除回译与临时换模型，保留源/目标语言、自动翻译、复制与复制粘贴；#107 共用系统面板外壳与按系统版本切换的材质；直接输入、粘贴回原应用与外观仍待真机验收 |
+| T2 | §5.1–5.2 | 非激活流式浮窗、复制/朗读/钉住/拖动/缩放 | 🟡 | `Panel/`、`Platform/Speech.swift`；#107 通过 `FloatingPanelChrome` 使用非激活系统面板，顶部拖动、四边缩放；macOS 26 使用 `floatingSurface` Liquid Glass，14–15 回落系统材质；#116 输入法组字中按 Esc 只取消组字、不关浮窗不取消翻译，原文超过三行可展开/收起、新翻译开始时收回；焦点、缩放、外观与多显示器仍需真机验收 |
+| T3 | §5.3 | 简单输入翻译窗 | 🟡 | `Compose/`：第四批已移除回译与临时换模型，保留源/目标语言、自动翻译、复制与复制粘贴；#107 共用系统面板外壳与按系统版本切换的材质；#116 记下发出翻译时的原文与语言，只有与当前输入一致时才可提交，旧译文不会被提交；直接输入、粘贴回原应用与外观仍待真机验收 |
 | T4 | §5.4 | 选区或整框原地翻译，失败不改原文 | 🟡 | `Platform/AXWriteBack.swift`、`umuo-app/src/translate/`；已有守卫测试，真实应用与同应用焦点变化待验 |
 | T5 | §5.2 | 单词语境释义与朗读 | 🟡 | `umuo-core/src/word_card.rs`、`Panel/WordCardView.swift`：第四批只保留词、发音、语境释义与朗读；真机待验收 |
 
@@ -32,12 +32,12 @@
 | 编号 | PRD | 要求 | 状态 | 完成证据要求 |
 | --- | --- | --- | --- | --- |
 | V1 | §5.11、§8 | 本地转写候选、模型与许可验证 | 🟡 | `scripts/asr-fixtures.ts`、`scripts/asr-runner.swift`、`scripts/asr-eval.ts` 及 `asr-eval.test.ts` 已完成 `transcribe.cpp` v0.4.1 与 4 份 GGUF 权重在 Apple M2 Pro 上的实测（见 `research/local-transcription-engines.md`）：选定 `Qwen3-ASR-0.6B-Q4_K_M.gguf`（562.3 MiB，Apache-2.0），16 条合成语音平均误差 0.67%、热推理 142.4 ms（30.6× RT）、峰值 `phys_footprint` 333.1 MB、卸载回落至 108.7 MB；平台范围已确认只针对 Apple Silicon（M 系列）+ macOS 14+；真人麦克风录音样本待阶段 C 补充 |
-| V2 | §5.11、§7.4 | 模型下载、校验、取消/重试、加载/卸载 | ⬜ | 首次语音使用才下载，失败恢复与资源释放有证据 |
-| V3 | §5.11、§7.2 | 麦克风、按住录音/松开结束/Esc 取消 | ⬜ | Swift 录音实现、用途说明、权限引导、设备/错误处理与真机结果 |
-| V4 | §5.11、§7.5 | 会话状态与旧结果隔离 | ⬜ | umuo-app 规则与假音频测试，取消、重复触发及迟到结果不污染当前任务 |
-| V5 | §5.7、§5.11 | 同语言整理与目标语言翻译 | ⬜ | Rust 任务与现有 provider/Key/请求复用；否定、数字、金额、日期、姓名和自我纠正样本 |
-| V6 | §5.11 | 原目标输入框交付 | ⬜ | 目标捕获与复核、AX/受控粘贴、用户复制保护；同应用换框和跨应用均不误写 |
-| V7 | §5.11 | 失败保留转写，音频清理，结果可复制重试 | ⬜ | 翻译失败不自动交付源语言；临时音频生命周期测试与隐私说明 |
+| V2 | §5.11、§7.4 | 模型下载、校验、取消/重试、加载/卸载 | 🟡 | `Voice/VoiceModelStore.swift`、`LocalTranscriber.swift`、`voice_session/model.rs`：首次使用才在浮层下载，`.partial` + Range 续传、超长或 SHA-256 不符即删、校验后原子改名；宿主进程内 mmap 加载、串行队列、abort 取消、空闲 300 s 卸载；`Package.swift` 以 binaryTarget 引入 transcribe.cpp v0.4.1 并校验 checksum，`bundle.sh` 拷入并签名框架、附四份许可。真实 562 MB 下载、HF 重定向后 Range、首推 Metal 初始化时延（约 45 s，尚无单独「初始化」状态）待真机 |
+| V3 | §5.11、§7.2 | 麦克风、按住录音/松开结束/Esc 取消 | 🟡 | `Voice/SystemVoiceRecorder.swift`（AVAudioEngine 跟随系统默认输入，16 kHz 单声道）、`GlobalHotkeys` 松开事件；两个语音键：`voiceHotkey` 整理（默认 ⌥⌘V）、`voiceTranslateHotkey` 翻译（默认 ⌃⌘V），进设置翻译页「语音输入」分组并参与冲突检查；`Platform/EscapeRouter.swift` 统一全局 Esc，按最近认领的浮层路由、无人认领即注销；`NSMicrophoneUsageDescription` 四语言与 `audio-input` entitlement。授权弹框、拒绝权限、换设备、⌃⌘V 占用情况待真机 |
+| V4 | §5.11、§7.5 | 会话状态与旧结果隔离 | 🟡 | `crates/umuo-app/src/voice_session/`：纯状态机，会话号单调递增，非当前会话结果不改状态，Esc 分阶段丢弃录音/中止转写/取消后处理；`umuo-ffi/src/voice_session.rs` 导出，`VoiceController` 执行副作用；Rust 与 Swift 假音频测试覆盖迁移、重复触发、取消、迟到结果；真机连按与各阶段 Esc 待验 |
+| V5 | §5.7、§5.11 | 同语言整理与目标语言翻译 | 🟡 | `umuo-core/src/voice.rs`、`umuo-app/src/voice/`；FFI `Engine.start_voice`（同步启动、句柄取消、sink 回一次）经 `VoicePostProcessor.swift` 接入会话，按下的键决定任务、重试沿用；成功且完整的结果写 `voice` 场景历史（尊重关闭记录与隐私模式）；首次引擎加载显示「正在准备语音引擎」。真机质量评估待做 |
+| V6 | §5.11 | 原目标输入框交付 | 🟡 | `Voice/VoiceDelivery.swift`：按下时记 pid/焦点元素/窗口，交付前依次核验权限、应用存活、前台、`CFEqual` 同元素同窗口、非安全输入；可写文本控件写 `AXSelectedText`（有选区替换、无则插入），不可判定或 Electron 类走受控粘贴（与取词互斥、快照剪贴板、⌘V 前复核、0.35 s 后仅在未被改动时恢复），非输入角色与终端拒绝；不合成回车；只交付当前会话完整结果，成功收起、拒绝保留可复制并说明原因；`VoiceDeliveryTests` 假 AX/私有剪贴板覆盖。未核验「相关文本上下文」；浏览器重渲染误判换框、Chromium 写入假成功、Electron 慢读剪贴板、安全输入等待真机 |
+| V7 | §5.11 | 失败保留转写，音频清理，结果可复制重试 | 🟡 | `VoiceFailure` 带回转写；截断与失败在浮层显示原因、可复制可重试、不交付不记历史；`VoiceAudioFiles` 临时文件 0600、结束/取消即删、启动清扫。Esc 恰在后处理请求发出前时仍会发出一次并按会话号丢弃（与翻译流水线一致） |
 
 ## 模型与基础体验
 
@@ -46,22 +46,23 @@
 | B1 | §2.2、§6.1 | BYOK 供应商、自定义端点、本地文字模型、必要代理 | ✅ | `umuo-core/src/provider.rs`、`transport.rs`、`umuo-app/src/ops.rs`、`proxy.rs`；不代表任意模型都支持语音接口 |
 | B2 | §6.4 | Keychain、Key 永不回显、配置保留未知字段 | ✅ | `Platform/Keychain.swift`、`SwiftHost.swift`、`settings_patch.rs`、`config_io.rs` |
 | B3 | §6.3、§7.5 | 取消、超时、长文分片与截断保护 | ✅ | `umuo-core/src/chunk.rs`、`transport.rs`、`umuo-app/src/translate/`、`tests/pipeline.rs` |
-| B4 | §5.9 | 基础本地记录及关闭记录 | 🟡 | `History/`、`umuo-store`、`history.rs`：第四批移除收藏与来源/模型筛选，保留搜索、删除、清空、复制、再次编辑与关闭记录；旧收藏数据保留；#105 的清空确认改为异步窗口附属警告表单，回车取消；#107 将搜索与清空移入系统工具栏（`HistoryWindowController`），保持搜索防抖，无记录且无搜索条件时禁用清空；历史窗已改系统 List，保留完整译文与文本选择，重载清理失效选择、删除前核验可见记录，`HistoryTests` 覆盖选择与删除回归 |
-| B5 | §7 | 单一当前模型、菜单/快捷键/设置/首次引导收敛 | 🟡 | 已收敛为四个活跃文字/OCR 动作，退役键位不注册/不冲突；第二批已移除风格/术语管理及注入；第三批统一为一个当前模型，移除分场景/备用模型、本机自动回落、月度上限与费用报表，见依赖清单；#105 的设置说明常显、模型使用可编辑系统组合框、导入选文件后执行、导出结果与访达定位单独显示；首次引导改分组 Form、共用权限行与本地化窗口标题，界面与权限需真机验收 |
+| B4 | §5.9 | 基础本地记录及关闭记录 | 🟡 | `History/`、`umuo-store`、`history.rs`：第四批移除收藏与来源/模型筛选，保留搜索、删除、清空、复制、再次编辑与关闭记录；旧收藏数据保留；#105 的清空确认改为异步窗口附属警告表单，回车取消；#107 将搜索与清空移入系统工具栏（`HistoryWindowController`），保持搜索防抖，无记录且无搜索条件时禁用清空；历史窗已改系统 List，保留完整译文与文本选择，重载清理失效选择、删除前核验可见记录，`HistoryTests` 覆盖选择与删除回归；#116 多读一条判断是否还有更多，末尾显示「已显示最近 N 条 · 显示更多」 |
+| B5 | §7 | 单一当前模型、菜单/快捷键/设置/首次引导收敛 | 🟡 | 已收敛为四个活跃文字/OCR 动作，退役键位不注册/不冲突；第二批已移除风格/术语管理及注入；第三批统一为一个当前模型，移除分场景/备用模型、本机自动回落、月度上限与费用报表，见依赖清单；#105 的设置说明常显、模型使用可编辑系统组合框、导入选文件后执行、导出结果与访达定位单独显示；首次引导改分组 Form、共用权限行与本地化窗口标题；#114 提高菜单栏模板图标清晰度；#116 快捷面板读取期间切换的暂停状态以用户操作为准，首次读取失败也能显示；界面与权限需真机验收 |
 | B6 | §8 | 无障碍、原生交互、四语言界面 | 🟡 | `Localizable.xcstrings` 与原生控件已有；`SettingsPaneController` 同步工具栏、窗口标题及图标辅助功能文案，`SettingsPaneLocalizationTests` 覆盖首次载入、四语言切换及保存失败回滚；菜单栏标题改用当前界面语言，提示/错误行、OCR 编辑器与暂停开关改用原生控件；新增文案、VoiceOver、键盘、输入法、对比度和减少动态效果需真机验收 |
 | B7 | §6.4、§8 | 老用户配置、历史、Key、登录项兼容 | 🟡 | 标识与存储路径保留；精简迁移及正式包升级仍需验收，旧迁移不改写 |
 
 ## 买断授权与官网
 
-订阅、官方额度与 AI 网关退出当前范围；已有官网订阅文案不代表已实现收费客户端。
-买断许可已进入开发范围，价格定为 9 美元（2026-10-27）；设备数、试用/退款、更新权益和最终支付方案尚未确定。
+订阅、官方额度与 AI 网关退出当前范围；官网 Worker 已改为一次性商品，客户端已有许可证与试用；购买入口由 `PURCHASE_OPEN` 控制，默认关闭。
+**发版约束**：客户端含试用门控，正式购买开放之前不得发布新客户端，否则用户 7 天后被拦且无处购买。
+商业参数 2026-10-30 定案：US$9 一次性买断；每个许可证最多激活 3 台 Mac，可自助解绑换机；7 天免费试用；购买 14 天内可退款，退款后许可证失效；永久免费更新；沿用 Waffo，先在 test 环境走通购买→激活→解绑→退款闭环，再由用户在 Waffo 后台建 prod 商品后切线上。
 
 | 编号 | PRD | 要求 | 状态 | 完成证据要求 |
 | --- | --- | --- | --- | --- |
-| C1 | §5.12、§10 | 商业参数与一次性商品/授权方案 | ⬜ | 明确金额、设备/试用/退款/更新权益，审查现有支付能力 |
-| C2 | §5.12 | 购买、许可证发放、激活、状态、解绑/换机 | ⬜ | 支付与授权测试闭环；客户端独立授权状态，不要求 umuo 账号 |
-| C3 | §5.12、§6.4 | 退款、失效与离线状态、凭据分离 | ⬜ | 明确行为及自动回归；服务端不处理模型 Key、正文或音频 |
-| C4 | §11 | 五语言首页、定价、条款、隐私、购买/激活 | 🟡 | `site/apps/web/src/content/`：已改为买断 BYOK，五语言定价页展示 US$9、未开放购买；首页增加 OCR 演示与买断 BYOK 说明，删除订阅/额度与已退出功能，语音标「开发中」；条款/隐私 v2.0 按请求直连改写。商业参数与支付处理方定案后补全 |
+| C1 | §5.12、§10 | 商业参数与一次性商品/授权方案 | ✅ | 参数已定案（见上）；`site/worker/src/billing.ts` 订阅模型换为一次性商品（`WAFFO_PRODUCT_LICENSE`），`waffo-setup.ts` 建 US$9 一次性商品（税类 Software）；正式环境商品尚未创建 |
+| C2 | §5.12 | 购买、许可证发放、激活、状态、解绑/换机 | 🟡 | Worker：checkout、`order.completed` 签发、claim、activate（3 台，409 `device_limit`，同设备幂等）、verify、deactivate，`billing.test.ts` 全覆盖；客户端 `apps/macos/Sources/Umuo/License/`：Keychain 存密钥/设备/试用起点、7 天试用、`ActionRouter.gate` 拦四个翻译入口、设置「许可证」页激活/解绑、`umuo://activate` 深链接填入；`LicenseTests` 假网络覆盖。KV 最终一致，近同时激活可能超过 3 台。Waffo test 环境闭环与真机待验 |
+| C3 | §5.12、§6.4 | 退款、失效与离线状态、凭据分离 | 🟡 | `refund.succeeded` 吊销（含部分退款，按只做全额退款处理）；客户端 24 h 验证、离线宽限 14 天，revoked/invalid/not_activated 立即失效，400/429/503 按网络失败；许可证 Keychain service `<Bundle ID>.license` 与模型 Key 分开。test 环境退款闭环待验 |
+| C4 | §11 | 五语言首页、定价、条款、隐私、购买/激活 | 🟡 | 五语言改为买断：3 台、7 天试用、14 天退款、永久更新，订阅残留删除；条款/隐私升 v2.2（2026-10-30）点名 Waffo 与所存数据；`PURCHASE_OPEN`（`site/apps/web/src/config.ts`，默认 false）控制首页/定价页「购买 US$9」按钮与 `PurchaseButton`。#121 删除条款与隐私中「重大变更邮件通知购买者」的承诺（不做账户、不存邮箱），隐私补语音输入与 Hugging Face 模型下载，演示键位改为 ⌃⌘V / ⌥⌘V；打开前须量首页一屏 |
 
 ## 更新与发布
 
@@ -70,7 +71,7 @@
 | R1 | §12 | Sparkle 代码与签名清单链路 | 🟡 | `App/AppUpdater.swift`、`bundle.sh`、`scripts/sparkle-appcast.ts` 与 Worker 路由已改；本机签名冒烟通过，未发布 |
 | R2 | §12 | 正式密钥、线上路由、N → N+1 更新 | ⬜ | 真实下载、验签、替换、重启全流程，不能以本机清单生成替代 |
 | R3 | §8、§12 | Developer ID、公证、Gatekeeper、DMG 与系统权限 | ⬜ | 实际正式产物及安装/升级记录 |
-| R4 | §8、§12 | 双架构真机、原生 release 性能 | ⬜ | 按 `RELEASE-GATES.md` 新测，旧 Tauri 数字不算通过 |
+| R4 | §8、§12 | Apple Silicon 真机、原生 release 性能 | ⬜ | 按 `RELEASE-GATES.md` 新测，旧 Tauri 数字不算通过 |
 | R5 | §12 | 旧用户桥接、官网直装与 Homebrew | ⬜ | 先解决旧系统版本门槛，再验证配置/历史/Key/登录项保留；Homebrew Cask 未建立 |
 
 ## 本轮精简的执行状态
@@ -153,3 +154,20 @@ FFI 自检及签名打包冒烟，包内自检 69 项通过、7 项因 TCC 未�
 用户确认硬件范围收敛为 Apple Silicon（M 系列芯片，`arm64`）+ macOS 14+，不再考虑 Intel。
 新增 `scripts/asr-runner.swift`、`scripts/asr-eval.ts` 与 `scripts/asr-eval.test.ts`（根工具测试增至 10 项全通过），在 Apple M2 Pro（32 GB，macOS 27.2）上对 `transcribe.cpp` v0.4.1（`TranscribeCpp.xcframework`）及 `Qwen3-ASR-0.6B` / `SenseVoiceSmall` 的 `Q4_K_M`、`Q8_0` 共 4 份 GGUF 模型完成 17 条夹具、SHA-256 校验、冷/热延迟、`phys_footprint`、取消重试与异常输入守卫实测。
 选定 `Qwen3-ASR-0.6B-Q4_K_M.gguf`（562.3 MiB，Apache-2.0）为默认模型，采用 Swift 宿主进程内加载 + `mmap` + 空闲自动卸载方案（峰值 `phys_footprint` 333.1 MB，卸载回落至 108.7 MB）。详见 `docs/research/local-transcription-engines.md`。
+
+2026-10-29 #114–#117 合入后（`beed455`）：#116 修复撰写窗只提交与当前输入一致的译文、快捷面板暂停开关以用户操作为准、
+输入法组字中 Esc 只取消组字、历史「显示更多」与浮窗长原文展开，`ComposeTests`/`HistoryTests`/`PanelSessionTests`/`QuickTests` 补回归；
+#114 提高菜单栏图标清晰度；#115/#117 为官网与 `.gitignore`。2026-10-30 本机根 `bun run verify` 全通过：353 项 Rust 测试、
+254 项 Swift Testing（41 个 suite）、FFI 自检及签名打包冒烟；包内自检 69 项通过、7 项因 TCC 未授权或需人工交互跳过。未发布，不提升真机验收状态。
+
+2026-10-30 用户取消开源与仓库公开计划：恢复闭源专有许可、Cargo/npm 许可元数据和五语言官网原有条款，移除 AGPL 许可文件及公开准备事项。仓库继续私有，未改远端历史或部署官网；US$9 买断及既定设备/试用/退款/更新权益保留。历史审计材料仍仅保存在本机私有目录。保留 `.claude/worktrees` 的 Git/Biome 忽略规则，避免本机独立工作树阻断验证。
+回退后验证：根 `bun run verify` 在独立 TMPDIR 下全通过（先前两次误并行验证因 Rust 测试共用临时路径失败）；`site/` Node 24 完整 verify 通过。闭源许可元数据及五语言条款与开源前版本一致性核验通过，GitHub 可见性确认为 PRIVATE。
+
+2026-10-30 阶段 C、D（Rust）与 F 集成（`feat/voice-license-integration`）：录音与会话状态机、语音整理/翻译 Rust 任务、客户端许可证与试用、
+Worker 一次性买断与官网购买入口（默认关闭）合入同一分支，解决 `umuo-app/src/lib.rs` 与 `Info.plist` 注释两处冲突。
+本机根 `bun run verify` 全通过：398 项 Rust 测试、308 项 Swift Testing（49 个 suite）、FFI 自检及签名打包冒烟；包内自检 74 项通过、9 项因 TCC 未授权跳过。
+`site/` 的 `bun run verify` 全通过：13 个文件 208 项 Vitest。真实模型下载与推理、麦克风、Waffo test 环境闭环与真机均未验证；未发布。
+
+2026-10-30 语音后处理接入与阶段 E（`feat/voice-delivery`，`03d8cb8`、`a7cc07b`）：`Engine.start_voice` FFI、双语音键与设置冲突检查、`EscapeRouter`、
+`voice` 历史场景、`VoiceDelivery` 目标核验与 AX/受控粘贴交付。根 `bun run verify` 全通过：Rust umuo-app 163、umuo-core 168、umuo-ffi 23、umuo-store 45、
+pipeline 15、event_wire 1，fmt/clippy 通过；341 项 Swift Testing（53 个 suite）；包内自检 75 项通过、9 项因 TCC 未授权跳过；签名打包冒烟通过。真机交付各路径未验证；未发布。

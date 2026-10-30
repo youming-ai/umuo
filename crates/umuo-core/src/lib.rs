@@ -22,6 +22,7 @@
 //! | [`usage`] | Token 计量 | §6.5 |
 //! | [`lang`] | 语言判断与「源=目标」时的切换规则 | §5.2 |
 //! | [`word_card`] | 单词模式判定与词卡结构 | §5.2 |
+//! | [`voice`] | 语音转写的同语言整理与翻译指令 | §5.7、§5.11 |
 //! | [`transport`] | HTTP 发送与流式读取（唯一碰网络的地方） | §6.3、§8 |
 
 /// 持久化结构里本版本不认识的字段：读进来原样保留、保存时原样写回。
@@ -41,6 +42,7 @@ pub mod provider;
 pub mod proxy;
 pub mod transport;
 pub mod usage;
+pub mod voice;
 pub mod wire;
 pub mod word_card;
 

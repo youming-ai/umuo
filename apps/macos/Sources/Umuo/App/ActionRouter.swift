@@ -25,6 +25,8 @@ final class ActionRouter {
     private var handlers: [HotkeyAction: @MainActor () -> Void] = [:]
     /// 已接上处理函数的功能。
     var handled: Set<HotkeyAction> { Set(handlers.keys) }
+    /// 授权门控（`LicenseGate.gate`）：返回 false 就不执行，由它负责告诉用户为什么。nil = 不门控。
+    var gate: (@MainActor (HotkeyAction) -> Bool)?
 
     /// 接上（或替换）一个功能的处理函数。
     func handle(_ action: HotkeyAction, _ handler: @escaping @MainActor () -> Void) {
@@ -38,6 +40,8 @@ final class ActionRouter {
             print("umuo: 「\(action.rawValue)」还没有接上窗口（阶段 3 的对应窗口里接）")
             return false
         }
+        // 被门控拦下也算接住了：说明已经弹给用户
+        if let gate, !gate(action) { return true }
         handler()
         return true
     }

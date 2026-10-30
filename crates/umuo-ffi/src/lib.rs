@@ -23,6 +23,8 @@ pub mod hotkey;
 pub mod ops;
 pub mod panel;
 pub mod stub;
+pub mod voice;
+pub mod voice_session;
 
 /// 按书写系统判断语言，返回 BCP-47 短码；判断不出时为空。
 #[uniffi::export]

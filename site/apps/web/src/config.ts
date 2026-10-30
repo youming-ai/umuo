@@ -32,14 +32,23 @@ export const LEGAL_COUNTRY = {
 } as const
 
 /** 条款版本与生效日期；改条款时一起改，重大变更需提前 14 天邮件通知现有用户 */
-export const LEGAL_VERSION = '2.1'
-export const LEGAL_EFFECTIVE = '2026-10-29'
+export const LEGAL_VERSION = '2.2'
+export const LEGAL_EFFECTIVE = '2026-10-30'
 
 /**
  * macOS 安装包地址。由 Worker 读 R2 里的 macos/latest.json 给出最新版（见 worker/src/releases.ts）；
  * 客户端仓库每次合进 main 都会自动发一个新版本。设回 null 则下载按钮变为不可点。
  */
 export const MACOS_DOWNLOAD_URL: string | null = '/download/macos'
+
+/**
+ * 购买开关：打开后，首页与定价页的下载区出现「购买 US$9」按钮（调 Worker 的 `/api/checkout`）。
+ *
+ * **默认关闭**：main 合入会自动部署到正式 umuo.app，而正式 Waffo 店铺建好一次性商品、
+ * void.config.ts 写入 WAFFO_PRODUCT_LICENSE 之前，`/api/checkout` 只会回 503。
+ * 关闭时定价页照旧写「尚未开放购买」。上线顺序见 docs/DEPLOY.md「收费」一节，最后一步才是把这里改成 true。
+ */
+export const PURCHASE_OPEN: boolean = false
 
 /** 语言切换顺序与 <html lang> 映射（PRD §11.4） */
 export const LOCALES = ['zh-cn', 'zh-tw', 'en', 'ja', 'ko'] as const

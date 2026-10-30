@@ -3,14 +3,16 @@ import {
   type BillingDeps,
   type BillingEvent,
   type ClaimRecord,
+  handleActivate,
   handleCheckout,
   handleClaim,
+  handleDeactivate,
   handlePortal,
   handleVerify,
   handleWebhook,
-  isEntitled,
   type LicenseRecord,
   licenseKeyHash,
+  MAX_DEVICES,
   newBuyerIdentity,
   newLicenseKey,
   normalizeLicenseKey,
@@ -39,8 +41,7 @@ const CONFIGURED = {
   WAFFO_MERCHANT_ID: 'MER_3x7Kp9QwZr2Lm8NvB4tYcd',
   WAFFO_PRIVATE_KEY: '-----BEGIN PRIVATE KEY-----',
   WAFFO_STORE_ID: STORE_ID,
-  WAFFO_PRODUCT_PREMIUM_MONTHLY: 'PROD_monthly',
-  WAFFO_PRODUCT_PREMIUM_YEARLY: 'PROD_yearly',
+  WAFFO_PRODUCT_LICENSE: 'PROD_license',
 }
 
 function makeEnv(store: NotifyStore, waffo: Partial<Env> = CONFIGURED): Env {
@@ -53,7 +54,7 @@ function makeEnv(store: NotifyStore, waffo: Partial<Env> = CONFIGURED): Env {
   }
 }
 
-/** 假 Waffo：记下收到的参数，返回固定链接 */
+/** 假 Waffo：记下收到的参数，返回固定链接；不打网络 */
 function fakeClient() {
   const calls: { checkout: Array<Record<string, unknown>>; portal: unknown[] } = {
     checkout: [],
@@ -80,9 +81,9 @@ const post = (path: string, body: unknown, headers: Record<string, string> = {})
   })
 
 /**
- * 按 Waffo 文档的真实形状造事件：订阅类事件的顶层 `id` 与 `eventId` 都是**订单号**
- * （renewed / canceling 等的 eventId 另带后缀），所以同一订单的不同事件 `id` 相同。
- * 旧测试给每个事件不同的 id，正好掩盖了「按 id 去重会吞掉后续事件」这个 bug。
+ * 按 Waffo 文档的形状造事件：一次性商品付款成功是 `order.completed`（eventId 是付款号、
+ * orderStatus 为 completed），退款是 `refund.succeeded`（eventId 是退款号）。
+ * 实际投递里顶层 `id` 可能就是订单号，所以同一订单的两个事件 `id` 相同——不能只按 id 去重。
  */
 let clock = Date.parse('2026-10-19T00:00:00Z')
 function event(
@@ -92,17 +93,9 @@ function event(
 ): BillingEvent {
   const orderId = data.orderId ?? 'ORD_1'
   clock += 60_000
-  const suffix =
-    eventType === 'subscription.renewed'
-      ? `-renewed-${data.currentPeriodEnd}`
-      : ['subscription.canceling', 'subscription.uncanceled', 'subscription.past_due'].includes(
-            eventType,
-          )
-        ? `-${new Date(clock).toISOString()}`
-        : ''
   return {
     id: orderId,
-    eventId: `${orderId}${suffix}`,
+    eventId: eventType === 'refund.succeeded' ? `REF_${clock}` : `PAY_${clock}`,
     eventType,
     timestamp: new Date(clock).toISOString(),
     mode: 'test',
@@ -134,10 +127,10 @@ const claimRequest = (token: string) =>
   })
 
 /** 走一遍结账，返回领取码与这次结账的身份 */
-async function checkout(store: NotifyStore, plan = 'premium-monthly') {
+async function checkout(store: NotifyStore) {
   const { deps, calls } = fakeClient()
   await handleCheckout(
-    post('/api/checkout', { plan, email: 'ada@example.com' }),
+    post('/api/checkout', { email: 'ada@example.com', locale: 'en' }),
     makeEnv(store),
     deps,
   )
@@ -145,40 +138,49 @@ async function checkout(store: NotifyStore, plan = 'premium-monthly') {
   return { token: params.metadata.claim as string, identity: params.buyerIdentity }
 }
 
-/** 结账 + 激活，返回密钥 */
-async function activate(store: NotifyStore, entries: Map<string, string>) {
+const paid = (identity: string, token: string, orderId = 'ORD_1') =>
+  event('order.completed', {
+    orderId,
+    orderStatus: 'completed',
+    merchantProvidedBuyerIdentity: identity,
+    orderMetadata: { claim: token },
+  })
+
+/** 结账 + 付款成功，返回密钥 */
+async function purchase(store: NotifyStore, entries: Map<string, string>) {
   const { token, identity } = await checkout(store)
-  await webhook(
-    store,
-    event('subscription.activated', {
-      orderStatus: 'active',
-      merchantProvidedBuyerIdentity: identity,
-      orderMetadata: { claim: token },
-      billingPeriod: 'monthly',
-      currentPeriodEnd: '2026-10-20',
-    }),
-  )
+  await webhook(store, paid(identity, token))
   const key = (JSON.parse(entries.get(`claim:${token}`) ?? '') as ClaimRecord).key as string
   return { token, identity, key }
 }
 
-async function verify(store: NotifyStore, key: string, now = '2026-10-19T00:00:00Z') {
-  const response = await handleVerify(post('/api/license/verify', { key }), makeEnv(store), {
-    now: () => new Date(now),
-  })
-  return (await response.json()) as Record<string, unknown>
+const call = async (
+  handler: (request: Request, env: Env, deps?: BillingDeps) => Promise<Response>,
+  path: string,
+  store: NotifyStore,
+  body: unknown,
+) => {
+  const response = await handler(post(path, body), makeEnv(store), { now: verifyDeps.now })
+  return { status: response.status, body: (await response.json()) as Record<string, unknown> }
 }
+const activate = (store: NotifyStore, licenseKey: string, deviceId: string, deviceName = 'Mac') =>
+  call(handleActivate, '/api/license/activate', store, { licenseKey, deviceId, deviceName })
+const verify = (store: NotifyStore, licenseKey: string, deviceId: string) =>
+  call(handleVerify, '/api/license/verify', store, { licenseKey, deviceId })
+const deactivate = (store: NotifyStore, licenseKey: string, deviceId: string) =>
+  call(handleDeactivate, '/api/license/deactivate', store, { licenseKey, deviceId })
 
 describe('waffoConfig', () => {
   it('缺任何一项都不算配好——宁可 503，也不带着半套配置去收钱', () => {
     const store = fakeStore().store
     expect(waffoConfig(makeEnv(store, {}))).toBeNull()
     expect(waffoConfig(makeEnv(store, { ...CONFIGURED, WAFFO_PRIVATE_KEY: '' }))).toBeNull()
+    expect(waffoConfig(makeEnv(store, { ...CONFIGURED, WAFFO_PRODUCT_LICENSE: '' }))).toBeNull()
     expect(waffoConfig(makeEnv(store, { ...CONFIGURED, WAFFO_ENV: 'staging' }))).toBeNull()
   })
 
-  it('配齐时按套餐给出商品 ID', () => {
-    expect(waffoConfig(makeEnv(fakeStore().store))?.products['premium-yearly']).toBe('PROD_yearly')
+  it('配齐时给出买断商品 ID', () => {
+    expect(waffoConfig(makeEnv(fakeStore().store))?.productId).toBe('PROD_license')
   })
 })
 
@@ -197,7 +199,7 @@ describe('身份与密钥', () => {
   it('每次结账的买家身份都是随机的，同一个邮箱也不相同（防止凭邮箱冒领他人的会话）', async () => {
     const { store } = fakeStore()
     const { deps, calls } = fakeClient()
-    const body = { plan: 'premium-monthly', email: 'ada@example.com' }
+    const body = { email: 'ada@example.com', locale: 'en' }
     await handleCheckout(post('/api/checkout', body), makeEnv(store), deps)
     await handleCheckout(post('/api/checkout', body), makeEnv(store), deps)
     const [first, second] = calls.checkout.map((params) => params.buyerIdentity)
@@ -206,82 +208,63 @@ describe('身份与密钥', () => {
   })
 })
 
-describe('isEntitled', () => {
-  const base: LicenseRecord = {
-    identity: 'u_x',
-    orderId: 'ORD_1',
-    plan: 'premium-monthly',
-    status: 'active',
-    currentPeriodEnd: '2026-10-31',
-    keyHash: 'h',
-    mode: 'test',
-    lastEventAt: '',
-    updatedAt: '',
-  }
-  const at = (iso: string) => new Date(iso)
-
-  it('active / canceling / past_due 在账期内都算有效；canceled / refunded 立即失效', () => {
-    for (const status of ['active', 'canceling', 'past_due']) {
-      expect(isEntitled({ ...base, status }, at('2026-10-20T00:00:00Z'))).toBe(true)
-    }
-    for (const status of ['canceled', 'refunded']) {
-      expect(isEntitled({ ...base, status }, at('2026-10-20T00:00:00Z'))).toBe(false)
-    }
-  })
-
-  it('只有日期的账期按当天结束算，再给 3 天宽限', () => {
-    expect(isEntitled(base, at('2026-11-03T23:00:00Z'))).toBe(true)
-    expect(isEntitled(base, at('2026-11-04T00:00:01Z'))).toBe(false)
-  })
-})
-
 describe('POST /api/checkout', () => {
-  it('没配 Waffo 时回 503', async () => {
-    const response = await handleCheckout(
-      post('/api/checkout', { plan: 'premium-monthly', email: 'ada@example.com' }),
-      makeEnv(fakeStore().store, {}),
-    )
-    expect(response.status).toBe(503)
+  it('没配 Waffo（含正式环境还没建买断商品）时回 503', async () => {
+    const { WAFFO_PRODUCT_LICENSE: _, ...withoutProduct } = CONFIGURED
+    for (const waffo of [{}, withoutProduct]) {
+      const response = await handleCheckout(
+        post('/api/checkout', { email: 'ada@example.com', locale: 'en' }),
+        makeEnv(fakeStore().store, waffo),
+      )
+      expect(response.status).toBe(503)
+    }
   })
 
-  it('套餐或邮箱不合法时回 400，不碰 Waffo', async () => {
+  it('请求体不是 JSON 对象、或给了不像邮箱的邮箱时回 400，不碰 Waffo', async () => {
     const { store } = fakeStore()
     const { deps, calls } = fakeClient()
     const env = makeEnv(store)
-    const bad = [
-      { plan: 'pro', email: 'a@b.com' },
-      { plan: 'premium-monthly', email: 'x' },
-    ]
-    for (const body of bad) {
+    for (const body of ['nope', { email: 'x' }, { email: 42 }]) {
       expect((await handleCheckout(post('/api/checkout', body), env, deps)).status).toBe(400)
     }
     expect(calls.checkout).toHaveLength(0)
   })
 
-  it('领取码记下套餐与这次的身份，付完跳回 /activate；邮箱只用来预填', async () => {
+  it('返回 { url }；领取码记下这次的身份，付完跳回 /activate；邮箱只用来预填，语言映射到收银台', async () => {
     const { store, entries } = fakeStore()
     const { deps, calls } = fakeClient()
     const response = await handleCheckout(
-      post('/api/checkout', { plan: 'premium-yearly', email: ' Ada@Example.com ' }),
+      post('/api/checkout', { email: ' Ada@Example.com ', locale: 'zh-tw' }),
       makeEnv(store),
       deps,
     )
-    expect(await response.json()).toMatchObject({
-      ok: true,
-      checkoutUrl: expect.stringContaining('waffo'),
-    })
+    expect(await response.json()).toEqual({ url: 'https://pancake.waffo.ai/checkout#token=t' })
     const params = calls.checkout[0] as Record<string, unknown>
     const token = (params.metadata as Record<string, string>).claim
-    expect(params).toMatchObject({
-      productId: 'PROD_yearly',
+    expect(params).toEqual({
+      productId: 'PROD_license',
+      buyerIdentity: expect.stringMatching(/^u_/),
       buyerEmail: 'ada@example.com',
+      language: 'zh-Hant-TW',
       successUrl: `https://umuo.app/activate?claim=${token}`,
+      metadata: { claim: token },
     })
     expect(JSON.parse(entries.get(`claim:${token}`) ?? '')).toEqual({
       status: 'pending',
-      plan: 'premium-yearly',
       identity: params.buyerIdentity,
     })
+  })
+
+  it('邮箱可以不给（收银台自己会收），未知语言就交给 Waffo 自己推断', async () => {
+    const { deps, calls } = fakeClient()
+    const response = await handleCheckout(
+      post('/api/checkout', { locale: 'fr' }),
+      makeEnv(fakeStore().store),
+      deps,
+    )
+    expect(response.status).toBe(200)
+    expect(calls.checkout[0]).not.toHaveProperty('buyerEmail')
+    expect(calls.checkout[0]).not.toHaveProperty('language')
   })
 
   it('Waffo 出错时回 502，不把错误细节交给浏览器', async () => {
@@ -294,7 +277,7 @@ describe('POST /api/checkout', () => {
       }),
     }
     const response = await handleCheckout(
-      post('/api/checkout', { plan: 'premium-monthly', email: 'ada@example.com' }),
+      post('/api/checkout', { email: 'ada@example.com' }),
       makeEnv(fakeStore().store),
       deps,
     )
@@ -306,24 +289,14 @@ describe('POST /api/checkout', () => {
 describe('POST /api/waffo/webhook', () => {
   it('签名不对回 401，什么都不写', async () => {
     const { store, entries } = fakeStore()
-    const activated = event('subscription.activated', { orderStatus: 'active' })
-    expect((await webhook(store, activated, 'bad')).status).toBe(401)
+    expect((await webhook(store, paid('u_x', 'c'), 'bad')).status).toBe(401)
     expect(entries.size).toBe(0)
   })
 
   it('别的店铺的事件（签名同样合法：密钥是平台级的）直接忽略，抢不走领取码', async () => {
     const { store, entries } = fakeStore()
     const { token } = await checkout(store)
-    const foreign = event(
-      'subscription.activated',
-      {
-        orderStatus: 'active',
-        merchantProvidedBuyerIdentity: 'u_attacker',
-        orderMetadata: { claim: token },
-        currentPeriodEnd: '2099-01-01',
-      },
-      { storeId: 'STO_someoneElse0000000000' },
-    )
+    const foreign = { ...paid('u_attacker', token), storeId: 'STO_someoneElse0000000000' }
     expect(await (await webhook(store, foreign)).json()).toMatchObject({ ignored: 'store' })
     expect(JSON.parse(entries.get(`claim:${token}`) ?? '').status).toBe('pending')
   })
@@ -331,196 +304,277 @@ describe('POST /api/waffo/webhook', () => {
   it('本店铺的事件，身份对不上领取码时也不交出密钥', async () => {
     const { store, entries } = fakeStore()
     const { token } = await checkout(store)
-    await webhook(
-      store,
-      event('subscription.activated', {
-        orderStatus: 'active',
-        merchantProvidedBuyerIdentity: 'u_someoneElse',
-        orderMetadata: { claim: token },
-      }),
-    )
+    await webhook(store, paid('u_someoneElse', token))
     expect(JSON.parse(entries.get(`claim:${token}`) ?? '').status).toBe('pending')
   })
 
   it('另一个环境的事件直接忽略', async () => {
     const { store, entries } = fakeStore()
-    const prod = event('subscription.activated', { orderStatus: 'active' }, { mode: 'prod' })
-    await webhook(store, prod)
+    await webhook(store, { ...paid('u_x', 'c'), mode: 'prod' })
     expect(entries.size).toBe(0)
   })
 
-  it('首次激活时生成密钥、挂到领取码上；KV 里只有密钥的哈希', async () => {
+  it('付款成功：签发许可证、挂到领取码上；KV 里只有密钥的哈希', async () => {
     const { store, entries } = fakeStore()
-    const { identity, key } = await activate(store, entries)
+    const { identity, key } = await purchase(store, entries)
+    expect(normalizeLicenseKey(key)).toBe(key)
     expect(entries.get(`key:${await licenseKeyHash(key)}`)).toBe(identity)
+    const record = JSON.parse(entries.get(`lic:${identity}`) ?? '') as LicenseRecord
+    expect(record).toMatchObject({ status: 'active', orderId: 'ORD_1', devices: [] })
     expect(entries.get(`lic:${identity}`)).not.toContain(key)
-    expect(await verify(store, key)).toMatchObject({
-      ok: true,
-      entitled: true,
-      plan: 'premium-monthly',
-    })
   })
 
   it('同一事件重试时不再处理（不会生成第二把密钥）', async () => {
     const { store, entries } = fakeStore()
     const { token, identity } = await checkout(store)
-    const activated = event('subscription.activated', {
-      orderStatus: 'active',
-      merchantProvidedBuyerIdentity: identity,
-      orderMetadata: { claim: token },
-    })
-    await webhook(store, activated)
+    const completed = paid(identity, token)
+    await webhook(store, completed)
     const first = entries.get(`claim:${token}`)
-    expect(await (await webhook(store, activated)).json()).toMatchObject({ duplicate: true })
+    expect(await (await webhook(store, completed)).json()).toMatchObject({ duplicate: true })
     expect(entries.get(`claim:${token}`)).toBe(first)
   })
 
-  it('激活后紧接着的续费不会被当成重复丢掉（同一订单的事件 id 相同）', async () => {
+  it('同一订单再来一条不同 eventId 的付款事件，也不会换掉已发出的密钥', async () => {
     const { store, entries } = fakeStore()
-    const { identity, key } = await activate(store, entries)
+    const { token, identity, key } = await purchase(store, entries)
+    await webhook(store, paid(identity, token))
+    expect((JSON.parse(entries.get(`claim:${token}`) ?? '') as ClaimRecord).key).toBe(key)
+    expect((await activate(store, key, 'mac-1')).status).toBe(200)
+  })
+
+  it('退款吊销许可证：激活回 403，校验回 revoked；晚到的旧付款事件改不回来', async () => {
+    const { store, entries } = fakeStore()
+    const { token, identity } = await checkout(store)
+    // 先造出一个时间更早的付款事件，再让它在退款之后重投
+    const completed = paid(identity, token)
+    await webhook(store, completed)
+    const key = (JSON.parse(entries.get(`claim:${token}`) ?? '') as ClaimRecord).key as string
+    await activate(store, key, 'mac-1')
     await webhook(
       store,
-      event('subscription.renewed', {
+      event('refund.succeeded', {
+        orderStatus: 'completed',
+        merchantProvidedBuyerIdentity: identity,
+      }),
+    )
+    await webhook(store, { ...completed, eventId: 'PAY_retry' })
+    expect(await activate(store, key, 'mac-2')).toEqual({ status: 403, body: { error: 'revoked' } })
+    expect((await verify(store, key, 'mac-1')).body).toEqual({ status: 'revoked' })
+    expect(await deactivate(store, key, 'mac-1')).toEqual({
+      status: 403,
+      body: { error: 'revoked' },
+    })
+  })
+
+  it('退款事件不带身份时按订单号找到许可证', async () => {
+    const { store, entries } = fakeStore()
+    const { key } = await purchase(store, entries)
+    await webhook(store, event('refund.succeeded', {}))
+    expect((await verify(store, key, 'mac-1')).body).toEqual({ status: 'revoked' })
+  })
+
+  it('退款比付款先到：先记吊销，后到的付款事件不再签发密钥', async () => {
+    const { store, entries } = fakeStore()
+    const { token, identity } = await checkout(store)
+    const completed = paid(identity, token)
+    await webhook(store, event('refund.succeeded', { merchantProvidedBuyerIdentity: identity }))
+    await webhook(store, completed)
+    expect(JSON.parse(entries.get(`claim:${token}`) ?? '').status).toBe('pending')
+    expect(JSON.parse(entries.get(`lic:${identity}`) ?? '').status).toBe('revoked')
+  })
+
+  it('订阅类事件与找不到身份的订单都不碰', async () => {
+    const { store, entries } = fakeStore()
+    const { token, identity } = await checkout(store)
+    await webhook(
+      store,
+      event('subscription.activated', {
         orderStatus: 'active',
         merchantProvidedBuyerIdentity: identity,
-        currentPeriodEnd: '2026-11-20',
+        orderMetadata: { claim: token },
       }),
     )
-    // 试用期到 10-20，加 3 天宽限也早过了；续费把账期延到 11-20，所以仍然有效
-    expect(await verify(store, key, '2026-11-01T00:00:00Z')).toMatchObject({
-      entitled: true,
-      currentPeriodEnd: '2026-11-20',
-    })
-  })
-
-  it('取消后校验返回失效，晚到的旧「生效」事件改不回来', async () => {
-    const { store, entries } = fakeStore()
-    const { identity, key } = await activate(store, entries)
-    // 先造出一个时间更早的事件，再让它晚到
-    const stale = event('subscription.uncanceled', {
-      orderStatus: 'active',
-      merchantProvidedBuyerIdentity: identity,
-    })
-    const canceled = event('subscription.canceled', {
-      orderStatus: 'canceled',
-      merchantProvidedBuyerIdentity: identity,
-    })
-    await webhook(store, canceled)
-    await webhook(store, stale)
-    expect(await verify(store, key)).toMatchObject({ entitled: false, status: 'canceled' })
-  })
-
-  it('换套餐（新订单号）后密钥跟着走，套餐名也更新；旧订单之后的事件不再影响', async () => {
-    const { store, entries } = fakeStore()
-    const { identity, key } = await activate(store, entries)
-    await webhook(
-      store,
-      event('subscription.plan_change_scheduled', {
-        orderId: 'ORD_2',
-        orderStatus: 'pending',
-        merchantProvidedBuyerIdentity: identity,
-      }),
-    )
-    expect(await verify(store, key)).toMatchObject({ entitled: true, plan: 'premium-monthly' })
-    await webhook(
-      store,
-      event('subscription.plan_changed', {
-        orderId: 'ORD_2',
-        orderStatus: 'active',
-        merchantProvidedBuyerIdentity: identity,
-        billingPeriod: 'yearly',
-        currentPeriodEnd: '2027-10-20',
-      }),
-    )
-    await webhook(
-      store,
-      event('subscription.canceled', {
-        orderId: 'ORD_1',
-        orderStatus: 'canceled',
-        merchantProvidedBuyerIdentity: identity,
-      }),
-    )
-    expect(await verify(store, key, '2027-01-01T00:00:00Z')).toMatchObject({
-      entitled: true,
-      plan: 'premium-yearly',
-      currentPeriodEnd: '2027-10-20',
-    })
-  })
-
-  it('全额退款收回 Premium', async () => {
-    const { store, entries } = fakeStore()
-    const { identity, key } = await activate(store, entries)
-    const refund = event(
-      'refund.succeeded',
-      { merchantProvidedBuyerIdentity: identity },
-      { eventId: 'REF_1' },
-    )
-    await webhook(store, refund)
-    expect(await verify(store, key)).toMatchObject({ entitled: false, status: 'refunded' })
-  })
-
-  it('纯支付事件（没有 orderStatus）不改许可证；找不到身份的订单不碰', async () => {
-    const { store, entries } = fakeStore()
-    await webhook(store, event('subscription.payment_succeeded', {}))
-    await webhook(store, event('subscription.activated', { orderStatus: 'active' }))
+    await webhook(store, event('order.completed', { orderId: 'ORD_unknown' }))
     expect([...entries.keys()].some((key) => key.startsWith('lic:'))).toBe(false)
   })
 })
 
-describe('领取、校验与门户', () => {
-  it('领取码：首次领到后 1 小时内可重复读（刷新页面），之后失效', async () => {
+describe('GET /api/license/claim', () => {
+  it('首次领到后 1 小时内可重复读（刷新页面），之后失效', async () => {
     const { store, entries } = fakeStore()
-    const { token, key } = await activate(store, entries)
+    const { token, key } = await purchase(store, entries)
     const read = (now: string) =>
       handleClaim(claimRequest(token), makeEnv(store), { now: () => new Date(now) })
-    expect(await (await read('2026-10-19T00:00:00Z')).json()).toMatchObject({
-      status: 'ready',
-      key,
-    })
-    expect(await (await read('2026-10-19T00:59:00Z')).json()).toMatchObject({
-      status: 'ready',
-      key,
-    })
-    expect((await read('2026-10-19T01:01:00Z')).status).toBe(404)
+    expect(await (await read('2026-10-19T00:00:00Z')).json()).toEqual({ licenseKey: key })
+    expect(await (await read('2026-10-19T00:59:00Z')).json()).toEqual({ licenseKey: key })
+    const expired = await read('2026-10-19T01:01:00Z')
+    expect(expired.status).toBe(404)
+    expect(await expired.json()).toEqual({ error: 'unknown_claim' })
   })
 
-  it('领取码：付款前是 pending，未知的回 404', async () => {
+  it('付款前是 pending，未知的回 404', async () => {
     const { store, entries } = fakeStore()
-    const pending = { status: 'pending', plan: 'premium-monthly', identity: 'u_x' }
-    entries.set('claim:waiting', JSON.stringify(pending))
+    entries.set('claim:waiting', JSON.stringify({ status: 'pending', identity: 'u_x' }))
     const env = makeEnv(store)
-    expect(await (await handleClaim(claimRequest('waiting'), env)).json()).toMatchObject({
+    expect(await (await handleClaim(claimRequest('waiting'), env)).json()).toEqual({
       status: 'pending',
     })
     expect((await handleClaim(claimRequest('nope'), env)).status).toBe(404)
   })
+})
 
-  it('校验：未知或格式不对的密钥回 404', async () => {
-    const env = makeEnv(fakeStore().store)
-    for (const key of [newLicenseKey(), 'x']) {
-      expect((await handleVerify(post('/api/license/verify', { key }), env)).status).toBe(404)
+describe('激活、校验与解绑', () => {
+  it(`激活到第 ${MAX_DEVICES} 台都成功，第 4 台回 409 并带上已激活的设备`, async () => {
+    const { store, entries } = fakeStore()
+    const { key } = await purchase(store, entries)
+    for (const [index, id] of ['mac-1', 'mac-2', 'mac-3'].entries()) {
+      const result = await activate(store, key, id, `Mac ${index + 1}`)
+      expect(result.status).toBe(200)
+      expect(result.body).toMatchObject({ status: 'active', maxDevices: 3 })
+      expect(result.body.devices).toHaveLength(index + 1)
     }
+    const full = await activate(store, key, 'mac-4')
+    expect(full.status).toBe(409)
+    expect(full.body).toEqual({
+      error: 'device_limit',
+      maxDevices: 3,
+      devices: ['mac-1', 'mac-2', 'mac-3'].map((deviceId, index) => ({
+        deviceId,
+        deviceName: `Mac ${index + 1}`,
+        activatedAt: '2026-10-19T00:00:00.000Z',
+      })),
+    })
+  })
+
+  it('同一 deviceId 重复激活是幂等的：不占新名额，激活时间不变，设备名随之更新', async () => {
+    const { store, entries } = fakeStore()
+    const { key } = await purchase(store, entries)
+    await activate(store, key, 'mac-1', 'Old name')
+    await activate(store, key, 'mac-2')
+    await activate(store, key, 'mac-3')
+    const again = await activate(store, key, 'mac-1', 'New name')
+    expect(again.status).toBe(200)
+    expect(again.body.devices).toHaveLength(3)
+    expect((again.body.devices as Array<Record<string, string>>)[0]).toEqual({
+      deviceId: 'mac-1',
+      deviceName: 'New name',
+      activatedAt: '2026-10-19T00:00:00.000Z',
+    })
+  })
+
+  it('解绑任一设备后腾出名额，新设备可以激活；解绑不存在的设备也回 200', async () => {
+    const { store, entries } = fakeStore()
+    const { key } = await purchase(store, entries)
+    for (const id of ['mac-1', 'mac-2', 'mac-3']) await activate(store, key, id)
+    const removed = await deactivate(store, key, 'mac-2')
+    expect(removed.status).toBe(200)
+    expect((removed.body.devices as Array<{ deviceId: string }>).map((d) => d.deviceId)).toEqual([
+      'mac-1',
+      'mac-3',
+    ])
+    expect((await verify(store, key, 'mac-2')).body).toEqual({ status: 'not_activated' })
+    expect((await activate(store, key, 'mac-4')).status).toBe(200)
+    expect((await deactivate(store, key, 'gone')).status).toBe(200)
+  })
+
+  it('verify 的四种状态：active / not_activated / revoked / invalid，都是 200', async () => {
+    const { store, entries } = fakeStore()
+    const { identity, key } = await purchase(store, entries)
+    await activate(store, key, 'mac-1')
+    expect(await verify(store, key, 'mac-1')).toEqual({ status: 200, body: { status: 'active' } })
+    expect(await verify(store, key.toLowerCase(), 'mac-1')).toEqual({
+      status: 200,
+      body: { status: 'active' },
+    })
+    expect(await verify(store, key, 'mac-9')).toEqual({
+      status: 200,
+      body: { status: 'not_activated' },
+    })
+    for (const bad of [newLicenseKey(), 'x', undefined]) {
+      expect(await verify(store, bad as string, 'mac-1')).toEqual({
+        status: 200,
+        body: { status: 'invalid' },
+      })
+    }
+    await webhook(store, event('refund.succeeded', { merchantProvidedBuyerIdentity: identity }))
+    expect(await verify(store, key, 'mac-1')).toEqual({ status: 200, body: { status: 'revoked' } })
+  })
+
+  it('无效密钥：激活与解绑回 404 invalid_license', async () => {
+    const { store } = fakeStore()
+    for (const key of [newLicenseKey(), 'x']) {
+      expect(await activate(store, key, 'mac-1')).toEqual({
+        status: 404,
+        body: { error: 'invalid_license' },
+      })
+      expect(await deactivate(store, key, 'mac-1')).toEqual({
+        status: 404,
+        body: { error: 'invalid_license' },
+      })
+    }
+  })
+
+  it('缺 deviceId / deviceName 回 400；设备名去掉控制字符并截断，超长的 deviceId 拒绝', async () => {
+    const { store, entries } = fakeStore()
+    const { key } = await purchase(store, entries)
+    const bad = [
+      { licenseKey: key, deviceName: 'Mac' },
+      { licenseKey: key, deviceId: 'mac-1' },
+      { licenseKey: key, deviceId: 'mac-1', deviceName: '\u0000​' },
+      { licenseKey: key, deviceId: 'x'.repeat(129), deviceName: 'Mac' },
+    ]
+    for (const body of bad) {
+      expect((await call(handleActivate, '/api/license/activate', store, body)).status).toBe(400)
+    }
+    expect(
+      (await call(handleVerify, '/api/license/verify', store, { licenseKey: key })).status,
+    ).toBe(400)
+    const ok = await activate(store, key, 'mac-1', `Ada\n的 MacBook${'!'.repeat(100)}`)
+    const [device] = ok.body.devices as Array<{ deviceName: string }>
+    expect(device?.deviceName).toMatch(/^Ada的 MacBook!+$/)
+    expect(device?.deviceName.length).toBe(64)
   })
 
   it('校验：同一网络下的多台客户端不会很快被限流', async () => {
     const { store, entries } = fakeStore()
-    const { key } = await activate(store, entries)
-    for (let i = 0; i < 20; i++) expect((await verify(store, key)).ok).toBe(true)
+    const { key } = await purchase(store, entries)
+    await activate(store, key, 'mac-1')
+    for (let i = 0; i < 20; i++) expect((await verify(store, key, 'mac-1')).status).toBe(200)
   })
 
-  it('门户：用许可证里记下的身份换链接，而不是请求里带来的任何东西', async () => {
+  it('激活被同一 IP 刷太多次时回 429', async () => {
     const { store, entries } = fakeStore()
-    const { identity, key } = await activate(store, entries)
+    const { key } = await purchase(store, entries)
+    const statuses: number[] = []
+    for (let i = 0; i < 25; i++) statuses.push((await activate(store, key, 'mac-1')).status)
+    expect(statuses.slice(0, 20).every((status) => status === 200)).toBe(true)
+    expect(statuses.at(-1)).toBe(429)
+  })
+})
+
+describe('POST /api/license/portal', () => {
+  it('用许可证里记下的身份换链接，而不是请求里带来的任何东西', async () => {
+    const { store, entries } = fakeStore()
+    const { identity, key } = await purchase(store, entries)
     const { deps, calls } = fakeClient()
     const response = await handlePortal(
-      post('/api/license/portal', { key, buyerIdentity: 'u_attacker' }),
+      post('/api/license/portal', { licenseKey: key, buyerIdentity: 'u_attacker' }),
       makeEnv(store),
       deps,
     )
-    expect(await response.json()).toMatchObject({
-      ok: true,
-      portalUrl: expect.stringContaining('#token='),
+    expect(await response.json()).toEqual({
+      url: expect.stringContaining('#token='),
     })
     expect(calls.portal[0]).toEqual({ storeId: STORE_ID, buyerIdentity: identity })
+  })
+
+  it('未知密钥回 404', async () => {
+    const { deps } = fakeClient()
+    const response = await handlePortal(
+      post('/api/license/portal', { licenseKey: newLicenseKey() }),
+      makeEnv(fakeStore().store),
+      deps,
+    )
+    expect(response.status).toBe(404)
   })
 })

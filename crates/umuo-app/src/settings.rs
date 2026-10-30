@@ -106,6 +106,12 @@ pub struct Settings {
     /// 朗读选中文本（PRD §7.2）。
     /// 旧独立朗读快捷键，仅保留读写兼容；结果朗读仍可用。
     pub speak_hotkey: String,
+    /// 语音输入「按住说话」（同语言整理）的全局快捷键，默认 ⌥⌘V（PRD §5.11）。
+    /// 按住说话要按下与松开两个事件，只接受组合键，不接受连按两下修饰键。
+    /// 旧配置里没有这一项时取默认值；未知字段的保留规则不变。
+    pub voice_hotkey: String,
+    /// 语音翻译「按住说话」（翻译到目标语言）的全局快捷键，默认 ⌃⌘V。规则同 [`Self::voice_hotkey`]。
+    pub voice_translate_hotkey: String,
     /// 自定义 OpenAI 兼容端点的 Base URL（PRD §6.1最后一行）。只在选「自定义端点」时用。
     pub custom_base_url: String,
     /// 逐供应商的 Base URL 覆盖。
@@ -202,6 +208,8 @@ impl Default for Settings {
             ocr_hotkey: "Alt+Cmd+O".to_string(),
             ocr_silent_hotkey: "Alt+Shift+O".to_string(),
             speak_hotkey: "Alt+R".to_string(),
+            voice_hotkey: "Alt+Cmd+V".to_string(),
+            voice_translate_hotkey: "Ctrl+Cmd+V".to_string(),
             custom_base_url: String::new(),
             provider_base_urls: std::collections::BTreeMap::new(),
             selection_blacklist: default_selection_blacklist(),
@@ -347,13 +355,16 @@ impl Settings {
             .unwrap_or(1.0)
     }
 
-    /// 当前四个入口的快捷键，按固定顺序；退役字段仅为旧配置兼容保留。保存设置时用它判断「快捷键是否变了、要不要重注册」。
-    pub fn hotkeys(&self) -> [&str; 4] {
+    /// 当前会注册的快捷键（四个翻译入口 + 两个语音键），按固定顺序；退役字段仅为旧配置兼容保留。
+    /// 保存设置时用它判断「快捷键是否变了、要不要重注册」。
+    pub fn hotkeys(&self) -> [&str; 6] {
         [
             &self.selection_hotkey,
             &self.silent_replace_hotkey,
             &self.compose_hotkey,
             &self.ocr_hotkey,
+            &self.voice_hotkey,
+            &self.voice_translate_hotkey,
         ]
     }
 
@@ -567,6 +578,9 @@ mod tests {
         assert_eq!(settings.ocr_silent_hotkey, "Alt+Shift+O");
         // PRD §7.2 的默认值：⌥R 朗读选中文本。
         assert_eq!(settings.speak_hotkey, "Alt+R");
+        // PRD §5.11：按住说话，整理与翻译各一个键。
+        assert_eq!(settings.voice_hotkey, "Alt+Cmd+V");
+        assert_eq!(settings.voice_translate_hotkey, "Ctrl+Cmd+V");
         // PRD §8：默认跟随系统语言，而不是写死简体中文。
         assert_eq!(settings.locale, "system");
         assert!(settings.custom_base_url.is_empty(), "默认没有自定义端点");
@@ -590,7 +604,7 @@ mod tests {
 
     #[test]
     fn active_hotkeys_are_different_out_of_the_box() {
-        // 只检查当前会注册的四项，退役字段不再占用键位。
+        // 只检查当前会注册的六项，退役字段不再占用键位。
         let settings = Settings::default();
         let all = settings.hotkeys();
         let unique: std::collections::HashSet<_> = all.iter().collect();

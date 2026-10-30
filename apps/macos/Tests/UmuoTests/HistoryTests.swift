@@ -29,6 +29,7 @@ struct HistorySceneTests {
         #expect(HistoryFormat.sceneLabel("compose", t) == "撰写窗")
         #expect(HistoryFormat.sceneLabel("ocr", t) == "截图")
         #expect(HistoryFormat.sceneLabel("compare", t) == "对比")
+        #expect(HistoryFormat.sceneLabel("voice", t) == "语音")
     }
 
     @Test func 未知场景原样显示而不是显示未知() {

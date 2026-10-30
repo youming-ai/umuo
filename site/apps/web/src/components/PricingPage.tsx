@@ -1,13 +1,15 @@
+import { PURCHASE_OPEN } from '../config'
 import type { SiteContent } from '../content/types'
 import { DownloadPanel } from './DownloadButton'
+import { PurchaseButton } from './PurchaseButton'
 
 /**
  * 定价页：买断 + 自带 Key 本质上是两笔账，排成对照本的左右两页——左页付给 umuo（一次），
  * 右页付给模型供应商（按用量），中间一道装订线。只有左页是 umuo 收的钱，所以只有它用大字；
  * 右页同一位置退成小号灰墨。下面是「包含」清单配默认快捷键，左栏补一份「不包含」。
  *
- * ponytail: 购买入口还没有——许可证流程验收前只放下载按钮和一句「尚未开放购买」。
- * 旧的订阅结账表单（月付 / 年付）随订阅一起删了，接一次性购买时按新商品重写，见 git 历史。
+ * 购买入口由 config.ts 的 `PURCHASE_OPEN` 控制：关闭时只放下载按钮和一句「尚未开放购买」；
+ * 打开后下载按钮旁多一个「购买 US$9」，下面一句说明付款后怎么领取、激活许可证。
  */
 export function PricingPage({ content }: { content: SiteContent }) {
   const { pricing } = content
@@ -27,9 +29,23 @@ export function PricingPage({ content }: { content: SiteContent }) {
           <p className="pricing-cadence">{umuo.cadence}</p>
           {macos ? (
             <div className="pricing-action">
-              {/* 尚未开放购买时，「现在免费试用」是好消息：写在按钮上方当正文，不当脚注 */}
-              <p className="pricing-free">{pricing.unavailable}</p>
-              <DownloadPanel platform={macos} />
+              {/* 「现在免费试用」是好消息：写在按钮上方当正文，不当脚注 */}
+              <p className="pricing-free">
+                {PURCHASE_OPEN ? pricing.purchase.lead : pricing.unavailable}
+              </p>
+              <DownloadPanel
+                platform={macos}
+                purchase={
+                  PURCHASE_OPEN ? (
+                    <PurchaseButton purchase={pricing.purchase} locale={content.locale} />
+                  ) : undefined
+                }
+              />
+              {PURCHASE_OPEN ? (
+                <p className="pricing-fineprint purchase-activation">
+                  {pricing.purchase.activation}
+                </p>
+              ) : null}
             </div>
           ) : null}
           <p className="pricing-body">{umuo.body}</p>

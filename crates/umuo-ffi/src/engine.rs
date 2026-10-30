@@ -103,6 +103,12 @@ pub struct RequestHandle {
     cancel: Arc<AtomicBool>,
 }
 
+impl RequestHandle {
+    pub(crate) fn new(id: u64, cancel: Arc<AtomicBool>) -> Self {
+        Self { id, cancel }
+    }
+}
+
 #[uniffi::export]
 impl RequestHandle {
     /// 事件里带的请求 id（`Route.request_id` / `run_id`）。
@@ -598,6 +604,62 @@ mod tests {
             }
         }
         assert_eq!(kinds.last(), Some(&"done"), "{kinds:?}");
+    }
+
+    // ------------------------------------------------ 语音后处理
+
+    impl crate::voice::VoiceSink for Recorder<(u64, crate::voice::VoicePostResult)> {
+        fn on_result(&self, session: u64, result: crate::voice::VoicePostResult) {
+            let _ = self.0.lock().unwrap().send((session, result));
+        }
+    }
+
+    fn voice_request(task: crate::voice::VoiceTask) -> crate::voice::VoicePostRequest {
+        crate::voice::VoicePostRequest {
+            transcript: "嗯，那个，周四开会".into(),
+            task,
+            source_lang: None,
+            target_lang: Some("en".into()),
+        }
+    }
+
+    #[test]
+    fn start_voice_returns_the_result_for_its_session_and_records_history() {
+        use crate::voice::{VoicePostResult, VoiceTask};
+        let engine = open_with_stub(&["We meet ", "on Thursday."], 0, 0);
+        let (sink, rx) = recorder();
+        let handle = engine.start_voice(7, voice_request(VoiceTask::Translate), sink);
+        assert_eq!(handle.id(), 7, "句柄 id 就是语音会话号");
+        let (session, result) = rx.recv_timeout(Duration::from_secs(10)).unwrap();
+        assert_eq!(session, 7);
+        let VoicePostResult::Done { output } = result else {
+            panic!("应当成功：{result:?}");
+        };
+        assert_eq!(output.text, "We meet on Thursday.");
+        assert_eq!(output.task, VoiceTask::Translate);
+        assert_eq!(output.output_lang.as_deref(), Some("en"));
+        assert!(!output.truncated);
+        let rows = engine.history_query(None, 10, 0).unwrap();
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].scene, "voice");
+        assert_eq!(rows[0].source_text, "嗯，那个，周四开会");
+    }
+
+    #[test]
+    fn cancelling_start_voice_reports_a_cancelled_failure_with_the_transcript() {
+        use crate::voice::{VoicePostResult, VoiceTask};
+        // 先等 2 秒才回第一段：取消一定落在结果之前
+        let engine = open_with_stub(&["周四开会。"], 2_000, 0);
+        let (sink, rx) = recorder();
+        let handle = engine.start_voice(1, voice_request(VoiceTask::Tidy), sink);
+        handle.cancel();
+        let (_, result) = rx.recv_timeout(Duration::from_secs(10)).unwrap();
+        let VoicePostResult::Failed { failure } = result else {
+            panic!("取消后不能有结果：{result:?}");
+        };
+        assert!(failure.cancelled);
+        assert!(!failure.retryable);
+        assert_eq!(failure.transcript, "嗯，那个，周四开会");
     }
 
     #[test]

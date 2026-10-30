@@ -13,12 +13,12 @@
 | --- | --- | --- |
 | `ASSETS` | Vite 生成的静态资源 | 五语言预渲染页面 |
 | `NOTIFY_KV` | `umuo-notify` | 上线通知邮箱 |
-| `LICENSES` | `umuo-licenses` | 旧支付链路的许可证与 webhook 去重 |
+| `LICENSES` | `umuo-licenses` | 买断许可证（含已激活设备）、领取码与 webhook 去重 |
 | `RELEASES` | `umuo-releases` | 客户端安装包与更新清单 |
-| `WAFFO_*` | 变量与远端 secret | 旧支付链路配置 |
+| `WAFFO_*` | 变量与远端 secret | Waffo 收费配置（买断商品 `WAFFO_PRODUCT_LICENSE`） |
 
-`WAFFO_PRIVATE_KEY` 是远端 secret；其他 Waffo 值是非密钥 ID。配置不提供当前产品的购买入口，
-旧订阅支付实现须在买断支付方案定案后另行调整，不以这些变量视作购买流程已完成。
+`WAFFO_PRIVATE_KEY` 是远端 secret；其他 Waffo 值是非密钥 ID。`WAFFO_PRODUCT_LICENSE` 在正式环境建好商品前是注释占位，
+此时 `/api/checkout`、webhook 与门户回 503。
 
 变更正式资源或路由前检查配置并运行 `scripts/void-config.test.ts`。
 
@@ -50,6 +50,22 @@ bun run deploy
 `cf` 从最新上传版本继承 secret；部署前的 secret 核对、Workers Builds 与回滚按 [迁移手册](VOID-MIGRATION.md) 执行。
 正式配置显式关闭 `workers_dev` 和 `preview_urls`；不要为通过就绪检查擅自打开生产公开入口。
 域名、绑定、secret、活动版本及旧构建设置必须在切换前后核对。
+
+## 收费
+
+一次性买断，Waffo Pancake 代收；接口与规则见 `worker/src/billing.ts` 文件头。上线顺序（test 与 prod 各走一遍，
+`WAFFO_ENV` 与私钥环境必须一致）：
+
+1. `bun run scripts/waffo-setup.ts --dry-run` 看计划；再带私钥运行：建 US$9 一次性商品（`TaxCategory.Software`，不含税），
+   把 ID 写回 `void.config.ts` 的 `WAFFO_PRODUCT_LICENSE`，并把店铺里指向 `/api/waffo/webhook` 的 webhook 改为只订阅
+   `order.completed`、`refund.succeeded`（没有就新建）。
+2. 在 Waffo 后台把订阅时代的月付 / 年付商品与套餐组设为 inactive。
+3. 验收。正式 Worker 的 `WAFFO_ENV` 是 `prod`，test 模式的事件会被忽略（staging Worker 已删除），所以分两种：
+   - **test**：本地 `bun run dev:worker`，用测试私钥并把 `WAFFO_ENV` 覆盖为 `test`、填入测试商品 ID；
+     webhook 要经隧道转回本机才能验到领密钥，否则只能确认结账页能打开。不要把 test 商品 ID 提交进 `void.config.ts`。
+   - **prod**：提交 `void.config.ts` 并合并部署后，用真实小额购买走一遍：结账 → 激活页领密钥 → 激活 / 解绑 →
+     Waffo 后台退款 → verify 变为 `revoked`。
+4. 最后把 `apps/web/src/config.ts` 的 `PURCHASE_OPEN` 改为 `true` 合并，官网才出现购买按钮。
 
 ## 客户端安装包
 

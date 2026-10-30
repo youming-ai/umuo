@@ -251,6 +251,30 @@ mod tests {
             .unwrap();
         assert_eq!(effects, SettingsEffects { hotkeys: true });
     }
+
+    #[test]
+    fn voice_hotkeys_default_for_old_configs_and_trigger_reregistration() {
+        // 旧配置没有语音键：读出默认值，未知字段照旧保留。
+        let core = open_in("voice-keys", &json!({ "futureField": 1 }));
+        let (settings, effects) = core
+            .apply_settings_patch(json!({ "theme": "dark" }))
+            .unwrap();
+        assert!(!effects.hotkeys);
+        assert_eq!(settings.voice_hotkey, "Alt+Cmd+V");
+        assert_eq!(settings.voice_translate_hotkey, "Ctrl+Cmd+V");
+        for (field, value) in [
+            ("voiceHotkey", "Ctrl+Alt+Space"),
+            ("voiceTranslateHotkey", "Ctrl+Alt+T"),
+        ] {
+            let (_, effects) = core.apply_settings_patch(json!({ field: value })).unwrap();
+            assert!(effects.hotkeys, "{field} 改了要重注册");
+        }
+        let saved: serde_json::Value = serde_json::from_slice(&file_bytes(&core)).unwrap();
+        assert_eq!(saved["voiceHotkey"], "Ctrl+Alt+Space");
+        assert_eq!(saved["voiceTranslateHotkey"], "Ctrl+Alt+T");
+        assert_eq!(saved["futureField"], 1);
+    }
+
     #[test]
     fn retired_hotkeys_and_statistics_survive_without_registration_effects() {
         let core = open_in(
@@ -270,7 +294,7 @@ mod tests {
             "compareHotkey": "Alt+Cmd+P", "ocrSilentHotkey": "Alt+Cmd+S", "speakHotkey": "Alt+Cmd+R"
         })).unwrap();
         assert!(!effects.hotkeys, "退役键位不触发宿主重注册");
-        assert_eq!(settings.hotkeys().len(), 4);
+        assert_eq!(settings.hotkeys().len(), 6);
         let (_, effects) = core
             .apply_settings_patch(json!({ "ocrHotkey": "Alt+P", "theme": "dark" }))
             .unwrap();

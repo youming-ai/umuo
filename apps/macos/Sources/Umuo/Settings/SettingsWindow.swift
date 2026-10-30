@@ -20,6 +20,14 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
         self.app = app
     }
 
+    /// 打开并直接落在某一页。窗口开着且已载入时当场切页，否则等载入时用（`SettingsModel.preferredTab`）。
+    func show(tab: SettingsTab) {
+        let model = model ?? makeModel()
+        let open = window?.isVisible == true && model.isLoaded
+        if open { model.tab = tab } else { model.preferredTab = tab }
+        show()
+    }
+
     func show() {
         let model = model ?? makeModel()
         let fresh = window == nil
@@ -48,7 +56,7 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
     }
 
     private func makeModel() -> SettingsModel {
-        let model = SettingsModel(backend: EngineSettingsBackend(app: app))
+        let model = SettingsModel(backend: EngineSettingsBackend(app: app), license: app.license)
         // 快捷键重注册完成后重新读失败清单（比猜一个延时可靠）
         app.hotkeys.onRegistered = { [weak model] in model?.hotkeysRegistered() }
         self.model = model

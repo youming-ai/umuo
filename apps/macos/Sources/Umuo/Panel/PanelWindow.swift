@@ -61,7 +61,9 @@ struct WindowDragHandle: NSViewRepresentable {
 enum FloatingPanelChrome {
     static let styleMask: NSWindow.StyleMask = [.titled, .fullSizeContentView, .nonactivatingPanel, .resizable]
 
-    static func apply(to window: NSPanel, rootView: some View) {
+    /// 返回承载 SwiftUI 内容的视图：按内容定高的面板（语音浮层）拿它的 `fittingSize` 调窗口大小。
+    @discardableResult
+    static func apply(to window: NSPanel, rootView: some View) -> NSView {
         window.titlebarAppearsTransparent = true
         window.titleVisibility = .hidden
         window.titlebarSeparatorStyle = .none
@@ -88,5 +90,6 @@ enum FloatingPanelChrome {
             surface.addSubview(hosting)
             window.contentView = surface
         }
+        return hosting
     }
 }

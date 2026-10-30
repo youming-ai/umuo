@@ -13,6 +13,7 @@ enum HistoryFormat {
         case "compose": t("history.sceneCompose")
         case "ocr": t("history.sceneOcr")
         case "compare": t("history.sceneCompare")
+        case "voice": t("history.sceneVoice")
         // 未知场景原样显示：以后加了新场景时，历史里显示一个英文键也比显示「未知」更能说明问题。
         default: scene
         }

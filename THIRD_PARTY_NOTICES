@@ -17,7 +17,14 @@ umuo 客户端是闭源的专有软件；它依赖的第三方开源成果仍按
 ## 依赖
 
 第三方 crate 与 npm 包由 `Cargo.lock` / `bun.lock` 锁定，各自的许可证见其发布包；
-本仓库不修改它们，也不静态链接其源码。
+第三方依赖保持各自许可。Rust 静态库及 Sparkle 等随客户端分发时，须附带相应版权/许可声明，并履行适用的源码提供义务。
+
+## 随应用分发的二进制与运行时下载的模型
+
+| 组件 | 版本与来源 | 许可 | 分发方式 |
+| --- | --- | --- | --- |
+| transcribe.cpp（`TranscribeCpp.xcframework` 内的 `CTranscribe.framework`） | v0.4.1，[官方发布页](https://github.com/handy-computer/transcribe.cpp/releases/tag/v0.4.1)，zip SHA-256 `fb5646e5…d35126` | MIT；内含 ggml（MIT）、Silero VAD（MIT）、miniz（MIT） | 打进 `umuo.app/Contents/Frameworks`；四份许可原文由 `scripts/bundle.sh` 拷到 `Contents/Resources/Licenses/transcribe.cpp/` |
+| Qwen3-ASR-0.6B（GGUF，`Qwen3-ASR-0.6B-Q4_K_M.gguf`） | `handy-computer/Qwen3-ASR-0.6B-gguf` @ `7e7c69a5`，上游 [Qwen/Qwen3-ASR-0.6B](https://huggingface.co/Qwen/Qwen3-ASR-0.6B)，已转换为 GGUF | Apache-2.0 | **不随安装包分发**：用户首次使用语音时从 Hugging Face 下载并按 SHA-256 校验 |
 
 ## 参考过的项目（未复制代码）
 

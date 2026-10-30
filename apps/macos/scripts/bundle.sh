@@ -137,12 +137,35 @@ cp -R "$resources" "$app/Contents/Resources/"
 # SwiftPM 的二进制依赖放在 bin_dir；用 ditto 保留 framework 的符号链接与执行权限。
 [ -d "$bin_dir/Sparkle.framework" ] || fail "Sparkle.framework 缺失"
 ditto "$bin_dir/Sparkle.framework" "$app/Contents/Frameworks/Sparkle.framework"
+# 本地语音转写引擎（Package.swift 的 TranscribeCpp 二进制目标，transcribe.cpp v0.4.1）。官方包本身是 arm64 + x86_64 通用的
+[ -d "$bin_dir/CTranscribe.framework" ] || fail "CTranscribe.framework 缺失"
+ditto "$bin_dir/CTranscribe.framework" "$app/Contents/Frameworks/CTranscribe.framework"
+# MIT 要求随二进制附带许可原文：官方包把 transcribe.cpp / ggml / Silero VAD / miniz 的许可放在 xcframework 根目录，
+# 不在 framework 里。SwiftPM 解出的产物在各自 scratch 目录的 artifacts 下（冒烟是 .build，正式组装是 .build/bundle-<arch>）
+transcribe_license="$(find "$here/.build" -path '*/TranscribeCpp.xcframework/LICENSE' -print -quit)"
+[ -n "$transcribe_license" ] || fail "找不到 TranscribeCpp.xcframework 的 LICENSE"
+mkdir -p "$app/Contents/Resources/Licenses/transcribe.cpp"
+cp "$(dirname "$transcribe_license")"/LICENSE* "$app/Contents/Resources/Licenses/transcribe.cpp/"
 if [ "$quick" = 0 ]; then
   plutil -insert SUFeedURL -string 'https://umuo.app/download/macos/appcast.xml' "$app/Contents/Info.plist"
   plutil -insert SUPublicEDKey -string "$SPARKLE_PUBLIC_ED_KEY" "$app/Contents/Info.plist"
   plutil -insert SUAutomaticallyUpdate -bool NO "$app/Contents/Info.plist"
   plutil -insert SUEnableSystemProfiling -bool NO "$app/Contents/Info.plist"
 fi
+# 麦克风用途说明（系统授权框上显示）：四种语言都取自文案表的 voice.micUsage，不在 Info.plist 与 .strings 里各抄一份。
+# Info.plist 里放源语言（简体中文），其余语言按 CFBundleLocalizations 放进 <语言>.lproj/InfoPlist.strings（plist 格式）。
+strings_catalog="$here/Sources/Umuo/Resources/Strings/Localizable.xcstrings"
+mic_usage() {
+  plutil -extract "strings.voice\.micUsage.localizations.$1.stringUnit.value" raw -o - "$strings_catalog"
+}
+plutil -replace NSMicrophoneUsageDescription -string "$(mic_usage zh-Hans)" "$app/Contents/Info.plist"
+for lang in zh-Hans zh-Hant en ja; do
+  usage="$(mic_usage "$lang")" || fail "文案表里没有 $lang 的 voice.micUsage"
+  mkdir -p "$app/Contents/Resources/$lang.lproj"
+  infoplist_strings="$app/Contents/Resources/$lang.lproj/InfoPlist.strings"
+  plutil -create xml1 "$infoplist_strings"
+  plutil -insert NSMicrophoneUsageDescription -string "$usage" "$infoplist_strings"
+done
 plutil -lint -s "$app/Contents/Info.plist" || fail "Info.plist 不合法"
 
 # ---- 签名：由内向外。SwiftPM 的资源包是带 _CodeSignature 的嵌套 bundle（里面没有代码），
@@ -171,6 +194,9 @@ sign_sparkle --preserve-metadata=entitlements "$framework/Versions/B/XPCServices
 sign_sparkle "$framework/Versions/B/Autoupdate"
 sign_sparkle "$framework/Versions/B/Updater.app"
 sign_sparkle "$framework"
+# 语音引擎框架同 Sparkle：不套宿主权利，只按同一身份重签
+step "签名 CTranscribe.framework"
+sign_sparkle "$app/Contents/Frameworks/CTranscribe.framework"
 entitlements="$here/packaging/umuo.entitlements"
 if [ -z "$identity" ]; then
   entitlements="$OUT_DIR/adhoc.entitlements"
@@ -191,6 +217,13 @@ check CFBundleVersion "$(plist_get CFBundleVersion)" "$VERSION"
 check LSUIElement "$(plist_get LSUIElement)" true
 check "URL scheme" "$(plist_get CFBundleURLTypes.0.CFBundleURLSchemes.0)" umuo
 [ -x "$app/Contents/MacOS/$exe_name" ] || fail "可执行文件不在 Contents/MacOS/$exe_name"
+[ -n "$(plist_get NSMicrophoneUsageDescription | grep -v '<缺>')" ] || fail "Info.plist 缺麦克风用途说明"
+for lang in zh-Hans zh-Hant en ja; do
+  [ -f "$app/Contents/Resources/$lang.lproj/InfoPlist.strings" ] || fail "$lang.lproj/InfoPlist.strings 缺了"
+done
+for f in LICENSE LICENSE.ggml LICENSE.silero_vad LICENSE.miniz; do
+  [ -f "$app/Contents/Resources/Licenses/transcribe.cpp/$f" ] || fail "transcribe.cpp 的 $f 没随包"
+done
 for f in Umuo_Umuo.bundle/Contents/Resources/Strings/Localizable.xcstrings Umuo_Umuo.bundle/Contents/Resources/Tray icon.icns; do
   [ -e "$app/Contents/Resources/$f" ] || fail "Contents/Resources/$f 缺了"
 done
@@ -203,6 +236,8 @@ if [ "$quick" = 0 ]; then
   case "$archs" in *arm64*x86_64* | *x86_64*arm64*) ;; *) fail "不是通用二进制：$archs" ;; esac
   framework_archs="$(lipo -archs "$framework/Sparkle")"
   case "$framework_archs" in *arm64*x86_64* | *x86_64*arm64*) ;; *) fail "Sparkle 不是通用框架：$framework_archs" ;; esac
+  transcribe_archs="$(lipo -archs "$app/Contents/Frameworks/CTranscribe.framework/CTranscribe")"
+  case "$transcribe_archs" in *arm64*x86_64* | *x86_64*arm64*) ;; *) fail "CTranscribe 不是通用框架：$transcribe_archs" ;; esac
 fi
 step "从 .app 里跑 --selftest（证明启动得起来、资源包找得到）"
 log="$OUT_DIR/selftest.log"

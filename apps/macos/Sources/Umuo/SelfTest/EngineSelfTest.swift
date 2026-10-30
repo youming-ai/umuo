@@ -115,6 +115,38 @@ enum EngineSelfTest {
         opsChecks(engine, check)
         DataSelfTest.run(engine, check)
         SettingsSelfTest.run(engine, check)
+        voiceCheck(engine, fast: fast, check)
+    }
+
+    /// 语音后处理经 FFI：`startVoice` 同步启动、sink 在工作线程上回一次结果，会话号原样带回；完整结果记一条 voice 历史。
+    static func voiceCheck(_ engine: Engine, fast: String, _ check: (String, Bool, String) -> Void) {
+        do {
+            let patch = #"{"providerId":"openai","model":"gpt-4o-mini","historyEnabled":true,"privacyMode":false,"providerBaseUrls":{"openai":"\#(fast)"}}"#
+            _ = try engine.applySettingsPatch(patchJson: patch)
+        } catch {
+            check("Engine.startVoice", false, "换回快桩失败：\(error)")
+            return
+        }
+        final class Box: VoiceSink, @unchecked Sendable {
+            private let lock = NSLock()
+            private var value: (UInt64, VoicePostResult)?
+            func onResult(session: UInt64, result: VoicePostResult) { lock.withLock { value = (session, result) } }
+            var result: (UInt64, VoicePostResult)? { lock.withLock { value } }
+        }
+        let box = Box()
+        let request = VoicePostRequest(transcript: "嗯，明天见", task: .tidy, sourceLang: nil, targetLang: nil)
+        let handle = engine.startVoice(session: 42, request: request, sink: box)
+        wait { box.result != nil }
+        var records: [HistoryRecord] = []
+        wait { records = (try? engine.historyQuery(filter: nil, limit: 50, offset: 0)) ?? []; return records.contains { $0.scene == "voice" } }
+        guard let (session, result) = box.result, case let .done(output) = result else {
+            check("Engine.startVoice", false, "没有拿到结果：\(String(describing: box.result))")
+            return
+        }
+        check("Engine.startVoice",
+              session == 42 && handle.id() == 42 && output.text == "你好世界" && !output.truncated
+                  && records.contains { $0.scene == "voice" && $0.sourceText == "嗯，明天见" },
+              "#\(session) → \(output.text)，历史场景 voice")
     }
 
     /// 阶段 3 的窗口要的 ops 导出：历史（上面那次翻译记了一条）、

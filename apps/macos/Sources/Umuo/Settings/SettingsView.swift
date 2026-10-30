@@ -28,6 +28,12 @@ struct SettingsPane: View {
                     case .engine: EnginePage(model: model)
                     case .permissions: PermissionsPage(model: model)
                     case .advanced: AdvancedPage(model: model)
+                    case .license:
+                        if let license = model.license {
+                            LicensePage(model: model, license: license)
+                        } else {
+                            Section { Text(t("prefs.license.unavailable")).foregroundStyle(.secondary) }
+                        }
                     case .about: AboutPage(model: model, updater: updater)
                     }
                 }

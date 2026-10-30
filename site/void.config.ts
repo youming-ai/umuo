@@ -21,8 +21,9 @@ export default defineConfig({
       WAFFO_ENV: 'prod',
       WAFFO_MERCHANT_ID: 'MER_REDACTED',
       WAFFO_STORE_ID: 'STO_REDACTED',
-      WAFFO_PRODUCT_PREMIUM_MONTHLY: 'PROD_REDACTED_MONTHLY',
-      WAFFO_PRODUCT_PREMIUM_YEARLY: 'PROD_REDACTED_YEARLY',
+      // 一次性买断商品（US$9）。正式环境还没建：留着注释占位，收费接口回 503；
+      // 跑 scripts/waffo-setup.ts 建好后由它去掉注释、写入商品 ID。
+      // WAFFO_PRODUCT_LICENSE: '',
     },
   },
   routing: {

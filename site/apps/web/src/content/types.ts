@@ -139,7 +139,7 @@ export interface ActivateContent {
   copied: string
   /** `umuo://activate?key=…` 深链接按钮 */
   openApp: string
-  /** 拿到密钥之后怎么用 */
+  /** 拿到密钥之后怎么用：保存密钥、在 umuo 里激活、最多 3 台 Mac 与换机解绑 */
   steps: string[]
   /** 地址里没有领取码 */
   missing: string
@@ -152,6 +152,22 @@ export interface ActivateContent {
   retry: string
 }
 
+/** 购买入口（`PURCHASE_OPEN` 打开后才显示）：按钮、跳转中、出错，以及付款后怎么激活 */
+export interface PurchaseContent {
+  /** 按钮文字：购买 US$9 */
+  buy: string
+  /** 正在向 Worker 要收银台链接 */
+  opening: string
+  /** Worker 回 503：收费还没配好 */
+  unavailable: string
+  /** 网络错误或其他失败 */
+  error: string
+  /** 定价页按钮上方的一句（替代「尚未开放购买」）：先免费试用、再买 */
+  lead: string
+  /** 定价页按钮下方的激活说明：领取密钥、在 umuo 里激活、3 台 Mac */
+  activation: string
+}
+
 export interface PricingContent {
   /** 页面 h1，也是页眉链接文字 */
   title: string
@@ -160,8 +176,9 @@ export interface PricingContent {
   lead: string
   /** 两笔账，像对照本的左右两页：付给 umuo 的一次性买断，付给模型供应商的用量费 */
   bills: [PricingBill, PricingBill]
-  /** 购买入口还没做（买断方案与许可证流程验收前）时，放在下载按钮下的说明 */
+  /** 购买尚未开放（`PURCHASE_OPEN` 关闭）时，放在下载按钮上方的说明 */
   unavailable: string
+  purchase: PurchaseContent
   /** 不包含：用一份短清单把「买断 + 自带 Key」反过来说清楚 */
   excluded: { title: string; items: string[] }
   /** 「包含」区块的标题 */

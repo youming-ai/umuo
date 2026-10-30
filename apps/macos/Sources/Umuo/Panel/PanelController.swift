@@ -26,8 +26,8 @@ final class PanelController: PanelBackend {
     /// 每次显示加一：显示之后在后台取到的归属只认最新的那次显示。
     private var showGeneration = 0
     private var watchdog: Task<Void, Never>?
-    /// 浮窗可见期间的 Esc（见 `armEscape`）。与设置里的快捷键分开注册，收起时整个注销。
-    private let escapeKey = GlobalHotkeys()
+    /// 浮窗可见期间的 Esc（见 `armEscape`），与语音浮层共用一个注册者，按最近认领的一方路由。
+    private var escape: EscapeRouter { app.escape }
 
     init(app: AppModel) {
         self.app = app
@@ -77,7 +77,7 @@ final class PanelController: PanelBackend {
 
     func hidePanel() {
         window.orderOut(nil)
-        escapeKey.unregisterAll()
+        escape.release(.panel)
         watchdog?.cancel()
         watchdog = nil
     }
@@ -85,7 +85,7 @@ final class PanelController: PanelBackend {
     /// 按 `session.capturesGlobalEscape` 同步全局 Esc：未钉住或正在流式翻译时挂载，已钉住且空闲时注销。
     func syncEscape() {
         guard window.isVisible, session.capturesGlobalEscape else {
-            escapeKey.unregisterAll()
+            escape.release(.panel)
             return
         }
         armEscape()
@@ -97,18 +97,13 @@ final class PanelController: PanelBackend {
     /// Esc 根本到不了它——而 Esc 是取消流式翻译的唯一途径（Tauri 版 `panel.show()` 会聚焦 WebView，弹出即可按 Esc）。
     /// 也不让浮窗在显示 / 点击时成为 key：「替换原文」的 ⌘V 兜底发往 HID，落在 key 窗口上，浮窗是 key 就粘进了自己。
     /// 代价：浮窗开着时 Esc 被它独占，不再送到源应用；收起即恢复。OCR 原文框是 key 时也先走这里，不会处理两次。
+    /// 语音浮层同时可见时，Esc 给最近弹出的那一个（`EscapeRouter`）；注册不上时退回窗口自己的 keyDown。
     private func armEscape() {
-        guard escapeKey.count == 0 else { return }
-        do {
-            try escapeKey.register(.combo(HotkeyCombo(keyCode: Self.escapeKeyCode, modifiers: 0))) { [weak self] in
-                guard let self else { return }
-                // 系统级热键先于输入法拿到 Esc：OCR 原文框里正在组字（拼音、日文候选）时，这一下只取消组字
-                if self.cancelComposition() { return }
-                self.session.escape()
-            }
-        } catch {
-            // 注册不上（极少见）就退回窗口自己的 keyDown：浮窗是 key 时照样能按
-            print("umuo: 注册浮窗 Esc 失败：\(error)")
+        escape.claim(.panel) { [weak self] in
+            guard let self else { return }
+            // 系统级热键先于输入法拿到 Esc：OCR 原文框里正在组字（拼音、日文候选）时，这一下只取消组字
+            if self.cancelComposition() { return }
+            self.session.escape()
         }
     }
 

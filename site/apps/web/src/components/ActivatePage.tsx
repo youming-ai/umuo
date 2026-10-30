@@ -80,8 +80,11 @@ export function ActivatePage({ activate }: { activate: ActivateContent }) {
         }
         // 429、5xx 与网络错误一样算临时故障，下面统一退避重试
         if (!response.ok) throw new Error(String(response.status))
-        const body = (await response.json()) as { status?: string; key?: string }
-        if (body.status === 'ready' && body.key) return setState({ kind: 'ready', key: body.key })
+        // 付款结果到了是 `{ licenseKey }`，还没到是 `{ status: 'pending' }`
+        const body = (await response.json()) as { licenseKey?: unknown }
+        if (typeof body.licenseKey === 'string' && body.licenseKey) {
+          return setState({ kind: 'ready', key: body.licenseKey })
+        }
         next(polls + 1, 0, POLL_MS)
       } catch {
         if (stopped) return

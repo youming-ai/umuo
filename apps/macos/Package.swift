@@ -16,6 +16,15 @@ let package = Package(
     ],
     targets: [
         .target(name: "umuo_ffiFFI"),
+        // 本地语音转写引擎 transcribe.cpp v0.4.1 的官方预编译包（MIT，阶段 B 选定，见
+        // docs/research/local-transcription-engines.md）。SwiftPM 按 checksum（即 zip 的 SHA-256）校验下载，
+        // 与 scripts/asr-eval.ts 的 ENGINE_ARTIFACT 同一份。里面是动态的 CTranscribe.framework（`import CTranscribe`），
+        // 由 scripts/bundle.sh 拷进 Contents/Frameworks，与 Sparkle 一样经 @executable_path/../Frameworks 加载。
+        .binaryTarget(
+            name: "TranscribeCpp",
+            url: "https://github.com/handy-computer/transcribe.cpp/releases/download/v0.4.1/TranscribeCpp.xcframework.zip",
+            checksum: "fb5646e564036a6c49659e3efcf72eb567af20da31b8569045c9a08181d35126"
+        ),
         .target(
             name: "UmuoCore",
             dependencies: ["umuo_ffiFFI"],
@@ -31,7 +40,7 @@ let package = Package(
         ),
         .executableTarget(
             name: "Umuo",
-            dependencies: ["UmuoCore", .product(name: "Sparkle", package: "Sparkle")],
+            dependencies: ["UmuoCore", "TranscribeCpp", .product(name: "Sparkle", package: "Sparkle")],
             // String Catalog 整个目录原样拷贝、运行时自己读（Models/L10n.swift）：SwiftPM 见到目标里的 .xcstrings
             // 就要调 Xcode 的 xcstringstool（`.process` 编译、连 `.copy` 单个文件也要生成字符串符号），
             // 只装 Command Line Tools 时编不过；拷整个目录不会被扫描，两种工具链下行为也完全一致。

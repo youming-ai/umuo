@@ -21,6 +21,8 @@ pub mod requests;
 pub mod settings;
 pub mod settings_patch;
 pub mod translate;
+pub mod voice;
+pub mod voice_session;
 
 pub use crate::core::AppCore;
 pub use crate::host::Host;

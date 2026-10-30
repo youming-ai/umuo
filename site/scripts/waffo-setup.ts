@@ -1,6 +1,6 @@
 /**
- * 一次性初始化 Waffo 店铺：建 Premium 月付 / 年付两个订阅商品与套餐组，注册 webhook，
- * 把两个商品 ID 写回 void.config.ts 的 vars。
+ * 一次性初始化 Waffo 店铺：建 US$9 的一次性买断商品，注册（或更新）webhook，
+ * 把商品 ID 写回 void.config.ts 的 WAFFO_PRODUCT_LICENSE。
  *
  * 东西建在私钥所属的环境里（正式 Key → 正式环境），不再「从测试发布到正式」：用正式 Key
  * 建的商品没有测试版本，publish 会报 `No test version found`。所以私钥的环境必须与
@@ -14,55 +14,36 @@
  *   # 只看会做什么（不要私钥、不发请求、不写文件）
  *   bun run scripts/waffo-setup.ts --dry-run
  *
- * 可以放心重跑：每完成一步都立刻记下（商品 ID 写回 void.config.ts，套餐组与 webhook 记在
- * scripts/.waffo-setup-state.json），已完成的步骤直接跳过；创建请求另带固定的 idempotency key。
+ * 可以放心重跑：商品 ID 一写回 void.config.ts 就跳过建商品；webhook 先按地址与环境在店铺里查，
+ * 已有就把订阅的事件改成下面这两种（订阅时代注册的那个会被就地改掉），没有才新建；
+ * 创建请求另带固定的 idempotency key。
  *
- * 价格不含税（Waffo 结账时按地区计税，与定价页的说明一致）；试用天数写在商品的
- * metadata.trialDays；套餐组打开 sharedTrial（月付与年付合计只给一次试用）与
- * selfServicePlanChange（顾客可以在客户门户里自己在月付与年付之间切换）。
+ * 价格不含税（Waffo 结账时按地区计税，与定价页的说明一致）。试用（7 天）由客户端本地处理，
+ * 不设在商品上；退款（14 天内）在 Waffo 后台或客户门户里操作，webhook 收到后 Worker 吊销许可证。
+ *
+ * 订阅时代建的两个商品（月付 / 年付）与套餐组不会被删除：在 Waffo 后台把它们设为 inactive。
  */
 
-import { existsSync, readFileSync, writeFileSync } from 'node:fs'
+import { readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { BillingPeriod, TaxCategory, WaffoPancake } from '@waffo/pancake-ts'
+import { TaxCategory, WaffoPancake } from '@waffo/pancake-ts'
 import { readVar, writeVar } from './void-vars'
 
 const VOID_CONFIG = join(import.meta.dirname, '..', 'void.config.ts')
 const WEBHOOK_URL = 'https://umuo.app/api/waffo/webhook'
+const PRODUCT_VARIABLE = 'WAFFO_PRODUCT_LICENSE'
 
-/** worker/src/billing.ts 处理的全部事件：订阅状态类事件都带 orderStatus 与 currentPeriodEnd */
-const WEBHOOK_EVENTS = [
-  'subscription.activated',
-  'subscription.renewed',
-  'subscription.recovered',
-  'subscription.canceling',
-  'subscription.uncanceled',
-  'subscription.plan_changed',
-  'subscription.canceled',
-  'subscription.past_due',
-  'refund.succeeded',
-] as const
+/** worker/src/billing.ts 处理的全部事件：付款成功签发许可证，退款吊销 */
+const WEBHOOK_EVENTS = ['order.completed', 'refund.succeeded'] as const
 
-const PLANS = [
-  {
-    variable: 'WAFFO_PRODUCT_PREMIUM_MONTHLY',
-    name: 'umuo Premium (Monthly)',
-    billingPeriod: BillingPeriod.Monthly,
-    amount: '2.99',
-    trialDays: 1,
-  },
-  {
-    variable: 'WAFFO_PRODUCT_PREMIUM_YEARLY',
-    name: 'umuo Premium (Yearly)',
-    billingPeriod: BillingPeriod.Yearly,
-    // 年付按 10 个月收（少付 2 个月）
-    amount: '29.90',
-    trialDays: 3,
-  },
-] as const
-
-const DESCRIPTION =
-  'Unlocks umuo Premium on macOS: AI word cards, multi-model comparison, custom styles, glossaries, per-app target language, per-feature models, spending limits, and searchable history. Models run on your own API key.'
+const PRODUCT = {
+  name: 'umuo for Mac (lifetime license)',
+  amount: '9.00',
+  // 一次性买断的桌面软件：按 software 计税（订阅时代用的是 saas）
+  taxCategory: TaxCategory.Software,
+  description:
+    'One-time purchase of umuo for macOS. Activates up to 3 Macs, free updates for life, refundable within 14 days. Models run on your own API key; no subscription and no account.',
+} as const
 
 function loadPrivateKey(): string {
   const path = process.argv.slice(2).find((arg) => !arg.startsWith('--'))
@@ -89,101 +70,81 @@ if (environment !== 'prod' && environment !== 'test') {
   console.error('void.config.ts 的 vars 里 WAFFO_ENV 必须是 prod 或 test')
   process.exit(1)
 }
+const testMode = environment === 'test'
 
-/**
- * 进度一步一记，中途失败、隔多久重跑都不会重复创建：商品 ID 立刻写回 void.config.ts，
- * 套餐组与 webhook 记在不提交的状态文件里（idempotency key 只保 24 小时）。
- */
-const STATE = join(import.meta.dirname, '.waffo-setup-state.json')
-const state: { groupId?: string; webhooks?: Record<string, boolean> } = existsSync(STATE)
-  ? JSON.parse(readFileSync(STATE, 'utf8'))
-  : {}
-
-// --dry-run：只读配置与状态文件，列出每一步会做什么；不要私钥、不发请求、不写文件
+// --dry-run：只读配置，列出每一步会做什么；不要私钥、不发请求、不写文件
 if (process.argv.includes('--dry-run')) {
   console.log(`环境 ${environment}，商户 ${merchantId}，店铺 ${storeId}`)
-  for (const plan of PLANS) {
-    const known = readVar(config, plan.variable)
-    console.log(
-      known
-        ? `· ${plan.name}：已有 ${known}，会跳过`
-        : `+ ${plan.name}：会创建并写回 ${plan.variable}`,
-    )
-  }
+  const known = readVar(config, PRODUCT_VARIABLE)
   console.log(
-    state.groupId ? `· 套餐组：已有 ${state.groupId}，会跳过` : '+ 套餐组 umuo Premium：会创建',
+    known
+      ? `· ${PRODUCT.name}：已有 ${known}，会跳过`
+      : `+ ${PRODUCT.name}（US$${PRODUCT.amount} 一次性，不含税）：会创建并写回 ${PRODUCT_VARIABLE}`,
   )
   console.log(
-    state.webhooks?.[environment]
-      ? `· webhook（${environment}）：已注册，会跳过`
-      : `+ webhook（${environment}）→ ${WEBHOOK_URL}：会注册`,
+    `~ webhook（${environment}）→ ${WEBHOOK_URL}：已有则把事件改成 ${WEBHOOK_EVENTS.join(' / ')}，没有则注册`,
   )
   process.exit(0)
 }
 
 const client = new WaffoPancake({ merchantId, privateKey: loadPrivateKey() })
 /** 同一个商户、同一步操作用同一个 key：24 小时内重跑不会重复创建 */
-const key = (step: string) => `${merchantId}-umuo-setup-${step}-v1`
+const key = (step: string) => `${merchantId}-umuo-setup-${step}-v2`
 
-const saveState = () => writeFileSync(STATE, `${JSON.stringify(state, null, 2)}\n`)
-
-const productIds: string[] = []
-for (const plan of PLANS) {
-  const known = readVar(config, plan.variable)
-  if (known) {
-    productIds.push(known)
-    console.log(`· ${plan.name}：已有 ${known}，跳过`)
-    continue
-  }
-  const { product } = await client.subscriptionProducts.create(
-    {
-      storeId,
-      name: plan.name,
-      description: DESCRIPTION,
-      billingPeriod: plan.billingPeriod,
-      prices: { USD: { amount: plan.amount, taxCategory: TaxCategory.SaaS } },
-      metadata: { trialDays: plan.trialDays },
-    },
-    { idempotencyKey: key(plan.variable) },
-  )
-  productIds.push(product.id)
-  config = writeVar(config, plan.variable, product.id)
-  writeFileSync(VOID_CONFIG, config)
-  console.log(
-    `✓ ${plan.name}：${product.id}（$${plan.amount}，试用 ${plan.trialDays} 天，已写回 void.config.ts）`,
-  )
-}
-
-if (state.groupId) {
-  console.log(`· 套餐组：已有 ${state.groupId}，跳过`)
+const known = readVar(config, PRODUCT_VARIABLE)
+if (known) {
+  console.log(`· ${PRODUCT.name}：已有 ${known}，跳过`)
 } else {
-  const { group } = await client.subscriptionProductGroups.create(
+  const { product } = await client.onetimeProducts.create(
     {
       storeId,
-      name: 'umuo Premium',
-      rules: { sharedTrial: true, selfServicePlanChange: true },
-      productIds,
+      name: PRODUCT.name,
+      description: PRODUCT.description,
+      prices: { USD: { amount: PRODUCT.amount, taxCategory: PRODUCT.taxCategory } },
     },
-    { idempotencyKey: key('group') },
+    { idempotencyKey: key(PRODUCT_VARIABLE) },
   )
-  state.groupId = group.id
-  saveState()
-  console.log(`✓ 套餐组 umuo Premium：${group.id}（共享试用、可自助切换月付 / 年付）`)
+  config = writeVar(config, PRODUCT_VARIABLE, product.id)
+  writeFileSync(VOID_CONFIG, config)
+  console.log(`✓ ${PRODUCT.name}：${product.id}（US$${PRODUCT.amount}，已写回 void.config.ts）`)
 }
 
 // 只为 WAFFO_ENV 这个环境注册：Worker 只用这个环境的公钥验签，另一个环境的投递只会被拒
-const testMode = environment === 'test'
-state.webhooks ??= {}
-if (state.webhooks[environment]) {
-  console.log(`· webhook（${environment}）：已注册，跳过`)
+interface StoreWebhooksQuery {
+  store: { storeWebhooks: Array<{ id: string; url: string; testMode: boolean; events: string[] }> }
+}
+const { data, errors } = await client.graphql.query<StoreWebhooksQuery>({
+  query: 'query ($id: ID!) { store(id: $id) { storeWebhooks { id url testMode events } } }',
+  variables: { id: storeId },
+})
+if (!data?.store) {
+  // 查不到就不盲目新建：同一地址挂两个 webhook 会让退款事件投两遍
+  console.error(
+    `查询店铺 webhook 失败${errors?.length ? `：${errors.map((error) => error.message).join('; ')}` : ''}。` +
+      `请在 Waffo 后台把 ${WEBHOOK_URL}（${environment}）的事件改成 ${WEBHOOK_EVENTS.join(' / ')}。`,
+  )
+  process.exit(1)
+}
+const existing = data.store.storeWebhooks.find(
+  (webhook) => webhook.url === WEBHOOK_URL && webhook.testMode === testMode,
+)
+const wanted = [...WEBHOOK_EVENTS].sort().join(',')
+if (existing && [...existing.events].sort().join(',') === wanted) {
+  console.log(`· webhook（${environment}）：已订阅 ${WEBHOOK_EVENTS.join(' / ')}，跳过`)
+} else if (existing) {
+  await client.webhooks.update({ id: existing.id, events: [...WEBHOOK_EVENTS] })
+  console.log(
+    `✓ webhook（${environment}）：事件由 ${existing.events.join(' / ')} 改为 ${WEBHOOK_EVENTS.join(' / ')}`,
+  )
 } else {
   await client.webhooks.add(
     { storeId, channel: 'http', url: WEBHOOK_URL, events: [...WEBHOOK_EVENTS], testMode },
     { idempotencyKey: key(`webhook-${environment}`) },
   )
-  state.webhooks[environment] = true
-  saveState()
   console.log(`✓ webhook（${environment}）→ ${WEBHOOK_URL}`)
 }
 
-console.log('\n完成。void.config.ts 里的两个商品 ID 已更新：提交它，然后合并部署。')
+console.log(
+  `\n完成。void.config.ts 的 ${PRODUCT_VARIABLE} 已更新：提交它并合并部署；` +
+    '官网购买入口另由 apps/web/src/config.ts 的 PURCHASE_OPEN 打开。',
+)

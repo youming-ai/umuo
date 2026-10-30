@@ -3,15 +3,20 @@
 <!--
   hardened runtime 的权利（bundle.sh 签名时以 hardened runtime 选项带上这个文件）。
 
-  刻意是空的：
+  只有一项：com.apple.security.device.audio-input——语音输入要录麦克风，hardened runtime 下没有这项权利，
+  系统会直接拒绝录音（连授权框都不弹）。麦克风本身仍是 TCC 授权，首次按语音键时才申请。
+
+  其余刻意不加：
   - 不开 App Sandbox（com.apple.security.app-sandbox）：沙盒禁止对其他 App 用辅助功能、禁止 CGEvent.post，
     划词与原地替换做不了，这也是不上 Mac App Store 的原因。
   - 不要 JIT / 未签名可执行内存：Rust 内核静态链接，Sparkle 动态框架以同一 Developer ID 签名。
   - 正式签名保持库校验；仅无 Team ID 的 ad-hoc 构建由 bundle.sh 添加关闭库校验的开发权利。
   - 不要 apple-events：没有用 AppleScript 控制别的应用。辅助功能、输入监控、屏幕录制是 TCC 授权，不是权利。
-  以后加了需要权利的能力（例如麦克风：com.apple.security.device.audio-input），在这里加上并写明为什么。
+  以后加了需要权利的能力，在这里加上并写明为什么。
 -->
 <plist version="1.0">
 <dict>
+  <key>com.apple.security.device.audio-input</key>
+  <true/>
 </dict>
 </plist>

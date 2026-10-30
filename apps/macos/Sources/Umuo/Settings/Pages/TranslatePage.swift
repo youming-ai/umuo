@@ -10,7 +10,7 @@ struct TranslatePage: View {
 
     var body: some View {
         Group {
-            // 四个入口的快捷键放在同一组：一眼看全、冲突也好查（同 TablePro 的键盘设置页）
+            // 四个入口的快捷键放在同一组：一眼看全、冲突也好查（同 TablePro 的键盘设置页）；语音键紧随其后，一起查冲突
             PrefGroup(title: t("prefs.translate.hotkey")) {
                 HotkeyRow(model: model, field: "selectionHotkey", description: t("prefs.translate.selectionHint"),
                           title: t("prefs.translate.selection"))
@@ -20,6 +20,14 @@ struct TranslatePage: View {
                           title: t("prefs.translate.compose"))
                 HotkeyRow(model: model, field: "ocrHotkey", description: t("prefs.translate.ocrHint"),
                           title: t("prefs.translate.ocr"))
+            }
+
+            // 语音的两个「按住说话」键：整理与翻译各一个，按下时就定了这一句做什么（PRD §5.11）
+            PrefGroup(title: t("prefs.voice.group")) {
+                HotkeyRow(model: model, field: HotkeyCenter.voiceField, description: t("prefs.voice.tidyHint"),
+                          title: t("prefs.voice.tidy"))
+                HotkeyRow(model: model, field: HotkeyCenter.voiceTranslateField,
+                          description: t("prefs.voice.translateHint"), title: t("prefs.voice.translate"))
             }
 
             PrefGroup(title: t("prefs.translate.engine")) {

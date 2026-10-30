@@ -4,48 +4,70 @@ import { json } from './http'
 import { clientIp, normalizeEmail, withinRateLimit } from './notify'
 
 /**
- * Premium 的收费与许可证（Waffo Pancake 代收，见 docs/DEPLOY.md「收费」一节）。
+ * 一次性买断的收费与许可证（Waffo Pancake 代收，见 docs/DEPLOY.md「收费」一节）。
+ *
+ * 商业规则：US$9 买断（不含税，Waffo 按地区计税）；每个许可证最多激活 3 台 Mac，可凭密钥自助解绑换机；
+ * 购买 14 天内可退款，退款后许可证吊销；7 天试用由客户端本地处理，服务端不管试用。
  *
  * 没有账号系统：每次结账随机生成一个买家身份（`buyerIdentity`），凭证是付款成功后发出的许可证密钥。
  *
  * 1. `POST /api/checkout`：生成身份与「领取码」，用认证结账打开 Waffo 收银台；付完跳回 `/activate?claim=<领取码>`。
- * 2. `POST /api/waffo/webhook`：验签、核对店铺与环境、去重，再按身份更新许可证；首次激活时生成密钥并挂到领取码上。
- * 3. `GET /api/license/claim`：激活页轮询领取码，拿到密钥后交给客户端（首次领取后 1 小时内可重复读，之后失效）。
- * 4. `POST /api/license/verify`：客户端定期校验密钥是否仍有效。
- * 5. `POST /api/license/portal`：凭密钥换一个 Waffo 客户门户链接（取消、换卡、发票）。
+ * 2. `POST /api/waffo/webhook`：验签、核对店铺与环境、去重；`order.completed` 签发许可证并挂到领取码上，
+ *    `refund.succeeded` 吊销。
+ * 3. `GET /api/license/claim`：激活页轮询领取码，拿到密钥（首次领取后 1 小时内可重复读，之后失效）。
+ * 4. `POST /api/license/activate` / `deactivate`：客户端用密钥登记、解绑本机（最多 3 台）。
+ * 5. `POST /api/license/verify`：客户端定期校验本机的许可证状态。
+ * 6. `POST /api/license/portal`：凭密钥换一个 Waffo 客户门户链接（发票、退款申请）。
  *
  * 为什么身份是随机的而不是从邮箱推导：结账会给这个身份签发 Waffo 的客户会话令牌，
- * 凭它能取消订阅、查看订单。如果身份能由邮箱算出来，知道别人邮箱的人就能拿到别人的令牌。
- * 代价是 Waffo 按身份记试用，换身份可以再领一次试用——每次都要填真卡、试用只有 1–3 天，可以接受。
+ * 凭它能进客户门户、查看订单。如果身份能由邮箱算出来，知道别人邮箱的人就能拿到别人的令牌。
  *
- * 为什么按身份而不是按订单存许可证：换套餐时 Waffo 会生成新订单（`plan_changed` 带的是新订单号），
- * 身份不变。按订单存，许可证会留在旧订单上随它过期。
+ * 许可证与索引里只存密钥的哈希，泄露了也拿不到密钥；明文密钥只暂存在领取码上，
+ * 激活页读走后 1 小时（没人读则 7 天）随领取码一起过期。没配齐 Waffo 的变量与私钥时，结账、webhook 与门户回 503。
  *
- * KV 里只存密钥的哈希，泄露了也拿不到密钥。没配齐 Waffo 的变量与私钥时，所有收费接口都回 503。
+ * KV 是最终一致的：同一许可证在两台 Mac 上几乎同时激活，读改写可能互相覆盖，偶尔多登记一台或丢一台。
+ * 对 US$9 的买断可以接受；换成 Durable Object 才能做到严格计数。
  */
 
-export const PLANS = ['premium-monthly', 'premium-yearly'] as const
-export type Plan = (typeof PLANS)[number]
-
+/** 每个许可证最多同时激活的 Mac 数量 */
+export const MAX_DEVICES = 3
 /** 领取码与 webhook 去重记录的保留时长：够访客付完款回来，也够 Waffo 重试完 */
 const CLAIM_TTL_SECONDS = 7 * 24 * 60 * 60
 /** 首次领到密钥后，领取码还能再读多久（刷新激活页用）；过了就失效，地址泄露也拿不到密钥 */
 const CLAIM_REVEAL_WINDOW_MS = 60 * 60 * 1000
-/** 续费失败或 webhook 晚到时的宽限期：账期结束后再多认这么久 */
-const GRACE_MS = 3 * 24 * 60 * 60 * 1000
-/** Waffo 的订阅状态里仍然算「已付费」的几种 */
-const ENTITLED_STATUSES = new Set(['active', 'canceling', 'past_due'])
-/** 进入后同一订单不再回退的状态：晚到的重试或旧事件不能把它们改回「有效」 */
-const TERMINAL_STATUSES = new Set(['canceled', 'refunded'])
-/** 每个 IP 每分钟的次数。客户端会定期校验，所以 verify 宽一些；同一网络下可能有很多台 Mac */
-const LIMITS = { checkout: 5, portal: 5, claim: 60, verify: 60 } as const
+/** 设备 ID 与设备名的长度上限：二者都会进 KV、再原样回给客户端 */
+const MAX_DEVICE_ID_LENGTH = 128
+const MAX_DEVICE_NAME_LENGTH = 64
+/**
+ * 每个 IP 每分钟的次数。客户端会定期校验，所以 verify 宽一些；同一网络下可能有很多台 Mac。
+ * 激活与解绑是人手动点的，次数少；但要挡住拿密钥批量试设备的脚本。
+ */
+const LIMITS = {
+  checkout: 5,
+  portal: 5,
+  claim: 60,
+  verify: 60,
+  activate: 20,
+  deactivate: 20,
+} as const
+
+/** 官网的五种语言 → Waffo 收银台的默认语言；访客在收银台上仍可以自己切换 */
+const CASHIER_LANGUAGE = {
+  'zh-cn': 'zh-Hans',
+  'zh-tw': 'zh-Hant-TW',
+  en: 'en',
+  ja: 'ja-JP',
+  ko: 'ko-KR',
+} as const
+type CashierLanguage = (typeof CASHIER_LANGUAGE)[keyof typeof CASHIER_LANGUAGE]
 
 export interface WaffoConfig {
   environment: 'test' | 'prod'
   merchantId: string
   privateKey: string
   storeId: string
-  products: Record<Plan, string>
+  /** 一次性买断商品（US$9）的 ID */
+  productId: string
 }
 
 /** 读 Waffo 配置；缺任何一项都返回 null，调用方回 503 而不是带着半套配置去收钱 */
@@ -55,8 +77,7 @@ export function waffoConfig(env: Env): WaffoConfig | null {
     env.WAFFO_MERCHANT_ID,
     env.WAFFO_PRIVATE_KEY,
     env.WAFFO_STORE_ID,
-    env.WAFFO_PRODUCT_PREMIUM_MONTHLY,
-    env.WAFFO_PRODUCT_PREMIUM_YEARLY,
+    env.WAFFO_PRODUCT_LICENSE,
   ]
   if (!environment || values.some((value) => !value)) return null
   return {
@@ -64,10 +85,7 @@ export function waffoConfig(env: Env): WaffoConfig | null {
     merchantId: env.WAFFO_MERCHANT_ID as string,
     privateKey: env.WAFFO_PRIVATE_KEY as string,
     storeId: env.WAFFO_STORE_ID as string,
-    products: {
-      'premium-monthly': env.WAFFO_PRODUCT_PREMIUM_MONTHLY as string,
-      'premium-yearly': env.WAFFO_PRODUCT_PREMIUM_YEARLY as string,
-    },
+    productId: env.WAFFO_PRODUCT_LICENSE as string,
   }
 }
 
@@ -76,7 +94,8 @@ export interface WaffoClient {
   createCheckout(params: {
     productId: string
     buyerIdentity: string
-    buyerEmail: string
+    buyerEmail?: string
+    language?: CashierLanguage
     successUrl: string
     metadata: Record<string, string>
   }): Promise<{ checkoutUrl: string }>
@@ -90,12 +109,8 @@ export function sdkClient(config: WaffoConfig): WaffoClient {
   const client = new WaffoPancake({ merchantId: config.merchantId, privateKey: config.privateKey })
   return {
     async createCheckout(params) {
-      const result = await client.checkout.authenticated.create({
-        ...params,
-        currency: 'USD',
-        // 试用期设在 Waffo 的商品上；这里只是声明「这次结账允许走试用」
-        withTrial: true,
-      })
+      // 一次性商品：不传 withTrial（SDK 注明只对订阅有效），试用由客户端本地处理
+      const result = await client.checkout.authenticated.create({ ...params, currency: 'USD' })
       return { checkoutUrl: result.checkoutUrl }
     },
     async createPortalLink(params) {
@@ -107,9 +122,9 @@ export function sdkClient(config: WaffoConfig): WaffoClient {
 
 /** Webhook 事件里我们读的字段（SDK 的 WebhookEvent 结构上满足它） */
 export interface BillingEvent {
-  /** 投递记录 ID。同一订单的不同事件可能相同，**不能单独用来去重** */
+  /** 投递记录 ID；实际投递里同一订单的不同事件可能相同，**不能单独用来去重** */
   id: string
-  /** 业务事件 ID；与 `eventType` 一起才是唯一的（Waffo 文档：按事件类型 + eventId 去重） */
+  /** 业务事件 ID（付款号、退款号）；与 `eventType` 一起才是唯一的（Waffo 文档：按事件类型 + eventId 去重） */
   eventId: string
   eventType: string
   /** 事件发生时间（ISO 8601），重试不会改它；用来丢弃晚到的旧事件 */
@@ -122,8 +137,6 @@ export interface BillingEvent {
     orderStatus?: string
     merchantProvidedBuyerIdentity?: string
     orderMetadata?: Record<string, string>
-    billingPeriod?: string
-    currentPeriodEnd?: string
   }
 }
 
@@ -181,33 +194,47 @@ export function newClaimToken(): string {
   return base64url(crypto.getRandomValues(new Uint8Array(24)))
 }
 
-/** Waffo 的计费周期 → 我们的套餐名；换套餐后靠它更新 */
-function planFromPeriod(period: string | undefined): Plan | null {
-  if (period === 'monthly') return 'premium-monthly'
-  if (period === 'yearly') return 'premium-yearly'
-  return null
+/** 去掉控制字符与零宽字符后的非空串，超长截断；不是字符串或清洗后为空时返回 null */
+function cleanText(raw: unknown, max: number): string | null {
+  if (typeof raw !== 'string') return null
+  const value = raw.replace(/[\p{Cc}\p{Cf}]/gu, '').trim()
+  return value ? value.slice(0, max) : null
+}
+
+/** 设备 ID 由客户端生成，只作比对用：超长直接拒绝（截断会让两台设备撞成同一个） */
+function normalizeDeviceId(raw: unknown): string | null {
+  const value = cleanText(raw, MAX_DEVICE_ID_LENGTH + 1)
+  return value && value.length <= MAX_DEVICE_ID_LENGTH ? value : null
 }
 
 // ---------------------------------------------------------------- 记录
 
 export interface ClaimRecord {
   status: 'pending' | 'ready'
-  plan: Plan
-  /** 这次结账的买家身份：激活事件的身份对得上，才把密钥交给这张领取码 */
+  /** 这次结账的买家身份：付款事件的身份对得上，才把密钥交给这张领取码 */
   identity: string
   key?: string
   /** 第一次被读到密钥的时间（ISO 8601）；过了 CLAIM_REVEAL_WINDOW_MS 就不再给 */
   revealedAt?: string
 }
 
+export interface Device {
+  deviceId: string
+  deviceName: string
+  /** 首次激活时间（ISO 8601）；同一设备重复激活不改它 */
+  activatedAt: string
+}
+
+/** 许可证只有两种状态：有效，或因退款被吊销（吊销后不再回到有效） */
+export type LicenseStatus = 'active' | 'revoked'
+
 export interface LicenseRecord {
   identity: string
-  /** 当前生效的订单；换套餐后指向新订单 */
   orderId: string
-  plan: string
-  status: string
-  currentPeriodEnd: string | null
+  status: LicenseStatus
+  /** 退款先于付款事件到达时，先记下一条没有密钥的吊销记录 */
   keyHash: string | null
+  devices: Device[]
   mode: string
   /** 最后一次被采纳的事件时间：比它旧的事件一律忽略 */
   lastEventAt: string
@@ -230,20 +257,6 @@ async function readJson<T>(store: NotifyStore, key: string): Promise<T | null> {
   }
 }
 
-/**
- * 许可证此刻是否有效。账期结束后再给 3 天宽限：续费失败要重试、webhook 也可能晚到，
- * 不该因为这几个小时把付费用户降级。
- */
-export function isEntitled(record: LicenseRecord, now: Date): boolean {
-  if (!ENTITLED_STATUSES.has(record.status)) return false
-  if (!record.currentPeriodEnd) return true
-  const end = Date.parse(record.currentPeriodEnd)
-  if (Number.isNaN(end)) return true
-  // currentPeriodEnd 可能只有日期（`2026-05-10`），按当天结束算
-  const endOfDay = record.currentPeriodEnd.length <= 10 ? end + 24 * 60 * 60 * 1000 : end
-  return now.getTime() <= endOfDay + GRACE_MS
-}
-
 // ---------------------------------------------------------------- 接口
 
 async function readBody(request: Request): Promise<Record<string, unknown> | null> {
@@ -259,11 +272,17 @@ const notConfigured = () => json({ ok: false, error: 'billing_not_configured' },
 const rateLimited = () => json({ ok: false, error: 'rate_limited' }, 429)
 const methodNotAllowed = (allow: string) =>
   json({ ok: false, error: 'method_not_allowed' }, 405, { allow })
+const invalidRequest = () => json({ error: 'invalid_request' }, 400)
+const invalidLicense = () => json({ error: 'invalid_license' }, 404)
+const revoked = () => json({ error: 'revoked' }, 403)
 
 const allowed = (request: Request, env: Env, scope: keyof typeof LIMITS) =>
   withinRateLimit(env.LICENSES, clientIp(request), scope, LIMITS[scope])
 
-/** `POST /api/checkout` `{ plan, email }` → `{ checkoutUrl }`（前端在新标签页打开它） */
+/**
+ * `POST /api/checkout` `{ email?, locale? }` → `{ url }`（前端跳转过去）。
+ * 邮箱只用来预填收银台，可以不给（Waffo 收银台自己会收）；给了就必须像个邮箱。
+ */
 export async function handleCheckout(
   request: Request,
   env: Env,
@@ -274,15 +293,20 @@ export async function handleCheckout(
   if (!config) return notConfigured()
 
   const body = await readBody(request)
-  const plan = PLANS.find((item) => item === body?.plan)
-  if (!plan) return json({ ok: false, error: 'invalid_plan' }, 400)
-  const email = normalizeEmail(body?.email)
-  if (!email) return json({ ok: false, error: 'invalid_email' }, 400)
+  if (!body) return invalidRequest()
+  const email = body.email === undefined || body.email === '' ? null : normalizeEmail(body.email)
+  if (email === null && body.email !== undefined && body.email !== '') {
+    return json({ error: 'invalid_email' }, 400)
+  }
+  const language =
+    typeof body.locale === 'string'
+      ? CASHIER_LANGUAGE[body.locale.toLowerCase() as keyof typeof CASHIER_LANGUAGE]
+      : undefined
   if (!(await allowed(request, env, 'checkout'))) return rateLimited()
 
   const token = newClaimToken()
   const identity = newBuyerIdentity()
-  const claim: ClaimRecord = { status: 'pending', plan, identity }
+  const claim: ClaimRecord = { status: 'pending', identity }
   await env.LICENSES.put(claimKey(token), JSON.stringify(claim), {
     expirationTtl: CLAIM_TTL_SECONDS,
   })
@@ -291,17 +315,18 @@ export async function handleCheckout(
   successUrl.searchParams.set('claim', token)
   try {
     const { checkoutUrl } = await (deps.client ?? sdkClient)(config).createCheckout({
-      productId: config.products[plan],
+      productId: config.productId,
       buyerIdentity: identity,
       // 只用来预填收银台的邮箱栏，不参与身份
-      buyerEmail: email,
+      ...(email ? { buyerEmail: email } : {}),
+      ...(language ? { language } : {}),
       successUrl: successUrl.toString(),
       metadata: { claim: token },
     })
-    return json({ ok: true, checkoutUrl })
+    return json({ url: checkoutUrl })
   } catch {
     // 不把 SDK 的错误细节回给浏览器：里面可能有商户 ID、商品 ID
-    return json({ ok: false, error: 'checkout_failed' }, 502)
+    return json({ error: 'checkout_failed' }, 502)
   }
 }
 
@@ -336,14 +361,21 @@ export async function handleWebhook(
 }
 
 /**
- * 按买家身份更新许可证。订阅类事件都带 `orderStatus`，所以不逐个分支，只守住四条规则：
+ * 按买家身份更新许可证。一次性商品只关心两种事件，守住三条规则：
  *
- * 1. 只认当前订单的事件；`plan_changed` 例外，它把许可证切到新订单（身份不变，密钥跟过去）。
- * 2. 比上次采纳的事件旧的一律忽略（重试与跨地域的 KV 读旧都会让事件乱序到达）。
- * 3. 已取消、已退款的订单不再回退。
- * 4. 只有 `subscription.activated` 生成密钥；身份与领取码对得上才交出去。
+ * 1. `order.completed`（付款成功）签发许可证；同一身份已有许可证时不再生成第二把密钥。
+ *    身份与领取码对得上，才把密钥交给领取码。
+ * 2. `refund.succeeded` 吊销许可证（我们只做全额退款）。吊销是终态，晚到的付款事件改不回来；
+ *    退款比付款先到时先记一条吊销记录，后到的付款事件因此不再签发。
+ * 3. 比上次采纳的事件旧的一律忽略（重试与跨地域的 KV 读旧都会让事件乱序到达）。
+ *
+ * 订阅类事件（`subscription.*`）与其他事件一律忽略。
  */
 export async function applyEvent(store: NotifyStore, event: BillingEvent, now: Date) {
+  const isPayment = event.eventType === 'order.completed'
+  const isRefund = event.eventType === 'refund.succeeded'
+  if (!isPayment && !isRefund) return
+
   const { data } = event
   const claimToken = data.orderMetadata?.claim
   const claim = claimToken ? await readJson<ClaimRecord>(store, claimKey(claimToken)) : null
@@ -356,61 +388,51 @@ export async function applyEvent(store: NotifyStore, event: BillingEvent, now: D
   await store.put(orderIndex(data.orderId), identity)
 
   const existing = await readJson<LicenseRecord>(store, licenseKey(identity))
-  const sameOrder = existing?.orderId === data.orderId
   if (existing && Date.parse(event.timestamp) < Date.parse(existing.lastEventAt)) return
 
-  if (event.eventType === 'refund.succeeded') {
-    // 退款即收回 Premium（我们的退款都是全额）
-    if (existing && sameOrder) await save({ ...existing, status: 'refunded' })
+  const save = (record: LicenseRecord) =>
+    store.put(licenseKey(identity), JSON.stringify(record satisfies LicenseRecord))
+
+  if (isRefund) {
+    if (existing && existing.orderId !== data.orderId) return
+    await save({
+      identity,
+      orderId: data.orderId,
+      status: 'revoked',
+      keyHash: existing?.keyHash ?? null,
+      devices: existing?.devices ?? [],
+      mode: event.mode,
+      lastEventAt: event.timestamp,
+      updatedAt: now.toISOString(),
+    })
     return
   }
-  if (!event.eventType.startsWith('subscription.') || !data.orderStatus) return
-  // 预约换套餐时新订单还是 pending、没有账期；生效时会再来一条 plan_changed
-  if (event.eventType === 'subscription.plan_change_scheduled') return
-  if (event.eventType === 'subscription.plan_change_failed') return
-  if (existing && !sameOrder && event.eventType !== 'subscription.plan_changed') return
-  if (existing && sameOrder && TERMINAL_STATUSES.has(existing.status)) return
 
-  const record: LicenseRecord = {
+  // 付款成功：已经有许可证（含已吊销的）就不再签发
+  if (existing) return
+  const key = newLicenseKey()
+  const keyHash = await licenseKeyHash(key)
+  await store.put(keyIndex(keyHash), identity)
+  await save({
     identity,
     orderId: data.orderId,
-    plan:
-      planFromPeriod(data.billingPeriod) ??
-      (existing?.plan as Plan | undefined) ??
-      claim?.plan ??
-      'premium-monthly',
-    status: data.orderStatus,
-    currentPeriodEnd:
-      data.currentPeriodEnd ?? (sameOrder ? existing?.currentPeriodEnd : null) ?? null,
-    keyHash: existing?.keyHash ?? null,
+    status: 'active',
+    keyHash,
+    devices: [],
     mode: event.mode,
     lastEventAt: event.timestamp,
     updatedAt: now.toISOString(),
-  }
-
-  if (event.eventType === 'subscription.activated' && !record.keyHash) {
-    const key = newLicenseKey()
-    record.keyHash = await licenseKeyHash(key)
-    await store.put(keyIndex(record.keyHash), identity)
-    if (claimToken && claim && claim.identity === identity) {
-      const ready: ClaimRecord = { ...claim, status: 'ready', key }
-      await store.put(claimKey(claimToken), JSON.stringify(ready), {
-        expirationTtl: CLAIM_TTL_SECONDS,
-      })
-    }
-  }
-  await save(record)
-
-  async function save(value: LicenseRecord) {
-    await store.put(
-      licenseKey(identity as string),
-      JSON.stringify({ ...value, lastEventAt: event.timestamp }),
-    )
+  })
+  if (claimToken && claim && claim.identity === identity) {
+    const ready: ClaimRecord = { ...claim, status: 'ready', key }
+    await store.put(claimKey(claimToken), JSON.stringify(ready), {
+      expirationTtl: CLAIM_TTL_SECONDS,
+    })
   }
 }
 
 /**
- * `GET /api/license/claim?claim=<领取码>`：激活页轮询，付款成功后拿到密钥。
+ * `GET /api/license/claim?claim=<领取码>` → `{ licenseKey }`；付款结果还没到时 `{ status: 'pending' }`。
  * 第一次读到密钥后只再给 1 小时（够刷新页面），之后当作不存在——地址留在浏览器历史里也拿不到密钥。
  */
 export async function handleClaim(
@@ -422,55 +444,124 @@ export async function handleClaim(
   if (!(await allowed(request, env, 'claim'))) return rateLimited()
   const token = new URL(request.url).searchParams.get('claim') ?? ''
   const claim = token ? await readJson<ClaimRecord>(env.LICENSES, claimKey(token)) : null
-  if (!claim) return json({ ok: false, error: 'unknown_claim' }, 404)
-  if (claim.status !== 'ready') return json({ ok: true, status: 'pending', plan: claim.plan })
+  if (!claim) return json({ error: 'unknown_claim' }, 404)
+  if (claim.status !== 'ready' || !claim.key) return json({ status: 'pending' })
 
   const now = (deps.now ?? (() => new Date()))()
   if (!claim.revealedAt) {
+    // 第一次交出密钥后，领取码（含明文密钥）只再留一个可重复读的窗口，到期由 KV 删除
     const revealed: ClaimRecord = { ...claim, revealedAt: now.toISOString() }
     await env.LICENSES.put(claimKey(token), JSON.stringify(revealed), {
-      expirationTtl: CLAIM_TTL_SECONDS,
+      expirationTtl: CLAIM_REVEAL_WINDOW_MS / 1000,
     })
   } else if (now.getTime() - Date.parse(claim.revealedAt) > CLAIM_REVEAL_WINDOW_MS) {
-    return json({ ok: false, error: 'unknown_claim' }, 404)
+    return json({ error: 'unknown_claim' }, 404)
   }
-  return json({ ok: true, status: 'ready', plan: claim.plan, key: claim.key }, 200, {
-    'referrer-policy': 'no-referrer',
-  })
+  return json({ licenseKey: claim.key }, 200, { 'referrer-policy': 'no-referrer' })
 }
 
-/** 密钥 → 许可证。只认记录里当前那把密钥的哈希：换过的旧密钥立即失效 */
+/** 密钥 → 许可证。只认记录里当前那把密钥的哈希 */
 async function findLicense(env: Env, rawKey: unknown): Promise<LicenseRecord | null> {
   const key = normalizeLicenseKey(rawKey)
   if (!key) return null
   const hash = await licenseKeyHash(key)
   const identity = await env.LICENSES.get(keyIndex(hash))
   const record = identity ? await readJson<LicenseRecord>(env.LICENSES, licenseKey(identity)) : null
-  return record?.keyHash === hash ? record : null
+  return record?.keyHash === hash ? { ...record, devices: record.devices ?? [] } : null
 }
 
-/** `POST /api/license/verify` `{ key }` → 是否仍有 Premium。客户端缓存结果，离线时按缓存走 */
-export async function handleVerify(
+const saveLicense = (env: Env, record: LicenseRecord) =>
+  env.LICENSES.put(licenseKey(record.identity), JSON.stringify(record))
+
+/**
+ * `POST /api/license/activate` `{ licenseKey, deviceId, deviceName }`：登记本机。
+ * - 200 `{ status: 'active', devices, maxDevices }`；同一 deviceId 重复激活是幂等的（只更新设备名）。
+ * - 409 `{ error: 'device_limit', devices, maxDevices }`：已满 3 台，客户端据此让用户选一台解绑。
+ * - 404 `{ error: 'invalid_license' }`；403 `{ error: 'revoked' }`（已退款）。
+ */
+export async function handleActivate(
   request: Request,
   env: Env,
   deps: BillingDeps = {},
 ): Promise<Response> {
   if (request.method !== 'POST') return methodNotAllowed('POST')
-  if (!(await allowed(request, env, 'verify'))) return rateLimited()
-  const license = await findLicense(env, (await readBody(request))?.key)
-  if (!license) return json({ ok: false, error: 'unknown_license' }, 404)
+  const body = await readBody(request)
+  const deviceId = normalizeDeviceId(body?.deviceId)
+  const deviceName = cleanText(body?.deviceName, MAX_DEVICE_NAME_LENGTH)
+  if (!body || !deviceId || !deviceName) return invalidRequest()
+  if (!(await allowed(request, env, 'activate'))) return rateLimited()
+
+  const license = await findLicense(env, body.licenseKey)
+  if (!license) return invalidLicense()
+  if (license.status !== 'active') return revoked()
+
   const now = (deps.now ?? (() => new Date()))()
-  return json({
-    ok: true,
-    entitled: isEntitled(license, now),
-    plan: license.plan,
-    status: license.status,
-    currentPeriodEnd: license.currentPeriodEnd,
-    checkedAt: now.toISOString(),
-  })
+  const known = license.devices.find((device) => device.deviceId === deviceId)
+  if (!known && license.devices.length >= MAX_DEVICES) {
+    return json({ error: 'device_limit', devices: license.devices, maxDevices: MAX_DEVICES }, 409)
+  }
+  const devices = known
+    ? license.devices.map((device) =>
+        device.deviceId === deviceId ? { ...device, deviceName } : device,
+      )
+    : [...license.devices, { deviceId, deviceName, activatedAt: now.toISOString() }]
+  if (!known || known.deviceName !== deviceName) {
+    await saveLicense(env, { ...license, devices, updatedAt: now.toISOString() })
+  }
+  return json({ status: 'active', devices, maxDevices: MAX_DEVICES })
 }
 
-/** `POST /api/license/portal` `{ key }` → Waffo 客户门户链接。链接是一次性凭证，不缓存 */
+/**
+ * `POST /api/license/verify` `{ licenseKey, deviceId }` → 200 `{ status }`：
+ * `active`（本机已激活）/ `revoked`（已退款）/ `not_activated`（密钥有效但本机不在列表里，
+ * 例如在别的 Mac 上被解绑了）/ `invalid`（密钥不存在或格式不对）。客户端缓存结果，离线时按缓存走。
+ */
+export async function handleVerify(request: Request, env: Env): Promise<Response> {
+  if (request.method !== 'POST') return methodNotAllowed('POST')
+  const body = await readBody(request)
+  const deviceId = normalizeDeviceId(body?.deviceId)
+  if (!body || !deviceId) return invalidRequest()
+  if (!(await allowed(request, env, 'verify'))) return rateLimited()
+
+  const license = await findLicense(env, body.licenseKey)
+  if (!license) return json({ status: 'invalid' })
+  if (license.status !== 'active') return json({ status: 'revoked' })
+  const activated = license.devices.some((device) => device.deviceId === deviceId)
+  return json({ status: activated ? 'active' : 'not_activated' })
+}
+
+/**
+ * `POST /api/license/deactivate` `{ licenseKey, deviceId }` → 200 `{ devices }`。
+ * 凭密钥可以解绑任一设备（换机时旧 Mac 可能已经不在手边）；解绑不存在的设备也回 200（幂等）。
+ * 已退款的许可证回 403 `{ error: 'revoked' }`，与激活一致。
+ */
+export async function handleDeactivate(
+  request: Request,
+  env: Env,
+  deps: BillingDeps = {},
+): Promise<Response> {
+  if (request.method !== 'POST') return methodNotAllowed('POST')
+  const body = await readBody(request)
+  const deviceId = normalizeDeviceId(body?.deviceId)
+  if (!body || !deviceId) return invalidRequest()
+  if (!(await allowed(request, env, 'deactivate'))) return rateLimited()
+
+  const license = await findLicense(env, body.licenseKey)
+  if (!license) return invalidLicense()
+  if (license.status !== 'active') return revoked()
+
+  const devices = license.devices.filter((device) => device.deviceId !== deviceId)
+  if (devices.length !== license.devices.length) {
+    const now = (deps.now ?? (() => new Date()))()
+    await saveLicense(env, { ...license, devices, updatedAt: now.toISOString() })
+  }
+  return json({ devices })
+}
+
+/**
+ * `POST /api/license/portal` `{ licenseKey }` → `{ url }`：Waffo 客户门户（查看发票、申请退款）。
+ * 链接是一次性凭证，不缓存；身份取许可证里记下的，不信请求里带来的任何东西。
+ */
 export async function handlePortal(
   request: Request,
   env: Env,
@@ -480,15 +571,15 @@ export async function handlePortal(
   const config = waffoConfig(env)
   if (!config) return notConfigured()
   if (!(await allowed(request, env, 'portal'))) return rateLimited()
-  const license = await findLicense(env, (await readBody(request))?.key)
-  if (!license) return json({ ok: false, error: 'unknown_license' }, 404)
+  const license = await findLicense(env, (await readBody(request))?.licenseKey)
+  if (!license) return invalidLicense()
   try {
     const { portalUrl } = await (deps.client ?? sdkClient)(config).createPortalLink({
       storeId: config.storeId,
       buyerIdentity: license.identity,
     })
-    return json({ ok: true, portalUrl }, 200, { 'referrer-policy': 'no-referrer' })
+    return json({ url: portalUrl }, 200, { 'referrer-policy': 'no-referrer' })
   } catch {
-    return json({ ok: false, error: 'portal_failed' }, 502)
+    return json({ error: 'portal_failed' }, 502)
   }
 }

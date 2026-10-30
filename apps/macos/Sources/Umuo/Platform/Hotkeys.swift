@@ -24,6 +24,33 @@ final class HotkeyCenter {
         ("ocrHotkey", "Alt+Cmd+O", .ocr),
     ]
 
+    /// 语音「按住说话」（同语言整理）的默认键位：⌥⌘V（V = Voice），与 ⌥⌘A（撰写）、⌥⌘O（截图）同一组。
+    /// 不与现有默认值、退役键位（⌥P、⌥⇧O、⌥R）和 `HotkeyConflict` 里的系统快捷键冲突。
+    /// 没选 ⌥Space：Alfred / Raycast 默认用它唤起；也没选 ⌃⌥Space：那是系统「选择输入法菜单中的下一个输入法」。
+    /// 代价是访达里 ⌥⌘V（「移到这里」）在注册期间被占用。默认值与 Rust 的 `Settings::default` 一致。
+    nonisolated static let voiceCombo = "Alt+Cmd+V"
+    /// 语音翻译的默认键位：⌃⌘V。同一个 V 换一个修饰键，两个修饰键按住也不费力；
+    /// 没选 ⌥⇧⌘V：那是多数应用的「粘贴并匹配样式」。
+    nonisolated static let voiceTranslateCombo = "Ctrl+Cmd+V"
+    /// 语音快捷键的设置字段（`settings.json`，也是失败清单里记的名字）。
+    nonisolated static let voiceField = "voiceHotkey"
+    nonisolated static let voiceTranslateField = "voiceTranslateHotkey"
+
+    /// 两个语音键：字段名、回落的默认组合、对应的后处理任务。
+    /// 按住说话要按下与松开两个事件，**只接受组合键**；设成连按两下修饰键时不注册、标成失败。
+    nonisolated static let voiceTable: [(field: String, fallback: String, task: VoiceTask)] = [
+        (voiceField, voiceCombo, .tidy),
+        (voiceTranslateField, voiceTranslateCombo, .translate),
+    ]
+
+    /// 语音键的设置值 → 要注册的组合键；连按两下修饰键返回 nil（不能表达「按住」）。
+    nonisolated static func voicePlan(_ value: String, fallback: String) -> HotkeyCombo.Parsed? {
+        switch parseHotkey(value: value) {
+        case .doubleTap: nil
+        case let .combo(combo): HotkeyCombo.parse(combo) ?? HotkeyCombo.parse(fallback)
+        }
+    }
+
     /// 录快捷键最长持续多久。超过就当作被放弃，自动恢复全局快捷键。
     nonisolated static let recordingLimit: TimeInterval = 30
 
@@ -46,10 +73,24 @@ final class HotkeyCenter {
         }
     }
 
-    /// 从 `Engine.settingsJson()` 里只取四个快捷键字段（不用 Codable 解整份设置，见迁移文档「必须守住的兼容性」）。
+    /// 从 `Engine.settingsJson()` 里只取快捷键字段（四个入口 + 两个语音键；不用 Codable 解整份设置，见迁移文档「必须守住的兼容性」）。
     nonisolated static func values(settingsJson: String) -> [String: String] {
         let object = (try? JSONSerialization.jsonObject(with: Data(settingsJson.utf8))) as? [String: Any] ?? [:]
-        return table.reduce(into: [:]) { values, row in values[row.field] = object[row.field] as? String }
+        let fields = table.map(\.field) + voiceTable.map(\.field)
+        return fields.reduce(into: [:]) { values, field in values[field] = object[field] as? String }
+    }
+
+    /// 语音键当前生效值的显示名（「⌥⌘V」），浮层提示用。解析不出的值实际注册的是默认键，显示也用默认键。
+    nonisolated static func voiceLabels(_ values: [String: String]) -> [VoiceTask: String] {
+        voiceTable.reduce(into: [:]) { labels, row in
+            let value = values[row.field] ?? ""
+            let effective = if case .combo? = HotkeyCombo.parse(value), case .combo = parseHotkey(value: value) {
+                value
+            } else {
+                row.fallback
+            }
+            labels[row.task] = HotkeyFormat.parts(effective).joined()
+        }
     }
 
     private let perform: @MainActor (HotkeyAction) -> Void
@@ -66,6 +107,8 @@ final class HotkeyCenter {
     private var recordingUntil: TimeInterval?
     /// 重注册完成（失败清单可以读了）、或补启动连按监听之后调用，对应 Tauri 的 `hotkeys://registered` 事件。
     var onRegistered: (@MainActor () -> Void)?
+    /// 语音快捷键的按下（带任务：整理键 / 翻译键）与松开（`VoiceController` 接上）。没接上就不注册语音键。
+    var voice: (press: @MainActor (VoiceTask) -> Void, release: @MainActor () -> Void)?
 
     init(perform: @escaping @MainActor (HotkeyAction) -> Void) {
         self.perform = perform
@@ -117,11 +160,36 @@ final class HotkeyCenter {
                 }
             }
         }
+        registerVoice(values)
         do {
             try doubleTaps.set(taps, dispatch: dispatcher())
         } catch {
             print("umuo: 连按快捷键不可用：\(error)")
             failures += taps.map(\.field)
+        }
+    }
+
+    /// 语音的按住说话：按下受暂停与录键拦截，松开**不拦**——按下已经开了录音，
+    /// 松开被吞掉的话录音就停不下来（状态机会忽略没有录音时的松开）。
+    private func registerVoice(_ values: [String: String]) {
+        guard let voice else { return }
+        for row in Self.voiceTable {
+            let value = values[row.field] ?? ""
+            guard let parsed = Self.voicePlan(value, fallback: row.fallback) else {
+                print("umuo: \(row.field) 设成了连按两下修饰键，按住说话只能用组合键")
+                failures.append(row.field)
+                continue
+            }
+            let task = row.task
+            do {
+                try combos.register(parsed, action: { [weak self] in
+                    guard let self, !self.suspended else { return }
+                    voice.press(task)
+                }, onRelease: voice.release)
+            } catch {
+                print("umuo: \(row.field) 快捷键注册失败（可能已被其它应用占用）：\(error)")
+                failures.append(row.field)
+            }
         }
     }
 

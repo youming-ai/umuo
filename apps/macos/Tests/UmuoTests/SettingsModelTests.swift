@@ -352,6 +352,27 @@ struct HotkeyEditorTests {
         #expect(model.hotkeys.message("ocrHotkey") == model.t("prefs.hotkey.duplicate", ["name": model.t("prefs.translate.selection")]))
     }
 
+    @Test func 语音键与翻译入口互查冲突且只收组合键() async {
+        var settings = base
+        settings[HotkeyCenter.voiceField] = .string("Alt+Cmd+V")
+        let backend = FakeBackend(settings)
+        let model = await loaded(backend)
+        // 语音键撞上翻译入口：不存
+        #expect(model.hotkeys.commit(HotkeyCenter.voiceField, "Option+D") == nil)
+        #expect(model.hotkeys.errors[HotkeyCenter.voiceField] != nil)
+        // 两个语音键互撞也不存
+        #expect(model.hotkeys.commit(HotkeyCenter.voiceTranslateField, "Alt+Cmd+V") == nil)
+        // 按住说话不能用连按两下修饰键
+        #expect(model.hotkeys.commit(HotkeyCenter.voiceField, "Ctrl Ctrl") == nil)
+        #expect(model.hotkeys.errors[HotkeyCenter.voiceField] == model.t("prefs.hotkey.comboOnly"))
+        #expect(backend.patches.isEmpty)
+        // 合法的组合键照常保存
+        let pending = model.hotkeys.commit(HotkeyCenter.voiceTranslateField, "Ctrl+Alt+T")
+        #expect(pending != nil)
+        try? await pending?.value
+        #expect(backend.patches.last == [HotkeyCenter.voiceTranslateField: .string("Ctrl+Alt+T")])
+    }
+
     @Test func 注册失败的行标出来连按与组合键文案不同() async {
         var settings = base
         settings["selectionHotkey"] = .string("Ctrl Ctrl")

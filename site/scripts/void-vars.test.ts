@@ -9,23 +9,24 @@ const comments = (text: string) => text.split('\n').filter((line) => line.trim()
 describe('void.config.ts 的 vars 读写', () => {
   it('读出的 Waffo 值与 Void 配置一致', () => {
     const vars = config.worker?.vars ?? {}
-    for (const name of [
-      'WAFFO_ENV',
-      'WAFFO_MERCHANT_ID',
-      'WAFFO_STORE_ID',
-      'WAFFO_PRODUCT_PREMIUM_MONTHLY',
-      'WAFFO_PRODUCT_PREMIUM_YEARLY',
-    ] as const) {
+    for (const name of ['WAFFO_ENV', 'WAFFO_MERCHANT_ID', 'WAFFO_STORE_ID'] as const) {
       expect(readVar(real, name)).toBe(vars[name])
     }
   })
 
-  it('只改指定商品 ID，保留其他行与注释', () => {
-    const next = writeVar(real, 'WAFFO_PRODUCT_PREMIUM_MONTHLY', 'PROD_test123')
-    expect(readVar(next, 'WAFFO_PRODUCT_PREMIUM_MONTHLY')).toBe('PROD_test123')
-    expect(comments(next)).toEqual(comments(real))
+  it('正式环境还没有买断商品：商品 ID 是注释占位，读出来是空，Worker 收费接口因此回 503', () => {
+    expect(readVar(real, 'WAFFO_PRODUCT_LICENSE')).toBeNull()
+    expect(config.worker?.vars).not.toHaveProperty('WAFFO_PRODUCT_LICENSE')
+    expect(real).not.toMatch(/PREMIUM_(MONTHLY|YEARLY)/)
+  })
+
+  it('写入商品 ID 只改占位那一行，保留其他行与注释', () => {
+    const next = writeVar(real, 'WAFFO_PRODUCT_LICENSE', 'PROD_test123')
+    expect(readVar(next, 'WAFFO_PRODUCT_LICENSE')).toBe('PROD_test123')
+    const placeholder = "      // WAFFO_PRODUCT_LICENSE: '',"
+    expect(comments(next)).toEqual(comments(real).filter((line) => line !== placeholder))
     const changed = next.split('\n').filter((line, index) => line !== real.split('\n')[index])
-    expect(changed).toEqual(["      WAFFO_PRODUCT_PREMIUM_MONTHLY: 'PROD_test123',"])
+    expect(changed).toEqual(["      WAFFO_PRODUCT_LICENSE: 'PROD_test123',"])
   })
 
   it('注释掉的占位不算已有值，写入时去掉注释并保留逗号', () => {

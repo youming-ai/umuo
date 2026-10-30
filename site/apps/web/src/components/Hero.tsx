@@ -5,9 +5,11 @@ import {
   useId,
   useState,
 } from 'react'
+import { PURCHASE_OPEN } from '../config'
 import type { DemoMode, DemoModeId, Locale, SiteContent } from '../content/types'
 import { pagePath } from '../lib/pages'
 import { DownloadPanel } from './DownloadButton'
+import { PurchaseButton } from './PurchaseButton'
 
 /**
  * 首页唯一的一屏：左边是标题与下载，右边是可以亲手试的演示。
@@ -32,6 +34,12 @@ export function Hero({ content, locale }: { content: SiteContent; locale: Locale
             <div className="hero-gap-lg">
               <DownloadPanel
                 platform={macos}
+                // 首页只有一屏：只放按钮，激活说明留给定价页
+                purchase={
+                  PURCHASE_OPEN ? (
+                    <PurchaseButton purchase={content.pricing.purchase} locale={locale} />
+                  ) : undefined
+                }
                 aside={
                   <a href={pagePath(locale, 'pricing')} className="hero-pricing-link">
                     {hero.pricingNote}
@@ -58,9 +66,9 @@ function HeroDemo({ demo }: { demo: SiteContent['hero']['demo'] }) {
       setModeId(id)
       setRun((value) => value + 1)
     }
-    // ⌥⌘O 是浏览器与系统都可能占用的组合，截图模式只能点按钮切换。
+    // ⌥⌘O 与 ⌃⌘V 是浏览器与系统都可能占用的组合，截图与语音模式只能点按钮切换。
     // 与客户端同一套规则：连按两下 ⌃ 是划词、连按两下 ⌥ 是闪电替换——每一下 ≤250ms、
-    // 两下间隔 ≤350ms、同一个物理键、中间没按别的键；单独按住右 ⌥ 超过 250ms 是「按住说话」。
+    // 两下间隔 ≤350ms、同一个物理键、中间没按别的键；按住超过 250ms 不算连按。
     let press: { code: string; at: number } | null = null
     let lastTap: { code: string; at: number } | null = null
     const onKeyDown = (event: KeyboardEvent) => {
@@ -87,7 +95,6 @@ function HeroDemo({ demo }: { demo: SiteContent['hero']['demo'] }) {
       }
       if (now - current.at > 250) {
         lastTap = null
-        if (event.code === 'AltRight') choose('speak')
       } else if (lastTap?.code === event.code && current.at - lastTap.at <= 350) {
         lastTap = null
         choose(event.code.startsWith('Control') ? 'read' : 'write')

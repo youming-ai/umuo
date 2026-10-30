@@ -729,6 +729,11 @@
     gap: 0.5rem 1.25rem;
   }
 
+  /* 购买按钮的出错说明夹在按钮行里：独占一行，不把定价链接挤开 */
+  .purchase-error {
+    flex-basis: 100%;
+  }
+
   .download-requirement {
     margin-top: 0.75rem;
     color: var(--ink-3);

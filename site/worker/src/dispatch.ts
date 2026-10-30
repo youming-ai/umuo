@@ -1,4 +1,12 @@
-import { handleCheckout, handleClaim, handlePortal, handleVerify, handleWebhook } from './billing'
+import {
+  handleActivate,
+  handleCheckout,
+  handleClaim,
+  handleDeactivate,
+  handlePortal,
+  handleVerify,
+  handleWebhook,
+} from './billing'
 import type { Env } from './env'
 import { json } from './http'
 import { handlePage, localeRedirect, pageFromPath } from './locale'
@@ -97,7 +105,9 @@ export async function dispatch(request: Request, env: Env): Promise<Response> {
   if (pathname === '/api/checkout') return handleCheckout(request, env)
   if (pathname === '/api/waffo/webhook') return handleWebhook(request, env)
   if (pathname === '/api/license/claim') return handleClaim(request, env)
+  if (pathname === '/api/license/activate') return handleActivate(request, env)
   if (pathname === '/api/license/verify') return handleVerify(request, env)
+  if (pathname === '/api/license/deactivate') return handleDeactivate(request, env)
   if (pathname === '/api/license/portal') return handlePortal(request, env)
   if (pathname.startsWith('/api/')) return json({ ok: false, error: 'not_found' }, 404)
   return assetOrNotFound(request, env)
