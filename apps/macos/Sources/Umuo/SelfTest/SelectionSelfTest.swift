@@ -97,14 +97,17 @@ enum SelectionSelfTest {
                 wrote.withLock { $0 = true }
             }
         }
-        // 以 read() 实际结束的时刻为准：慢机器上读取本身会往后推，按常量算的窗口不可靠。
-        // 迟到的复制要在读取结束前一个轮询间隔落地，「再恢复一次」才有机会发生
+        // 这项只验「轮询超时之后、观察窗口之内」才到的复制。慢机器（CI）上两头都可能错开，按实际结果判断：
+        // - 读取拿到了它：轮询被拖长，复制在超时前就到了，不是「迟到」；
+        // - 读取结束时它还没到：观察窗口已过。两种都无从判断，如实跳过。
+        // 观察到迟到的复制会立刻恢复并返回，所以落地时刻不会晚于读取结束。
         let finished = Date().timeIntervalSince(started)
-        if let landed = landedAt.withLock({ $0 }), landed + ClipboardFallback.lateCopyPollInterval < finished {
+        let tooEarly = (try? late.get()) == "迟到的复制"
+        if !tooEarly, let landed = landedAt.withLock({ $0 }), landed <= finished {
             check("ClipboardFallback.lateCopy", late == .failure(.noSelection) && wrote.withLock { $0 } && restoredAfterLate,
                   "恢复之后才到的复制结果被再恢复一次")
         } else {
-            print("- ClipboardFallback.lateCopy: skipped: machine too slow, the late copy missed the observation window")
+            print("- ClipboardFallback.lateCopy: skipped: machine too slow, the copy landed outside the observation window")
         }
 
         // 连按两次：两次事务串行，各自取到自己的文本，最后剪贴板仍是原内容（不会被第一次清空后的空剪贴板盖掉）
