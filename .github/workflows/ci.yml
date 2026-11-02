@@ -101,10 +101,12 @@ jobs:
         run: cargo test --workspace
 
   macos-app:
-    # SwiftUI 客户端（apps/macos）：与本机 bun run verify:macos 同一个脚本（verify.sh），
+    # SwiftUI 客户端（apps/macos）：与本机 bun run verify:macos 同一个脚本（verify.sh），按阶段分步调用，
     # 编内核与绑定 → swift build → Swift Testing → --selftest（从 Swift 逐项调用 Rust 内核）→ 打包冒烟。
+    # 各步与整个 job 都设超时：Swift 测试曾偶发挂死（用例全部 started、无一结束），不能等到 6 小时上限。
     name: macOS app (SwiftUI + umuo-core)
     runs-on: macos-15
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
@@ -116,5 +118,18 @@ jobs:
 
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
 
-      - name: verify:macos
-        run: sh apps/macos/scripts/verify.sh
+      - name: Build core, bindings and app
+        timeout-minutes: 15
+        run: sh apps/macos/scripts/verify.sh build
+
+      - name: Swift tests (view models and rules)
+        timeout-minutes: 15
+        run: sh apps/macos/scripts/verify.sh test
+
+      - name: Self-test (Swift → Rust)
+        timeout-minutes: 5
+        run: sh apps/macos/scripts/verify.sh selftest
+
+      - name: Bundle smoke (umuo.app)
+        timeout-minutes: 5
+        run: sh apps/macos/scripts/verify.sh bundle
