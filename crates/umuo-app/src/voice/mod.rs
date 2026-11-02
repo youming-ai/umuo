@@ -28,12 +28,12 @@ use std::sync::Arc;
 use umuo_core::error::CoreError;
 use umuo_core::transport::{self, ChatTarget, StreamOptions};
 use umuo_core::wire::TokenUsage;
-use umuo_core::{lang, prompt, provider, voice};
+use umuo_core::{lang, prompt, voice};
 
 pub use umuo_core::voice::VoiceTask;
 
 use crate::settings::Settings;
-use crate::translate::resolve_model;
+use crate::translate::{resolve_endpoint, Endpoint};
 use crate::AppCore;
 
 /// 一次语音后处理的输入。
@@ -270,22 +270,12 @@ async fn process(
     // 锁只在这个语句里存活：MutexGuard 不能跨 await，否则 future 不是 Send。
     let settings: Settings = core.settings.lock().expect("设置锁不应中毒").clone();
 
-    let provider = provider::find_provider(&settings.provider_id)
-        .ok_or_else(|| failed(CoreError::NoEngine))?;
-    let api_key = core
-        .host
-        .api_key(provider.id)
-        .map_err(|e| {
-            failed(CoreError::BadResponse {
-                detail: format!("读取 Keychain 失败：{e}"),
-            })
-        })?
-        .unwrap_or_default();
-    if provider.requires_key() && api_key.trim().is_empty() {
-        return Err(failed(CoreError::MissingKey));
-    }
-    let base_url = settings.base_url_override(provider).map_err(failed)?;
-    let model = resolve_model(&settings, provider);
+    let Endpoint {
+        provider,
+        api_key,
+        base_url,
+        model,
+    } = resolve_endpoint(core, &settings).map_err(failed)?;
 
     let (source, output) = resolve_languages(request, transcript, &settings);
     let source_name = source.as_deref().map(lang::display_name);

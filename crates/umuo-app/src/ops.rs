@@ -1,14 +1,13 @@
-//! 界面命令的业务部分：历史、用量、收藏、配置导入导出、Key 状态、模型列表。
+//! 界面命令的业务部分：供应商目录、Key 状态、模型列表、历史、快捷面板、配置导入导出。
 //!
-//! 宿主的命令层只做参数转发、调这里、再做窗口操作——业务规则不放进 Swift 或 FFI 导出层。
-//! 这里返回的 DTO 就是 IPC 契约（`ipc.ts` 按它们的 camelCase 字段读），改字段等于改契约。
+//! `umuo-ffi` 只做参数转发与换型、调这里——业务规则不放进 Swift 或 FFI 导出层。
+//! 这里的 DTO 由 `umuo-ffi/src/ops.rs` 用不带 `..` 的解构换成 UniFFI Record，改字段那边当场编译失败。
 //!
 //! Key 的约定不变：这里只回「配没配过」，**不回明文**。
 
 use std::path::Path;
 use std::time::Duration;
 
-use serde::{Deserialize, Serialize};
 use umuo_core::provider::{self, ProviderKind};
 
 use crate::config_io::ImportSummary;
@@ -19,8 +18,7 @@ use crate::{config_io, history, AppCore};
 
 // ---------------------------------------------------------------- 供应商
 
-#[derive(Debug, Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
+#[derive(Debug, Clone)]
 pub struct ProviderDto {
     pub id: String,
     pub label: String,
@@ -57,10 +55,10 @@ pub fn key_status(core: &AppCore, provider_id: &str) -> Result<bool, String> {
     Ok(secret.is_some_and(|s| !s.trim().is_empty()))
 }
 
-/// 存 Key 之前的规则（与 Tauri 的 `save_api_key` 一致）：供应商必须存在，Key 去掉首尾空白。
+/// 存 Key 之前的规则：供应商必须存在，Key 去掉首尾空白。
 ///
 /// 返回要写进 Keychain 的值。写本身是宿主的事（Swift 直接调 Security.framework），
-/// 规则放在这里是为了两个客户端只有一份：拼错的 id 会在 Keychain 里留下一条永远读不到的记录。
+/// 规则放在 Rust 里只有一份：拼错的 id 会在 Keychain 里留下一条永远读不到的记录。
 pub fn prepare_api_key(provider_id: &str, api_key: &str) -> Result<String, String> {
     if provider::find_provider(provider_id).is_none() {
         return Err(format!("未知供应商：{provider_id}"));
@@ -89,14 +87,13 @@ pub async fn list_models(core: &AppCore, provider_id: &str) -> Result<Vec<String
 
 // ---------------------------------------------------------------- 翻译历史（PRD §5.9）
 
-/// 历史列表每页最多多少条。上限是给前端兜底的：一次拉几千条会让窗口卡住，
+/// 历史列表每页最多多少条。上限是给界面兜底的：一次拉几千条会让窗口卡住，
 /// 而用户真正会翻的也就是最近这些。
 const HISTORY_PAGE_MAX: u32 = 500;
 
 /// 历史检索条件（PRD §5.9）：只有关键词搜索。来源 App / 模型筛选已退出（第四批精简），
 /// 存储层的筛选能力保留不动。
-#[derive(Debug, Clone, Default, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[derive(Debug, Clone, Default)]
 pub struct HistoryFilterDto {
     pub query: Option<String>,
 }
@@ -129,10 +126,9 @@ pub fn history_clear(core: &AppCore) -> Result<usize, String> {
     history::with_store(core, |store| store.clear())
 }
 
-/// 历史的一行。与 `umuo_store::Record` 分开是为了**不让存储层的形状直接变成 IPC 契约**：
-/// 表结构以后要加列时，前端不该被迫一起改。
-#[derive(Debug, Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
+/// 历史的一行。与 `umuo_store::Record` 分开是为了**不让存储层的形状直接变成 FFI 契约**：
+/// 表结构以后要加列时，Swift 不该被迫一起改。
+#[derive(Debug, Clone)]
 pub struct RecordDto {
     pub id: i64,
     pub created_at: i64,
@@ -150,7 +146,7 @@ pub struct RecordDto {
     pub estimated: bool,
 }
 
-/// 存储层记录 → IPC 记录。
+/// 存储层记录 → 界面记录。
 ///
 /// 用普通函数而不是 `impl From<Vec<...>> for Vec<...>`：后者会撞上孤儿规则
 /// （`Vec` 是外部类型），而且一个自由函数在这里读起来也更直白。
@@ -186,8 +182,7 @@ const PANEL_TEXT_LIMIT: usize = 60;
 ///
 /// **打成一个命令**而不是四个：面板一打开就要四样东西，四次往返只会让
 /// 它先渲染出一个半空的界面再跳一下。
-#[derive(Serialize)]
-#[serde(rename_all = "camelCase")]
+#[derive(Debug, Clone)]
 pub struct QuickState {
     pub paused: bool,
     pub provider_label: String,
@@ -195,11 +190,11 @@ pub struct QuickState {
     pub recent: Vec<QuickRecord>,
 }
 
-#[derive(Serialize)]
-#[serde(rename_all = "camelCase")]
+/// 快捷面板里的一条最近翻译，原文与译文已按面板宽度截断。
+#[derive(Debug, Clone)]
 pub struct QuickRecord {
-    /// 历史记录 id。**用它当列表 key**，不要用下标——
-    /// 列表会随新翻译而变化，下标当 key 会让 React 复用错行。
+    /// 历史记录 id。**用它当列表标识**，不要用下标——
+    /// 列表会随新翻译而变化，下标当标识会让 SwiftUI 复用错行。
     pub id: i64,
     pub source: String,
     pub translation: String,

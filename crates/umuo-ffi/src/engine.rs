@@ -14,6 +14,7 @@ use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
+use umuo_app::requests::Ticket;
 use umuo_app::translate::{self, Mode, Request};
 use umuo_app::AppCore;
 
@@ -141,6 +142,26 @@ impl Engine {
     pub(crate) fn rt(&self) -> &tokio::runtime::Runtime {
         self.rt.as_ref().expect("运行时只在 drop 时取走")
     }
+
+    /// 用一张已登记的凭据在运行时上跑一次翻译，返回取消用的句柄。
+    fn spawn_translation(
+        &self,
+        request: Request,
+        ticket: Ticket,
+        guard_token: Option<String>,
+        sink: Arc<dyn TranslateSink>,
+    ) -> Arc<RequestHandle> {
+        let handle = RequestHandle {
+            id: ticket.id,
+            cancel: ticket.cancel.clone(),
+        };
+        let core = self.core.clone();
+        let sink = ForwardTranslate(sink);
+        self.rt().spawn(async move {
+            translate::run(&core, &sink, request, guard_token, ticket).await;
+        });
+        Arc::new(handle)
+    }
 }
 
 impl Drop for Engine {
@@ -184,23 +205,14 @@ impl Engine {
         let request: Request = request.into();
         // 登记同步完成：新请求立刻顶掉同一窗口的旧请求，不必等任务排上队。
         let ticket = self.core.requests.begin(request.mode.surface());
-        let handle = RequestHandle {
-            id: ticket.id,
-            cancel: ticket.cancel.clone(),
-        };
-        let core = self.core.clone();
-        let sink = ForwardTranslate(sink);
-        self.rt().spawn(async move {
-            translate::run(&core, &sink, request, guard_token, ticket).await;
-        });
-        Arc::new(handle)
+        self.spawn_translation(request, ticket, guard_token, sink)
     }
 
     /// 用按快捷键时 `begin_request` 登记的那张凭据开始翻译（划词、原地替换），立即返回。
     ///
     /// 不再登记新请求：取词慢的那次（⌘C 降级）若在之后登记，会拿到更大的 id、旧选区的译文反而赢过新的。
-    /// 这张凭据已被更新的请求顶掉时返回 None，什么都不跑（也就不会写回）——与 Tauri 的
-    /// `translate::run(.., ticket)` 一样以按键时的凭据为准，只是连旧请求都不必发出去。
+    /// 这张凭据已被更新的请求顶掉时返回 None，什么都不跑（也就不会写回）：以按键时的凭据为准，
+    /// 被顶掉的旧请求连发都不必发出去。
     pub fn translate_with_ticket(
         &self,
         request: TranslateRequest,
@@ -213,16 +225,7 @@ impl Engine {
             .core
             .requests
             .ticket(request.mode.surface(), ticket_id)?;
-        let handle = RequestHandle {
-            id: ticket.id,
-            cancel: ticket.cancel.clone(),
-        };
-        let core = self.core.clone();
-        let sink = ForwardTranslate(sink);
-        self.rt().spawn(async move {
-            translate::run(&core, &sink, request, guard_token, ticket).await;
-        });
-        Some(Arc::new(handle))
+        Some(self.spawn_translation(request, ticket, guard_token, sink))
     }
 
     /// 当前设置（JSON，字段名与 settings.json 一致）。Swift 只解码视图要用的字段。
@@ -252,7 +255,7 @@ pub fn bundle_id() -> String {
     umuo_app::paths::BUNDLE_ID.to_owned()
 }
 
-/// 默认的配置目录（与 Tauri 版同一个，见 `umuo_app::paths`）。拿不到 HOME 时为空。
+/// 默认的配置目录（已发布版本一直用的那个，见 `umuo_app::paths`）。拿不到 HOME 时为空。
 #[uniffi::export]
 pub fn default_config_dir() -> Option<String> {
     let home = std::env::var_os("HOME")?;
@@ -663,7 +666,7 @@ mod tests {
     }
 
     #[test]
-    fn the_default_config_dir_is_the_tauri_one() {
+    fn the_default_config_dir_is_the_released_one() {
         let dir = default_config_dir().unwrap();
         assert!(
             dir.ends_with("/Library/Application Support/app.umuo.desktop"),

@@ -1,7 +1,7 @@
 //! 翻译流水线：规划 → 流式请求（分片）→ 写回 → 落库 → 事件。
 //!
 //! 这一层只做「组装」：语言判断、Prompt、计量、传输都在 `umuo-core` 里。
-//! 平台能力（Keychain、前台应用、写回）经 [`Host`](crate::Host) 向宿主要，结果经 [`TranslateSink`] 发出；
+//! 平台能力（Keychain、前台应用、写回）经 [`Host`] 向宿主要，结果经 [`TranslateSink`] 发出；
 //! 取词、窗口定位这些留在宿主里。
 //!
 //! 只用一个当前模型（PRD §6.3）：分场景模型、备用顺序、月度上限换供应商与本机自动回落都已退出，
@@ -49,6 +49,39 @@ pub async fn run(
     }
 }
 
+/// 这次请求发往哪里：供应商、Key、端点覆盖与模型。
+pub(crate) struct Endpoint {
+    pub provider: &'static provider::Provider,
+    pub api_key: String,
+    pub base_url: Option<String>,
+    pub model: String,
+}
+
+/// 按设置解析当前供应商 → 读 Key → 校验 → 端点覆盖 → 模型。文字翻译与语音后处理共用这一份。
+pub(crate) fn resolve_endpoint(core: &AppCore, settings: &Settings) -> Result<Endpoint, CoreError> {
+    let provider = provider::find_provider(&settings.provider_id).ok_or(CoreError::NoEngine)?;
+    let api_key = core
+        .host
+        .api_key(provider.id)
+        .map_err(|e| CoreError::BadResponse {
+            detail: format!("读取 Keychain 失败：{e}"),
+        })?
+        .unwrap_or_default();
+    // 本机供应商（Ollama / LM Studio）没有 Key 条目，照常发请求。
+    if provider.requires_key() && api_key.trim().is_empty() {
+        return Err(CoreError::MissingKey);
+    }
+    // 自定义端点没填地址时直接报错，而不是把空地址发出去。
+    let base_url = settings.base_url_override(provider)?;
+    let model = resolve_model(settings, provider);
+    Ok(Endpoint {
+        provider,
+        api_key,
+        base_url,
+        model,
+    })
+}
+
 /// 流水线向外要的全部东西：应用层状态（含宿主）与事件出口。
 struct Deps<'a> {
     core: &'a AppCore,
@@ -68,22 +101,12 @@ async fn translate(
     // 锁只在这个语句里存活：MutexGuard 不能跨 await，否则 future 不是 Send。
     let settings: Settings = state.settings.lock().expect("设置锁不应中毒").clone();
 
-    let provider = provider::find_provider(&settings.provider_id).ok_or(CoreError::NoEngine)?;
-    let api_key = deps
-        .core
-        .host
-        .api_key(provider.id)
-        .map_err(|e| CoreError::BadResponse {
-            detail: format!("读取 Keychain 失败：{e}"),
-        })?
-        .unwrap_or_default();
-    // 本机供应商（Ollama / LM Studio）没有 Key 条目，照常发请求。
-    if provider.requires_key() && api_key.trim().is_empty() {
-        return Err(CoreError::MissingKey);
-    }
-    // 自定义端点没填地址时直接报错，而不是把空地址发出去。
-    let base_url = settings.base_url_override(provider)?;
-    let model = resolve_model(&settings, provider);
+    let Endpoint {
+        provider,
+        api_key,
+        base_url,
+        model,
+    } = resolve_endpoint(state, &settings)?;
 
     // 语言判断与目标切换（PRD §5.2）：源语言 == 第一目标语言时改用第二目标语言。
     // 撰写窗显式选了目标语言时不做切换——那是用户的明确意图，
