@@ -4,7 +4,7 @@ import { act } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { App } from '../App'
-import { pageFromPath, pagePath } from '../lib/pages'
+import { pageFromPath, pagePath, SITE_PAGES } from '../lib/pages'
 import { localeHref } from '../lib/router'
 
 let root: Root
@@ -52,15 +52,17 @@ describe('首页一屏', () => {
     expect(pageFromPath('/pricing')).toBe('home')
     expect(pageFromPath('/zh-cn/pricing')).toBe('home')
     expect(pageFromPath('/en/')).toBe('home')
-    expect(pagePath('ja', 'terms')).toBe('/terms')
-    expect(pageFromPath('/privacy')).toBe('privacy')
-    expect(pageFromPath('/en/terms/')).toBe('terms')
   })
 
-  it('页脚链到服务条款与隐私政策', () => {
-    const hrefs = [...host.querySelectorAll('footer a')].map((link) => link.getAttribute('href'))
-    expect(hrefs).toContain('/terms')
-    expect(hrefs).toContain('/privacy')
+  it('页脚只有版权行与语言切换（外加主题切换），不放条款、隐私、源码与联系邮箱', () => {
+    const footer = host.querySelector('footer')
+    expect(footer?.querySelector('p')?.textContent).toBe('© 2026 umuo')
+    expect(footer?.querySelector('button[aria-expanded]')?.textContent).toContain('简体中文')
+    // 语言菜单收起时页脚里没有任何链接
+    expect(footer?.querySelectorAll('a')).toHaveLength(0)
+    expect(footer?.querySelector('a[href^="mailto:"]')).toBeNull()
+    for (const word of ['服务条款', '隐私政策', '源码', '联系邮箱'])
+      expect(footer?.textContent).not.toContain(word)
   })
 
   it('页眉左边 logo、右边 GitHub，没有「免费与开源」链接与下载按钮', () => {
@@ -183,9 +185,9 @@ describe('首页一屏', () => {
     expect(download?.textContent).toContain('预览版')
     expect(host.querySelector('#download')?.textContent).toContain('仍要打开')
     expect(host.querySelector('form')).toBeNull()
-    // 下载按钮旁不再放说明句；源码链接在页眉右侧与页脚
+    // 下载按钮旁不再放说明句；源码链接只在页眉右侧
     expect(host.querySelector('#download a[href*="github.com"]')).toBeNull()
-    expect(host.querySelector('footer a[href="https://github.com/youming-ai/umuo"]')).not.toBeNull()
+    expect(host.querySelector('footer a[href="https://github.com/youming-ai/umuo"]')).toBeNull()
     expect(host.querySelector('a[href*="pricing"]')).toBeNull()
   })
 })
@@ -193,5 +195,12 @@ describe('首页一屏', () => {
 describe('已删除的页面', () => {
   it('旧的激活页地址不再是站内页面，按首页渲染', () => {
     expect(pageFromPath('/activate')).toBe('home')
+  })
+
+  it('条款与隐私页已删除：不再预渲染，旧地址不是站内页面（Worker 回 404）', () => {
+    expect([...SITE_PAGES]).toEqual(['home'])
+    for (const path of ['/terms', '/privacy/', '/zh-cn/terms', '/en/privacy/'])
+      expect(pageFromPath(path), path).toBe('home')
+    expect(host.querySelector('a[href="/terms"], a[href="/privacy"]')).toBeNull()
   })
 })

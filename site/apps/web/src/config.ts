@@ -1,5 +1,5 @@
 /**
- * 站点级常量：URL、联系方式、发布状态。
+ * 站点级常量：URL、发布状态。
  *
  * 官网里所有外链和「能不能下载」的判断都收敛在这里，页面组件不写死 URL。
  */
@@ -13,27 +13,6 @@ export const SITE_URL = 'https://umuo.app'
  * 都齐了，只缺一张 1200×630 的图；设计稿到位后放到 `public/og/<locale>.png`，
  * 再在 seo.ts 与 vite.config.ts 两处各加一行即可。
  */
-
-/** 联系邮箱；PRD 未指定具体地址，暂用域名下的常规邮箱 */
-export const CONTACT_EMAIL = 'hello@umuo.app'
-
-/**
- * 服务条款与隐私政策里的经营者：个人经营者使用的屋号（商号）与所在国家/地区（不写地址）。
- * 名称不随语言翻译；国家名按语言写。
- * 韩语文案里名称后的助词按读音的收音选：Base Labs（베이스 랩스）以辅音结尾，用 은 / 이，换名称时要一起看。
- */
-export const LEGAL_NAME = 'Base Labs'
-export const LEGAL_COUNTRY = {
-  'zh-cn': '日本',
-  'zh-tw': '日本',
-  en: 'Japan',
-  ja: '日本',
-  ko: '일본',
-} as const
-
-/** 条款版本与生效日期；改条款时一起改（不另发邮件通知：不保存用户邮箱） */
-export const LEGAL_VERSION = '3.0'
-export const LEGAL_EFFECTIVE = '2026-11-02'
 
 /**
  * macOS 安装包地址。由 Worker 读 R2 里的 macos/latest.json 给出最新版（见 worker/src/releases.ts）；
@@ -49,7 +28,7 @@ export const MACOS_DOWNLOAD_URL: string | null = '/download/macos'
 export const SOURCE_URL = 'https://github.com/youming-ai/umuo'
 
 /**
- * 源码链接开关：打开后，页眉右侧出现「GitHub」、页脚出现「源码」，都指向 `SOURCE_URL`。
+ * 源码链接开关：打开后，页眉右侧出现「GitHub」，指向 `SOURCE_URL`（站内唯一的源码入口）。
  *
  * **默认关闭**：main 合入即部署正式站，仓库公开前不能放一个打不开的链接；
  * 关闭时页面上不出现任何源码链接。仓库已于 2026-11-02 公开，故打开；若改回私有须先关掉。

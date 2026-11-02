@@ -125,23 +125,9 @@ describe('官网内容完整性', () => {
     expect(HTML_LANG['zh-tw']).toBe('zh-Hant')
   })
 
-  it('各语言的条款与隐私政策章节结构一致', () => {
-    const shape = (locale: (typeof LOCALES)[number]) => {
-      const { terms, privacy } = getContent(locale).legal
-      return [terms, privacy].map((doc) =>
-        doc.sections.map((section) =>
-          section.body.map((block) => (Array.isArray(block) ? block.length : typeof block)),
-        ),
-      )
-    }
-    for (const locale of LOCALES) {
-      expect(shape(locale), `${locale} 的法律文本结构与简体中文不一致`).toEqual(shape('zh-cn'))
-      expect(getContent(locale).legal.terms.sections, locale).toHaveLength(12)
-    }
-  })
-
   it('五种语言都不再有收费、许可证激活与试用的表述', () => {
     // umuo 改为免费开源：买断价、设备数、试用、退款、许可证密钥、支付处理方都不能留在任何文案里。
+    // 条款与隐私页已删除，这里扫描的是剩余的全部文案（collectStrings 遍历整份内容）。
     // MIT「许可证」本身要保留，所以词表只列收费时代特有的说法。
     const stale = [
       'US$',

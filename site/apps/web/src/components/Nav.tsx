@@ -6,7 +6,7 @@ import { LogoMark } from './icons'
 
 /**
  * 页眉：左边 logo（回首页），右边 GitHub 源码链接（原「免费与开源」的位置，仓库公开即 `SOURCE_PUBLIC` 时才出现）。
- * 条款与隐私政策从页脚进入。高度由 `.site-nav > .container-page` 固定为 4rem，只剩 logo 也不会塌。
+ * 这是站内唯一的源码入口。高度由 `.site-nav > .container-page` 固定为 4rem，只剩 logo 也不会塌。
  */
 export function Nav({ locale, page }: { locale: Locale; page?: SitePage }) {
   return (

@@ -2,14 +2,13 @@ import { useEffect } from 'react'
 import { Footer } from './components/Footer'
 import { Hero } from './components/Hero'
 import { LanguageGrid } from './components/LanguageGrid'
-import { LegalPage } from './components/LegalPage'
 import { Nav } from './components/Nav'
 import { getContent } from './content'
 import { useRoute } from './lib/router'
 import { applySeo } from './lib/seo'
 import { useTheme } from './lib/theme'
 
-/** 首页只有一屏：页眉 logo、首屏、页脚，垫在全屏字符网格上；条款与隐私政策是普通的长文页。 */
+/** 全站只有首页一屏：页眉 logo、首屏、页脚，垫在全屏字符网格上。 */
 export function App() {
   const { locale, page } = useRoute()
   const { theme, toggleTheme } = useTheme()
@@ -33,7 +32,7 @@ export function App() {
       </a>
       <Nav locale={locale} page={page} />
       <main id="main">
-        {page === 'home' ? <Hero content={content} /> : <LegalPage doc={content.legal[page]} />}
+        <Hero content={content} />
       </main>
       <Footer content={content} locale={locale} theme={theme} onToggleTheme={toggleTheme} />
     </div>

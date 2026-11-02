@@ -1,17 +1,17 @@
-import { getContent, getSeo } from '../content'
+import { getSeo } from '../content'
 import type { Locale } from '../content/types'
 
 /**
- * 站点页面清单：首页 `/`，以及服务条款 `/terms`、隐私政策 `/privacy`。语言不进 URL：
+ * 站点页面清单：目前只有首页 `/`。语言不进 URL：
  * 构建时每种语言预渲染一份 `dist/<locale>/[<page>/]index.html`，由 Worker 按 cookie / 浏览器语言挑一份返回。
- * 加页面从这里开始（worker/src/locale.ts 的 PAGES 也要同步）。
- * 旧的 `/pricing`（「免费与开源」页）已删除，旧地址按未知页面返回 404。
+ * 加页面从这里开始（Worker 的 dispatch / locale 也要相应加上路由）。
+ * 旧的 `/pricing`（「免费与开源」页）、`/terms`（服务条款）与 `/privacy`（隐私政策）已删除，
+ * 旧地址按未知页面返回 404。
  */
-export const SITE_PAGES = ['home', 'terms', 'privacy'] as const
+export const SITE_PAGES = ['home'] as const
 export type SitePage = (typeof SITE_PAGES)[number]
-export type LegalPage = 'terms' | 'privacy'
 
-/** `/terms`、`/en/terms/` → 'terms'；其余一律算首页 */
+/** 最后一段是已知页面就取它；其余（含已删除的 `/terms`、`/privacy`）一律算首页 */
 export function pageFromPath(pathname: string): SitePage {
   const slug = pathname.split('/').filter(Boolean).at(-1) ?? ''
   return (SITE_PAGES as readonly string[]).includes(slug) ? (slug as SitePage) : 'home'
@@ -27,9 +27,7 @@ export function localeDir(locale: Locale, page: SitePage = 'home'): string {
   return page === 'home' ? `${locale}/` : `${locale}/${page}/`
 }
 
-export function getPageSeo(locale: Locale, page: SitePage = 'home') {
-  if (page === 'home') return getSeo(locale)
-  const seo = getSeo(locale)
-  const doc = getContent(locale).legal[page]
-  return { ...seo, title: `${doc.title} — umuo`, description: doc.description }
+/** 页面的 SEO；只有首页，直接用首页的 */
+export function getPageSeo(locale: Locale, _page: SitePage = 'home') {
+  return getSeo(locale)
 }
