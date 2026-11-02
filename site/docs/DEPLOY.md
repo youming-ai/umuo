@@ -1,6 +1,6 @@
 # umuo.app 部署
 
-官网（Vite + React）与 API（Void 中间件）运行在同一个 Cloudflare Worker：`umuo-app`。
+官网（Vite + React）与 API（Void 中间件）运行在同一个 Cloudflare Worker：`umuo`（2026-11-02 由 `umuo-app` 改名）。
 仓库以 `void.config.ts` 为 Worker 配置来源，使用 Void 部署、Vite 构建、`cf` 管理 Cloudflare 资源。
 
 线上已使用 Void 构建并通过 `cf` 部署；接管记录与 Workers Builds 设置见 [VOID-MIGRATION.md](VOID-MIGRATION.md)。

@@ -246,7 +246,7 @@ describe('handleHealth', () => {
     const { store } = fakeStore()
     const response = await handleHealth(makeEnv(store))
     expect(response.status).toBe(200)
-    expect(await response.json()).toEqual({ ok: true, service: 'umuo-app' })
+    expect(await response.json()).toEqual({ ok: true, service: 'umuo' })
   })
 
   it('KV 绑定坏掉时 503，而不是等第一封订阅进来才发现', async () => {
@@ -272,7 +272,7 @@ describe('路由', () => {
   it('/api/health 交给健康检查', async () => {
     const { store } = fakeStore()
     const response = await worker.fetch(new Request('https://umuo.app/api/health'), makeEnv(store))
-    expect(await response.json()).toEqual({ ok: true, service: 'umuo-app' })
+    expect(await response.json()).toEqual({ ok: true, service: 'umuo' })
   })
 
   it('未知的 /api 路径 404，而不是回一个首页副本', async () => {

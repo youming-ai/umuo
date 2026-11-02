@@ -110,7 +110,7 @@ bun run deploy            # = bun run build && bun scripts/cf-deploy.ts；加 --
 ```
 
 `cf` 从**最新上传**（不是活动版本）继承 secret。Worker 已不需要任何 secret（`WAFFO_PRIVATE_KEY` 可在远端手动删除）；
-将来若再加 secret，部署前用 `bunx cf workers versions list --worker-id umuo-app` 确认最新上传带有它，
+将来若再加 secret，部署前用 `bunx cf workers versions list --worker-id umuo` 确认最新上传带有它，
 否则用 `--secrets-file <json>` 显式带上（文件权限 600，用后删除）。
 不要再用 `void deploy` 关联已有 Worker（void@1.2.1 会丢 secret 并被自身校验拦下）。
 
@@ -125,6 +125,6 @@ deploy `bun scripts/cf-deploy.ts`（构建机 Node 24.22.1；`cf` 读取 Workers
 ## 回滚
 
 切换前记录当前生产 Version ID 与完整 Workers Builds 设置。需要回滚时先停止自动构建，
-由负责人用 `bunx cf workers deployments create --worker umuo-app --strategy percentage --versions '[{"version_id":"<ID>","percentage":100}]'`
+由负责人用 `bunx cf workers deployments create --worker umuo --strategy percentage --versions '[{"version_id":"<ID>","percentage":100}]'`
 恢复已记录的版本（不要用重新部署来回滚），并核对域名及访问开关。
 回滚代码不回滚 KV / R2 数据；恢复旧构建命令前同时恢复对应版本的配置。

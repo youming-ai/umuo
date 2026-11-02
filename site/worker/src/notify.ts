@@ -162,5 +162,5 @@ export async function handleHealth(env: Env): Promise<Response> {
   } catch {
     return json({ ok: false, error: 'kv_unavailable' }, 503)
   }
-  return json({ ok: true, service: 'umuo-app' })
+  return json({ ok: true, service: 'umuo' })
 }

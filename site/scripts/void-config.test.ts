@@ -3,7 +3,7 @@ import base from '../void.config'
 describe('Void', () => {
   it('正式配置保留域名、现有绑定与访问开关', () => {
     expect(base.cloudflare).toMatchObject({
-      name: 'umuo-app',
+      name: 'umuo',
       routes: [{ pattern: 'umuo.app', custom_domain: true }],
       workers_dev: false,
       preview_urls: false,

@@ -29,7 +29,7 @@ export default defineConfig({
     // 静态资源因此与现在线上一样是 `public, max-age=0, must-revalidate`。
   },
   cloudflare: {
-    name: 'umuo-app',
+    name: 'umuo',
     routes: [{ pattern: 'umuo.app', custom_domain: true }],
     // 正式站只经自定义域名访问；如需 Version URL，先在 staging 验证就绪检查。
     workers_dev: false,
