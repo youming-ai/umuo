@@ -223,9 +223,13 @@ done
 for f in LICENSE LICENSE.ggml LICENSE.silero_vad LICENSE.miniz; do
   [ -f "$app/Contents/Resources/Licenses/transcribe.cpp/$f" ] || fail "transcribe.cpp 的 $f 没随包"
 done
-for f in Umuo_Umuo.bundle/Contents/Resources/Strings/Localizable.xcstrings Umuo_Umuo.bundle/Contents/Resources/Tray icon.icns; do
-  [ -e "$app/Contents/Resources/$f" ] || fail "Contents/Resources/$f 缺了"
+# SwiftPM 的资源包有两种布局：只装 CLT 时是 macOS 式的 Contents/Resources/，完整 Xcode（CI 的 Xcode 26）是平铺的。
+# Bundle.module 两种都认；后面从 .app 里跑的 --selftest 会真的加载文案表，这里只确认文件随包。
+for f in Strings/Localizable.xcstrings Tray; do
+  [ -e "$app/Contents/Resources/Umuo_Umuo.bundle/Contents/Resources/$f" ] || [ -e "$app/Contents/Resources/Umuo_Umuo.bundle/$f" ] ||
+    fail "Contents/Resources/Umuo_Umuo.bundle 里缺 $f"
 done
+[ -e "$app/Contents/Resources/icon.icns" ] || fail "Contents/Resources/icon.icns 缺了"
 codesign --verify --deep --strict --verbose=2 "$app" 2>/dev/null || { codesign --verify --deep --strict --verbose=2 "$app"; fail "codesign --verify 不通过"; }
 codesign -dv "$app" 2>&1 | grep -q 'flags=.*runtime' || fail "没开 hardened runtime"
 if [ "$quick" = 0 ]; then
