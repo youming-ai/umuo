@@ -120,6 +120,9 @@ bun run deploy            # = bun run build && bun scripts/cf-deploy.ts；加 --
 deploy `bun scripts/cf-deploy.ts`（构建机 Node 24.22.1；`cf` 读取 Workers Builds 注入的 `CLOUDFLARE_API_TOKEN`）。
 先以 `--dry-run` 试跑通过，再正式部署出 v73（`50625005`），secret 继承、响应、就绪探针与 Waffo 结账均已核对。
 不要改回 `void deploy` 或 `wrangler deploy`。保持 PR 预览关闭，直到单独确定隔离资源与部署策略。
+2026-11-02 仓库改名为 `youming-ai/umuo`、Worker 改名为 `umuo` 后，触发器被重建成默认值（root `/`、deploy `npx wrangler deploy`、路径 `*`），
+构建去跑了客户端而失败；已用 `cf builds triggers update` 改回 root `/site`、build `bun run build`、deploy `bun scripts/cf-deploy.ts`、路径 `site/*`。
+以后改名或重连仓库后，先用 `cf builds triggers list --external-script-id <Worker ID>` 核对这四项。
 最新上传若缺少 secret（例如本地手动部署时出错），自动部署会继承这个缺口，须先用 `--secrets-file` 手动补齐。
 
 ## 回滚
