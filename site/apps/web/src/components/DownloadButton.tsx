@@ -1,4 +1,4 @@
-import { type ReactNode, useId, useState } from 'react'
+import { useId, useState } from 'react'
 import { MACOS_DOWNLOAD_URL, SITE_URL } from '../config'
 import type { PlatformCard } from '../content/types'
 import { DownloadIcon } from './icons'
@@ -11,22 +11,19 @@ export function DownloadButton({
   label,
   status,
   describedBy,
-  className = '',
   onDownload,
 }: {
   label: string
   status: string
   describedBy?: string
-  className?: string
   onDownload?: () => void
 }) {
-  const classes = `btn-primary ${className}`.trim()
   if (MACOS_DOWNLOAD_URL) {
     return (
       // 不加 download 属性：Safari 会拿地址最后一段（macos）当文件名，压过跳转后 GitHub 给的 Content-Disposition
       <a
         href={MACOS_DOWNLOAD_URL}
-        className={classes}
+        className="btn-solid"
         aria-label={`${label} ${status}`}
         aria-describedby={describedBy}
         onClick={onDownload}
@@ -43,7 +40,7 @@ export function DownloadButton({
       disabled
       aria-label={`${label} ${status}`}
       aria-describedby={describedBy}
-      className={`${classes} is-pending`}
+      className="btn-solid is-pending"
     >
       <DownloadIcon className="h-4 w-4" />
       {label}
@@ -58,7 +55,7 @@ export function DownloadButton({
  * 至少走之前把路标给全。
  * 触屏设备拿不到能用的安装包，换成「请在 Mac 上打开」与复制网址；两套都预渲染，由 CSS 按指针类型显示一套。
  */
-export function DownloadPanel({ platform, aside }: { platform: PlatformCard; aside?: ReactNode }) {
+export function DownloadPanel({ platform }: { platform: PlatformCard }) {
   const noteId = useId()
   const [copy, setCopy] = useState<'idle' | 'copied' | 'failed'>('idle')
   const [started, setStarted] = useState(false)
@@ -70,11 +67,10 @@ export function DownloadPanel({ platform, aside }: { platform: PlatformCard; asi
           <DownloadButton
             label={platform.actionLabel}
             status={platform.statusLabel}
-            describedBy={noteId}
-            className="btn-solid"
+            // 点了之后系统要求那段换成「接下来」三步，描述随之撤掉，不能指向已经不在的元素
+            describedBy={started ? undefined : noteId}
             onDownload={() => setStarted(true)}
           />
-          {aside}
         </div>
         {started ? (
           <div className="download-next" aria-live="polite">
@@ -113,7 +109,6 @@ export function DownloadPanel({ platform, aside }: { platform: PlatformCard; asi
               {copy === 'copied' ? platform.copied : platform.copyLink}
             </span>
           </button>
-          {aside}
         </div>
         {copy === 'failed' ? (
           <p className="download-note" role="status">

@@ -6,7 +6,7 @@
 
 这里是 umuo 仓库的 `site/`：**umuo.app 官网（`apps/web`）与它的 Worker（`worker`）**，下文路径都相对 `site/`。
 它是独立的 Bun 项目，命令都在 `site/` 里跑；客户端代码在仓库根目录（`apps/`、`crates/`），不要搬进来。
-umuo 完全免费、按 MIT 许可证开源（仓库尚未公开），纯 BYOK；没有购买、许可证、激活或试用，官网不要再写回这些。
+umuo 完全免费、按 MIT 许可证开源（仓库已于 2026-11-02 公开），纯 BYOK；没有购买、许可证、激活或试用，官网不要再写回这些。
 
 ## 常用命令
 
@@ -19,14 +19,15 @@ bun run verify         # lint + type-check + vitest + 官网及 Void Worker 构�
 ```
 
 Node 需 ≥ 24.21；本机默认版本较低时用 `mise exec node@24 -- bun run verify`。
-`void.config.ts` 是正式 Worker 配置的唯一来源：域名、资源 ID、访问开关和日志均显式声明，改它们会影响部署。
-Void 中间件与 `worker/src/index.ts` 共用 `worker/src/dispatch.ts`；正式配置由 `scripts/void-config.test.ts` 检查。
+`void.config.ts` 是正式 Worker 配置的唯一来源：域名、访问开关和日志均显式声明，改它们会影响部署。
+Void 中间件（`middleware/01.legacy.ts`）把请求全部交给 `worker/src/dispatch.ts`；缓存头与安全头也在那里设。
+正式配置由 `scripts/void-config.test.ts` 检查。
 `cf` 管理 Cloudflare 资源与预构建部署（`scripts/cf-deploy.ts` 转换 Void 构建产物后调 `cf deploy --prebuilt`）；
 Vite + Void 负责开发和构建。Worker 没有任何 secret 或变量。
 生成的 `.void-wrangler.jsonc` 和 `.void/` 不提交。
 
-线上已由 Void 构建接管；调整 Workers Builds 或回滚前，先读 `docs/VOID-MIGRATION.md`。
-迁移的部署、远端验证与回滚只由负责人执行；本地构建、测试和 cf 的 dry-run 可独立运行。
+线上由 Void 构建、`cf` 部署，`main` 上 `site/*` 有改动即经 Workers Builds 自动上线；调整 Workers Builds 或回滚前，
+先读 `docs/VOID-MIGRATION.md`。正式部署、远端验证与回滚只由负责人执行；本地构建、测试和 cf 的 dry-run 可独立运行。
 
 ## 官网的硬约束
 
@@ -34,7 +35,7 @@ Vite + Void 负责开发和构建。Worker 没有任何 secret 或变量。
   `content.test.ts` 会拦空串与漏翻。组件不写死句子。
 - **预渲染必须能 hydrate**：渲染期不读 `window`、不用随机数和计时器，副作用放进 effect（`hydration.test.tsx` 守着）。
 - **不放假下载链接**：`MACOS_DOWNLOAD_URL` 指向 Worker 的 `/download/macos`（302 到 GitHub Releases 最新版的 `umuo.dmg`）；设回 `null` 时下载按钮变为不可点。官网不显示版本号，也不在页面里调 GitHub API。
-- 目前站点只有首页一屏，不再提供条款与隐私页：`/terms`、`/privacy` 已删除（不做重定向，旧地址返回 404），不要再加回。页眉左边是 logo（蓝底、从水里探出头的小水獭，`LogoMark` 与 `public/favicon.svg` 是同一张图），右边是 GitHub 源码链接（原「免费与开源」链接的位置）。原来的「免费与开源」页 `/pricing` 已删除（不做重定向，旧地址返回 404），不要再加回定价页。页脚只有一行：版权与语言 / 主题切换，不放条款、隐私、源码与联系邮箱链接。页面清单在 `apps/web/src/lib/pages.ts`；再加页面时 Worker（`worker/src/dispatch.ts`、`locale.ts`）也要加路由。
+- 目前站点只有首页一屏，不再提供条款与隐私页：`/terms`、`/privacy` 已删除（不做重定向，旧地址返回 404），不要再加回。页眉左边是 logo（蓝底、从水里探出头的小水獭，`LogoMark` 与 `public/favicon.svg` 是同一张图），右边是 GitHub 源码链接（原「免费与开源」链接的位置）。原来的「免费与开源」页 `/pricing` 已删除（不做重定向，旧地址返回 404），不要再加回定价页。页脚只有一行：版权与语言 / 主题切换，不放条款、隐私、源码与联系邮箱链接。站点按语言区分、不分页面（`lib/router.tsx` 只管当前语言）；真要再加页面，预渲染（`vite.config.ts`、`scripts/prerender-web.ts`）与 Worker（`worker/src/dispatch.ts`、`locale.ts`）都要相应加上。
 - **产品范围**：文字翻译、OCR 截图翻译、语音输入后润色/翻译，完全免费、纯 BYOK。修改产品页面前读根目录 `docs/PRD.md` 与 `docs/PRD-CONFORMANCE.md`；只宣称已发布能力，语音尚未实现。账号、订阅、付费版、官方额度与 AI 网关退出范围，不继续宣传为即将推出。
 - **免费与开源**：umuo 免费，没有付费版、内购、试用期、许可证或激活；模型调用费用只在用户与供应商之间。整个仓库（含官网）按 MIT 许可证开源，源码地址是 `apps/web/src/config.ts` 的 `SOURCE_URL`（github.com/youming-ai/umuo，2026-11-02 公开）。同文件的 `SOURCE_PUBLIC` 已打开：页眉右侧有 GitHub 源码链接（站内唯一的源码入口）；首页下载旁不放说明句。仓库若再改为私有，须先把它改回 false（关闭时页面上不出现源码链接）。「umuo」名称与水獭图标不随 MIT 授权。
 - **不再有条款与隐私页**：官网只有首页，五语言的条款 / 隐私文案、`LegalPage` 与 `config.ts` 的 `LEGAL_*`、`CONTACT_EMAIL` 已一并删除；要恢复须重新评估法律文本与联系方式，不要从历史里原样搬回。

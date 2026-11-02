@@ -1,5 +1,7 @@
 # 现有官网迁至 Void
 
+> 2026-11-02 起 Worker 已由 `umuo-app` 改名为 `umuo`，仓库改名为 `youming-ai/umuo`；下文接管记录里的 `umuo-app` 指改名前的同一个 Worker。
+>
 > 2026-11-02 起 umuo 改为免费开源，收费与许可证代码、`LICENSES` 绑定与 `WAFFO_*` 变量已从仓库删除；
 > 下文中关于 Waffo secret 与结账的内容是当时的接管记录，之后的部署不再需要核对 `WAFFO_PRIVATE_KEY`。
 >
@@ -40,7 +42,9 @@ bun run dev:worker
 ## 静态资源的缓存
 
 Void 1.2.1 的 `routing.headers` 无法覆盖资源响应已有的 `Cache-Control`：Hono 会把旧响应头复制回新响应。
-因此正式 Void 配置不设置该规则；静态资源继续由资源层提供缓存头，更新清单由 Worker 明确返回 `no-store`。
+因此正式 Void 配置不设置该规则，缓存头在 Worker 里设（`worker/src/dispatch.ts`）：带内容哈希的 `/assets/*`
+改为 `public, max-age=31536000, immutable`，字体与 favicon 沿用资源层的 `max-age=0, must-revalidate`，
+页面 `no-cache`，接口、跳转与 404 `no-store`。安全头（`X-Frame-Options` 等）也在同一处统一补上。
 
 ## 首次接管生产的门槛（历史记录）
 

@@ -2,7 +2,6 @@ import type { SiteContent } from './types'
 
 /** 한국어 문안. 구조와 제품 정보는 zh-cn.ts를 기준으로 합니다. */
 export const ko: SiteContent = {
-  locale: 'ko',
   seo: {
     title: 'umuo: 읽고 쓰는 Mac AI 번역기',
     description:
@@ -52,35 +51,30 @@ export const ko: SiteContent = {
           hint: '개발 중: ⌃⌘V를 누른 채 말하고 떼면 목표 언어로 번역합니다. ⌥⌘V를 쓰면 같은 언어로 매끄럽게 다듬습니다',
           name: '음성 입력',
           tag: '개발 중',
-          keyHint: '길게',
-          keys: ['⌃', '⌘', 'V'],
           before: '음, 회의 금요일로 옮길 수 있을까',
           after: 'Could we move the meeting to Friday?',
           note: '개발 중: 프리뷰에는 아직 음성 입력이 없습니다.',
         },
       ],
     },
-    platforms: [
-      {
-        id: 'macos',
-        requirement: 'macOS 14 이상, Apple Silicon(M 시리즈) 전용',
-        actionLabel: 'macOS용 다운로드',
-        statusLabel: '프리뷰',
-        note: '아직 Apple 공증 전인 프리뷰입니다. 차단되면 「개인정보 보호 및 보안」에서 「그래도 열기」를 누르세요.',
-        mobileNote: 'umuo는 Mac 앱입니다. Mac에서 umuo.app을 열어 다운로드하세요.',
-        copyLink: '링크 복사',
-        copied: '복사됨',
-        copyFailed: '복사하지 못했습니다. umuo.app을 따로 적어 두세요',
-        afterDownload: {
-          title: '다운로드를 시작했습니다. 다음 단계:',
-          steps: [
-            '받은 설치 파일을 열고 umuo를 「응용 프로그램」 폴더로 끌어 놓습니다.',
-            '처음 열 때 차단되면 「시스템 설정 › 개인정보 보호 및 보안」에서 「그래도 열기」를 누릅니다.',
-            '안내에 따라 모델 제공업체를 고르고 API 키를 입력합니다. 선택 번역에는 손쉬운 사용 권한이 필요합니다.',
-          ],
-        },
+    platform: {
+      requirement: 'macOS 14 이상, Apple Silicon(M 시리즈) 전용',
+      actionLabel: 'macOS용 다운로드',
+      statusLabel: '프리뷰',
+      note: '아직 Apple 공증 전인 프리뷰입니다. 차단되면 「개인정보 보호 및 보안」에서 「그래도 열기」를 누르세요.',
+      mobileNote: 'umuo는 Mac 앱입니다. Mac에서 umuo.app을 열어 다운로드하세요.',
+      copyLink: '링크 복사',
+      copied: '복사됨',
+      copyFailed: '복사하지 못했습니다. umuo.app을 따로 적어 두세요',
+      afterDownload: {
+        title: '다운로드를 시작했습니다. 다음 단계:',
+        steps: [
+          '받은 설치 파일을 열고 umuo를 「응용 프로그램」 폴더로 끌어 놓습니다.',
+          '처음 열 때 차단되면 「시스템 설정 › 개인정보 보호 및 보안」에서 「그래도 열기」를 누릅니다.',
+          '안내에 따라 모델 제공업체를 고르고 API 키를 입력합니다. 선택 번역에는 손쉬운 사용 권한이 필요합니다.',
+        ],
       },
-    ],
+    },
   },
   footer: {
     copyright: '© 2026 umuo',

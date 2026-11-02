@@ -1,7 +1,6 @@
 import { StrictMode } from 'react'
 import { createRoot, hydrateRoot } from 'react-dom/client'
 import { App } from './App'
-import { pageFromPath, pagePath } from './lib/pages'
 import { localeFromPath, switchLocale } from './lib/router'
 import './styles/app.css'
 
@@ -12,8 +11,7 @@ import './styles/app.css'
 const pathLocale = localeFromPath(window.location.pathname)
 if (pathLocale) {
   switchLocale(pathLocale)
-  const path = pagePath(pathLocale, pageFromPath(window.location.pathname))
-  window.history.replaceState(null, '', `${path}${window.location.search}${window.location.hash}`)
+  window.history.replaceState(null, '', `/${window.location.search}${window.location.hash}`)
 }
 
 const container = document.getElementById('root')

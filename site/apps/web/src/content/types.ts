@@ -11,9 +11,6 @@ export type Locale = 'zh-cn' | 'zh-tw' | 'en' | 'ja' | 'ko'
 /** 首屏演示的四种模式：划词 / 闪电替换 / 截图 / 语音 */
 export type DemoModeId = 'read' | 'write' | 'ocr' | 'speak'
 
-/** 首屏下载按钮对应的平台 */
-export type PlatformId = 'macos'
-
 export interface SeoContent {
   /** <title> 与 og:title，含 SEO 关键词 */
   title: string
@@ -30,8 +27,8 @@ export interface NavContent {
   themeToDark: string
 }
 
+/** 首屏下载区：umuo 只做 macOS，只有这一个平台 */
 export interface PlatformCard {
-  id: PlatformId
   /** 系统要求，显示在下载按钮下方 */
   requirement: string
   actionLabel: string
@@ -59,10 +56,8 @@ export interface DemoMode {
   name: string
   /** 状态标记，例如「开发中」；已发布的功能留空 */
   tag?: string
-  /** 触发键位，键帽逐个渲染；键帽里只放键名（如「右 ⌥」），动作写进 keyHint */
-  keys: string[]
-  /** 键帽前的动作说明，例如「按住」；连按、组合键留空 */
-  keyHint?: string
+  /** 触发键位，键帽逐个渲染；有 tag（如开发中）的模式选项卡上显示标签而不是键位，可以不写 */
+  keys?: string[]
   /** 结果下方的一行补充，例如闪电替换的安全边界 */
   note?: string
   /** 演示底部的提示：怎样在这个页面上亲手试（触屏设备上隐藏） */
@@ -76,16 +71,12 @@ export interface DemoMode {
 export interface HeroContent {
   title: string
   subtitle: string
-  /**
-   * 下载按钮旁的一句「免费、自带 Key」说明。按 config.ts 的 `SOURCE_PUBLIC` 二选一：
-   * 仓库公开前写「即将开源」（纯文字），公开后写「MIT 开源」并链到 `SOURCE_URL`。
-   */
   demo: {
     label: string
     /** 第一项是默认展示的模式 */
     modes: DemoMode[]
   }
-  platforms: PlatformCard[]
+  platform: PlatformCard
 }
 
 export interface FooterContent {
@@ -94,7 +85,6 @@ export interface FooterContent {
 }
 
 export interface SiteContent {
-  locale: Locale
   seo: SeoContent
   nav: NavContent
   hero: HeroContent

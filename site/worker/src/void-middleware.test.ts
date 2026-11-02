@@ -1,28 +1,21 @@
 /// <reference types="node" />
 import { describe, expect, it } from 'vitest'
+import { legacyMiddleware } from '../../middleware/01.legacy'
 // Void 运行时里真正包住应用的两层（与构建生成的 .void/entry.ts 一致）。void 锁在 1.2.1，路径稳定。
 import {
   createAssetFallback,
   createWorkerFetch,
 } from '../../node_modules/void/dist/runtime/routing.mjs'
 import type { Env } from './env'
-import worker from './index'
-import { legacyMiddleware } from './void-middleware'
 
 /**
- * 迁到 Void 的前提：同一个请求，两种部署回的状态码、响应头、正文完全一样。
- *
- * - 「旧版」：Cloudflare 资源层 + 旧入口。`run_worker_first` 里的路径先进 Worker；
- *   其余 GET / HEAD 先问资源层，命中就直接回，没命中（或别的方法）才进 Worker。
- *   列表固定为迁移前已发布的路径，避免配置删除后丢失回归基线。
- * - 「Void」：所有请求先进 Worker（`run_worker_first: ["/**"]`），经 Void 的 createWorkerFetch →
- *   中间件 → createAssetFallback（参数照抄生成的入口：notFound none、不做 SPA 兜底）。
+ * 经 Void 运行时（createWorkerFetch → 中间件 → createAssetFallback，参数照抄生成的入口：
+ * notFound none、不做 SPA 兜底）走一遍完整请求，断言线上实际会回的状态码、响应头与正文。
+ * Void 部署下所有请求都先进 Worker（`run_worker_first: ["/**"]`）。
  */
 
 // ---------- 假的静态资源层：按 Cloudflare 的 html_handling = auto-trailing-slash 回 ----------
 
-// 官网只有首页；条款与隐私页已删除，产物里不再有 /<locale>/terms/ 与 /<locale>/privacy/
-const HTML_PAGES = ['']
 const LOCALES = ['zh-cn', 'zh-tw', 'en', 'ja', 'ko']
 const FILES: Record<string, string> = {
   '/index.html': '<html data-locale="zh-cn">root',
@@ -31,9 +24,8 @@ const FILES: Record<string, string> = {
   '/assets/index-Dnv3QVWi.css': 'body{}',
   '/fonts/open-sans.woff2': 'woff2',
 }
-for (const locale of LOCALES)
-  for (const page of HTML_PAGES)
-    FILES[`/${locale}/${page}index.html`] = `<html data-locale="${locale}">${page}`
+// 官网只有首页；条款与隐私页已删除，产物里只有 /<locale>/index.html
+for (const locale of LOCALES) FILES[`/${locale}/index.html`] = `<html data-locale="${locale}">`
 
 const TYPES: Record<string, string> = {
   html: 'text/html; charset=utf-8',
@@ -43,15 +35,20 @@ const TYPES: Record<string, string> = {
   woff2: 'font/woff2',
 }
 
-function serveFile(path: string, method: string): Response {
+/** 资源层给每个文件的缓存头（Cloudflare 的默认值） */
+const REVALIDATE = 'public, max-age=0, must-revalidate'
+
+function serveFile(path: string, request: Request): Response {
   const ext = path.slice(path.lastIndexOf('.') + 1)
-  return new Response(method === 'HEAD' ? null : FILES[path], {
-    headers: {
-      'content-type': TYPES[ext] ?? 'application/octet-stream',
-      'cache-control': 'public, max-age=0, must-revalidate',
-      etag: `"${path.length}"`,
-    },
-  })
+  const etag = `"${path.length}"`
+  const headers = {
+    'content-type': TYPES[ext] ?? 'application/octet-stream',
+    'cache-control': REVALIDATE,
+    etag,
+  }
+  if (request.headers.get('if-none-match') === etag)
+    return new Response(null, { status: 304, headers })
+  return new Response(request.method === 'HEAD' ? null : FILES[path], { headers })
 }
 
 function redirect(url: URL, pathname: string): Response {
@@ -69,60 +66,15 @@ const fakeAssets = {
       return new Response(null, { status: 405 })
     if (path.endsWith('/index.html') && FILES[path]) return redirect(url, path.slice(0, -10))
     if (path.endsWith('/') && FILES[`${path}index.html`])
-      return serveFile(`${path}index.html`, request.method)
+      return serveFile(`${path}index.html`, request)
     if (!path.endsWith('/') && FILES[`${path}/index.html`]) return redirect(url, `${path}/`)
-    if (FILES[path] && !path.endsWith('.html')) return serveFile(path, request.method)
+    if (FILES[path] && !path.endsWith('.html')) return serveFile(path, request)
     return new Response('Not Found', { status: 404 })
   },
 }
 
-// ---------- 绑定：只剩静态资源（上线通知的 KV 与安装包的 R2 都已下线） ----------
-
-function env(): Env {
-  return { ASSETS: fakeAssets }
-}
-
-// ---------- 两种部署 ----------
-
-const runWorkerFirst = [
-  '/',
-  '/index.html',
-  '/pricing',
-  '/pricing/',
-  '/terms',
-  '/terms/',
-  '/privacy',
-  '/privacy/',
-  '/activate',
-  '/activate/',
-  '/zh-cn',
-  '/zh-cn/*',
-  '/zh-tw',
-  '/zh-tw/*',
-  '/en',
-  '/en/*',
-  '/ja',
-  '/ja/*',
-  '/ko',
-  '/ko/*',
-  '/api/*',
-  '/download/*',
-]
-
-function workerFirst(pathname: string): boolean {
-  return runWorkerFirst.some((pattern) =>
-    pattern.endsWith('*') ? pathname.startsWith(pattern.slice(0, -1)) : pathname === pattern,
-  )
-}
-
-async function today(request: Request, e: Env): Promise<Response> {
-  const { pathname } = new URL(request.url)
-  if (!workerFirst(pathname) && (request.method === 'GET' || request.method === 'HEAD')) {
-    const asset = await e.ASSETS.fetch(request)
-    if (asset.status !== 404) return asset
-  }
-  return worker.fetch(request, e)
-}
+// 绑定只剩静态资源（上线通知的 KV 与安装包的 R2 都已下线）
+const env = (): Env => ({ ASSETS: fakeAssets })
 
 const viaVoid = createWorkerFetch({
   app: {
@@ -145,20 +97,14 @@ const viaVoid = createWorkerFetch({
 })
 
 /** 经 Void 运行时处理一个请求 */
-const callVoid = (request: Request, e: Env) =>
-  viaVoid(request, e as unknown as Record<string, unknown>, {} as ExecutionContext)
+const call = (path: string, init?: RequestInit) =>
+  viaVoid(
+    new Request(`https://umuo.app${path}`, init),
+    env() as unknown as Record<string, unknown>,
+    {} as ExecutionContext,
+  )
 
-async function snapshot(response: Response) {
-  return {
-    status: response.status,
-    headers: [...response.headers].sort(([a], [b]) => a.localeCompare(b)),
-    body: await response.text(),
-  }
-}
-
-// ---------- 路径表 ----------
-
-type Case = [label: string, path: string, init?: RequestInit]
+// ---------- 路径表：每条写明线上应当回什么 ----------
 
 const ja = { headers: { 'accept-language': 'ja,en;q=0.8' } }
 const cookieKo = { headers: { cookie: 'umuo-lang=ko' } }
@@ -169,96 +115,134 @@ const post = (body: unknown): RequestInit => ({
   body: JSON.stringify(body),
 })
 
+const RELEASES = 'https://github.com/youming-ai/umuo/releases/latest/download'
+
+type Expected = {
+  status: number
+  location?: string
+  cache?: string
+  body?: string
+  json?: unknown
+}
+type Case = [label: string, path: string, init: RequestInit | undefined, expected: Expected]
+
+const page = (locale: string): Expected => ({
+  status: 200,
+  cache: 'no-cache',
+  body: `data-locale="${locale}"`,
+})
+const notFound: Expected = { status: 404, cache: 'no-store', body: '<code>404</code>' }
+const apiNotFound: Expected = {
+  status: 404,
+  cache: 'no-store',
+  json: { ok: false, error: 'not_found' },
+}
+const home = (search = ''): Expected => ({
+  status: 301,
+  location: `https://umuo.app/${search}`,
+  cache: 'no-store',
+})
+
 const CASES: Case[] = [
-  ['首页（默认语言）', '/'],
-  ['首页（Accept-Language）', '/', ja],
-  ['首页（cookie）', '/', cookieKo],
-  ['/index.html 301', '/index.html?ref=a'],
-  // 已删除的「免费与开源」页，与 /activate 一样直接 404（旧快照里它在 run_worker_first 中）
-  ['已删除的 /pricing', '/pricing', html],
-  // 已删除的条款与隐私页，同样直接 404（旧快照里它们在 run_worker_first 中）
-  ['已删除的 /terms', '/terms', html],
-  ['已删除的 /privacy/', '/privacy/', html],
-  ...LOCALES.map((locale): Case => [`语言前缀 /${locale}/`, `/${locale}/`]),
-  ['语言前缀不带斜杠', '/en'],
-  ['语言前缀 + 已删除的页面', '/ja/terms/?utm_source=x'],
-  ['语言前缀内部文件', '/en/index.html'],
-  ['语言前缀未知子路径', '/zh-tw/faq/'],
-  ['/api/health', '/api/health'],
-  // 安装包改走 GitHub Releases 后 /api/release 已删除；上线通知表单下线后 /api/notify 已删除
-  ['已删除的 /api/release', '/api/release'],
-  ['已删除的 /api/notify POST', '/api/notify', post({ email: 'a@example.com' })],
-  ['已删除的 /api/notify GET', '/api/notify'],
-  // umuo 改为免费开源后收费与许可证接口已删除，旧路径落到 /api 的 404
-  ['已删除的 /api/checkout', '/api/checkout', post({ locale: 'en' })],
-  ['已删除的 /api/waffo/webhook', '/api/waffo/webhook', post({})],
-  ['已删除的 /api/license/verify', '/api/license/verify', post({ licenseKey: 'x' })],
-  // 已删除的激活页：旧快照里它在 run_worker_first 中，现在回 404 页
-  ['已删除的 /activate', '/activate', html],
-  ['/api 未知路径', '/api/nope', html],
-  ['/download/macos 跳到 GitHub', '/download/macos'],
-  ['appcast.xml 跳到 GitHub', '/download/macos/appcast.xml'],
+  ['首页（默认语言）', '/', undefined, page('zh-cn')],
+  ['首页（Accept-Language）', '/', ja, page('ja')],
+  ['首页（cookie）', '/', cookieKo, page('ko')],
+  ['首页 POST 405', '/', post({}), { status: 405, cache: 'no-store' }],
+  ['/index.html 301', '/index.html?ref=a', undefined, home('?ref=a')],
+  // 已删除的「免费与开源」、条款、隐私与激活页：直接 404
+  ['已删除的 /pricing', '/pricing', html, notFound],
+  ['已删除的 /terms', '/terms', html, notFound],
+  ['已删除的 /privacy/', '/privacy/', html, notFound],
+  ['已删除的 /activate', '/activate', html, notFound],
+  ...LOCALES.map((locale): Case => [`语言前缀 /${locale}/`, `/${locale}/`, undefined, home()]),
+  ['语言前缀不带斜杠', '/en', undefined, home()],
+  ['语言前缀 + 已删除的页面', '/ja/terms/?utm_source=x', undefined, home('?utm_source=x')],
+  ['语言前缀内部文件', '/en/index.html', undefined, home()],
+  ['语言前缀未知子路径', '/zh-tw/faq/', undefined, home()],
+  [
+    '/api/health',
+    '/api/health',
+    undefined,
+    { status: 200, cache: 'no-store', json: { ok: true, service: 'umuo' } },
+  ],
+  // 安装包改走 GitHub Releases、上线通知与收费接口下线后，这些旧路径都落到 /api 的 404
+  ['已删除的 /api/release', '/api/release', undefined, apiNotFound],
+  ['已删除的 /api/notify POST', '/api/notify', post({ email: 'a@example.com' }), apiNotFound],
+  ['已删除的 /api/checkout', '/api/checkout', post({ locale: 'en' }), apiNotFound],
+  ['已删除的 /api/waffo/webhook', '/api/waffo/webhook', post({}), apiNotFound],
+  ['已删除的 /api/license/verify', '/api/license/verify', post({ licenseKey: 'x' }), apiNotFound],
+  ['/api 未知路径', '/api/nope', html, apiNotFound],
+  [
+    '/download/macos 跳到 GitHub',
+    '/download/macos',
+    undefined,
+    { status: 302, location: `${RELEASES}/umuo.dmg`, cache: 'no-store' },
+  ],
+  [
+    'appcast.xml 跳到 GitHub',
+    '/download/macos/appcast.xml',
+    undefined,
+    { status: 302, location: `${RELEASES}/appcast.xml`, cache: 'no-store' },
+  ],
   // R2 下线后的旧下载地址
-  ['已删除的 update.json', '/download/macos/update.json', html],
-  ['已删除的 latest.json', '/download/macos/latest.json', html],
-  ['已删除的版本化更新包', '/download/macos/umuo-0.2.0-universal.app.tar.gz', html],
-  ['静态资源 js', '/assets/index-Cwmi45Kp.js'],
-  ['静态资源 css', '/assets/index-Dnv3QVWi.css'],
-  ['静态资源 HEAD', '/assets/index-Cwmi45Kp.js', { method: 'HEAD' }],
-  ['静态资源 带条件请求', '/fonts/open-sans.woff2', { headers: { 'if-none-match': '"x"' } }],
-  ['favicon', '/favicon.svg'],
-  ['缺失的资源 404', '/assets/missing.js'],
-  ['未知页面 404（浏览器）', '/no-such-page', html],
-  ['未知目录 404', '/english/', html],
-  ['资源路径 POST 404', '/favicon.svg', { method: 'POST' }],
+  ['已删除的 update.json', '/download/macos/update.json', html, notFound],
+  ['已删除的版本化更新包', '/download/macos/umuo-0.2.0-universal.app.tar.gz', html, notFound],
+  // 带哈希的 /assets/* 长期缓存；字体与 favicon 地址不带哈希，保持每次回源确认
+  [
+    '静态资源 js',
+    '/assets/index-Cwmi45Kp.js',
+    undefined,
+    { status: 200, cache: 'public, max-age=31536000, immutable', body: 'console.log(1)' },
+  ],
+  [
+    '静态资源 css',
+    '/assets/index-Dnv3QVWi.css',
+    undefined,
+    { status: 200, cache: 'public, max-age=31536000, immutable', body: 'body{}' },
+  ],
+  [
+    '静态资源 HEAD',
+    '/assets/index-Cwmi45Kp.js',
+    { method: 'HEAD' },
+    { status: 200, cache: 'public, max-age=31536000, immutable', body: '' },
+  ],
+  [
+    '静态资源 304',
+    '/assets/index-Dnv3QVWi.css',
+    { headers: { 'if-none-match': '"26"' } },
+    { status: 304, cache: 'public, max-age=31536000, immutable' },
+  ],
+  ['字体', '/fonts/open-sans.woff2', undefined, { status: 200, cache: REVALIDATE, body: 'woff2' }],
+  ['favicon', '/favicon.svg', undefined, { status: 200, cache: REVALIDATE, body: '<svg/>' }],
+  ['缺失的资源 404', '/assets/missing.js', undefined, notFound],
+  ['未知页面 404（浏览器）', '/no-such-page', html, notFound],
+  ['未知目录 404', '/english/', html, notFound],
+  ['资源路径 POST 404', '/favicon.svg', { method: 'POST' }, notFound],
 ]
 
-describe('Void 中间件与现状逐字节一致', () => {
-  it('旧版的 run_worker_first 快照包括下载路由', () => {
-    expect(runWorkerFirst).toContain('/download/*')
-    expect(runWorkerFirst.length).toBeGreaterThan(10)
-  })
-
-  it.each(CASES)('%s', async (_label, path, init) => {
-    const url = `https://umuo.app${path}`
-    const expected = await snapshot(await today(new Request(url, init), env()))
-    const actual = await snapshot(await callVoid(new Request(url, init), env()))
-    expect(actual).toEqual(expected)
-  })
-
-  it('几个关键结果本身也对（避免两边一起错）', async () => {
-    const call = async (path: string, init?: RequestInit) =>
-      callVoid(new Request(`https://umuo.app${path}`, init), env())
-    const download = await call('/download/macos')
-    expect(download.status).toBe(302)
-    expect(download.headers.get('location')).toBe(
-      'https://github.com/youming-ai/umuo/releases/latest/download/umuo.dmg',
-    )
-    expect((await call('/download/macos/update.json', html)).status).toBe(404)
-    expect(await (await call('/api/health')).json()).toEqual({ ok: true, service: 'umuo' })
-    for (const path of [
-      '/api/checkout',
-      '/api/waffo/webhook',
-      '/api/license/claim',
-      '/api/notify',
-      '/api/release',
-    ]) {
-      const gone = await call(path, post({}))
-      expect(gone.status).toBe(404)
-      expect(await gone.json()).toEqual({ ok: false, error: 'not_found' })
+describe('经 Void 运行时的路由', () => {
+  it.each(CASES)('%s', async (_label, path, init, expected) => {
+    const response = await call(path, init)
+    expect(response.status).toBe(expected.status)
+    expect(response.headers.get('location')).toBe(expected.location ?? null)
+    if (expected.cache) expect(response.headers.get('cache-control')).toBe(expected.cache)
+    // 页面、接口、跳转、404 与静态资源都带安全头
+    expect(response.headers.get('x-frame-options')).toBe('DENY')
+    expect(response.headers.get('content-security-policy')).toBe("frame-ancestors 'none'")
+    expect(response.headers.get('referrer-policy')).toBe('strict-origin-when-cross-origin')
+    expect(response.headers.get('permissions-policy')).toContain('camera=()')
+    if (expected.json !== undefined) expect(await response.json()).toEqual(expected.json)
+    else if (expected.body !== undefined) {
+      const body = await response.text()
+      if (expected.body === '') expect(body).toBe('')
+      else expect(body).toContain(expected.body)
     }
-    expect((await call('/activate', html)).status).toBe(404)
-    for (const path of ['/pricing', '/terms', '/terms/', '/privacy', '/privacy/'])
-      expect((await call(path, html)).status, path).toBe(404)
-    const missing = await call('/no-such-page', html)
-    expect(missing.status).toBe(404)
-    expect(await missing.text()).toContain('页面不存在')
-    const page = await call('/', ja)
-    expect(page.headers.get('content-language')).toBe('ja')
-    expect(await page.text()).toContain('data-locale="ja"')
-    expect((await call('/assets/index-Cwmi45Kp.js')).headers.get('cache-control')).toBe(
-      'public, max-age=0, must-revalidate',
-    )
+  })
+
+  it('首页按语言返回时缓存按 Cookie 与 Accept-Language 区分', async () => {
+    const response = await call('/', ja)
+    expect(response.headers.get('content-language')).toBe('ja')
+    expect(response.headers.get('vary')).toBe('Cookie, Accept-Language')
   })
 
   it('/__void/* 交还给 Void', async () => {

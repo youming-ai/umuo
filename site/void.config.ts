@@ -26,15 +26,15 @@ export default defineConfig({
     // 不写 routing.headers：void@1.2.1 里它改不掉响应已有的头。中间件回的是 ASSETS.fetch 的响应（自带
     // Cache-Control），Void 的 headerMiddleware 再赋值 c.res 时，Hono 的 `set res` 会把旧响应的头抄回新响应，
     // 规则里的 Cache-Control 随即被覆盖（本地实测，见 docs/VOID-MIGRATION.md「静态资源的缓存」）。
-    // 静态资源因此与现在线上一样是 `public, max-age=0, must-revalidate`。
+    // 缓存头与安全头因此都在 Worker 里设（worker/src/dispatch.ts）：带哈希的 `/assets/*` 长期缓存。
   },
   cloudflare: {
     name: 'umuo',
     routes: [{ pattern: 'umuo.app', custom_domain: true }],
-    // 正式站只经自定义域名访问；如需 Version URL，先在 staging 验证就绪检查。
+    // 正式站只经自定义域名访问，不开 workers.dev 与 Version URL。
     workers_dev: false,
     preview_urls: false,
-    // 首次接管前先为现有 Worker 添加同名绑定，供 Void 在不开放 Version URL 时验证候选版本。
+    // Version URL 关闭时，Void 的就绪探针靠这个绑定确认候选版本。
     version_metadata: { binding: 'VERSION_METADATA' },
     observability: {
       enabled: true,

@@ -4,8 +4,7 @@ import { act } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { App } from '../App'
-import { pageFromPath, pagePath, SITE_PAGES } from '../lib/pages'
-import { localeHref } from '../lib/router'
+import { localeFromPath } from '../lib/router'
 
 let root: Root
 let host: HTMLDivElement
@@ -44,14 +43,11 @@ function click(selector: string) {
 }
 
 describe('首页一屏', () => {
-  it('地址永远是 /，不带语言前缀', () => {
-    expect(pagePath('en')).toBe('/')
-    expect(localeHref('ja', 'download')).toBe('/#download')
-    expect(pageFromPath('/zh-cn/faq')).toBe('home')
-    // 「免费与开源」页已删除：旧地址不再是站内页面（Worker 会 301 回 /）
-    expect(pageFromPath('/pricing')).toBe('home')
-    expect(pageFromPath('/zh-cn/pricing')).toBe('home')
-    expect(pageFromPath('/en/')).toBe('home')
+  it('地址永远是 /：只从旧的语言前缀地址里认出语言', () => {
+    expect(localeFromPath('/en/')).toBe('en')
+    expect(localeFromPath('/zh-cn/pricing')).toBe('zh-cn')
+    expect(localeFromPath('/pricing')).toBeNull()
+    expect(localeFromPath('/')).toBeNull()
   })
 
   it('页脚只有版权行与语言切换（外加主题切换），不放条款、隐私、源码与联系邮箱', () => {
@@ -167,8 +163,9 @@ describe('首页一屏', () => {
     expect(host.querySelector('footer ul')).toBeNull()
   })
 
-  it('主题切换只在 Footer，选择会被保存', () => {
+  it('主题切换只在 Footer；挂载时不写存储（保持跟随系统），亲手切换后才保存', () => {
     expect(host.querySelector('header button[aria-label="主题"]')).toBeNull()
+    expect(window.localStorage.getItem('umuo-theme')).toBeNull()
     click('footer button[aria-label="主题"]')
     expect(document.documentElement.dataset.theme).toBe('light')
     expect(window.localStorage.getItem('umuo-theme')).toBe('light')
@@ -177,10 +174,23 @@ describe('首页一屏', () => {
     )
     click('footer button[aria-label="主题"]')
     expect(document.documentElement.dataset.theme).toBe('dark')
+    expect(window.localStorage.getItem('umuo-theme')).toBe('dark')
+  })
+
+  it('点了下载后，按钮的 aria-describedby 不再指向已移除的系统要求', () => {
+    const download = host.querySelector<HTMLAnchorElement>('#download a.btn-solid')
+    const describedBy = download?.getAttribute('aria-describedby')
+    expect(describedBy && document.getElementById(describedBy)?.textContent).toContain('macOS 14')
+    // 不让 happy-dom 真的跟着链接走；React 的 onClick 照常触发
+    document.addEventListener('click', (event) => event.preventDefault(), { once: true })
+    act(() => download?.click())
+    expect(host.querySelector('.download-next')?.textContent).toContain('接下来')
+    expect(host.querySelector('.download-requirement')).toBeNull()
+    expect(download?.hasAttribute('aria-describedby')).toBe(false)
   })
 
   it('下载按钮指向 Worker 给出的最新安装包，带预览版标签与放行说明', () => {
-    const download = host.querySelector<HTMLAnchorElement>('#download a.btn-primary')
+    const download = host.querySelector<HTMLAnchorElement>('#download a.btn-solid')
     expect(download?.getAttribute('href')).toBe('/download/macos')
     expect(download?.textContent).toContain('预览版')
     expect(host.querySelector('#download')?.textContent).toContain('仍要打开')
@@ -193,14 +203,9 @@ describe('首页一屏', () => {
 })
 
 describe('已删除的页面', () => {
-  it('旧的激活页地址不再是站内页面，按首页渲染', () => {
-    expect(pageFromPath('/activate')).toBe('home')
-  })
-
-  it('条款与隐私页已删除：不再预渲染，旧地址不是站内页面（Worker 回 404）', () => {
-    expect([...SITE_PAGES]).toEqual(['home'])
-    for (const path of ['/terms', '/privacy/', '/zh-cn/terms', '/en/privacy/'])
-      expect(pageFromPath(path), path).toBe('home')
-    expect(host.querySelector('a[href="/terms"], a[href="/privacy"]')).toBeNull()
+  it('页面上没有条款、隐私与激活页的链接（旧地址由 Worker 回 404）', () => {
+    expect(
+      host.querySelector('a[href="/terms"], a[href="/privacy"], a[href="/activate"]'),
+    ).toBeNull()
   })
 })

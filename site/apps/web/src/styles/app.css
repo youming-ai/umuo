@@ -30,18 +30,13 @@
     "Apple SD Gothic Neo", "Malgun Gothic", "Segoe UI", sans-serif;
   /* 兼容原有组件类名，但标题和译文不再使用宋体 / 明朝。 */
   --font-serif: var(--font-sans);
-  --font-heading: var(--font-sans);
   --color-background: var(--paper);
-  --color-background-secondary: var(--paper-elevated);
   --color-background-tertiary: var(--paper-2);
   --color-surface: var(--paper-elevated);
   --color-text-primary: var(--ink);
   --color-text-secondary: var(--ink-2);
   --color-text-tertiary: var(--ink-3);
-  --color-text-muted: var(--ink-3);
   --color-border: var(--rule);
-  --color-border-secondary: var(--rule-strong);
-  --color-border-muted: var(--rule);
   --radius-control: 6px;
   --radius-button: 1rem;
   --radius-card: 10px;
@@ -76,9 +71,6 @@
     --press-depth-active: 1px;
     --press-lift-hover: -1px;
     --press-lift-active: 3px;
-    /* 兼容旧类名 */
-    --accent-color: var(--accent);
-    --surface-selected: var(--select);
   }
 
   html[data-theme="dark"] {
@@ -134,13 +126,15 @@
 
 @layer base {
   html {
-    scroll-behavior: smooth;
     scroll-padding-top: 5rem;
     -webkit-text-size-adjust: 100%;
   }
 
+  /* 一屏的高度用 svh（浏览器工具栏展开时的可见高度）：iOS Safari 的 100vh 按工具栏收起算，
+     会比看得见的多出一截。桌面上 svh 与 vh 相同（首屏字号与间距本来就按 svh 算） */
   body {
-    @apply min-h-screen font-sans;
+    @apply font-sans;
+    min-height: 100svh;
     background: var(--paper);
     color: var(--ink);
     font-size: 1.0625rem;
@@ -154,7 +148,6 @@
   }
 
   button,
-  summary,
   a {
     -webkit-tap-highlight-color: transparent;
   }
@@ -164,8 +157,7 @@
     color: inherit;
   }
 
-  button:not(:disabled),
-  summary {
+  button:not(:disabled) {
     cursor: pointer;
   }
 
@@ -183,6 +175,7 @@
 @layer components {
   /* 横向溢出兜底；用 clip 而非 hidden，以免影响 sticky */
   .landing {
+    min-height: 100svh;
     position: relative;
     isolation: isolate;
     overflow-x: clip;
@@ -193,6 +186,7 @@
 
   .landing > main {
     flex: 1;
+    display: grid;
   }
 
   .container-page {
@@ -203,7 +197,6 @@
   /* —— 按钮：「节拍」厚底可按压（多邻国式）——
      几何只写一次，变体只声明颜色；新增变体加进这个选择器列表，不要复制几何。
      按压 = 底部实心厚边 + 悬停微抬 + 按下下沉、厚边收窄。 —— */
-  .btn-primary,
   .btn-secondary,
   .btn-solid {
     @apply inline-flex items-center justify-center gap-2 whitespace-nowrap;
@@ -223,35 +216,21 @@
       border-bottom-width 100ms ease;
   }
 
-  .btn-primary:hover:not(:disabled, .is-pending),
   .btn-secondary:hover:not(:disabled),
   .btn-solid:hover:not(:disabled, .is-pending) {
     transform: translateY(var(--press-lift-hover));
   }
 
-  .btn-primary:active:not(:disabled, .is-pending),
   .btn-secondary:active:not(:disabled),
   .btn-solid:active:not(:disabled, .is-pending) {
     transform: translateY(var(--press-lift-active));
     border-bottom-width: var(--press-depth-active);
   }
 
-  .btn-primary:disabled,
   .btn-secondary:disabled,
   .btn-solid:disabled {
     opacity: 0.45;
     cursor: not-allowed;
-  }
-
-  /* 描边主按钮：淡咖底、深咖边与字 */
-  .btn-primary {
-    color: var(--accent-strong);
-    border-color: var(--accent-strong);
-    background: var(--accent-soft);
-  }
-
-  .btn-primary:hover:not(:disabled, .is-pending) {
-    background: color-mix(in srgb, var(--accent) 20%, transparent);
   }
 
   /* 次按钮：白页底、浅咖厚边 */
@@ -265,8 +244,7 @@
     background: var(--coffee-soft);
   }
 
-  /* 实心主按钮：首屏唯一的行动入口，深咖底 + 更深的厚边。
-     下载按钮同时带 .btn-primary，所以这组规则必须写在描边变体之后 */
+  /* 实心主按钮：首屏唯一的行动入口（下载），深咖底 + 更深的厚边 */
   .btn-solid {
     background: var(--button-fill);
     border-color: var(--button-fill);
@@ -302,7 +280,7 @@
   }
 
   /* 安装包未发布：保持原样不变灰，靠里面的状态标签说明「还没发布」 */
-  .btn-primary.is-pending {
+  .btn-solid.is-pending {
     opacity: 1;
     cursor: default;
   }
@@ -329,35 +307,12 @@
     box-shadow: 0 1px 0 rgb(42 31 26 / 0.06);
   }
 
-  .keycap-sm {
-    @apply h-7 min-w-7 px-1.5 text-xs;
-  }
-
-  /* —— 字号阶：17 / 21 / 28 / 40 / 60，全站使用 Open Sans 字体栈 —— */
-  .section-title {
-    font-family: var(--font-serif);
-    font-size: clamp(1.75rem, 3vw, 2.5rem);
-    font-weight: 600;
-    line-height: 1.2;
-    text-wrap: balance;
-  }
-
   .lead {
     color: var(--ink-2);
     font-size: 1.1875rem;
     line-height: 1.6;
     max-width: 34em;
     text-wrap: pretty;
-  }
-
-  .u-accent-text {
-    color: var(--accent-strong);
-  }
-
-  /* 图标同时保留在 DOM 中，保证预渲染和 hydration 的结构一致。 */
-  html:not([data-theme="light"]) .umuo-theme-when-light,
-  html[data-theme="light"] .umuo-theme-when-dark {
-    display: none;
   }
 
   /* —— 导航 —— */
@@ -370,17 +325,6 @@
   .site-nav svg {
     border-radius: 9px;
     box-shadow: 0 3px 10px -3px rgb(42 31 26 / 0.3);
-  }
-
-  .site-nav a[aria-current="page"] {
-    color: var(--accent-strong);
-    text-decoration: underline;
-    text-underline-offset: 0.4em;
-    text-decoration-color: var(--accent);
-  }
-
-  .landing-home main {
-    display: grid;
   }
 
   /* 首页恰好一屏：main 吃掉页脚以外的高度，首屏在其中垂直居中；内容放不下的小屏才滚动 */
@@ -492,7 +436,7 @@
     white-space: pre-line;
   }
 
-  /* —— 下载区：按钮与旁边的「免费」说明放不下时，说明换到按钮下面 —— */
+  /* —— 下载区 —— */
   .download-actions {
     display: flex;
     flex-wrap: wrap;
@@ -557,7 +501,6 @@
     }
   }
 
-  /* 下载按钮旁的一句「免费、自带 Key」：仓库公开前是纯文字；SOURCE_PUBLIC 打开后是链到源码的链接 */
   /* 首屏内部的纵向节奏随视口高度收放，矮屏也能一屏放下 */
   .hero-gap {
     margin-top: clamp(0.75rem, 2.4svh, 1.5rem);
@@ -787,13 +730,6 @@
     gap: 0.25rem;
   }
 
-  .demo-key-hint {
-    font-size: 0.75rem;
-    font-weight: 500;
-    color: inherit;
-    white-space: nowrap;
-  }
-
   .demo-hint {
     padding: 0.5rem clamp(0.75rem, 1.6vw, 1.25rem);
     border-top: 1px solid var(--rule);
@@ -986,7 +922,8 @@
 
   /* —— 手机上演示按可用高度分档降级，五种语言都留在一屏里 ——
      一档：说明小字只留闪电替换的安全边界（那是第一卖点的一部分），其余让位；
-     二档（≤820px 高）：收起选项卡，只留闪电替换一个场景——首屏标题讲的就是「写回」；
+     二档（≤820px 高）：收起选项卡与底部提示，只留闪电替换一个场景——首屏标题讲的就是「写回」；
+       点了下载之后演示整个让位给「接下来」三步；
      三档（≤700px 高，如 iPhone SE）：演示整个让位，只留标题和下载。 */
   @media (max-width: 639px) {
     .hero-demo .demo-scene:not([data-mode="write"]) .demo-note {
@@ -995,8 +932,22 @@
   }
 
   @media (max-width: 639px) and (max-height: 820px) {
-    .hero-demo .demo-tabs {
+    /* 选项卡收起后只剩闪电替换，底部那句「怎样试」仍跟着默认的划词模式，对不上，一起收起 */
+    .hero-demo .demo-tabs,
+    .hero-demo .demo-hint {
       display: none;
+    }
+    /* 点了下载之后「接下来」三步比系统要求高出一截：这一档演示让位，三步收紧行距 */
+    .hero:has(.download-next) .hero-demo {
+      display: none;
+    }
+    .download-next {
+      margin-top: 0.625rem;
+      font-size: 0.8125rem;
+      line-height: 1.45;
+    }
+    .download-next ol {
+      margin-top: 0.125rem;
     }
     .hero {
       gap: 1rem;
@@ -1039,9 +990,7 @@
 
 @media (hover: none) and (pointer: coarse) {
   button,
-  a,
-  summary,
-  input {
+  a {
     min-height: 44px;
   }
   button {
@@ -1062,17 +1011,12 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  html {
-    scroll-behavior: auto;
-  }
   /* 按钮去掉位移与厚边收窄，保留颜色反馈；这里在 @layer 之外，优先于组件层，无需 !important */
-  .btn-primary,
   .btn-secondary,
   .btn-solid,
   .btn-ghost {
     transform: none;
   }
-  .btn-primary,
   .btn-secondary,
   .btn-solid {
     border-bottom-width: var(--press-depth);
@@ -1082,16 +1026,5 @@
   ::after {
     animation: none;
     transition: none;
-    scroll-behavior: auto;
-  }
-}
-
-@media (prefers-contrast: more) {
-  :root {
-    --rule: var(--rule-strong);
-  }
-  button,
-  input {
-    border-width: 2px;
   }
 }
