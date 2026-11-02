@@ -92,8 +92,9 @@ private let base: SettingsValues = [
 
 /// 等一个「保存在路上」的结果落定：轮流让出主线程，最多约 2 秒（不靠固定的 sleep，机器忙时也不误判）。
 @MainActor
+/// 上限放宽到 10 秒：CI 的 macOS runner 慢，全量并行时主线程排队，2 秒曾不够（条件满足即返回，不拖慢通过的用例）。
 private func eventually(_ condition: () -> Bool) async {
-    let deadline = ContinuousClock.now + .seconds(2)
+    let deadline = ContinuousClock.now + .seconds(10)
     while !condition(), ContinuousClock.now < deadline {
         await Task.yield()
         try? await Task.sleep(for: .milliseconds(1))
