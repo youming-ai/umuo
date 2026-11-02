@@ -224,7 +224,7 @@ final class PanelController: PanelBackend {
 
     func copy(_ text: String) async -> String? {
         // 拿剪贴板互斥锁：⌘C 取词降级的事务可能正在另一个线程上跑（最长约 1 秒），不在主线程上等
-        await Task.detached { ScreenOCR.copy(text) }.value
+        await Task.detached { Pasteboard.copy(text) }.value
     }
 
     /// 语言由 Rust 从文本推断，不由界面传：同一段文本在浮窗与撰写窗必须用同一个发音人。

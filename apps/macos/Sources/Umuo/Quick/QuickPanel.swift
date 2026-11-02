@@ -77,7 +77,7 @@ final class QuickPanelController: NSObject, QuickBackend, NSPopoverDelegate {
     }
 
     func copy(_ text: String) async -> String? {
-        await Task.detached { ScreenOCR.copy(text) }.value
+        await Task.detached { Pasteboard.copy(text) }.value
     }
 
     func openSettings() {

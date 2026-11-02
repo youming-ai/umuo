@@ -104,14 +104,4 @@ enum ScreenOCR {
             return .notice("文字识别失败：\(error)", permission: nil)
         }
     }
-
-    /// 结果操作共用的复制工具；复制失败返回原因。
-    /// 要拿 `Pasteboard.exclusive`：⌘C 取词降级的事务可能正在另一个线程上跑，
-    /// 不互斥的话 OCR 文本要么被它的恢复盖掉，要么被它当成用户原内容存下来。
-    static func copy(_ text: String, to pasteboard: NSPasteboard = .general) -> String? {
-        Pasteboard.exclusive.lock()
-        defer { Pasteboard.exclusive.unlock() }
-        pasteboard.clearContents()
-        return pasteboard.setString(text, forType: .string) ? nil : "复制失败：剪贴板不可用：写入失败"
-    }
 }

@@ -11,6 +11,16 @@ enum Pasteboard {
     /// 进程级的一把锁，与剪贴板是哪一块无关。用 NSLock 而不是 unfair lock：事务里要睡眠，最长约 1 秒。
     static let exclusive = NSLock()
 
+    /// 复制文本（浮窗、撰写窗、历史、快捷面板与语音结果的「复制」共用）；失败返回原因。
+    /// 要拿 `exclusive`：⌘C 取词降级的事务可能正在另一个线程上跑，不互斥的话复制的内容要么被它的恢复盖掉，
+    /// 要么被它当成用户原内容存下来。会等锁，不要在主线程上调。
+    static func copy(_ text: String, to pasteboard: NSPasteboard = .general) -> String? {
+        exclusive.lock()
+        defer { exclusive.unlock() }
+        pasteboard.clearContents()
+        return pasteboard.setString(text, forType: .string) ? nil : "复制失败：剪贴板不可用：写入失败"
+    }
+
     /// 剪贴板上的纯文本。
     static func string(_ pasteboard: NSPasteboard) -> String? { pasteboard.string(forType: .string) }
 

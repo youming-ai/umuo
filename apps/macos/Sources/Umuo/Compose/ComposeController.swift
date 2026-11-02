@@ -128,28 +128,46 @@ final class ComposeController: ComposeBackend {
         app.speech.speak(trimmed, language: detectLanguage(text: trimmed))
     }
 
-    /// `compose_commit`：写剪贴板 → 收起撰写窗 →（⌘⇧↩）切回原来的应用、确认它确实在前台后再粘贴。
-    /// 确认不了（从 umuo 自己的窗口唤出、原应用已退出、没有辅助功能权限）就只留在剪贴板里，
-    /// 并用浮窗说一声——撰写窗已经收起，它自己的提示没人看得见。
+    /// `compose_commit`：⌘↩ 写剪贴板后收起；⌘⇧↩ 收起后切回原来的应用、确认它确实在前台再受控粘贴
+    /// （粘完恢复用户原来的剪贴板）。确认不了（从 umuo 自己的窗口唤出、原应用已退出、没有辅助功能权限）
+    /// 就只留在剪贴板里，并用浮窗说一声——撰写窗已经收起，它自己的提示没人看得见。
     func commit(_ text: String, paste: Bool, owner: String?) async -> String? {
         if text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { return ComposeRules.emptyText }
-        // 拿剪贴板互斥锁：⌘C 取词降级的事务可能正在另一个线程上跑，不在主线程上等
-        if let failure = await Task.detached(operation: { ScreenOCR.copy(text) }).value { return failure }
+        guard paste else {
+            // 拿剪贴板互斥锁：⌘C 取词降级的事务可能正在另一个线程上跑，不在主线程上等
+            if let failure = await Task.detached(operation: { Pasteboard.copy(text) }).value { return failure }
+            hideCompose()
+            return nil
+        }
         hideCompose()
-        guard paste else { return nil }
         let failure = await Task.detached { Self.pasteBack(text, owner: owner) }.value
         if let failure { app.panel?.showNotice(failure, permission: nil) }
         return failure
     }
 
-    /// 把唤出撰写窗之前的应用叫回前台，轮询到它真的在前台再粘贴。固定等一段时间不够：撰写窗收起后接过焦点的
+    /// 把唤出撰写窗之前的应用叫回前台，轮询到它真的在前台再受控粘贴。固定等一段时间不够：撰写窗收起后接过焦点的
     /// 可能是 umuo 自己的设置窗或历史窗，⌘V 会落进那里（审查 M19）。同步阻塞，后台调。
-    nonisolated static func pasteBack(_ text: String, owner: String?) -> String? {
-        guard let owner else { return ComposeRules.pasteNotBack }
-        ReplaceSelection.refocus(owner)
-        guard FrontmostApp.liveToken() == owner else { return ComposeRules.pasteNotBack }
-        // 写入与粘贴在同一把剪贴板锁里做完（中间插进一次 ⌘C 取词降级的话，粘出去的是它清空或恢复后的内容）
-        do { try ReplaceSelection.pasteFallback(text) } catch { return error.detail }
-        return nil
+    ///
+    /// 粘不了时把译文留在剪贴板上（提示里让用户手动 ⌘V）。剪贴板、按键、切前台与前台查询可注入，测试不碰真实系统。
+    nonisolated static func pasteBack(
+        _ text: String, owner: String?, paster: ControlledPaste = ControlledPaste(),
+        refocus: (String) -> Void = ReplaceSelection.refocus,
+        frontmost: () -> String? = FrontmostApp.liveToken
+    ) -> String? {
+        guard let owner else { return keepOnClipboard(text, paster.pasteboard) ?? ComposeRules.pasteNotBack }
+        refocus(owner)
+        // ⌘V 发往前台：按下前最后核对一次前台仍是原应用
+        switch paster.run(text, proceed: { frontmost() == owner }) {
+        case .pasted: return nil
+        case .skipped: return keepOnClipboard(text, paster.pasteboard) ?? ComposeRules.pasteNotBack
+        case let .failed(detail):
+            _ = keepOnClipboard(text, paster.pasteboard)
+            return detail
+        }
+    }
+
+    /// 没粘成时把译文复制到剪贴板。复制失败返回原因。
+    private nonisolated static func keepOnClipboard(_ text: String, _ pasteboard: NSPasteboard) -> String? {
+        Pasteboard.copy(text, to: pasteboard)
     }
 }

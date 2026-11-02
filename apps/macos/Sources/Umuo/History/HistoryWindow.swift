@@ -153,7 +153,7 @@ final class EngineHistoryBackend: HistoryBackend {
 
     func copy(_ text: String) async -> String? {
         // 拿剪贴板互斥锁：⌘C 取词降级的事务可能正在另一个线程上跑，不在主线程上等
-        await Task.detached { ScreenOCR.copy(text) }.value
+        await Task.detached { Pasteboard.copy(text) }.value
     }
 
     /// 历史窗不带浮窗归属（nil）：粘贴目标只认当前前台的外部应用（`ComposeRules.ownerForCaller`）。

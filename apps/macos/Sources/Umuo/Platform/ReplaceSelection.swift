@@ -28,23 +28,16 @@ enum ReplaceSelection {
         try pasteFallback(text)
     }
 
-    /// 兜底：写剪贴板 + ⌘V。只留给 AX 通道不通的 App（Electron 等）。
+    /// 兜底：受控粘贴（`ControlledPaste`，与语音交付同一套）。只留给 AX 通道不通的 App（Electron 等）。
     ///
-    /// 写入与粘贴在同一次 `Pasteboard.exclusive` 里做完：中间插进一次 ⌘C 取词降级的话，粘出去的是它清空或恢复后的内容。
-    /// **不恢复剪贴板**：恢复了反而会让紧接着的粘贴拿到旧内容（目标应用处理 ⌘V 是异步的）。
-    /// 剪贴板与按键可注入：selftest 换成私有剪贴板与假的粘贴，不碰用户剪贴板、不往别的应用里按键。
-    static func pasteFallback(
-        _ text: String,
-        pasteboard: NSPasteboard = .general,
-        paste: () throws(SelectionError) -> Void = { () throws(SelectionError) in try KeyEvent.paste() }
-    ) throws(AXWriteBack.Refused) {
-        Pasteboard.exclusive.lock()
-        defer { Pasteboard.exclusive.unlock() }
-        pasteboard.clearContents()
-        guard pasteboard.setString(text, forType: .string) else {
-            throw AXWriteBack.Refused(detail: "剪贴板不可用：写入失败")
+    /// 快照用户剪贴板 → 写译文 → ⌘V → 等目标应用读完 → 剪贴板没被别人动过才恢复；整个事务拿着 `Pasteboard.exclusive`，
+    /// 中间插不进 ⌘C 取词降级。剪贴板与按键可注入：测试换成私有剪贴板与假的粘贴。
+    static func pasteFallback(_ text: String, paster: ControlledPaste = ControlledPaste()) throws(AXWriteBack.Refused) {
+        switch paster.run(text, proceed: { true }) {
+        case .pasted: return
+        case .skipped: throw AXWriteBack.Refused(detail: "剪贴板不可用：写入失败")
+        case let .failed(detail): throw AXWriteBack.Refused(detail: detail)
         }
-        do { try paste() } catch { throw AXWriteBack.Refused(detail: error.description) }
     }
 
     /// 把源应用切回前台（`ax::activate_pid`：设应用的 `AXFrontmost`）。AX 调用，工作线程上调。

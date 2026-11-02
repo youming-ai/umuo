@@ -114,7 +114,7 @@ final class AppModel {
         let controller = VoiceController(
             recorder: SystemVoiceRecorder(), transcriber: transcriber, models: models, files: files,
             maxRecordingMs: info.maxRecordingMs,
-            copyText: { text in await Task.detached { ScreenOCR.copy(text) }.value }
+            copyText: { text in await Task.detached { Pasteboard.copy(text) }.value }
         )
         let panel = VoicePanelController(model: controller.overlay, escape: escape)
         panel.settingsJson = { [weak self] in self?.settingsJson }

@@ -26,27 +26,27 @@ enum PanelSelfTest {
         var seen: String?
         var lockedDuringPaste = false
         do {
-            try ReplaceSelection.pasteFallback("译文", pasteboard: pasteboard) { () throws(SelectionError) in
+            try ReplaceSelection.pasteFallback("译文", paster: ControlledPaste(pasteboard: pasteboard, paste: {
                 seen = Pasteboard.string(pasteboard)
                 lockedDuringPaste = !Pasteboard.exclusive.try()
                 if !lockedDuringPaste { Pasteboard.exclusive.unlock() }
-            }
+            }, restoreDelay: 0))
         } catch {
             check("ReplaceSelection.pasteFallback", false, error.detail)
             return
         }
-        // 不恢复：紧接着的粘贴要拿到的是译文
-        let kept = Pasteboard.string(pasteboard) == "译文"
+        // 粘完恢复用户原来的剪贴板（期间没人动过）
+        let kept = Pasteboard.string(pasteboard) == "用户原来的内容"
         let released = Pasteboard.exclusive.try()
         if released { Pasteboard.exclusive.unlock() }
         check("ReplaceSelection.pasteFallback", seen == "译文" && lockedDuringPaste && kept && released,
-              "写入与 ⌘V 在同一次独占里、结束后释放、不恢复原内容（私有剪贴板，假的 ⌘V）")
+              "写入与 ⌘V 在同一次独占里、结束后释放并恢复原内容（私有剪贴板，假的 ⌘V）")
 
         var failure = ""
         do {
-            try ReplaceSelection.pasteFallback("译文", pasteboard: pasteboard) { () throws(SelectionError) in
-                throw .other("无法创建键盘事件")
-            }
+            try ReplaceSelection.pasteFallback("译文", paster: ControlledPaste(pasteboard: pasteboard, paste: {
+                () throws(SelectionError) in throw .other("无法创建键盘事件")
+            }, restoreDelay: 0))
         } catch { failure = error.detail }
         check("ReplaceSelection.pasteFallback.error", failure == "无法创建键盘事件", "合成按键失败如实上报：\(failure)")
     }
