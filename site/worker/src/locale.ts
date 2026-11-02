@@ -13,6 +13,15 @@ export const LOCALES = ['zh-cn', 'zh-tw', 'en', 'ja', 'ko'] as const
 export type Locale = (typeof LOCALES)[number]
 export const DEFAULT_LOCALE: Locale = 'zh-cn'
 
+/** 各语言写在 404 页 `<html lang>` 上的 BCP-47 标记，与 apps/web/src/config.ts 的 HTML_LANG 一致（locale.test.ts 会比对） */
+export const HTML_LANG: Record<Locale, string> = {
+  'zh-cn': 'zh-Hans',
+  'zh-tw': 'zh-Hant',
+  en: 'en',
+  ja: 'ja',
+  ko: 'ko',
+}
+
 /** 与 apps/web/src/lib/router.tsx 的 LOCALE_COOKIE 一致 */
 export const LOCALE_COOKIE = 'umuo-lang'
 
@@ -68,7 +77,7 @@ export function pickLocale(request: Request): Locale {
 
 /**
  * 取某种语言的预渲染首页；绑定出错或文件缺失时返回 null。
- * 官网只有首页（apps/web/src/lib/pages.ts 的 SITE_PAGES）；`/terms`、`/privacy` 已删除，按未知页面 404。
+ * 官网只有首页；`/terms`、`/privacy` 已删除，按未知页面 404。
  */
 async function localePage(locale: Locale, request: Request, env: Env): Promise<Response | null> {
   try {
@@ -79,8 +88,14 @@ async function localePage(locale: Locale, request: Request, env: Env): Promise<R
   }
 }
 
-/** `/`：返回挑中语言的预渲染页面；那份取不到时退回简体中文，再不行才报错 */
+/** `/`：返回挑中语言的预渲染页面；那份取不到时退回简体中文，再不行才报错。首页只认 GET / HEAD */
 export async function handlePage(request: Request, env: Env): Promise<Response> {
+  if (request.method !== 'GET' && request.method !== 'HEAD') {
+    return new Response(null, {
+      status: 405,
+      headers: { allow: 'GET, HEAD', 'cache-control': 'no-store' },
+    })
+  }
   let locale = pickLocale(request)
   let asset = await localePage(locale, request, env)
   if (!asset && locale !== DEFAULT_LOCALE) {

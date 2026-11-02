@@ -40,7 +40,9 @@ bun run dev:worker
 ## 静态资源的缓存
 
 Void 1.2.1 的 `routing.headers` 无法覆盖资源响应已有的 `Cache-Control`：Hono 会把旧响应头复制回新响应。
-因此正式 Void 配置不设置该规则；静态资源继续由资源层提供缓存头，更新清单由 Worker 明确返回 `no-store`。
+因此正式 Void 配置不设置该规则，缓存头在 Worker 里设（`worker/src/dispatch.ts`）：带内容哈希的 `/assets/*`
+改为 `public, max-age=31536000, immutable`，字体与 favicon 沿用资源层的 `max-age=0, must-revalidate`，
+页面 `no-cache`，接口、跳转与 404 `no-store`。安全头（`X-Frame-Options` 等）也在同一处统一补上。
 
 ## 首次接管生产的门槛（历史记录）
 

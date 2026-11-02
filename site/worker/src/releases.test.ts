@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
+import { dispatch } from './dispatch'
 import type { Env } from './env'
-import worker from './index'
 import { GITHUB_LATEST } from './releases'
 
 /** 下载只做跳转，不读任何绑定；静态资源层一律 404，确认旧地址落到 Worker 自己的 404 页。 */
@@ -9,7 +9,7 @@ const env: Env = {
 }
 
 const call = (path: string, init?: RequestInit) =>
-  worker.fetch(new Request(`https://umuo.app${path}`, init), env)
+  dispatch(new Request(`https://umuo.app${path}`, init), env)
 
 describe('安装包下载', () => {
   it('/download/macos 302 到 GitHub 最新 Release 的 umuo.dmg，不缓存', async () => {
