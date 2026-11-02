@@ -4,7 +4,7 @@ import { act } from 'react'
 import { hydrateRoot, type Root } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { App } from '../App'
-import { LEGAL_EFFECTIVE, LOCALES } from '../config'
+import { LOCALES } from '../config'
 import { render } from '../entry-server'
 import { pagePath, SITE_PAGES } from '../lib/pages'
 
@@ -54,15 +54,9 @@ describe('五种语言的预渲染均可 hydrate', () => {
         container.innerHTML = html
         document.body.append(container)
         expect(container.querySelectorAll('h1')).toHaveLength(1)
-        if (page === 'home') {
-          // 首页只有一屏：main 里只有首屏
-          expect(container.querySelectorAll('main > section')).toHaveLength(1)
-          expect(container.querySelector('#download')).not.toBeNull()
-        } else {
-          // 条款与隐私政策：不再有支付处理方；页面上带着生效日期
-          expect(container.querySelector('main article')?.textContent).not.toContain('Waffo')
-          expect(container.querySelector('main article')?.textContent).toContain(LEGAL_EFFECTIVE)
-        }
+        // 首页只有一屏：main 里只有首屏
+        expect(container.querySelectorAll('main > section')).toHaveLength(1)
+        expect(container.querySelector('#download')).not.toBeNull()
         // 服务端未知访客主题，客户端主题不同也不得重建 DOM。
         document.documentElement.dataset.theme = 'light'
         const errors: unknown[][] = []

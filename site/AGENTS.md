@@ -34,10 +34,10 @@ Vite + Void 负责开发和构建。Worker 没有任何 secret 或变量。
   `content.test.ts` 会拦空串与漏翻。组件不写死句子。
 - **预渲染必须能 hydrate**：渲染期不读 `window`、不用随机数和计时器，副作用放进 effect（`hydration.test.tsx` 守着）。
 - **不放假下载链接**：`MACOS_DOWNLOAD_URL` 指向 Worker 的 `/download/macos`（读 R2 最新版）；设回 `null` 时下载按钮变为不可点。
-- 目前站点是首页一屏，外加页脚链接的 `/terms`（服务条款）与 `/privacy`（隐私政策）。页眉左边是 logo（蓝底、从水里探出头的小水獭，`LogoMark` 与 `public/favicon.svg` 是同一张图），右边是 GitHub 源码链接（原「免费与开源」链接的位置）。原来的「免费与开源」页 `/pricing` 已删除（不做重定向，旧地址返回 404），不要再加回定价页。页面清单在 `apps/web/src/lib/pages.ts`，Worker 的 `PAGES`（`worker/src/locale.ts`）要同步。
+- 目前站点只有首页一屏，不再提供条款与隐私页：`/terms`、`/privacy` 已删除（不做重定向，旧地址返回 404），不要再加回。页眉左边是 logo（蓝底、从水里探出头的小水獭，`LogoMark` 与 `public/favicon.svg` 是同一张图），右边是 GitHub 源码链接（原「免费与开源」链接的位置）。原来的「免费与开源」页 `/pricing` 已删除（不做重定向，旧地址返回 404），不要再加回定价页。页脚只有一行：版权与语言 / 主题切换，不放条款、隐私、源码与联系邮箱链接。页面清单在 `apps/web/src/lib/pages.ts`；再加页面时 Worker（`worker/src/dispatch.ts`、`locale.ts`）也要加路由。
 - **产品范围**：文字翻译、OCR 截图翻译、语音输入后润色/翻译，完全免费、纯 BYOK。修改产品页面前读根目录 `docs/PRD.md` 与 `docs/PRD-CONFORMANCE.md`；只宣称已发布能力，语音尚未实现。账号、订阅、付费版、官方额度与 AI 网关退出范围，不继续宣传为即将推出。
-- **免费与开源**：umuo 免费，没有付费版、内购、试用期、许可证或激活；模型调用费用只在用户与供应商之间。整个仓库（含官网）按 MIT 许可证开源，源码地址是 `apps/web/src/config.ts` 的 `SOURCE_URL`（github.com/youming-ai/umuo，2026-11-02 公开）。同文件的 `SOURCE_PUBLIC` 已打开：页眉右侧与页脚有源码链接；首页下载旁不放说明句。仓库若再改为私有，须先把它改回 false（关闭时两处链接都不出现）。「umuo」名称与水獭图标不随 MIT 授权。
-- **条款与隐私政策**：v3.0（2026-11-02）起软件本身按 MIT 许可证提供，条款只约束网站与官方发行版的使用、商标、第三方模型供应商等；隐私政策不再有支付、许可证与设备数据，写明下载、检查更新、上线通知订阅与语音（本机转写、Hugging Face 模型下载）。经营者、国家与版本/生效日期集中在 `config.ts` 的 `LEGAL_*`；改条款时更新版本与日期，并履行已有通知承诺。
+- **免费与开源**：umuo 免费，没有付费版、内购、试用期、许可证或激活；模型调用费用只在用户与供应商之间。整个仓库（含官网）按 MIT 许可证开源，源码地址是 `apps/web/src/config.ts` 的 `SOURCE_URL`（github.com/youming-ai/umuo，2026-11-02 公开）。同文件的 `SOURCE_PUBLIC` 已打开：页眉右侧有 GitHub 源码链接（站内唯一的源码入口）；首页下载旁不放说明句。仓库若再改为私有，须先把它改回 false（关闭时页面上不出现源码链接）。「umuo」名称与水獭图标不随 MIT 授权。
+- **不再有条款与隐私页**：官网只有首页，五语言的条款 / 隐私文案、`LegalPage` 与 `config.ts` 的 `LEGAL_*`、`CONTACT_EMAIL` 已一并删除；要恢复须重新评估法律文本与联系方式，不要从历史里原样搬回。
 - **地址不带语言前缀**：只有 `umuo.app/`。Worker（`worker/src/locale.ts`）按 cookie `umuo-lang` → `Accept-Language` → 简体中文挑一份 `dist/<locale>/index.html` 返回；页面上切换语言只写 cookie、就地换内容；`/en/` 这类旧地址 301 回 `/`。
 
 ## 视觉方向：「对照本」

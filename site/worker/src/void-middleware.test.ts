@@ -22,7 +22,8 @@ import { legacyMiddleware } from './void-middleware'
 
 // ---------- 假的静态资源层：按 Cloudflare 的 html_handling = auto-trailing-slash 回 ----------
 
-const HTML_PAGES = ['', 'terms/', 'privacy/']
+// 官网只有首页；条款与隐私页已删除，产物里不再有 /<locale>/terms/ 与 /<locale>/privacy/
+const HTML_PAGES = ['']
 const LOCALES = ['zh-cn', 'zh-tw', 'en', 'ja', 'ko']
 const FILES: Record<string, string> = {
   '/index.html': '<html data-locale="zh-cn">root',
@@ -213,16 +214,15 @@ const CASES: Case[] = [
   ['首页（默认语言）', '/'],
   ['首页（Accept-Language）', '/', ja],
   ['首页（cookie）', '/', cookieKo],
-  ...['/terms', '/privacy/'].flatMap((path): Case[] => [
-    [`页面 ${path}`, path],
-    [`页面 ${path}（ja）`, path, ja],
-  ]),
   ['/index.html 301', '/index.html?ref=a'],
   // 已删除的「免费与开源」页，与 /activate 一样直接 404（旧快照里它在 run_worker_first 中）
   ['已删除的 /pricing', '/pricing', html],
+  // 已删除的条款与隐私页，同样直接 404（旧快照里它们在 run_worker_first 中）
+  ['已删除的 /terms', '/terms', html],
+  ['已删除的 /privacy/', '/privacy/', html],
   ...LOCALES.map((locale): Case => [`语言前缀 /${locale}/`, `/${locale}/`]),
   ['语言前缀不带斜杠', '/en'],
-  ['语言前缀 + 页面', '/ja/terms/?utm_source=x'],
+  ['语言前缀 + 已删除的页面', '/ja/terms/?utm_source=x'],
   ['语言前缀内部文件', '/en/index.html'],
   ['语言前缀未知子路径', '/zh-tw/faq/'],
   ['/api/health', '/api/health'],
@@ -286,7 +286,8 @@ describe('Void 中间件与现状逐字节一致', () => {
       expect(await gone.json()).toEqual({ ok: false, error: 'not_found' })
     }
     expect((await call('/activate', html)).status).toBe(404)
-    expect((await call('/pricing', html)).status).toBe(404)
+    for (const path of ['/pricing', '/terms', '/terms/', '/privacy', '/privacy/'])
+      expect((await call(path, html)).status, path).toBe(404)
     const missing = await call('/no-such-page', html)
     expect(missing.status).toBe(404)
     expect(await missing.text()).toContain('页面不存在')

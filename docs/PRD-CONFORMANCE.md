@@ -60,7 +60,7 @@
 | --- | --- | --- | --- | --- |
 | C5 | §5.12、§10 | MIT 许可与开源 | ✅ | 整个仓库（含 `site/`）为标准 MIT 文本（GitHub 可识别），名称与图标说明移至 README；历史压成里程碑并脱敏，2026-11-02 以干净历史重建并公开 github.com/youming-ai/umuo；官网 `SOURCE_PUBLIC` 打开。第三方许可逐项核查仍待做 |
 | C6 | §5.12 | 客户端与服务端无收费路径 | ✅ | 客户端删除 `License/`（7 个文件）与 `LicenseTests`、`ActionRouter.gate`、设置许可证页、引导试用说明、46 个文案 key 与 `umuo://` URL scheme；Worker 删除 checkout/webhook/`/api/license/*`、`billing.ts`、`waffo-setup.ts`、`@waffo/pancake-ts` 与 `LICENSES` KV 绑定。远端 `umuo-licenses` KV、`WAFFO_PRIVATE_KEY` secret 与 Waffo 后台商品待手动清理 |
-| C7 | §11 | 五语言官网免费开源文案、条款与隐私 | 🟡 | 删除 `/activate`、购买按钮与 `/pricing`（旧地址返回 404，页眉只留 logo）；条款与隐私 v3.0（MIT、名称与商标、无支付数据）；`SOURCE_URL`/`SOURCE_PUBLIC`（默认 false）控制源码链接，内容测试禁止收费时代表述。首页一屏待人工测量 |
+| C7 | §11 | 五语言官网免费开源文案；官网只有首页，不再提供条款与隐私页 | 🟡 | 删除 `/activate`、购买按钮、`/pricing`、`/terms` 与 `/privacy`（旧地址返回 404）；页脚只留版权与语言切换；`SOURCE_URL`/`SOURCE_PUBLIC`（默认 false）控制源码链接，内容测试禁止收费时代表述。首页一屏待人工测量 |
 
 ## 更新与发布
 

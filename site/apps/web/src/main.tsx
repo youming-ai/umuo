@@ -7,7 +7,7 @@ import './styles/app.css'
 
 /**
  * 地址里不保留语言前缀。线上 Worker 会把 `/en/` 这类旧地址 301 到 `/`；
- * 没有 Worker 的情况（本地开发、纯静态托管）在这里兜底：记住语言，再把地址换回 `/`（或 `/terms`、`/privacy`）。
+ * 没有 Worker 的情况（本地开发、纯静态托管）在这里兜底：记住语言，再把地址换回 `/`。
  */
 const pathLocale = localeFromPath(window.location.pathname)
 if (pathLocale) {

@@ -3,20 +3,19 @@ import { LOCALES as WEB_LOCALES } from '../../apps/web/src/config'
 import { SITE_PAGES } from '../../apps/web/src/lib/pages'
 import type { Env } from './env'
 import worker from './index'
-import { LOCALES, PAGES, pickLocale } from './locale'
+import { LOCALES, pickLocale } from './locale'
 
-/** 假的静态资源：/<locale>/ 与 /<locale>/<page>/ 返回写着语言名的 HTML，其余 404；记下被请求的路径 */
+/** 假的静态资源：只有 /<locale>/ 返回写着语言名的 HTML，其余 404；记下被请求的路径 */
 function fakeEnv(requested: string[] = []): Env {
   return {
     ASSETS: {
       async fetch(request) {
         const { pathname } = new URL(request.url)
         requested.push(pathname)
-        const [locale, page, ...rest] = pathname.split('/').filter(Boolean)
+        const [locale, ...rest] = pathname.split('/').filter(Boolean)
         const known =
           pathname.endsWith('/') &&
           (LOCALES as readonly string[]).includes(locale ?? '') &&
-          (page === undefined || (PAGES as readonly string[]).includes(page)) &&
           rest.length === 0
         if (!known) return new Response('not found', { status: 404 })
         return new Response(`<html data-locale="${locale}">`, {
@@ -76,32 +75,27 @@ describe('首页地址', () => {
       expect(response.headers.get('location')).toBe('https://umuo.app/')
       expect(response.headers.get('set-cookie')).toContain(`umuo-lang=${path.split('/')[1]}`)
     }
-    const legal = await worker.fetch(request('/en/terms/'), fakeEnv())
-    expect(legal.headers.get('location')).toBe('https://umuo.app/terms')
     const tagged = await worker.fetch(request('/ja/?utm_source=x'), fakeEnv())
     expect(tagged.headers.get('location')).toBe('https://umuo.app/?utm_source=x')
   })
 
-  it('/terms、/privacy 也按语言返回预渲染页', async () => {
-    expect(['home', ...PAGES]).toEqual([...SITE_PAGES])
-    for (const [path, asset] of [
-      ['/terms', '/ja/terms/'],
-      ['/privacy/', '/ja/privacy/'],
-    ]) {
-      const requested: string[] = []
+  it('已删除的 /terms、/privacy 不再预渲染，旧地址返回 404；带语言前缀的照通用规则 301 回 /', async () => {
+    // prerender-web.ts 与 vite.config.ts 都按 SITE_PAGES 生成页面：只剩首页
+    expect([...SITE_PAGES]).toEqual(['home'])
+    for (const path of ['/terms', '/terms/', '/privacy', '/privacy/']) {
       const response = await worker.fetch(
-        request(path, { cookie: 'umuo-lang=ja' }),
-        fakeEnv(requested),
+        request(path, { cookie: 'umuo-lang=ja', accept: 'text/html' }),
+        fakeEnv(),
       )
-      expect(response.status, path).toBe(200)
-      expect(requested).toEqual([asset])
+      expect(response.status, path).toBe(404)
+      expect(await response.text(), path).toContain('页面不存在')
     }
-  })
-
-  it('预渲染页面清单里没有已删除的 pricing', () => {
-    // prerender-web.ts 与 vite.config.ts 都按 SITE_PAGES 生成页面
-    expect(SITE_PAGES).not.toContain('pricing')
-    expect(PAGES).not.toContain('pricing')
+    for (const path of ['/zh-cn/terms', '/en/privacy/']) {
+      const response = await worker.fetch(request(path), fakeEnv())
+      expect(response.status, path).toBe(301)
+      expect(response.headers.get('location'), path).toBe('https://umuo.app/')
+      expect(response.headers.get('set-cookie'), path).toContain(`umuo-lang=${path.split('/')[1]}`)
+    }
   })
 
   it('/index.html 301 回 /，不留第二个首页地址', async () => {

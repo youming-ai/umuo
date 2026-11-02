@@ -89,27 +89,8 @@ export interface HeroContent {
 }
 
 export interface FooterContent {
-  /** 联系邮箱链接的文字 */
-  contact: string
   copyright: string
   languageLabel: string
-  /** 源码链接的文字；只在 `SOURCE_PUBLIC` 打开后显示 */
-  source: string
-}
-
-/** 法律文本的正文块：字符串是段落，字符串数组是列表，`{ heading }` 是小节标题 */
-export type LegalBlock = string | string[] | { heading: string }
-
-export interface LegalDoc {
-  /** 页面 h1，也是页脚链接文字 */
-  title: string
-  /** meta description */
-  description: string
-  /** 版本号与生效日期，显示在标题下 */
-  meta: string
-  /** 第 1 节之前的引言段落 */
-  intro?: string[]
-  sections: Array<{ heading: string; body: LegalBlock[] }>
 }
 
 export interface SiteContent {
@@ -118,6 +99,4 @@ export interface SiteContent {
   nav: NavContent
   hero: HeroContent
   footer: FooterContent
-  /** 服务条款与隐私政策（软件按 MIT 提供；条款只约束网站与官方发行版 + 请求直连） */
-  legal: { terms: LegalDoc; privacy: LegalDoc }
 }

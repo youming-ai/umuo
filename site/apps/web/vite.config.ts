@@ -37,7 +37,7 @@ function seoHead(locale: Locale, page: SitePage = 'home'): string {
 }
 
 /**
- * 多语言静态产物：dist/zh-cn/index.html、dist/zh-cn/terms/index.html、dist/en/index.html …
+ * 多语言静态产物：dist/zh-cn/index.html、dist/en/index.html …
  *
  * 这些是**内部文件**：访客的地址永远是 `/`，由 Worker 按 cookie / 浏览器语言挑一份返回
  * （见 worker/src/locale.ts）。每份的 `<html>` 带 `lang` 与 `data-locale`，客户端靠后者

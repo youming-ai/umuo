@@ -44,7 +44,7 @@ umuo 免费、按 MIT 许可证开源，模型调用费用直接付给用户自�
 - 用户在 Safari、备忘录、Preview、VS Code、聊天与邮件等真实应用里工作，umuo 通过全局快捷键介入。
 - 默认快捷键（可在设置修改）：划词翻译 `⌃⌃`、输入翻译 `⌥⌘A`、输入框原地替换 `⌥⌥`、截图翻译 `⌥⌘O`、语音输入按住右 `⌥`（开发中）。
 - 首次使用：选供应商、填 Key、选模型、验证连接；系统权限按使用场景申请。
-- 官网形态：首页一屏 + `/terms`、`/privacy`（旧的 `/pricing` 已删除）；地址不带语言前缀，按 cookie / Accept-Language 返回对应语言。
+- 官网形态：只有首页一屏，不再提供条款与隐私页（`/pricing`、`/terms`、`/privacy` 已删除，旧地址返回 404）；地址不带语言前缀，按 cookie / Accept-Language 返回对应语言。
 - 下载走 Worker `/download/macos`（读 R2 最新版）；当前为未经 Apple 公证的预览版。
 
 ## Capabilities and Constraints

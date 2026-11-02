@@ -186,7 +186,7 @@
     position: relative;
     isolation: isolate;
     overflow-x: clip;
-    /* 所有页面纵向排：main 吃掉剩余高度，内容短的页面（激活、条款）页脚也贴底 */
+    /* 页面纵向排：main 吃掉剩余高度，页脚始终贴底 */
     display: flex;
     flex-direction: column;
   }
@@ -395,54 +395,6 @@
   .site-footer {
     padding-block: 1.5rem;
     border-top: 1px solid color-mix(in srgb, var(--rule) 70%, transparent);
-  }
-
-  /* —— 服务条款 / 隐私政策：长文页，正文限宽便于阅读 —— */
-  .legal {
-    padding-top: 7rem;
-    padding-bottom: 4rem;
-  }
-  .legal > * {
-    max-width: 44rem;
-  }
-  .legal-meta {
-    margin-top: 0.75rem;
-    color: var(--coffee-strong);
-    font-size: 0.875rem;
-  }
-  .legal h2 {
-    margin-top: 2.5rem;
-    padding-bottom: 0.375rem;
-    border-bottom: 1px solid var(--rule);
-    font-size: 1.3125rem;
-    font-weight: 600;
-  }
-  .legal h3 {
-    margin-top: 1.25rem;
-    font-weight: 600;
-    color: var(--coffee-strong);
-  }
-  .legal p,
-  .legal ul {
-    margin-top: 0.75rem;
-    color: var(--ink-2);
-  }
-  .legal ul {
-    padding-inline-start: 1.25rem;
-    list-style: disc;
-  }
-  .legal a {
-    color: var(--coffee-strong);
-    text-decoration: underline;
-    text-decoration-color: color-mix(in srgb, var(--coffee) 55%, transparent);
-    text-underline-offset: 0.25em;
-    overflow-wrap: anywhere;
-  }
-  .legal a:hover {
-    color: var(--ink);
-  }
-  .legal li + li {
-    margin-top: 0.375rem;
   }
 
   .site-nav > .container-page {
@@ -1002,14 +954,9 @@
     .hero-gap-lg {
       margin-top: 1.25rem;
     }
-    /* 手机上页脚固定两行：版权与条款 / 联系与设置，第二行两端对齐、不再折行 */
+    /* 手机上页脚只有一行：版权在左，语言与主题切换在右 */
     .site-footer {
       padding-block: 0.5rem;
-    }
-    .footer-tools {
-      flex-wrap: nowrap;
-      justify-content: space-between;
-      width: 100%;
     }
     /* 日文 / 英文的下载按钮在窄屏放不下一行：允许折行，不被容器裁掉 */
     .btn-solid {
