@@ -1,27 +1,28 @@
 # umuo 架构
 
-> 2026-10-22：客户端仅保留 Swift + SwiftUI + AppKit。旧 Tauri 源码、WebView UI 和 Rust 平台适配层已删除。
-> 源码清理不等于正式版本已经切换；发布剩余项见 `SWIFTUI-MIGRATION.md`，功能验收见 `PRD-CONFORMANCE.md`。
-
-> 本文描述当前代码结构；2026-10-23 的目标范围见 [PRD](PRD.md)，精简与新增语音的次序见 [开发计划](IMPLEMENTATION-PLAN.md)。
-> 多模型对比、风格/术语、费用预算与模型路由已移除。语音输入/润色尚未实现，现有“语音”平台能力是朗读。
+> 本文描述当前代码结构（Swift + SwiftUI + AppKit 客户端，Rust 内核经 UniFFI 调用；旧 Tauri / WebView 与 Rust 平台层已于 2026-10-22 删除）。
+> 产品范围见 [PRD](PRD.md)，功能验收见 [PRD-CONFORMANCE.md](PRD-CONFORMANCE.md)，发布流程见 [SWIFTUI-MIGRATION.md](SWIFTUI-MIGRATION.md)。
+> 多模型对比、风格 / 术语、费用预算、模型路由与收藏已退出；三项核心是文字翻译（含原地替换）、OCR 截图翻译、语音输入后整理 / 翻译。
 
 ## 1. 全貌
 
 ```text
 apps/macos/Sources/Umuo/          SwiftUI 界面 + AppKit 窗口 + Apple 系统 API
-  App/                           生命周期、菜单栏、动作分发与应用模型
-  Platform/                      AX、Keychain、剪贴板、快捷键、Vision、语音、自启动
+  App/                           生命周期、菜单栏、动作分发、应用模型与 Sparkle 更新
+  Platform/                      AX 取词与写回、Keychain、剪贴板、快捷键与全局 Esc、Vision、朗读、自启动
   Panel/ Compose/                翻译浮窗、输入翻译
+  Voice/                         录音、模型下载、本机转写（transcribe.cpp）、语音浮层、后处理与交付
   History/ Settings/             历史与设置
   Onboarding/ Quick/             首次引导与菜单栏快捷面板
+  Theme/                         外观选择（ThemeChoice）与浮窗材质（floatingSurface），不是设计令牌
+  Models/ SelfTest/              文案表、语言等共用模型；--selftest 自检
              │ UniFFI 生成的 Swift 绑定
              ▼
-crates/umuo-ffi/                  Engine、RequestHandle、HostBridge、事件换型
+crates/umuo-ffi/                  Engine、RequestHandle、HostBridge、VoiceSession / VoiceSink、事件换型
              ▼
-crates/umuo-app/                  AppCore、Host、流水线、设置、历史
-             ├── crates/umuo-core/   Provider、Prompt、协议、传输、计量
-             └── crates/umuo-store/  SQLite 历史、收藏与用量
+crates/umuo-app/                  AppCore、Host、翻译流水线、语音后处理（voice/）与会话状态机（voice_session/）、设置、历史
+             ├── crates/umuo-core/   Provider、Prompt（翻译与语音任务）、协议、传输、计量
+             └── crates/umuo-store/  SQLite 历史（收藏与用量表只保留旧数据）
 
 site/                            官网与 Worker，独立 Bun 项目
 ```
@@ -34,13 +35,14 @@ Swift 负责界面、窗口与系统集成；可复用应用逻辑放 `umuo-app`
 供应商网络请求统一由 Rust 发出，界面只显示 Key 是否已配置，不读回明文。
 
 原生界面遵循 Apple Human Interface Guidelines；优先使用 SwiftUI 标准控件、系统语义颜色、字体、SF Symbols，
-由 AppKit 补充非激活浮窗、菜单栏与窗口管理。现有自定义主题仍在 `Theme/`，不把删除 CSS 视为视觉与辅助功能验收完成。
+由 AppKit 补充非激活浮窗、菜单栏与窗口管理。不维护自己的设计令牌：`Theme/` 只有外观选择（跟随系统 / 浅色 / 深色）
+与浮窗材质（macOS 26 的 Liquid Glass，更早回落系统材质）；视觉与辅助功能仍需真机走查。
 
 ## 2.1 应用层与宿主
 
 `AppCore` 持有设置、历史库、HTTP 客户端与请求登记。
 流水线中途必须现取的平台能力通过 `Host` 回调 Swift 的 `SwiftHost`；可以提前取得的值由 Swift 随请求传入。
-取词、截图、OCR、语音、快捷键、窗口、自启动与更新留在 Swift 宿主，不扩充为 Rust 平台层。
+取词、截图、OCR、录音与本机转写、输入框交付、快捷键、窗口、自启动与更新留在 Swift 宿主，不扩充为 Rust 平台层。
 
 | Host 方法 | 实现与约束 |
 | --- | --- |
@@ -60,6 +62,9 @@ Swift 负责界面、窗口与系统集成；可复用应用逻辑放 `umuo-app`
 
 - 翻译：Start、Delta、Card、Done、Error；`Route` 指定 surface、request_id。
 - Swift 只处理当前 request_id，旧请求迟到的事件不得覆盖新结果。
+- 语音后处理：`Engine.start_voice` 同步启动、返回句柄，结果经 `VoiceSink` 只回一次（成功或带转写的失败），不流式。
+- 语音会话：`VoiceSession` 是纯状态机，Swift 把输入（按下、松开、Esc、转写结果等）交给它，按返回的副作用执行；
+  会话号单调递增，非当前会话的结果不改状态。
 
 `crates/umuo-app/tests/event_wire.rs` 保留历史 JSON 契约快照；当前 Swift 通过 FFI 类型接收事件，不经过 WebView IPC。
 
@@ -85,10 +90,12 @@ Engine 启动 `umuo_app::translate`：读取设置、取当前供应商的 Key �
 必要时分片、发出流式事件、记历史。只用一个当前模型，失败如实上报，不换候选、不回落本机模型。
 Swift 处理事件更新界面。
 
-### 3.1 三条入口
+### 3.1 入口
 
-划词读选区；静默替换读选区或整个可编辑输入框；撰写由用户输入。
+文字与截图有四个入口：划词读选区；原地替换读选区或整个可编辑输入框；撰写由用户输入；OCR 由系统框选后本机识别。
 撰写窗的源 / 目标语言覆盖只作用于本次请求；模型始终是设置里的当前模型，不按请求覆盖。
+语音有两个按住说话的键：整理（默认 ⌥⌘V）与翻译（默认 ⌃⌘V），链路见 §3.5。
+全局 Esc 由 `Platform/EscapeRouter.swift` 统一注册，按最近认领的浮层路由，无人认领即注销，不吞其他应用的 Esc。
 
 ### 3.2 撰写调度
 
@@ -99,7 +106,8 @@ Swift 处理事件更新界面。
 
 静默替换在触发时取得前台 pid，成功后现查前台 pid 与之比较，变化或不可读就拒绝写回。
 整框替换还要确认 AXValue 可写且原文未变；失败、取消或结果截断都不能修改原文。
-浮窗「替换原文」另走 `ReplaceSelection.swift`，在源应用恢复后执行；AX 明确不可写时拒绝，不盲目粘贴。
+浮窗「替换原文」在源应用恢复后执行，首选 AX 改写选区；AX 走不通时的剪贴板兜底与语音交付共用受控粘贴
+（与取词互斥、快照剪贴板、⌘V 前复核目标、事后仅在未被改动时恢复）；明确只读的文本控件拒绝，不盲目粘贴。
 
 ### 3.4 回归验证
 
@@ -108,6 +116,19 @@ Swift 处理事件更新界面。
 `umuo-ffi` 的 Engine 测试与 Swift `--selftest` 验证跨语言链路；视图模型与纯规则由 Swift Testing 验证。
 真实授权、焦点、多显示器、剪贴板降级与按键需要真机验收，不以单测通过代替。
 
+### 3.5 语音链路
+
+1. 按下语音键：`VoiceController` 记下目标（pid、焦点元素、窗口），检查麦克风权限与模型；模型只在首次使用时下载
+   （`VoiceModelStore`：`.partial` + Range 续传、SHA-256 校验后原子改名）。
+2. 录音：`SystemVoiceRecorder` 用 AVAudioEngine 录 16 kHz 单声道到 0600 的临时文件（`VoiceAudioFiles`，结束、取消即删，启动时清扫）。
+3. 松开：`LocalTranscriber` 在宿主进程内用 transcribe.cpp（`CTranscribe.framework`）+ Qwen3-ASR 模型转写，mmap 加载、空闲 300 s 卸载；
+   不走网络，不需要语音 Key。
+4. 后处理：`VoicePostProcessor` 调 `Engine.start_voice`，Rust 的 `umuo-app::voice` 用当前文字模型做同语言整理或翻译
+   （指令在 `umuo-core::voice`，保留否定、数字、姓名、日期与金额）；成功且完整的结果写 `voice` 场景历史。
+5. 交付：`VoiceDelivery` 依次核验权限、应用存活、前台、同一焦点元素与窗口、非安全输入；可写文本控件写 `AXSelectedText`，
+   不可判定或 Electron 类走受控粘贴，终端与非输入角色拒绝；不合成回车。拒绝或失败时结果留在浮层可复制、可重试。
+6. Esc 在录音、转写、后处理各阶段分别丢弃录音、中止转写、取消请求；迟到的结果按会话号丢弃。
+
 ## 4. 数据与存储
 
 | 数据 | 存在哪 | 为什么 |
@@ -115,8 +136,9 @@ Swift 处理事件更新界面。
 | API Key | 系统 Keychain（Swift Security.framework，服务名 `app.umuo.desktop`） | PRD §6.4。不进配置文件、不进日志、不进历史库 |
 | 偏好（供应商 / 模型 / 语言 / 快捷键 / 历史开关） | `settings.json`（应用配置目录） | 不敏感但需要记住。结构体上有一条测试守「文件里不许出现 Key 字段」 |
 | 旧对比偏好统计 | `stats.json` | 仅保留旧文件，当前版本不再读取、更新或删除 |
-| 翻译历史与用量 | `history.db`（SQLite，`crates/umuo-store`） | PRD §5.9 / §5.10。本机文件，不上传 |
-| 收藏（词 / 句） | 同上，`favorites` 表 | 第四批起界面不再读写，旧数据原样保留，不参与保留天数清理 |
+| 翻译与语音历史 | `history.db`（SQLite，`crates/umuo-store`） | PRD §5.9。本机文件，不上传 |
+| 旧收藏、旧用量账本 | 同上，`favorites` 表与 `usage` 表 | 功能已退出，表与迁移保留、旧数据不删，程序不再读写 |
+| 语音模型 | 应用配置目录的 `models/`（`umuo-app::voice_session::model`） | 首次使用时下载并校验 SHA-256，不随安装包分发 |
 
 `settings.json`、`glossaries.json` 共用 `persist.rs` 的读写：
 **写**是临时文件 + `sync_all` + `rename`，断电后不会只剩半截；**读**只有「文件不存在」才静默回落默认值，
@@ -127,12 +149,12 @@ Swift 处理事件更新界面。
 JSON 顶层逐键覆盖在最新设置上，mtime 变了先重载；嵌套对象整体替换，不做深合并。
 `Settings::prepare_for_save` 做规范化、代理与端点校验；失败时内存和文件都不变。
 Swift 经 `Engine.applySettingsPatch` 只交自己改的键，不自己解析配置文件。
-快捷键重注册、主题、语言、缩放与菜单栏样式由 Swift 宿主应用。
+快捷键重注册、外观与界面语言由 Swift 宿主应用。
 **自定义端点与需要 Key 的供应商覆盖只接受 `https://`**（`localhost` / `127.0.0.1` / `[::1]` 例外）：这些地址会收到明文的 Bearer Key。本机模型类供应商（Ollama / LM Studio）不发 Key，局域网 http 地址也放行。
 只校验这次改动了的端点，老配置里已有的局域网 `http://` 地址不会让用户从此改不了任何设置。
 导入先在内存里校验整份设置，不合法就整份拒绝、一个文件都不写；摘要列出端点与取词黑名单的变化。
 
-**本版本不认识的字段原样保留**（`umuo_core::UnknownFields`，`#[serde(flatten)] extra`）：设置、场景模型、月度上限和导出包保留未知字段。
+**本版本不认识的字段原样保留**（`umuo_core::UnknownFields`，`#[serde(flatten)] extra`）：设置与导出包保留未知字段。
 退役的 `customStyles` 及 `glossaries.json` 的列表使用完整 JSON Value 保存，不解释、规范化或重建条目。
 旧 `styleId` 只保留配置兼容，新历史统一记录 `standard`；旧历史中的风格标识不改写。
 导入（`config_io::prepare_import`）对设置与术语表**顶层**的 `extra` 按键合并、文件优先、本地独有的保留；嵌套列表随文件整份替换。
@@ -147,8 +169,8 @@ Swift 经 `Engine.applySettingsPatch` 只交自己改的键，不自己解析配
   返回失败原因给 UI 显示，翻译功能完全不受影响。历史不可用不该拖垮翻译工具。
 - **写历史失败绝不冒泡**：一次成功的翻译不该因为「历史没写进去」而看起来失败。
 - **关闭历史时一条都不写**（PRD §5.9）。用户关掉它不是因为嫌列表长，而是因为不想留下记录。
-- **用量账本（v2，`usage` 表）已停写**：费用报表与月度上限退出后（PRD §5.10），应用层不再写入或查询它；
-  表、v2 回填迁移与 `umuo-store` 的查询函数原样保留，已有数据不删。历史的 `cost_usd` 列同样保留，新记录写 NULL。
+- **用量账本（v2，`usage` 表）已退役**：费用报表与月度上限退出后（PRD §5.10），程序不再读写它，`umuo-store` 的存取函数已删；
+  表与 v2 回填迁移原样保留，已有数据不删。历史的 `cost_usd` 列同样保留，新记录写 NULL。
 - **库损坏时自动挪开重建**：`Store::open_recovering` 只在 `is_corruption()` 时把 `history.db`
   （连同 `-wal` / `-shm`）挪成 `history.db.corrupt-<时间戳>` 再建新库；保留期清理失败只打日志、库照用。
 - **拒绝打开更高版本的库**：`user_version` 高于程序认识的版本（用户装回旧版）时返回
@@ -166,25 +188,11 @@ FTS5 的默认 tokenizer（`unicode61`）**不切分中日韩文本**：一整�
 搜索会转义 `%` 与 `_`：不转义的话用户搜「100%」会变成「匹配任何内容」，
 在界面上看起来就是「搜索坏了」。
 
-#### 「本月」的边界有一个必须记住的坑
-
-`datetime('now','localtime','start of month')` 产出的是**本地日历上的字符串**，
-而 `strftime('%s', …)` 会把它按 **UTC** 解释，结果整整偏掉一个时区偏移
-（东九区实测是 09:00 而不是 00:00，`month_start_unix` 的测试当场抓到了）。
-
-正确写法要在末尾补一个 `'utc'`，把这个本地时刻换算回真正的瞬时：
-
-```sql
-strftime('%s', datetime('now', 'localtime', 'start of month', 'utc'))
-```
-
-少写它，每月头几个小时会被算成上个月。
-
 #### 收藏与历史的边界
 
-收藏流程已退出首版（第四批）：浮窗、历史窗不再提供收藏，ops 与 FFI 的收藏接口已删除。
-`favorites` 表、迁移与 `umuo-store` 的存取代码保留，旧收藏原样留在库里，清空历史不影响它们。
-历史窗只保留关键词搜索；来源 App / 模型筛选已从 ops 与 FFI 移除，存储层的筛选参数保留不用。
+收藏流程已退出首版：浮窗、历史窗、ops、FFI 与 `umuo-store` 的收藏存取都已删除；
+`favorites` 表与迁移保留，旧收藏原样留在库里，清空历史不影响它们。
+历史窗只保留关键词搜索；来源 App / 模型筛选已删除。
 
 ## 4.2 长文本切分：并发但不乱序（PRD §6.3）
 
@@ -311,8 +319,8 @@ Bundle ID 保持 `app.umuo.desktop`；配置目录、历史库、Keychain 服务
 
 ## 6. 发布与已知边界
 
-SwiftUI 功能窗口和打包链路已实现，旧源码已清理；正式切换发布尚未完成。
-当前未接应用内更新、未完成 Developer ID 签名公证和 Homebrew Cask；真机权限、焦点和 Intel 运行仍需验收。
+免费、MIT 开源、纯 BYOK，没有许可证或收费路径。客户端只发 Apple Silicon（arm64）、macOS 14+ 的包：
+客户端改动合入 main 由 `release.yml` 发布到 GitHub Releases，应用内更新用 Sparkle（appcast 随 Release 发布），
+当前为 ad-hoc 签名、未经 Apple 公证。Developer ID 公证、真实 N → N+1 更新与 Homebrew Cask 待做，见 `SWIFTUI-MIGRATION.md`。
+真机权限、焦点、语音交付与原生 release 性能仍需按 `NATIVE-WALKTHROUGH.md` 验收；旧 Tauri 性能数字只是历史基线。
 浮窗按光标定位，不是精确选区边界；截图采用系统框选，覆盖模式未做。
-收费许可证暂缓。详细状态见 `SWIFTUI-MIGRATION.md` 与 `PRD-CONFORMANCE.md`。
-旧客户端性能数字仅作为历史基线，SwiftUI 发布前须重新测量。

@@ -1,5 +1,8 @@
 # Trancy Chrome Extension — Technical Breakdown
 
+> **历史调研，与当前产品无关，仅供参考。** 本文写于 umuo 早期探索网页跟读 / 浏览器扩展方向时；
+> 现行产品是 macOS 原生翻译与语音表达工具，浏览器扩展、跟读与语言学习都是 [PRD](../PRD.md) 明确的非目标。
+
 **Subject:** `Trancy - AI Translator & Dual Subtitles`, Chrome extension ID `mjdbhokoopacimoekfgkcoogikbfgngb`.
 **Artifact analysed:** CRX **version 7.9.3** (CRX3, 5,813,079 bytes, 129 files, ~13 MB extracted).
 **Audience:** the engineering team building this repo's YouTube-only shadowing app. This document answers *how Trancy is built*, not *what it is worth copying commercially*.

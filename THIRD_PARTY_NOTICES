@@ -23,7 +23,7 @@ umuo 客户端以 MIT 许可证开源；它依赖的第三方开源成果仍按�
 
 | 组件 | 版本与来源 | 许可 | 分发方式 |
 | --- | --- | --- | --- |
-| transcribe.cpp（`TranscribeCpp.xcframework` 内的 `CTranscribe.framework`） | v0.4.1，[官方发布页](https://github.com/handy-computer/transcribe.cpp/releases/tag/v0.4.1)，zip SHA-256 `fb5646e5…d35126` | MIT；内含 ggml（MIT）、Silero VAD（MIT）、miniz（MIT） | 打进 `umuo.app/Contents/Frameworks`；四份许可原文由 `scripts/bundle.sh` 拷到 `Contents/Resources/Licenses/transcribe.cpp/` |
+| transcribe.cpp（`TranscribeCpp.xcframework` 内的 `CTranscribe.framework`） | v0.4.1，[官方发布页](https://github.com/handy-computer/transcribe.cpp/releases/tag/v0.4.1)，zip SHA-256 `fb5646e5…d35126` | MIT；内含 ggml（MIT）、Silero VAD（MIT）、miniz（MIT） | 打进 `umuo.app/Contents/Frameworks`；四份许可原文由 `apps/macos/scripts/bundle.sh` 拷到 `Contents/Resources/Licenses/transcribe.cpp/` |
 | Qwen3-ASR-0.6B（GGUF，`Qwen3-ASR-0.6B-Q4_K_M.gguf`） | `handy-computer/Qwen3-ASR-0.6B-gguf` @ `7e7c69a5`，上游 [Qwen/Qwen3-ASR-0.6B](https://huggingface.co/Qwen/Qwen3-ASR-0.6B)，已转换为 GGUF | Apache-2.0 | **不随安装包分发**：用户首次使用语音时从 Hugging Face 下载并按 SHA-256 校验 |
 
 ## 参考过的项目（未复制代码）

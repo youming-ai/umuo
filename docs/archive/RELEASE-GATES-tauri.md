@@ -1,8 +1,8 @@
 # 发布门槛实测（PRD §8）
 
-> 2026-10-22：下面的数字全部来自旧 Tauri release 构建，仅为历史基线，不能作为当前 SwiftUI 客户端的发布验收结果。
-> 原生版重新测量入口：`bun run bundle:macos -- --version X.Y.Z`，产物在 `apps/macos/dist/`。
-> 原生安装包体积、phys_footprint、CPU、唤起速度、首字开销与崩溃率尚未完成发布门槛实测。
+> **归档（2026-11-02）**：下面的数字全部来自已删除的旧 Tauri release 构建，只是历史基线，不能作为当前 SwiftUI 客户端的发布验收结果。
+> 现行的测量口径（phys_footprint、单实例检查）已并入 [NATIVE-WALKTHROUGH.md](../NATIVE-WALKTHROUGH.md)「性能测量」；
+> 原生 release 包的发布门槛尚未实测（[验收清单](../PRD-CONFORMANCE.md) R4）。
 
 PRD §8 把「快、轻、稳」写成发布门槛。这份文件记录**怎么测的、测出来多少、以及哪几项现在测不了**。
 
