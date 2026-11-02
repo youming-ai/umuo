@@ -35,8 +35,9 @@ pub fn parse_proxy(mode: &str, url: &str) -> Result<ProxyChoice, String> {
             }
             if !SUPPORTED.iter().any(|scheme| candidate.starts_with(scheme)) {
                 return Err(format!(
-                    "代理地址要以 {} 开头（当前填的是「{candidate}」）。",
-                    SUPPORTED.join(" / ")
+                    "代理地址要以 {} 开头（当前填的是「{}」）。",
+                    SUPPORTED.join(" / "),
+                    redact_proxy(candidate)
                 ));
             }
             Ok(ProxyChoice::Custom(candidate.to_string()))
@@ -44,6 +45,26 @@ pub fn parse_proxy(mode: &str, url: &str) -> Result<ProxyChoice, String> {
         // 含 "system"、空串、以及任何认不出来的值。
         _ => Ok(ProxyChoice::System),
     }
+}
+
+/// 代理地址进错误提示或日志前去掉 `user:pass@`。
+///
+/// 少了协议头的地址（`alice:pw@host:1080`）也要遮：[`crate::error::redact_secrets`]
+/// 只认 `://` 之后的凭据，这里先把最后一个 `@` 之前的部分整个换掉。
+pub fn redact_proxy(url: &str) -> String {
+    let authority_end = url
+        .find("://")
+        .map(|i| i + 3)
+        .and_then(|start| url[start..].find(['/', '?', '#']).map(|end| start + end))
+        .unwrap_or(url.len());
+    let shown = match url[..authority_end].rfind('@') {
+        Some(at) => {
+            let scheme_end = url.find("://").map(|i| i + 3).unwrap_or(0);
+            format!("{}[REDACTED]@{}", &url[..scheme_end], &url[at + 1..])
+        }
+        None => url.to_string(),
+    };
+    crate::error::redact_secrets(&shown)
 }
 
 #[cfg(test)]
@@ -111,5 +132,25 @@ mod tests {
             error.contains("socks5://"),
             "错误里要列出可用的协议：{error}"
         );
+    }
+
+    #[test]
+    fn redacting_a_proxy_keeps_the_scheme_and_host_but_not_the_credentials() {
+        assert_eq!(
+            redact_proxy("socks5://alice:s3cret@proxy.example:1080"),
+            "socks5://[REDACTED]@proxy.example:1080"
+        );
+        assert_eq!(
+            redact_proxy("http://proxy.example:8080"),
+            "http://proxy.example:8080"
+        );
+    }
+
+    #[test]
+    fn a_refused_address_does_not_echo_its_credentials() {
+        // 这条错误会进设置页与启动日志：代理地址里的用户名密码不能跟着出去。
+        let error = parse_proxy("custom", "alice:s3cret@proxy.example:1080").unwrap_err();
+        assert!(!error.contains("s3cret"), "{error}");
+        assert!(!error.contains("alice"), "{error}");
     }
 }

@@ -32,6 +32,18 @@ impl AppCore {
         &self,
         patch: serde_json::Value,
     ) -> Result<(Settings, SettingsEffects), String> {
+        self.apply_settings_patch_with(patch, || Ok(()))
+    }
+
+    /// 同 [`Self::apply_settings_patch`]，但在校验通过之后、设置落盘之前先执行 `before_save`。
+    ///
+    /// 导入配置用它写术语表：设置校验不通过时 `before_save` 根本不会被调用，
+    /// 满足「不合法就一个文件都不写」；`before_save` 失败时设置同样不落盘、内存不变。
+    pub(crate) fn apply_settings_patch_with(
+        &self,
+        patch: serde_json::Value,
+        before_save: impl FnOnce() -> Result<(), String>,
+    ) -> Result<(Settings, SettingsEffects), String> {
         let serde_json::Value::Object(patch) = patch else {
             return Err("设置的改动必须是一个 JSON 对象".to_string());
         };
@@ -39,13 +51,7 @@ impl AppCore {
         let mut mtime = self.settings_mtime.lock().expect("设置时间戳锁不应中毒");
 
         let path = Settings::path_in(&self.config_dir);
-        let on_disk = modified(&path);
-        // 别处改过文件就以文件为准；读不动沿用内存。只在成功时才换进内存，失败时内存不变。
-        let latest = if on_disk != *mtime {
-            read_strict(&path).unwrap_or_else(|| current.clone())
-        } else {
-            current.clone()
-        };
+        let latest = latest_settings(&path, &current, *mtime);
 
         let mut merged = serde_json::to_value(&latest).expect("设置结构体一定可序列化");
         let fields = merged.as_object_mut().expect("设置序列化成 JSON 对象");
@@ -55,6 +61,7 @@ impl AppCore {
         let mut next: Settings =
             serde_json::from_value(merged).map_err(|e| format!("设置格式不对：{e}"))?;
         next.prepare_for_save(&latest)?;
+        before_save()?;
         next.save(&self.config_dir).map_err(|e| e.to_string())?;
 
         // 与内存里的旧值比：宿主注册着的是它，不是刚从文件重载的那份。
@@ -63,7 +70,37 @@ impl AppCore {
         };
         *mtime = modified(&path);
         *current = next.clone();
+        drop((current, mtime));
+        // 保留期改短了要当场生效，不等下次启动；没改也只是一次便宜的删除。
+        crate::history::prune_expired(self, next.history_retention_days);
         Ok((next, effects))
+    }
+
+    /// 程序内对设置的一次小改动（按 App 记住目标语言）：同样先看文件有没有被别处改过，
+    /// 在**最新**设置上执行 `change`，它返回 `true` 才落盘并换进内存。
+    ///
+    /// 不走 `prepare_for_save`：改动来自程序自身，不是用户填的端点或代理。
+    /// 写盘失败时内存与文件都不变，返回 `false`——存不下只是下次还得再选一次。
+    pub(crate) fn update_settings(&self, change: impl FnOnce(&mut Settings) -> bool) -> bool {
+        let mut current = self.settings.lock().expect("设置锁不应中毒");
+        let mut mtime = self.settings_mtime.lock().expect("设置时间戳锁不应中毒");
+        let path = Settings::path_in(&self.config_dir);
+        let mut next = latest_settings(&path, &current, *mtime);
+        if !change(&mut next) || next.save(&self.config_dir).is_err() {
+            return false;
+        }
+        *mtime = modified(&path);
+        *current = next;
+        true
+    }
+}
+
+/// 别处改过文件（mtime 与上次读写时不同）就以文件为准；读不动沿用内存。
+fn latest_settings(path: &Path, current: &Settings, mtime: Option<SystemTime>) -> Settings {
+    if modified(path) != mtime {
+        read_strict(path).unwrap_or_else(|| current.clone())
+    } else {
+        current.clone()
     }
 }
 
@@ -134,6 +171,36 @@ mod tests {
         assert!(!error.is_empty());
         assert_eq!(*core.settings.lock().unwrap(), memory, "内存不变");
         assert_eq!(file_bytes(&core), bytes, "文件不变");
+    }
+
+    #[test]
+    fn saving_a_shorter_retention_prunes_history_right_away() {
+        // 保留期不能只在启动时生效：用户把 90 天改成 30 天，超期的记录当场就该清掉。
+        let core = open_in("retention", &json!({}));
+        let old = umuo_store::NewRecord {
+            created_at: crate::history::now_unix() - 40 * 86_400,
+            source_text: "old".into(),
+            translated_text: "旧".into(),
+            source_lang: None,
+            target_lang: "zh-CN".into(),
+            provider_id: "openai".into(),
+            model: "m".into(),
+            style_id: "standard".into(),
+            scene: "selection".into(),
+            source_app: None,
+            input_tokens: 0,
+            output_tokens: 0,
+            estimated: false,
+            cost_usd: None,
+        };
+        crate::history::with_store(&core, |store| store.insert(&old)).unwrap();
+
+        core.apply_settings_patch(json!({ "historyRetentionDays": 30 }))
+            .unwrap();
+        assert_eq!(
+            crate::history::with_store(&core, |store| store.count()).unwrap(),
+            0
+        );
     }
 
     #[test]

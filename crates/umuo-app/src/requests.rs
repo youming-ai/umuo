@@ -23,6 +23,7 @@ pub struct Ticket {
 #[derive(Default)]
 pub struct Requests {
     /// 上一个发出的 id。从 0 起步，第一个请求拿到 1——前端的初始状态用 0 表示「还没有请求」。
+    /// 只在持有 `current` 锁时递增。
     last_id: AtomicU64,
     current: Mutex<HashMap<String, Ticket>>,
 }
@@ -30,11 +31,13 @@ pub struct Requests {
 impl Requests {
     /// 为 `surface` 窗口开始一次新请求：取消它的上一次请求，登记并返回新的凭据。
     pub fn begin(&self, surface: &str) -> Ticket {
+        // id 在登记锁里分配：分配与登记是一个原子步骤，后拿到 id 的一定后登记，
+        // 不会出现小 id 的旧请求晚一步登记、把刚登记的新请求取消掉。
+        let mut current = self.current.lock().expect("请求登记锁不应中毒");
         let ticket = Ticket {
             id: self.last_id.fetch_add(1, Ordering::Relaxed) + 1,
             cancel: Arc::new(AtomicBool::new(false)),
         };
-        let mut current = self.current.lock().expect("请求登记锁不应中毒");
         if let Some(old) = current.insert(surface.to_string(), ticket.clone()) {
             old.cancel.store(true, Ordering::Relaxed);
         }
@@ -123,6 +126,40 @@ mod tests {
             requests.ticket("compose", second.id).is_none(),
             "别的窗口不认这张凭据"
         );
+    }
+
+    #[test]
+    fn concurrent_begins_leave_the_newest_id_as_the_current_request() {
+        // id 必须在登记锁里分配：否则拿到小 id 的线程可能后登记，
+        // 把更新的请求取消掉、自己（旧 id）反而成了当前请求。
+        for _ in 0..200 {
+            let requests = Arc::new(Requests::default());
+            let barrier = Arc::new(std::sync::Barrier::new(8));
+            let handles: Vec<_> = (0..8)
+                .map(|_| {
+                    let (requests, barrier) = (requests.clone(), barrier.clone());
+                    std::thread::spawn(move || {
+                        barrier.wait();
+                        (0..50).map(|_| requests.begin("panel")).collect::<Vec<_>>()
+                    })
+                })
+                .collect();
+            let tickets: Vec<Ticket> = handles
+                .into_iter()
+                .flat_map(|handle| handle.join().unwrap())
+                .collect();
+            let newest = tickets.iter().map(|t| t.id).max().unwrap();
+            assert!(
+                requests.ticket("panel", newest).is_some(),
+                "id 最大的请求必须是当前请求"
+            );
+            let alive: Vec<u64> = tickets
+                .iter()
+                .filter(|t| !cancelled(t))
+                .map(|t| t.id)
+                .collect();
+            assert_eq!(alive, vec![newest], "只有最新的请求没被取消");
+        }
     }
 
     #[test]

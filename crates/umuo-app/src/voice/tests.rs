@@ -580,7 +580,7 @@ async fn history_is_skipped_when_disabled_truncated_or_failed() {
         total_ms: 1,
         truncated: true,
     };
-    record_history(&core, &truncated);
+    record_history(&core, &truncated, None);
     assert!(history(&core).is_empty());
 
     // 关闭记录：完整结果也不写。
@@ -589,9 +589,9 @@ async fn history_is_skipped_when_disabled_truncated_or_failed() {
         ..truncated
     };
     core.settings.lock().unwrap().history_enabled = false;
-    record_history(&core, &complete);
+    record_history(&core, &complete, None);
     assert!(history(&core).is_empty());
     core.settings.lock().unwrap().history_enabled = true;
-    record_history(&core, &complete);
+    record_history(&core, &complete, None);
     assert_eq!(history(&core).len(), 1);
 }

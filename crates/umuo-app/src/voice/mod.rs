@@ -194,9 +194,11 @@ impl AppCore {
     ) -> impl Future<Output = Result<VoiceOutput, VoiceFailure>> + Send + 'static {
         let core = self.clone();
         async move {
+            // 来源 App 在发起时取一次（同文字翻译）：后处理要几秒，完成时前台可能已经换了。
+            let source_app = core.host.frontmost_app_name();
             let result = run(&core, &request, &cancel).await;
             if let Ok(output) = &result {
-                record_history(&core, output);
+                record_history(&core, output, source_app);
             }
             result
         }
@@ -210,7 +212,8 @@ pub const HISTORY_SCENE: &str = "voice";
 ///
 /// 规则与文字翻译相同：「关闭记录」与隐私模式下一条都不写（[`crate::history::record`] 负责）；
 /// **截断的不写**——历史里的结果会被当成完整结果复制、再利用。不保存音频。
-pub fn record_history(core: &AppCore, output: &VoiceOutput) {
+/// `source_app` 是发起时取到的来源应用名。
+pub fn record_history(core: &AppCore, output: &VoiceOutput, source_app: Option<String>) {
     if output.truncated {
         return;
     }
@@ -231,6 +234,7 @@ pub fn record_history(core: &AppCore, output: &VoiceOutput) {
             model: output.model.clone(),
             style_id: prompt::DEFAULT_STYLE_ID.to_string(),
             scene: HISTORY_SCENE.to_string(),
+            source_app,
             input_tokens: output.usage.input_tokens,
             output_tokens: output.usage.output_tokens,
             estimated: output.usage.estimated,

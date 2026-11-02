@@ -305,12 +305,15 @@ pub fn import_config(core: &AppCore, path: &Path) -> Result<Imported, String> {
     let current = core.settings.lock().expect("设置锁不应中毒").clone();
     let glossaries = Glossaries::load(&core.config_dir);
     let prepared = config_io::prepare_import(&raw, &current, &glossaries)?;
-    prepared
-        .glossaries
-        .save(&core.config_dir)
-        .map_err(|e| e.to_string())?;
+    // 术语表在设置**校验通过之后、落盘之前**写：保存时对着最新文件再校验一次，
+    // 那次不通过也不能让术语表已经被覆盖。
     let patch = serde_json::to_value(&prepared.settings).expect("设置结构体一定可序列化");
-    let (settings, effects) = core.apply_settings_patch(patch)?;
+    let (settings, effects) = core.apply_settings_patch_with(patch, || {
+        prepared
+            .glossaries
+            .save(&core.config_dir)
+            .map_err(|e| e.to_string())
+    })?;
     Ok(Imported {
         summary: prepared.summary,
         settings,
@@ -401,6 +404,49 @@ mod tests {
         assert_eq!(imported.settings.theme, "dark");
         assert!(imported.effects.hotkeys);
         assert_eq!(*other.settings.lock().unwrap(), imported.settings);
+    }
+
+    #[test]
+    fn an_import_rejected_by_the_settings_patch_writes_no_file_at_all() {
+        // 内存里有一条已存在的局域网 http 覆盖（老配置，放行），导出包原样带着它，
+        // 预校验对着内存放行；之后设置文件被外部改掉、去掉了这条覆盖，
+        // 保存时对着重载的文件校验就会拒绝。这时术语表也不能已经被覆盖。
+        let core = open_in("import-rejected");
+        std::fs::write(
+            Settings::path_in(&core.config_dir),
+            r#"{"providerBaseUrls":{"openai":"http://10.0.0.1/v1"}}"#,
+        )
+        .unwrap();
+        *core.settings.lock().unwrap() = Settings::load(&core.config_dir);
+        let glossaries = core
+            .config_dir
+            .join(crate::legacy_glossaries::GLOSSARIES_FILE);
+        std::fs::write(&glossaries, r#"{"lists":[{"id":"local"}]}"#).unwrap();
+        let bundle = config_io::export_json(
+            &core.settings.lock().unwrap(),
+            &Glossaries {
+                lists: vec![serde_json::json!({ "id": "imported" })],
+                ..Glossaries::default()
+            },
+        );
+        let path = core.config_dir.join("bundle.json");
+        std::fs::write(&path, bundle).unwrap();
+        std::thread::sleep(std::time::Duration::from_millis(20));
+        std::fs::write(Settings::path_in(&core.config_dir), "{}").unwrap();
+        let glossary_bytes = std::fs::read(&glossaries).unwrap();
+        let settings_bytes = std::fs::read(Settings::path_in(&core.config_dir)).unwrap();
+
+        assert!(import_config(&core, &path).is_err());
+        assert_eq!(
+            std::fs::read(&glossaries).unwrap(),
+            glossary_bytes,
+            "术语表不变"
+        );
+        assert_eq!(
+            std::fs::read(Settings::path_in(&core.config_dir)).unwrap(),
+            settings_bytes,
+            "设置文件不变"
+        );
     }
 
     #[test]

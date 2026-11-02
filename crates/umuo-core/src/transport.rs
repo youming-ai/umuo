@@ -14,7 +14,7 @@ use std::time::{Duration, Instant};
 
 use futures_util::StreamExt;
 
-use crate::error::{classify_http_error, CoreError};
+use crate::error::{classify_http_error, redact_secrets, CoreError};
 use crate::provider::{Protocol, Provider};
 use crate::wire::{
     build_chat_request_at, parse_stream_event, ChatRequest, SseDecoder, StreamEvent, TokenUsage,
@@ -67,7 +67,8 @@ pub fn build_client_with(choice: &crate::proxy::ProxyChoice) -> Result<reqwest::
         crate::proxy::ProxyChoice::Direct => builder = builder.no_proxy(),
         crate::proxy::ProxyChoice::Custom(url) => {
             let proxy = reqwest::Proxy::all(url).map_err(|e| CoreError::Network {
-                message: format!("代理地址不可用：{e}"),
+                // reqwest 的错误原文可能带着代理地址（含 `user:pass@`），进界面与日志前脱敏。
+                message: format!("代理地址不可用：{}", redact_secrets(&e.to_string())),
             })?;
             builder = builder.proxy(proxy);
         }
@@ -91,7 +92,7 @@ pub fn build_client_with(choice: &crate::proxy::ProxyChoice) -> Result<reqwest::
     }));
 
     builder.build().map_err(|e| CoreError::Network {
-        message: e.to_string(),
+        message: redact_secrets(&e.to_string()),
     })
 }
 
@@ -326,7 +327,7 @@ pub async fn stream_chat(
             Ok(None) => break,
             Ok(Some(Err(e))) => {
                 return Err(CoreError::Network {
-                    message: e.to_string(),
+                    message: redact_secrets(&e.to_string()),
                 })
             }
             Ok(Some(Ok(bytes))) => bytes,
@@ -432,7 +433,7 @@ pub async fn fetch_json(
         Err(_) => return Err(CoreError::Timeout { after: timeout }),
         Ok(Err(e)) => {
             return Err(CoreError::Network {
-                message: e.to_string(),
+                message: redact_secrets(&e.to_string()),
             })
         }
         Ok(Ok(body)) => body,
@@ -459,8 +460,9 @@ async fn send(
     match tokio::time::timeout(timeout, builder.send()).await {
         // 超时归 Timeout（可重试、可转移），而不是 Network：两者给用户的动作不同。
         Err(_) => Err(CoreError::Timeout { after: timeout }),
+        // reqwest 的错误原文带着请求 URL：自定义端点可能写了 user:pass@，进界面前脱敏。
         Ok(Err(e)) => Err(CoreError::Network {
-            message: e.to_string(),
+            message: redact_secrets(&e.to_string()),
         }),
         Ok(Ok(response)) => Ok(response),
     }
@@ -559,6 +561,14 @@ mod proxy_client_tests {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_broken_proxy_address_error_does_not_echo_its_credentials() {
+        let choice = crate::proxy::ProxyChoice::Custom("http://alice:s3cret@[::1".to_string());
+        let error = build_client_with(&choice).unwrap_err().to_string();
+        assert!(!error.contains("s3cret"), "{error}");
+        assert!(!error.contains("alice"), "{error}");
+    }
 
     fn apply_payloads(protocol: Protocol, payloads: &[&str]) -> (StreamOutcome, Vec<String>) {
         let mut outcome = StreamOutcome::default();

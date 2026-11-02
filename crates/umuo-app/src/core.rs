@@ -123,6 +123,7 @@ mod tests {
             model: "gpt-4o-mini".into(),
             style_id: "natural".into(),
             scene: "selection".into(),
+            source_app: Some("Safari".into()),
             input_tokens: 1,
             output_tokens: 1,
             estimated: false,
@@ -142,7 +143,7 @@ mod tests {
     }
 
     #[test]
-    fn history_takes_the_source_app_from_the_host() {
+    fn history_records_the_source_app_given_in_the_draft() {
         let core = open_in("source-app");
         history::record(&core, draft());
         let records = history::with_store(&core, |s| s.recent(10, 0)).unwrap();

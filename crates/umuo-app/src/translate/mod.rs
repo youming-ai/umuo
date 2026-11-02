@@ -116,16 +116,18 @@ async fn translate(
     let source = resolve_source(request, detected.as_deref());
     // PRD §5.4 的目标语言规则：显式指定 > 按 App 记忆 > 常规规则。
     //
-    // 只有开了「按 App 记忆」才去读来源 App——那是一次 AX 往返（十几毫秒），
-    // 默认路径不该付这个成本（PRD §8 的唤起速度门槛很紧）。
+    // 来源 App 在**发起时**取一次，按 App 记忆与历史的「来源应用」共用：翻译要几秒，
+    // 完成时再取，拿到的可能是用户已经切过去的另一个应用。两处都用不到时不取。
     let per_app = settings.uses_per_app_target();
-    let app_name = if per_app {
+    let records_history = settings.history_enabled && !settings.privacy_mode;
+    let app_name = if per_app || records_history {
         deps.core.host.frontmost_app_name()
     } else {
         None
     };
     let remembered = app_name
         .as_deref()
+        .filter(|_| per_app)
         .and_then(|app| settings.app_target_langs.get(app))
         .cloned();
 
@@ -149,16 +151,10 @@ async fn translate(
                 .filter(|v| !v.is_empty()),
         ) {
             if settings.app_target_langs.get(app).map(String::as_str) != Some(chosen) {
-                // 在锁里对**最新**设置打补丁，而不是把请求开始时的快照整份写回：
-                // 中间隔着 Keychain 与 AX 查询，这段时间里用户在设置窗改的东西会被冲掉。
-                let mut current = state.settings.lock().expect("设置锁不应中毒");
-                let mut updated = current.clone();
+                // 对**最新**设置打补丁，而不是把请求开始时的快照整份写回：中间隔着 Keychain 查询，
+                // 这段时间里用户在设置窗改的、或在外部改过文件的东西都不能被冲掉。
                 // 存不下也不影响这次翻译，只是下次还得再选一次。
-                if updated.remember_app_target(app, chosen)
-                    && updated.save(&state.config_dir).is_ok()
-                {
-                    *current = updated;
-                }
+                state.update_settings(|latest| latest.remember_app_target(app, chosen));
             }
         }
     }
@@ -172,7 +168,8 @@ async fn translate(
 
     // 单选一个词（≤3 个词）时走词卡（PRD §5.2），其余的走普通翻译。
     // 判定与 Prompt 都来自核心层的同一份实现，客户端不重复写一遍。
-    let word_mode = umuo_core::word_card::is_word_mode(text);
+    // 原地替换要把结果写回用户的输入框：那里要的是译文，词卡 JSON 绝不能写进去。
+    let word_mode = !mode.write_back() && umuo_core::word_card::is_word_mode(text);
     let chat = if word_mode {
         umuo_core::word_card::build_request(text, &vars)
     } else {
@@ -346,6 +343,7 @@ async fn translate(
                 model: model.clone(),
                 style_id: prompt::DEFAULT_STYLE_ID.to_string(),
                 scene: mode.as_str().to_string(),
+                source_app: app_name,
                 input_tokens: outcome.usage.input_tokens,
                 output_tokens: outcome.usage.output_tokens,
                 estimated: outcome.usage.estimated,

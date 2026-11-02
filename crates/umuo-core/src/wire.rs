@@ -11,7 +11,7 @@
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 
-use crate::error::CoreError;
+use crate::error::{redact_secrets, CoreError};
 use crate::provider::ProviderKind;
 use crate::provider::{Auth, Protocol, Provider};
 
@@ -418,7 +418,7 @@ pub fn parse_stream_event(protocol: Protocol, data: &str) -> Vec<StreamEvent> {
         Protocol::OpenAi | Protocol::AzureOpenAi => {
             if let Some(message) = value.pointer("/error/message").and_then(|v| v.as_str()) {
                 return vec![StreamEvent::Error(CoreError::BadResponse {
-                    detail: message.to_string(),
+                    detail: redact_secrets(message),
                 })];
             }
             let mut events = text_and_usage(
@@ -465,18 +465,19 @@ pub fn parse_stream_event(protocol: Protocol, data: &str) -> Vec<StreamEvent> {
             }
             Some("message_stop") => vec![StreamEvent::Done],
             Some("error") => vec![StreamEvent::Error(CoreError::BadResponse {
-                detail: value
-                    .pointer("/error/message")
-                    .and_then(|v| v.as_str())
-                    .unwrap_or("流式响应中返回错误")
-                    .to_string(),
+                detail: redact_secrets(
+                    value
+                        .pointer("/error/message")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("流式响应中返回错误"),
+                ),
             })],
             _ => Vec::new(),
         },
         Protocol::Gemini => {
             if let Some(message) = value.pointer("/error/message").and_then(|v| v.as_str()) {
                 return vec![StreamEvent::Error(CoreError::BadResponse {
-                    detail: message.to_string(),
+                    detail: redact_secrets(message),
                 })];
             }
             if let Some(prompt_feedback) = value.get("promptFeedback") {
@@ -691,6 +692,31 @@ mod tests {
 
     fn azure() -> &'static Provider {
         find_provider("azure").unwrap()
+    }
+
+    #[test]
+    fn in_stream_errors_redact_echoed_keys_for_every_protocol() {
+        // 中转端点会在流内错误里原样回显 Key；这条文案直接进浮窗。
+        for (protocol, payload) in [
+            (
+                Protocol::OpenAi,
+                r#"{"error":{"message":"bad key sk-abcdef1234567890"}}"#,
+            ),
+            (
+                Protocol::Anthropic,
+                r#"{"type":"error","error":{"message":"bad key sk-abcdef1234567890"}}"#,
+            ),
+            (
+                Protocol::Gemini,
+                r#"{"error":{"message":"bad key sk-abcdef1234567890"}}"#,
+            ),
+        ] {
+            let events = parse_stream_event(protocol, payload);
+            let [StreamEvent::Error(CoreError::BadResponse { detail })] = events.as_slice() else {
+                panic!("{protocol:?} 应报一条流内错误：{events:?}");
+            };
+            assert!(!detail.contains("sk-abcdef1234567890"), "{detail}");
+        }
     }
 
     #[test]
