@@ -4,12 +4,16 @@
 
 **macOS 翻译与语音表达工具 · 免费开源 · 自带模型 Key**
 
+A free, open-source macOS translator: translate in place, select-to-translate, screenshot OCR and voice input — with your own API key.
+
 macOS 14+ · Apple Silicon · Swift + SwiftUI + AppKit · Rust 共享核心 · 纯 BYOK · MIT 开源
 
-[官网](https://umuo.app) · [下载（Apple Silicon）](https://umuo.app/download/macos) · [贡献指南](CONTRIBUTING.md)
+[官网](https://umuo.app) · [下载（Apple Silicon）](https://umuo.app/download/macos) · [所有版本](https://github.com/youming-ai/umuo/releases) · [贡献指南](CONTRIBUTING.md)
 
+[![Release](https://img.shields.io/github/v/release/youming-ai/umuo?label=release)](https://github.com/youming-ai/umuo/releases/latest)
 [![CI](https://github.com/youming-ai/umuo/actions/workflows/ci.yml/badge.svg)](https://github.com/youming-ai/umuo/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+![Platform](https://img.shields.io/badge/platform-macOS%2014%2B%20%C2%B7%20Apple%20Silicon-lightgrey)
 
 </div>
 
@@ -40,8 +44,9 @@ umuo 完全免费、以 MIT 许可证开源，纯 BYOK：用户自带模型 Key�
 
 ## 当前状态与开发入口
 
-2026-11-02：原生客户端、Sparkle 更新与语音输入（录音、本机转写、整理/翻译、写回输入框）已完成，
-客户端改动合入 `main` 即自动发布到 GitHub Releases（正式版，未经 Apple 公证）；真机验收与 Developer ID 签名公证待做。为收敛首版，多模型对比、风格与术语管理、费用预算、收藏等旧功能已移除（旧数据保留）。
+2026-11-02：原生客户端、Sparkle 自动更新与语音输入（录音、本机转写、整理/翻译、写回输入框）已完成，
+客户端改动合入 `main` 即自动发布到 GitHub Releases（`v0.2.<序号>`，正式版，安装包 `umuo-v<版本>.dmg`，未经 Apple 公证）；
+真机验收与 Developer ID 签名公证待做。为收敛首版，多模型对比、风格与术语管理、费用预算、收藏等旧功能已移除（旧数据保留）。
 
 - [产品需求](docs/PRD.md)：当前功能与商业边界。
 - [首版开发计划](docs/IMPLEMENTATION-PLAN.md)：精简、语音、开源与发布的次序和完成条件。
