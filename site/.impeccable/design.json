@@ -72,10 +72,6 @@
         "displayName": "Display",
         "purpose": "首屏主标题，随视口高度缩放。"
       },
-      "price": {
-        "displayName": "Price",
-        "purpose": "「免费与开源」页左页的大字，等宽数字。"
-      },
       "headline": {
         "displayName": "Headline",
         "purpose": "页面与章首标题。"
@@ -118,10 +114,6 @@
       {
         "name": "mobile",
         "value": "639px"
-      },
-      {
-        "name": "pricing-spread",
-        "value": "900px"
       },
       {
         "name": "hero-single-column",
@@ -173,14 +165,14 @@
     {
       "name": "Navigation",
       "kind": "nav",
-      "description": "左 logo + 小写字样，右「免费与开源」。",
-      "html": "<nav class=\"ds-nav\"><span class=\"ds-brand\"><span class=\"ds-logo\"></span>umuo</span><a href=\"#\" aria-current=\"page\">免费与开源</a></nav>",
+      "description": "只有左边的 logo + 小写字样，高度固定 64px。",
+      "html": "<nav class=\"ds-nav\"><span class=\"ds-brand\"><span class=\"ds-logo\"></span>umuo</span></nav>",
       "css": ".ds-nav{display:flex;align-items:center;justify-content:space-between;height:64px;padding:0 24px;font-family:'Open Sans',-apple-system,sans-serif}.ds-brand{display:flex;align-items:center;gap:10px;font-size:1.25rem;font-weight:600;color:var(--ink,#2a1f1a)}.ds-logo{width:40px;height:40px;border-radius:9px;background:#0a84ff;box-shadow:0 3px 10px -3px rgb(42 31 26/.3)}.ds-nav a{font-size:.9375rem;font-weight:500;color:var(--ink-2,#5c4638);text-decoration:none}.ds-nav a:hover{color:var(--ink,#2a1f1a)}.ds-nav a[aria-current=page]{color:var(--accent-strong,#7e5236);text-decoration:underline;text-underline-offset:.4em;text-decoration-color:var(--accent,#a8734d)}"
     }
   ],
   "narrative": {
     "northStar": "对照本",
-    "overview": "官网排成一本双语对照本：暖白纸面、咖啡色墨字，原文与译文像左右两页一样并排。产品大部分时间藏在快捷键背后，\n所以页面不靠插画或渐变制造气氛，而是把**真实的键位、真实的选区、真实的前后对照**当作主角。\n\n颜色只取 logo 里那只水獭：皮毛咖啡、耳朵深咖、眼鼻墨色、脸颊奶油。logo 底色的蓝只留在 logo 图里，界面不用蓝。\n组件气质是 **Mac 原生的克制**，只有按钮例外：按钮沿用「节拍」设计语言的**厚底可按压**（多邻国式）。底部是实心厚边，悬停时微微上抬，按下时下沉，一眼就知道能按。\n键帽像真键盘；分隔靠细线和装订线，不靠卡片墙。\n首页恰好一屏、不滚动；「免费与开源」、条款这些长页按书页排版。",
+    "overview": "官网排成一本双语对照本：暖白纸面、咖啡色墨字，原文与译文像左右两页一样并排。产品大部分时间藏在快捷键背后，\n所以页面不靠插画或渐变制造气氛，而是把**真实的键位、真实的选区、真实的前后对照**当作主角。\n\n颜色只取 logo 里那只水獭：皮毛咖啡、耳朵深咖、眼鼻墨色、脸颊奶油。logo 底色的蓝只留在 logo 图里，界面不用蓝。\n组件气质是 **Mac 原生的克制**，只有按钮例外：按钮沿用「节拍」设计语言的**厚底可按压**（多邻国式）。底部是实心厚边，悬停时微微上抬，按下时下沉，一眼就知道能按。\n键帽像真键盘；分隔靠细线和装订线，不靠卡片墙。\n首页恰好一屏、不滚动；条款、隐私政策这些长页按书页排版。",
     "keyCharacteristics": [
       "暖纸 + 咖啡墨的单色系，靠明度与线条分层，不靠第二种色相",
       "左对齐的文字，居中铺满的页面网格（最宽 76rem）",

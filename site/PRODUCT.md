@@ -44,7 +44,7 @@ umuo 免费、按 MIT 许可证开源，模型调用费用直接付给用户自�
 - 用户在 Safari、备忘录、Preview、VS Code、聊天与邮件等真实应用里工作，umuo 通过全局快捷键介入。
 - 默认快捷键（可在设置修改）：划词翻译 `⌃⌃`、输入翻译 `⌥⌘A`、输入框原地替换 `⌥⌥`、截图翻译 `⌥⌘O`、语音输入按住右 `⌥`（开发中）。
 - 首次使用：选供应商、填 Key、选模型、验证连接；系统权限按使用场景申请。
-- 官网形态：首页一屏 + `/pricing`（「免费与开源」页）、`/terms`、`/privacy`；地址不带语言前缀，按 cookie / Accept-Language 返回对应语言。
+- 官网形态：首页一屏 + `/terms`、`/privacy`（旧的 `/pricing` 已删除，301 回首页）；地址不带语言前缀，按 cookie / Accept-Language 返回对应语言。
 - 下载走 Worker `/download/macos`（读 R2 最新版）；当前为未经 Apple 公证的预览版。
 
 ## Capabilities and Constraints
@@ -62,7 +62,7 @@ umuo 免费、按 MIT 许可证开源，模型调用费用直接付给用户自�
 
 - 名称 `umuo`（小写）。Logo：蓝底、从水里探出头的小水獭（`LogoMark` 与 `public/favicon.svg` 同一张图）。
 - 已定的视觉方向「对照本」及其禁用清单写在 `site/AGENTS.md`「视觉方向」一节，是用户已确认的硬约束；本文件不展开。
-- 语气：直接、具体、说清边界（例如「免费与开源」页明确列出「不包含」）；只宣称已发布能力。
+- 语气：直接、具体、说清边界；只宣称已发布能力。
 
 ## Evidence on Hand
 

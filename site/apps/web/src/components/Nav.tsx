@@ -1,10 +1,12 @@
-import { getContent } from '../content'
 import type { Locale } from '../content/types'
-import { pagePath, type SitePage } from '../lib/pages'
+import type { SitePage } from '../lib/pages'
 import { localeHref } from '../lib/router'
 import { LogoMark } from './icons'
 
-/** 页眉：左边 logo（回首页），右边「免费与开源」。条款与隐私政策从页脚进入。 */
+/**
+ * 页眉：只有左边的 logo（回首页），条款与隐私政策从页脚进入。
+ * 高度由 `.site-nav > .container-page` 固定为 4rem，只剩 logo 也不会塌。
+ */
 export function Nav({ locale, page }: { locale: Locale; page?: SitePage }) {
   return (
     <header className="site-nav absolute z-40">
@@ -16,13 +18,6 @@ export function Nav({ locale, page }: { locale: Locale; page?: SitePage }) {
         >
           <LogoMark className="h-10 w-10" />
           <span>umuo</span>
-        </a>
-        <a
-          href={pagePath(locale, 'pricing')}
-          aria-current={page === 'pricing' ? 'page' : undefined}
-          className="-me-3 ms-auto px-3 text-[0.9375rem] font-medium text-text-secondary transition-colors hover:text-text-primary"
-        >
-          {getContent(locale).pricing.title}
         </a>
       </div>
     </header>

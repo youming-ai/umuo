@@ -176,11 +176,10 @@ describe('官网内容完整性', () => {
     }
   })
 
-  it('条款、隐私政策与「免费与开源」页里没有未替换的模板占位符', () => {
+  it('全部文案里没有未替换的模板占位符', () => {
     for (const locale of LOCALES) {
-      const { legal, pricing } = getContent(locale)
       const strings: Array<[string, string]> = []
-      collectStrings({ legal, pricing }, locale, strings)
+      collectStrings(getContent(locale), locale, strings)
       const left = strings.filter(([, value]) => /\[[^\]]*\]/.test(value)).map(([path]) => path)
       expect(left, `${locale} 还有占位符`).toEqual([])
     }

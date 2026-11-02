@@ -77,8 +77,8 @@ export interface HeroContent {
   title: string
   subtitle: string
   /**
-   * 下载按钮旁的一句「免费、自带 Key」说明，链到 `/pricing`（免费与开源页）。
-   * 按 config.ts 的 `SOURCE_PUBLIC` 二选一：仓库公开前写「即将开源」，公开后写「MIT 开源」。
+   * 下载按钮旁的一句「免费、自带 Key」说明。按 config.ts 的 `SOURCE_PUBLIC` 二选一：
+   * 仓库公开前写「即将开源」（纯文字），公开后写「MIT 开源」并链到 `SOURCE_URL`。
    */
   freeNote: { pending: string; public: string }
   demo: {
@@ -113,54 +113,12 @@ export interface LegalDoc {
   sections: Array<{ heading: string; body: LegalBlock[] }>
 }
 
-/** 「免费与开源」页的一笔账：付给谁、多少、怎么付 */
-export interface PricingBill {
-  payee: string
-  /** 金额：付给 umuo 的写「免费」；付给供应商的写「按用量」 */
-  amount: string
-  /** 金额下的一行小字 */
-  cadence: string
-  body: string
-}
-
-/** 「包含」清单的一行：功能名，配默认快捷键或状态标记（如「开发中」） */
-export interface PricingFeature {
-  name: string
-  keys?: string[]
-  tag?: string
-}
-
-/** `/pricing`（地址沿用旧的定价页）：umuo 免费、MIT 开源，模型费用只在用户与供应商之间 */
-export interface PricingContent {
-  /** 页面 h1，也是页眉链接文字 */
-  title: string
-  /** meta description */
-  description: string
-  lead: string
-  /** 两笔账，像对照本的左右两页：umuo 本身免费，模型用量付给供应商 */
-  bills: [PricingBill, PricingBill]
-  /**
-   * 源码一行，按 config.ts 的 `SOURCE_PUBLIC` 二选一：
-   * 关闭时只显示 `pending`（「源码即将以 MIT 许可证公开」），打开后显示指向 `SOURCE_URL` 的 `link`。
-   */
-  source: { pending: string; link: string }
-  /** 不包含：用一份短清单把「免费 + 自带 Key」反过来说清楚 */
-  excluded: { title: string; items: string[] }
-  /** 「包含」区块的标题 */
-  included: string
-  /** 标题下的一句：键位是默认值、可以改 */
-  includedNote: string
-  features: PricingFeature[]
-}
-
 export interface SiteContent {
   locale: Locale
   seo: SeoContent
   nav: NavContent
   hero: HeroContent
   footer: FooterContent
-  /** 免费与开源页（`/pricing`）：umuo 免费、MIT 开源、自带模型 Key */
-  pricing: PricingContent
   /** 服务条款与隐私政策（软件按 MIT 提供；条款只约束网站与官方发行版 + 请求直连） */
   legal: { terms: LegalDoc; privacy: LegalDoc }
 }

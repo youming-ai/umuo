@@ -397,142 +397,6 @@
     border-top: 1px solid color-mix(in srgb, var(--rule) 70%, transparent);
   }
 
-  /* —— 免费与开源（/pricing）：两笔账排成对照本的左右两页，中间一道装订线；不做卡片 —— */
-  .pricing {
-    padding-top: 7rem;
-    padding-bottom: 5rem;
-  }
-  .pricing-spread {
-    display: grid;
-    margin-top: 3.5rem;
-    border-top: 2px solid var(--coffee);
-  }
-  .pricing-page {
-    padding-block: 1.5rem 2.5rem;
-  }
-  .pricing-page + .pricing-page {
-    border-top: 1px solid var(--rule);
-  }
-  .pricing-payee {
-    font-size: 0.9375rem;
-    font-weight: 600;
-    color: var(--coffee-strong);
-  }
-  .pricing-amount {
-    margin-top: 1.25rem;
-    font-size: clamp(3rem, 6vw, 4.5rem);
-    font-weight: 600;
-    line-height: 1;
-    letter-spacing: -0.03em;
-    font-variant-numeric: tabular-nums;
-    color: var(--ink);
-  }
-  /* 右页的账不归 umuo 收：退成小号灰墨，眼睛只落在左页的价格上；底边与左页大字对齐 */
-  .pricing-amount.is-quiet {
-    display: flex;
-    align-items: flex-end;
-    min-height: clamp(3rem, 6vw, 4.5rem);
-    color: var(--ink-3);
-    font-size: clamp(1.5rem, 2.4vw, 1.875rem);
-    letter-spacing: -0.01em;
-  }
-  .pricing-cadence {
-    margin-top: 0.5rem;
-    color: var(--ink-2);
-  }
-  .pricing-action {
-    margin-top: 1.75rem;
-  }
-  .pricing-fineprint {
-    margin-top: 0.625rem;
-    color: var(--ink-3);
-    font-size: 0.875rem;
-  }
-  .pricing-body {
-    max-width: 30em;
-    margin-top: 1.75rem;
-    color: var(--ink-2);
-    font-size: 0.9375rem;
-    line-height: 1.7;
-  }
-  /* 包含清单像书末的快捷键对照表：左页放标题，右页逐行列功能与键位 */
-  .pricing-included {
-    display: grid;
-    gap: 1rem;
-    padding-top: 1.5rem;
-    border-top: 1px solid var(--rule-strong);
-  }
-  .pricing-included-title {
-    font-size: 1.3125rem;
-    font-weight: 600;
-    color: var(--ink);
-  }
-  .pricing-features li {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 1rem;
-    min-height: 3.25rem;
-    padding-block: 0.5rem;
-    border-bottom: 1px solid var(--rule);
-  }
-  /* 不包含：同一份清单反过来说，短横线起头、灰墨，不和右栏的功能行抢 */
-  .pricing-excluded-block {
-    margin-top: 2rem;
-    padding-top: 1.25rem;
-    border-top: 1px solid var(--rule);
-  }
-  .pricing-excluded-title {
-    font-size: 0.9375rem;
-    font-weight: 600;
-    color: var(--coffee-strong);
-  }
-  .pricing-excluded {
-    margin-top: 0.5rem;
-    color: var(--ink-3);
-    font-size: 0.9375rem;
-  }
-  .pricing-excluded li {
-    padding-block: 0.25rem;
-  }
-  .pricing-excluded li::before {
-    content: "—";
-    margin-inline-end: 0.625rem;
-    color: var(--coffee);
-  }
-  @media (min-width: 900px) {
-    .pricing-spread,
-    .pricing-included {
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      column-gap: 0;
-    }
-    .pricing-page {
-      padding-inline-end: clamp(2rem, 5vw, 4.5rem);
-    }
-    .pricing-page + .pricing-page {
-      border-top: 0;
-      border-inline-start: 1px solid var(--rule-strong);
-      padding-inline: clamp(2rem, 5vw, 4.5rem) 0;
-    }
-    .pricing-included {
-      grid-template-rows: auto 1fr;
-      row-gap: 0;
-    }
-    .pricing-included > div:first-child {
-      grid-column: 1;
-      grid-row: 1;
-    }
-    .pricing-features {
-      grid-column: 2;
-      grid-row: 1 / span 2;
-      padding-inline-start: clamp(2rem, 5vw, 4.5rem);
-    }
-    .pricing-features li:first-child {
-      padding-top: 0;
-      min-height: 2.75rem;
-    }
-  }
-
   /* —— 服务条款 / 隐私政策：长文页，正文限宽便于阅读 —— */
   .legal {
     padding-top: 7rem;
@@ -622,7 +486,7 @@
   }
 
   /* 字符网格只留在页面上下边缘，像对照本的页眉页脚；中间正文那一带留白，不和标题、演示抢 */
-  /* 页眉那一带（logo、「免费与开源」）完全留白，往下才淡入，不让字符从水獭图标旁边露出来 */
+  /* 页眉那一带（logo）完全留白，往下才淡入，不让字符从水獭图标旁边露出来 */
   .language-grid-base {
     opacity: 0.13;
     mask-image: linear-gradient(
@@ -676,7 +540,7 @@
     white-space: pre-line;
   }
 
-  /* —— 下载区（首页与「免费与开源」页共用）：按钮与旁边的「免费」说明放不下时，说明换到按钮下面 —— */
+  /* —— 下载区：按钮与旁边的「免费」说明放不下时，说明换到按钮下面 —— */
   .download-actions {
     display: flex;
     flex-wrap: wrap;
@@ -741,10 +605,14 @@
     }
   }
 
-  .hero-pricing-link {
+  /* 下载按钮旁的一句「免费、自带 Key」：仓库公开前是纯文字；SOURCE_PUBLIC 打开后是链到源码的链接 */
+  .hero-free-note {
     color: var(--coffee-strong);
     font-size: 0.9375rem;
     font-weight: 500;
+  }
+
+  a.hero-free-note {
     text-decoration: underline;
     text-decoration-color: color-mix(in srgb, var(--coffee) 65%, transparent);
     text-underline-offset: 0.3em;
@@ -753,7 +621,7 @@
       text-decoration-color 150ms ease;
   }
 
-  .hero-pricing-link:hover {
+  a.hero-free-note:hover {
     color: var(--ink);
     text-decoration-color: var(--accent-strong);
   }

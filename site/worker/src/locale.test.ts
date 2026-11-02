@@ -98,6 +98,26 @@ describe('首页地址', () => {
     }
   })
 
+  it('已删除的 /pricing 与 /<locale>/pricing 都 301 回 /；预渲染页面清单里没有 pricing', async () => {
+    // prerender-web.ts 与 vite.config.ts 都按 SITE_PAGES 生成页面
+    expect(SITE_PAGES).not.toContain('pricing')
+    expect(PAGES).not.toContain('pricing')
+    for (const path of ['/pricing', '/pricing/']) {
+      const response = await worker.fetch(request(path), fakeEnv())
+      expect(response.status, path).toBe(301)
+      expect(response.headers.get('location'), path).toBe('https://umuo.app/')
+      expect(response.headers.get('set-cookie'), path).toBeNull()
+    }
+    const tagged = await worker.fetch(request('/pricing?utm_source=x'), fakeEnv())
+    expect(tagged.headers.get('location')).toBe('https://umuo.app/?utm_source=x')
+    for (const path of ['/zh-cn/pricing', '/ja/pricing/']) {
+      const response = await worker.fetch(request(path), fakeEnv())
+      expect(response.status, path).toBe(301)
+      expect(response.headers.get('location'), path).toBe('https://umuo.app/')
+      expect(response.headers.get('set-cookie'), path).toContain(`umuo-lang=${path.split('/')[1]}`)
+    }
+  })
+
   it('/index.html 301 回 /，不留第二个首页地址', async () => {
     const response = await worker.fetch(request('/index.html?ref=a'), fakeEnv())
     expect(response.status).toBe(301)

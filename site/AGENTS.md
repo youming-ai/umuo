@@ -34,9 +34,9 @@ Vite + Void 负责开发和构建。Worker 没有任何 secret 或变量。
   `content.test.ts` 会拦空串与漏翻。组件不写死句子。
 - **预渲染必须能 hydrate**：渲染期不读 `window`、不用随机数和计时器，副作用放进 effect（`hydration.test.tsx` 守着）。
 - **不放假下载链接**：`MACOS_DOWNLOAD_URL` 指向 Worker 的 `/download/macos`（读 R2 最新版）；设回 `null` 时下载按钮变为不可点。
-- 目前站点是首页一屏，外加 `/pricing`（「免费与开源」页，沿用旧地址，页眉右侧链接）、页脚链接的 `/terms`（服务条款）与 `/privacy`（隐私政策）。页眉左边 logo（蓝底、从水里探出头的小水獭，`LogoMark` 与 `public/favicon.svg` 是同一张图），右边「免费与开源」。页面清单在 `apps/web/src/lib/pages.ts`，Worker 的 `PAGES`（`worker/src/locale.ts`）要同步。
+- 目前站点是首页一屏，外加页脚链接的 `/terms`（服务条款）与 `/privacy`（隐私政策）。页眉只有左边的 logo（蓝底、从水里探出头的小水獭，`LogoMark` 与 `public/favicon.svg` 是同一张图）。原来的「免费与开源」页 `/pricing` 已删除，`/pricing` 与 `/<locale>/pricing` 由 Worker 301 回 `/`，不要再加回定价页。页面清单在 `apps/web/src/lib/pages.ts`，Worker 的 `PAGES`（`worker/src/locale.ts`）要同步。
 - **产品范围**：文字翻译、OCR 截图翻译、语音输入后润色/翻译，完全免费、纯 BYOK。修改产品页面前读根目录 `docs/PRD.md` 与 `docs/PRD-CONFORMANCE.md`；只宣称已发布能力，语音尚未实现。账号、订阅、付费版、官方额度与 AI 网关退出范围，不继续宣传为即将推出。
-- **免费与开源**：umuo 免费，没有付费版、内购、试用期、许可证或激活；模型调用费用只在用户与供应商之间。软件按 MIT 许可证开源，但仓库尚未公开：源码地址是 `apps/web/src/config.ts` 的 `SOURCE_URL`，所有源码链接由同文件的 `SOURCE_PUBLIC` 控制，**默认关闭**（main 合入即部署正式站，不能放打不开的链接）——关闭时只写「源码即将以 MIT 许可证公开」，首页下载旁的一句用 `hero.freeNote.pending`；仓库公开、地址确认后改成 true，「免费与开源」页与页脚出现源码链接、首页那句换成 `freeNote.public`，并重新量首页一屏（页脚多了一个链接）。「umuo」名称与水獭图标不随 MIT 授权。
+- **免费与开源**：umuo 免费，没有付费版、内购、试用期、许可证或激活；模型调用费用只在用户与供应商之间。软件按 MIT 许可证开源，但仓库尚未公开：源码地址是 `apps/web/src/config.ts` 的 `SOURCE_URL`，所有源码链接由同文件的 `SOURCE_PUBLIC` 控制，**默认关闭**（main 合入即部署正式站，不能放打不开的链接）——关闭时首页下载旁的一句用 `hero.freeNote.pending`（纯文字，不带链接）；仓库公开、地址确认后改成 true，页脚出现源码链接、首页那句换成 `freeNote.public` 并链到 `SOURCE_URL`，并重新量首页一屏（页脚多了一个链接）。「umuo」名称与水獭图标不随 MIT 授权。
 - **条款与隐私政策**：v3.0（2026-11-02）起软件本身按 MIT 许可证提供，条款只约束网站与官方发行版的使用、商标、第三方模型供应商等；隐私政策不再有支付、许可证与设备数据，写明下载、检查更新、上线通知订阅与语音（本机转写、Hugging Face 模型下载）。经营者、国家与版本/生效日期集中在 `config.ts` 的 `LEGAL_*`；改条款时更新版本与日期，并履行已有通知承诺。
 - **地址不带语言前缀**：只有 `umuo.app/`。Worker（`worker/src/locale.ts`）按 cookie `umuo-lang` → `Accept-Language` → 简体中文挑一份 `dist/<locale>/index.html` 返回；页面上切换语言只写 cookie、就地换内容；`/en/` 这类旧地址 301 回 `/`。
 

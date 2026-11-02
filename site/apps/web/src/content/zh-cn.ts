@@ -102,44 +102,6 @@ export const zhCn: SiteContent = {
     languageLabel: '语言',
     source: '源码',
   },
-  pricing: {
-    title: '免费与开源',
-    description:
-      'umuo 完全免费，将以 MIT 许可证开源；自带模型 Key 或本地模型，费用只在你与模型供应商之间。',
-    lead: 'umuo 不收钱。模型用你自己的：自带 API Key 或本地模型，费用只在你与模型供应商之间。没有订阅，没有 umuo 账号，也不卖模型额度。',
-    bills: [
-      {
-        payee: '付给 umuo',
-        amount: '免费',
-        cadence: '没有付费版',
-        body: '所有功能直接可用，没有试用期、许可证或激活步骤，以后的更新同样免费。umuo 将以 MIT 许可证开源，源码公开后你可以自由使用、修改和再分发。',
-      },
-      {
-        payee: '付给模型供应商',
-        amount: '按用量',
-        cadence: '用你自己的 API Key',
-        body: '费用由你直接与供应商结算，本地模型不产生调用费用。请求从你的 Mac 直接发往你配置的地址，不经过 umuo 的服务器。',
-      },
-    ],
-    source: {
-      pending: '源码即将以 MIT 许可证公开。',
-      link: '在 GitHub 查看源码（MIT 许可证）',
-    },
-    excluded: {
-      title: '不包含',
-      items: ['付费版、内购或订阅', 'umuo 账号', '模型额度或充值', '经 umuo 服务器中转的请求'],
-    },
-    included: '包含',
-    includedNote: '键位为默认快捷键，可在设置里修改。',
-    features: [
-      { name: '划词翻译', keys: ['⌃', '⌃'] },
-      { name: '输入翻译', keys: ['⌥', '⌘', 'A'] },
-      { name: '闪电替换', keys: ['⌥', '⌥'] },
-      { name: '截图 OCR 翻译', keys: ['⌥', '⌘', 'O'] },
-      { name: '语音输入与语音翻译', tag: '开发中' },
-      { name: '自带 Key、本地模型或自定义端点' },
-    ],
-  },
   legal: {
     terms: {
       title: '服务条款',

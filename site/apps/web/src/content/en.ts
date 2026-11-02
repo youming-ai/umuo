@@ -103,49 +103,6 @@ export const en: SiteContent = {
     languageLabel: 'Language',
     source: 'Source code',
   },
-  pricing: {
-    title: 'Free & open source',
-    description:
-      'umuo is completely free and will be open source under the MIT License. Bring your own model key or a local model; any cost is between you and your model provider.',
-    lead: 'umuo costs nothing. Bring your own model, an API key or a local one, and any cost stays between you and your model provider. No subscription, no umuo account, and no resold model credits.',
-    bills: [
-      {
-        payee: 'Paid to umuo',
-        amount: 'Free',
-        cadence: 'No paid edition',
-        body: 'Every feature works out of the box: no trial period, no license and no activation, and future updates are free too. umuo will be open source under the MIT License; once the code is published you can use, modify and redistribute it freely.',
-      },
-      {
-        payee: 'Paid to your model provider',
-        amount: 'Pay as you go',
-        cadence: 'With your own API key',
-        body: 'You settle usage directly with the provider; local models cost nothing to run. Requests go straight from your Mac to the address you set, not through umuo’s servers.',
-      },
-    ],
-    source: {
-      pending: 'The source code will be published soon under the MIT License.',
-      link: 'View the source on GitHub (MIT License)',
-    },
-    excluded: {
-      title: 'Not included',
-      items: [
-        'Paid editions, in-app purchases or subscriptions',
-        'A umuo account',
-        'Model credits or top-ups',
-        'Requests relayed through umuo’s servers',
-      ],
-    },
-    included: 'What’s included',
-    includedNote: 'Keys shown are the defaults; you can change them in Settings.',
-    features: [
-      { name: 'Selection translation', keys: ['⌃', '⌃'] },
-      { name: 'Typed-input translation', keys: ['⌥', '⌘', 'A'] },
-      { name: 'Lightning Replace in text fields', keys: ['⌥', '⌥'] },
-      { name: 'Screenshot OCR translation', keys: ['⌥', '⌘', 'O'] },
-      { name: 'Voice input and voice translation', tag: 'In development' },
-      { name: 'Your own key, a local model or a custom endpoint' },
-    ],
-  },
   legal: {
     terms: {
       title: 'Terms of Service',

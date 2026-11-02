@@ -48,7 +48,9 @@ describe('首页一屏', () => {
     expect(pagePath('en')).toBe('/')
     expect(localeHref('ja', 'download')).toBe('/#download')
     expect(pageFromPath('/zh-cn/faq')).toBe('home')
-    expect(pageFromPath('/zh-cn/pricing')).toBe('pricing')
+    // 「免费与开源」页已删除：旧地址不再是站内页面（Worker 会 301 回 /）
+    expect(pageFromPath('/pricing')).toBe('home')
+    expect(pageFromPath('/zh-cn/pricing')).toBe('home')
     expect(pageFromPath('/en/')).toBe('home')
     expect(pagePath('ja', 'terms')).toBe('/terms')
     expect(pageFromPath('/privacy')).toBe('privacy')
@@ -61,10 +63,11 @@ describe('首页一屏', () => {
     expect(hrefs).toContain('/privacy')
   })
 
-  it('页眉左边 logo、右边「免费与开源」，没有下载按钮', () => {
+  it('页眉只有 logo，没有「免费与开源」链接与下载按钮', () => {
     const links = [...(host.querySelector('header')?.querySelectorAll('a') ?? [])]
-    expect(links.map((link) => link.getAttribute('href'))).toEqual(['/', '/pricing'])
-    expect(links[1]?.textContent).toBe('免费与开源')
+    expect(links.map((link) => link.getAttribute('href'))).toEqual(['/'])
+    expect(host.querySelector('header a[href*="pricing"]')).toBeNull()
+    expect(host.querySelector('header')?.textContent).not.toContain('免费与开源')
     expect(host.querySelector('header button')).toBeNull()
   })
 
@@ -177,46 +180,16 @@ describe('首页一屏', () => {
     expect(host.querySelector('#download')?.textContent).toContain('仍要打开')
     expect(host.querySelector('form')).toBeNull()
     // 购买开关默认关闭：首页下载区不出现购买按钮
-    // 下载按钮旁只有一句「免费、自带 Key」；仓库公开前（SOURCE_PUBLIC 关闭）没有源码链接
-    expect(host.querySelector('.hero-pricing-link')?.textContent).toBe('免费，自带 Key，即将开源')
+    // 下载按钮旁只有一句「免费、自带 Key」；仓库公开前（SOURCE_PUBLIC 关闭）是纯文字，没有任何链接
+    const note = host.querySelector('#download .hero-free-note')
+    expect(note?.textContent).toBe('免费，自带 Key，即将开源')
+    expect(note?.tagName).toBe('SPAN')
+    expect(host.querySelector('a[href*="pricing"]')).toBeNull()
     expect(host.querySelector('a[href*="github.com"]')).toBeNull()
   })
 })
 
-describe('免费与开源', () => {
-  function renderAt(path: string) {
-    act(() => root.unmount())
-    window.history.replaceState(null, '', path)
-    root = createRoot(host)
-    act(() => root.render(<App />))
-  }
-
-  it('/pricing：umuo 免费、模型费用付给供应商，没有购买入口与源码链接', () => {
-    renderAt('/pricing')
-    expect(host.querySelector('h1')?.textContent).toBe('免费与开源')
-    const pages = [...host.querySelectorAll('.pricing-page')]
-    expect(pages.map((page) => page.querySelector('h2')?.textContent)).toEqual([
-      '付给 umuo',
-      '付给模型供应商',
-    ])
-    expect(pages[0]?.querySelector('.pricing-amount')?.textContent).toBe('免费')
-    expect(pages[0]?.querySelector('a[href="/download/macos"]')).not.toBeNull()
-    expect(host.querySelector('form')).toBeNull()
-    // SOURCE_PUBLIC 默认关闭：只写「即将公开」，整页（含页脚）不出现源码链接
-    expect(host.querySelector('.pricing-source')?.textContent).toContain('MIT')
-    expect(host.querySelector('.pricing-source a')).toBeNull()
-    expect(host.querySelector('a[href*="github.com"]')).toBeNull()
-    // 包含清单配默认快捷键；没发布的功能只标状态、不给键位
-    expect(host.querySelectorAll('.pricing-excluded li').length).toBeGreaterThan(0)
-    const rows = [...host.querySelectorAll('.pricing-features li')]
-    expect(rows[0]?.querySelectorAll('kbd')).toHaveLength(2)
-    expect(rows.find((row) => row.querySelector('.tag'))?.querySelector('kbd')).toBeFalsy()
-    // 收费时代的承诺不能留在页面上（「没有试用期、许可证或激活步骤」这句否定说明除外）
-    const text = host.textContent ?? ''
-    for (const stale of ['US$9', '购买', '免费试用', '退款', '3 台', '许可证密钥'])
-      expect(text).not.toContain(stale)
-  })
-
+describe('已删除的页面', () => {
   it('旧的激活页地址不再是站内页面，按首页渲染', () => {
     expect(pageFromPath('/activate')).toBe('home')
   })

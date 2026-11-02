@@ -5,9 +5,8 @@ import {
   useId,
   useState,
 } from 'react'
-import { SOURCE_PUBLIC } from '../config'
-import type { DemoMode, DemoModeId, Locale, SiteContent } from '../content/types'
-import { pagePath } from '../lib/pages'
+import { SOURCE_PUBLIC, SOURCE_URL } from '../config'
+import type { DemoMode, DemoModeId, SiteContent } from '../content/types'
 import { DownloadPanel } from './DownloadButton'
 
 /**
@@ -16,7 +15,7 @@ import { DownloadPanel } from './DownloadButton'
  * 默认停在第一项「划词翻译」；顺序由文案数据决定。
  * 切换时译文重新逐字流出（由访客触发的动效），首次加载时流一次。
  */
-export function Hero({ content, locale }: { content: SiteContent; locale: Locale }) {
+export function Hero({ content }: { content: SiteContent }) {
   const { hero } = content
   const headingId = useId()
   const macos = hero.platforms.find((platform) => platform.id === 'macos')
@@ -33,11 +32,16 @@ export function Hero({ content, locale }: { content: SiteContent; locale: Locale
             <div className="hero-gap-lg">
               <DownloadPanel
                 platform={macos}
-                // 首页只有一屏：按钮旁只放一句「免费、自带 Key」，详情与源码链接留给 /pricing
+                // 首页只有一屏：按钮旁只放一句「免费、自带 Key」。仓库公开前是纯文字；
+                // SOURCE_PUBLIC 打开后换成「MIT 开源」并链到源码
                 aside={
-                  <a href={pagePath(locale, 'pricing')} className="hero-pricing-link">
-                    {SOURCE_PUBLIC ? hero.freeNote.public : hero.freeNote.pending}
-                  </a>
+                  SOURCE_PUBLIC ? (
+                    <a href={SOURCE_URL} className="hero-free-note">
+                      {hero.freeNote.public}
+                    </a>
+                  ) : (
+                    <span className="hero-free-note">{hero.freeNote.pending}</span>
+                  )
                 }
               />
             </div>

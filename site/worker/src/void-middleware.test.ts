@@ -22,7 +22,7 @@ import { legacyMiddleware } from './void-middleware'
 
 // ---------- 假的静态资源层：按 Cloudflare 的 html_handling = auto-trailing-slash 回 ----------
 
-const HTML_PAGES = ['', 'pricing/', 'terms/', 'privacy/']
+const HTML_PAGES = ['', 'terms/', 'privacy/']
 const LOCALES = ['zh-cn', 'zh-tw', 'en', 'ja', 'ko']
 const FILES: Record<string, string> = {
   '/index.html': '<html data-locale="zh-cn">root',
@@ -213,11 +213,15 @@ const CASES: Case[] = [
   ['首页（默认语言）', '/'],
   ['首页（Accept-Language）', '/', ja],
   ['首页（cookie）', '/', cookieKo],
-  ...['/pricing', '/pricing/', '/terms', '/privacy/'].flatMap((path): Case[] => [
+  ...['/terms', '/privacy/'].flatMap((path): Case[] => [
     [`页面 ${path}`, path],
     [`页面 ${path}（ja）`, path, ja],
   ]),
   ['/index.html 301', '/index.html?ref=a'],
+  // 已删除的「免费与开源」页：旧地址 301 回 /（旧快照里它在 run_worker_first 中）
+  ['已删除的 /pricing 301', '/pricing'],
+  ['已删除的 /pricing/ 301', '/pricing/?utm_source=x'],
+  ['已删除的 /zh-cn/pricing 301', '/zh-cn/pricing'],
   ...LOCALES.map((locale): Case => [`语言前缀 /${locale}/`, `/${locale}/`]),
   ['语言前缀不带斜杠', '/en'],
   ['语言前缀 + 页面', '/ja/terms/?utm_source=x'],
@@ -284,6 +288,11 @@ describe('Void 中间件与现状逐字节一致', () => {
       expect(await gone.json()).toEqual({ ok: false, error: 'not_found' })
     }
     expect((await call('/activate', html)).status).toBe(404)
+    for (const path of ['/pricing', '/pricing/', '/zh-cn/pricing']) {
+      const moved = await call(path, html)
+      expect(moved.status, path).toBe(301)
+      expect(moved.headers.get('location'), path).toBe('https://umuo.app/')
+    }
     const missing = await call('/no-such-page', html)
     expect(missing.status).toBe(404)
     expect(await missing.text()).toContain('页面不存在')

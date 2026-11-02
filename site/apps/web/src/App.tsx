@@ -4,7 +4,6 @@ import { Hero } from './components/Hero'
 import { LanguageGrid } from './components/LanguageGrid'
 import { LegalPage } from './components/LegalPage'
 import { Nav } from './components/Nav'
-import { PricingPage } from './components/PricingPage'
 import { getContent } from './content'
 import { useRoute } from './lib/router'
 import { applySeo } from './lib/seo'
@@ -34,13 +33,7 @@ export function App() {
       </a>
       <Nav locale={locale} page={page} />
       <main id="main">
-        {page === 'home' ? (
-          <Hero content={content} locale={locale} />
-        ) : page === 'pricing' ? (
-          <PricingPage content={content} />
-        ) : (
-          <LegalPage doc={content.legal[page]} />
-        )}
+        {page === 'home' ? <Hero content={content} /> : <LegalPage doc={content.legal[page]} />}
       </main>
       <Footer content={content} locale={locale} theme={theme} onToggleTheme={toggleTheme} />
     </div>

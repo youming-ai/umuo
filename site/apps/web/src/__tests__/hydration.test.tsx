@@ -58,10 +58,6 @@ describe('五种语言的预渲染均可 hydrate', () => {
           // 首页只有一屏：main 里只有首屏
           expect(container.querySelectorAll('main > section')).toHaveLength(1)
           expect(container.querySelector('#download')).not.toBeNull()
-        } else if (page === 'pricing') {
-          // 免费：不能再出现任何价格
-          expect(container.querySelector('main')?.textContent).not.toContain('$')
-          expect(container.querySelectorAll('.pricing-page')).toHaveLength(2)
         } else {
           // 条款与隐私政策：不再有支付处理方；页面上带着生效日期
           expect(container.querySelector('main article')?.textContent).not.toContain('Waffo')

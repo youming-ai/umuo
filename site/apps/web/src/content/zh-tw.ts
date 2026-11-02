@@ -102,44 +102,6 @@ export const zhTw: SiteContent = {
     languageLabel: '語言',
     source: '原始碼',
   },
-  pricing: {
-    title: '免費與開源',
-    description:
-      'umuo 完全免費，將以 MIT 授權條款開源；自帶模型金鑰或本機模型，費用只在你與模型供應商之間。',
-    lead: 'umuo 不收錢。模型用你自己的：自帶 API 金鑰或本機模型，費用只在你與模型供應商之間。沒有訂閱，沒有 umuo 帳號，也不賣模型額度。',
-    bills: [
-      {
-        payee: '付給 umuo',
-        amount: '免費',
-        cadence: '沒有付費版',
-        body: '所有功能直接可用，沒有試用期、授權金鑰或啟用步驟，之後的更新同樣免費。umuo 將以 MIT 授權條款開源，原始碼公開後你可以自由使用、修改與再散布。',
-      },
-      {
-        payee: '付給模型供應商',
-        amount: '按用量',
-        cadence: '用你自己的 API 金鑰',
-        body: '費用由你直接與供應商結算，本機模型不會產生呼叫費用。請求從你的 Mac 直接送往你設定的位址，不經過 umuo 的伺服器。',
-      },
-    ],
-    source: {
-      pending: '原始碼即將以 MIT 授權條款公開。',
-      link: '在 GitHub 查看原始碼（MIT 授權條款）',
-    },
-    excluded: {
-      title: '不包含',
-      items: ['付費版、內購或訂閱', 'umuo 帳號', '模型額度或儲值', '經 umuo 伺服器轉送的請求'],
-    },
-    included: '包含',
-    includedNote: '鍵位為預設快速鍵，可在設定中修改。',
-    features: [
-      { name: '劃詞翻譯', keys: ['⌃', '⌃'] },
-      { name: '輸入翻譯', keys: ['⌥', '⌘', 'A'] },
-      { name: '閃電替換', keys: ['⌥', '⌥'] },
-      { name: '截圖 OCR 翻譯', keys: ['⌥', '⌘', 'O'] },
-      { name: '語音輸入與語音翻譯', tag: '開發中' },
-      { name: '自帶金鑰、本機模型或自訂端點' },
-    ],
-  },
   legal: {
     terms: {
       title: '服務條款',

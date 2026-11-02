@@ -77,7 +77,7 @@ async function assetOrNotFound(request: Request, env: Env): Promise<Response> {
  * umuo.app 的全部路由。wrangler 的入口（`./index.ts`）与 Void 的中间件
  * （`middleware/01.legacy.ts`）都只是调它，两边的行为因此只有这一份。
  *
- * `/`、`/pricing`、`/terms`、`/privacy`（按语言挑预渲染页）、语言前缀的旧地址、
+ * `/`、`/terms`、`/privacy`（按语言挑预渲染页）、已删除页面与语言前缀的旧地址、
  * `/api/*` 与 `/download/*` 由这里处理；其余路径交给静态资源层（见 assetOrNotFound）。
  */
 export async function dispatch(request: Request, env: Env): Promise<Response> {
