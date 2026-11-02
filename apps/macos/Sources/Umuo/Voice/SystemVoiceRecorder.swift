@@ -43,11 +43,26 @@ final class SystemVoiceRecorder: VoiceRecording {
     }
 
     private var active: Active?
+    /// 最近一次要求开麦的会话。`start` 要等授权框，期间可能已被丢弃或被新会话顶掉，回来后据此认出过期。
+    private var latest: UInt64?
+    /// 申请麦克风权限（测试换成自己控制何时放行的假授权，不弹系统对话框）。
+    private let authorize: @MainActor () async -> Bool
+
+    init(authorize: @escaping @MainActor () async -> Bool = { await MicrophoneAccess.ensure() }) {
+        self.authorize = authorize
+    }
 
     func start(session: UInt64, output: FileHandle) async throws {
-        guard await MicrophoneAccess.ensure() else {
-            throw VoiceFault(kind: .micPermissionDenied, detail: "麦克风权限未授予")
+        latest = session
+        let granted = await authorize()
+        // 等授权的这段时间里这一会话被丢弃、或新会话已经开始：过期了直接返回，
+        // 不报错也不往下走——往下走会 teardown 掉新会话正在录的音。状态机按迟到忽略这一次。
+        guard latest == session else {
+            try? output.close()
+            return
         }
+        // 详情只进日志（界面按错误类别显示文案）
+        guard granted else { throw VoiceFault(kind: .micPermissionDenied, detail: "麦克风权限未授予") }
         if let active { teardown(active) }
 
         let engine = AVAudioEngine()
@@ -95,6 +110,7 @@ final class SystemVoiceRecorder: VoiceRecording {
     }
 
     func discard(session: UInt64) {
+        if latest == session { latest = nil }
         guard let active, active.session == session else { return }
         teardown(active)
     }

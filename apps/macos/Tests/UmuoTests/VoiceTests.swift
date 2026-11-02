@@ -865,3 +865,50 @@ struct VoiceRulesTests {
             == "1:15")
     }
 }
+
+/// 停在系统麦克风授权框上的「授权」：测试决定什么时候、以什么结果放行。
+@MainActor
+private final class AuthorizationGate {
+    private var waiting: [CheckedContinuation<Bool, Never>] = []
+    var pending: Int { waiting.count }
+
+    func ask() async -> Bool { await withCheckedContinuation { waiting.append($0) } }
+
+    func answer(_ granted: Bool) { waiting.removeFirst().resume(returning: granted) }
+}
+
+// 真正的录音器：只测授权回来之后的会话核对。授权一律答「拒绝」，走不到 AVAudioEngine，不碰真实麦克风。
+@MainActor
+struct SystemVoiceRecorderTests {
+    private func output() throws -> FileHandle {
+        let url = scratch("recorder").appendingPathComponent("a.f32")
+        try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+        FileManager.default.createFile(atPath: url.path, contents: nil)
+        return try FileHandle(forWritingTo: url)
+    }
+
+    @Test func 授权框期间会话被丢弃_回来后什么都不做() async throws {
+        let gate = AuthorizationGate()
+        let recorder = SystemVoiceRecorder(authorize: { await gate.ask() })
+        let handle = try output()
+        let started = Task { try await recorder.start(session: 1, output: handle) }
+        await until { gate.pending == 1 }
+        recorder.discard(session: 1)
+        gate.answer(false)
+        // 过期的会话直接返回：既不报「没有麦克风权限」，也不去动（可能已属于新会话的）音频引擎
+        await #expect(throws: Never.self) { try await started.value }
+    }
+
+    @Test func 授权框期间新会话开始_旧会话回来后不拆新会话() async throws {
+        let gate = AuthorizationGate()
+        let recorder = SystemVoiceRecorder(authorize: { await gate.ask() })
+        let first = Task { try await recorder.start(session: 1, output: try output()) }
+        await until { gate.pending == 1 }
+        let second = Task { try await recorder.start(session: 2, output: try output()) }
+        await until { gate.pending == 2 }
+        gate.answer(false)
+        await #expect(throws: Never.self) { try await first.value }
+        gate.answer(false)
+        await #expect(throws: VoiceFault.self, "当前会话照常报缺权限") { try await second.value }
+    }
+}
