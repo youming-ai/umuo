@@ -12,7 +12,7 @@ import AppKit
 ///
 /// 剪贴板与按键可注入：测试换成私有命名剪贴板与假的粘贴，不碰用户剪贴板、不往别的应用里按键。
 struct ControlledPaste: @unchecked Sendable {
-    var pasteboard: NSPasteboard = .general
+    var pasteboard: PasteboardAccess = NSPasteboard.general
     var paste: () throws(SelectionError) -> Void = { () throws(SelectionError) in try KeyEvent.paste() }
     /// ⌘V 之后等多久再恢复。太短会让慢应用粘到旧内容，太长则用户剪贴板「消失」得久一点。
     var restoreDelay: TimeInterval = 0.35

@@ -3,16 +3,15 @@ import Testing
 @testable import Umuo
 
 // 浮窗「替换原文」与撰写窗 ⌘⇧↩ 的 ⌘V 兜底：与语音交付同一套受控粘贴（快照 → ⌘V → 延迟按 changeCount 恢复）。
-// 私有命名剪贴板 + 假的 ⌘V：不动用户剪贴板、不往别的应用里按键。
+// 假剪贴板（FakePasteboard）+ 假的 ⌘V：不动用户剪贴板、不往别的应用里按键。
 
 private final class Board: @unchecked Sendable {
-    let pasteboard = NSPasteboard(name: .init("app.umuo.tests.paste-back-\(UUID().uuidString)"))
+    let pasteboard: FakePasteboard
     /// 每次 ⌘V 时剪贴板上的文字（目标应用读到的）。
     private(set) var pasted: [String] = []
 
     init(_ original: String) {
-        pasteboard.clearContents()
-        pasteboard.setString(original, forType: .string)
+        pasteboard = FakePasteboard(original)
     }
 
     func paster(fails: Bool = false) -> ControlledPaste {
@@ -23,8 +22,6 @@ private final class Board: @unchecked Sendable {
     }
 
     var current: String? { pasteboard.string(forType: .string) }
-
-    deinit { pasteboard.releaseGlobally() }
 }
 
 struct ReplaceSelectionPasteTests {

@@ -167,7 +167,7 @@ final class ComposeController: ComposeBackend {
     }
 
     /// 没粘成时把译文复制到剪贴板。复制失败返回原因。
-    private nonisolated static func keepOnClipboard(_ text: String, _ pasteboard: NSPasteboard) -> String? {
+    private nonisolated static func keepOnClipboard(_ text: String, _ pasteboard: PasteboardAccess) -> String? {
         Pasteboard.copy(text, to: pasteboard)
     }
 }

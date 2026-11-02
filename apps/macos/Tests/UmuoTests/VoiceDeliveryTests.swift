@@ -6,7 +6,7 @@ import UmuoCore
 @testable import Umuo
 
 // 语音结果交付到输入框（阶段 E）。
-// 假 AX（FakeProbe）、私有命名剪贴板、假的 ⌘V：不碰真实辅助功能、不动用户剪贴板、不往别的应用里按键。
+// 假 AX（FakeProbe）、假剪贴板（FakePasteboard）、假的 ⌘V：不碰真实辅助功能、不动用户剪贴板、不往别的应用里按键。
 
 /// 假的焦点探针：交付前「现查」到什么由测试设定；记录写了什么、按了几次 ⌘V。
 private final class FakeProbe: VoiceFocusProbing, @unchecked Sendable {
@@ -46,9 +46,9 @@ private final class FakeProbe: VoiceFocusProbing, @unchecked Sendable {
     func frontmostPid() -> pid_t? { lock.withLock { frontmost } }
 }
 
-/// 私有命名剪贴板 + 记下 ⌘V 次数的假粘贴。
+/// 假剪贴板 + 记下 ⌘V 次数的假粘贴。
 private final class PasteRig: @unchecked Sendable {
-    let pasteboard = NSPasteboard(name: .init("app.umuo.tests.voice-\(UUID().uuidString)"))
+    let pasteboard = FakePasteboard()
     private let count = OSAllocatedUnfairLock(initialState: 0)
     /// 按 ⌘V 时剪贴板上是什么（目标应用会读到的内容）。
     private let seen = OSAllocatedUnfairLock<[String]>(initialState: [])
@@ -71,8 +71,6 @@ private final class PasteRig: @unchecked Sendable {
             }
         }, restoreDelay: 0)
     }
-
-    deinit { pasteboard.releaseGlobally() }
 }
 
 /// 录音开始时记下的目标。元素用应用级 AX 对象代替（创建它不需要辅助功能权限，也不会去问别的进程）。
@@ -140,11 +138,10 @@ struct VoiceDeliveryRulesTests {
 struct ControlledPasteTests {
     @Test func 粘贴后剪贴板原样恢复_包括非文本内容() {
         let rig = PasteRig()
-        let item = NSPasteboardItem()
-        item.setString("用户原来复制的", forType: .string)
-        item.setData(Data([1, 2, 3]), forType: .init("com.example.custom"))
-        rig.pasteboard.clearContents()
-        rig.pasteboard.writeObjects([item])
+        rig.pasteboard.writeItems([[
+            .init(type: NSPasteboard.PasteboardType.string.rawValue, data: Data("用户原来复制的".utf8)),
+            .init(type: "com.example.custom", data: Data([1, 2, 3])),
+        ]])
         let before = Pasteboard.Snapshot.take(rig.pasteboard)
 
         let outcome = rig.paster().run("后天见。") { true }
@@ -186,7 +183,7 @@ struct ControlledPasteTests {
         let rig = PasteRig()
         rig.pasteboard.clearContents()
         #expect(rig.paster().run("后天见。") { true } == .pasted(restored: true))
-        #expect(rig.pasteboard.pasteboardItems?.isEmpty ?? true)
+        #expect(rig.pasteboard.isEmpty)
     }
 }
 
