@@ -212,10 +212,10 @@ private func makeSpec(in dir: URL, payload: Data, sha: String? = nil) -> VoiceMo
                          partialPath: dir.appendingPathComponent("models/model.gguf.partial"))
 }
 
-/// 等控制器里起的 Task 把事件喂回来。测试并行跑，固定让出几次不够稳，按条件等（最多 2 秒）。
+/// 等控制器里起的 Task 把事件喂回来。测试并行跑，固定让出几次不够稳，按条件等（最多 10 秒：CI runner 慢，2 秒曾不够）。
 @MainActor
 private func until(_ condition: @MainActor () -> Bool) async {
-    for _ in 0 ..< 400 {
+    for _ in 0 ..< 2000 {
         if condition() { return }
         try? await Task.sleep(for: .milliseconds(5))
     }
@@ -271,13 +271,15 @@ private struct Rig {
     }
 
     /// 按下 → 开麦 → 松开。转写器挂起时停在「已开始转写」，否则等到这一句结束。
-    func speak() async {
+    /// 后处理或交付被测试挂起时传 `toEnd: false`：这一句不会自己结束，由调用方按自己的条件等，
+    /// 否则 `until { !busy }` 只能空等到超时。
+    func speak(toEnd: Bool = true) async {
         controller.press()
         await until { phase == .recording }
         let session = session
         controller.release()
         await until { transcriber.called(session) || !busy }
-        if !transcriber.hold { await until { !busy } }
+        if toEnd, !transcriber.hold { await until { !busy } }
     }
 }
 
@@ -506,7 +508,7 @@ struct VoiceControllerTests {
         let post = FakePostProcessor()
         post.hold = true
         rig.controller.postProcessor = post
-        await rig.speak()
+        await rig.speak(toEnd: false)
         await until { post.pending == 1 }
         #expect(rig.phase == .postProcessing(transcript: "今天下午三点开会"))
         rig.controller.cancel()
@@ -585,7 +587,7 @@ struct VoiceControllerTests {
         let delivery = FakeDeliverer()
         rig.controller.postProcessor = post
         rig.controller.deliverer = delivery
-        await rig.speak()
+        await rig.speak(toEnd: false)
         await until { post.pending == 1 }
         rig.controller.cancel()
         post.finish(1, with: VoicePostOutcome(text: "迟到的结果", truncated: false))
@@ -595,7 +597,7 @@ struct VoiceControllerTests {
         // 交付中按 Esc：通知放弃，之后的「已交付」不改状态
         post.hold = false
         delivery.hold = true
-        await rig.speak()
+        await rig.speak(toEnd: false)
         await until { delivery.delivered.count == 1 }
         rig.controller.cancel()
         #expect(delivery.cancelled == [2])

@@ -29,6 +29,15 @@ jobs:
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
+      # 浮窗用 macOS 26 的 Liquid Glass（glassEffect），要 Xcode 26 的 SDK；镜像默认的 Xcode 16 编不过。
+      # 选镜像上装好的最新 Xcode 26，找不到就直接失败，免得悄悄退回旧 SDK。
+      - name: Select Xcode 26
+        run: |
+          xcode=$(ls -d /Applications/Xcode_26*.app 2>/dev/null | sort -V | tail -1)
+          if [ -z "$xcode" ]; then echo "runner 上没有 Xcode 26" >&2; ls -d /Applications/Xcode*.app >&2; exit 1; fi
+          sudo xcode-select -s "$xcode/Contents/Developer"
+          xcodebuild -version
+
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
         with:
           bun-version-file: package.json

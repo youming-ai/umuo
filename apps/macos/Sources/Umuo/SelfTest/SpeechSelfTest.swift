@@ -57,9 +57,11 @@ enum SpeechSelfTest {
     /// M11 的那类问题：文本作为数据交给合成器，以 `-` 开头也原样念，不会变成选项。
     static func utterance(_ check: (String, Bool, String) -> Void) {
         let dash = SpeechRules.utterance("-o/tmp/x", voiceIdentifier: nil)
-        let list = SpeechRules.utterance("- 第一点", voiceIdentifier: "com.umuo.selftest.no-such-voice")
-        let ok = dash.speechString == "-o/tmp/x" && dash.voice == nil
-            && list.speechString == "- 第一点" && list.voice == nil
+        let missing = "com.umuo.selftest.no-such-voice"
+        let list = SpeechRules.utterance("- 第一点", voiceIdentifier: missing)
+        // 「系统默认发音人」在不同系统版本上可能表现为 nil 或一个默认 voice：只断言没有用上那个失效的 identifier
+        let ok = dash.speechString == "-o/tmp/x" && list.speechString == "- 第一点"
+            && list.voice?.identifier != missing
         check("Speech.utterance", ok, "「-o/tmp/x」「- 第一点」原样作为文本；失效的 identifier → 系统默认发音人")
     }
 

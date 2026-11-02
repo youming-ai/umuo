@@ -84,12 +84,21 @@ jobs:
         run: cargo test --workspace
 
   macos-app:
-    # SwiftUI 客户端（apps/macos）。swift-tools-version 6.0 要 Xcode 16，所以用 macos-15，
+    # SwiftUI 客户端（apps/macos）。用 macos-15 镜像并切到其上的 Xcode 26（Liquid Glass 需要 macOS 26 SDK），
     # 不和上面的 Rust job 共用 macos-14。--selftest 从 Swift 逐项调用 Rust 内核并校验结果。
     name: macOS app (SwiftUI + umuo-core)
     runs-on: macos-15
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      # 浮窗用 macOS 26 的 Liquid Glass（glassEffect），要 Xcode 26 的 SDK；镜像默认的 Xcode 16 编不过。
+      # 选镜像上装好的最新 Xcode 26，找不到就直接失败，免得悄悄退回旧 SDK。
+      - name: Select Xcode 26
+        run: |
+          xcode=$(ls -d /Applications/Xcode_26*.app 2>/dev/null | sort -V | tail -1)
+          if [ -z "$xcode" ]; then echo "runner 上没有 Xcode 26" >&2; ls -d /Applications/Xcode*.app >&2; exit 1; fi
+          sudo xcode-select -s "$xcode/Contents/Developer"
+          xcodebuild -version
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable

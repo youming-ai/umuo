@@ -63,7 +63,7 @@ struct StringCatalog: Sendable {
 
     /// 应用自带的那份。读不出来是打包错误，直接崩在启动时比界面上满屏 key 好查。
     static let main: StringCatalog = {
-        guard let url = Bundle.module.url(forResource: "Localizable", withExtension: "xcstrings", subdirectory: "Strings"),
+        guard let url = ResourceBundle.bundle.url(forResource: "Localizable", withExtension: "xcstrings", subdirectory: "Strings"),
               let data = try? Data(contentsOf: url),
               let catalog = try? StringCatalog(json: data)
         else { fatalError("Localizable.xcstrings 缺失或不是合法的 String Catalog") }
