@@ -22,6 +22,12 @@ function findSignTool(): string {
 
 const namespace = 'http://www.andymatuschak.org/xml-namespaces/sparkle'
 
+/**
+ * 更新包放在同版本的 GitHub Release 里（附件名固定为 umuo.app.tar.gz，见 release.yml）。
+ * enclosure 指向带版本号的 tag 而不是 latest：appcast 生成之后若又有新版本发布，旧 appcast 仍指向与签名匹配的那个包。
+ */
+const RELEASES = 'https://github.com/youming-ai/umuo/releases'
+
 /** 先用包内公钥验签，避免发版机误用另一应用的 Sparkle 私钥后生成无人能安装的更新。 */
 export function createAppcast(options: {
   version: string
@@ -56,7 +62,7 @@ export function createAppcast(options: {
       <sparkle:version>${version}</sparkle:version>
       <sparkle:shortVersionString>${version}</sparkle:shortVersionString>
       <sparkle:minimumSystemVersion>14.0.0</sparkle:minimumSystemVersion>
-      <enclosure url="https://umuo.app/download/macos/umuo-${version}-universal.app.tar.gz"
+      <enclosure url="${RELEASES}/download/v${version}/umuo.app.tar.gz"
         sparkle:edSignature="${rawSignature.toString('base64')}" length="${archive.byteLength}" type="application/gzip" />
     </item>
   </channel>

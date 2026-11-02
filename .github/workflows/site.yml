@@ -5,10 +5,10 @@ name: Site
 on:
   push:
     branches: [main]
-    paths: ['site/**', 'scripts/cf-r2.sh', 'scripts/release-swift-local.sh', '.github/workflows/site.yml']
+    paths: ['site/**', '.github/workflows/site.yml']
   pull_request:
     branches: [main]
-    paths: ['site/**', 'scripts/cf-r2.sh', 'scripts/release-swift-local.sh', '.github/workflows/site.yml']
+    paths: ['site/**', '.github/workflows/site.yml']
 
 concurrency:
   group: site-${{ github.ref }}

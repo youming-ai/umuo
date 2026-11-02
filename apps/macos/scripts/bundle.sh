@@ -1,42 +1,37 @@
 #!/bin/sh
 # 组装 SwiftUI 客户端的 umuo.app（阶段 5）：通用二进制 → Info.plist / 图标 / 资源 → 签名 →（可选）公证 →
-# .dmg 与 .app.tar.gz（→ 可选：用 Tauri 更新通道的 minisign 私钥签 .app.tar.gz）。只在本机产出文件，**不上传任何东西**。
+# .dmg 与 .app.tar.gz。只在本机产出文件，**不上传任何东西**（发布由 .github/workflows/release.yml 传到 GitHub Releases）。
 #
-#   sh apps/macos/scripts/bundle.sh --version 0.2.0                  # 正式组装：arm64 + x86_64，release
-#   sh apps/macos/scripts/bundle.sh --version 0.2.0 --updater-sign   # 外加 umuo.app.tar.gz.sig（经 update.json 发给 Tauri 用户）
-#   sh apps/macos/scripts/bundle.sh --quick                          # 冒烟：复用 .build/debug 的产物，只本机架构、ad-hoc、不出 .dmg
+#   sh apps/macos/scripts/bundle.sh --version 0.2.0   # 正式组装：arm64 + x86_64，release
+#   sh apps/macos/scripts/bundle.sh --quick           # 冒烟：复用 .build/debug 的产物，只本机架构、ad-hoc、不出 .dmg
 #
 # 环境变量（都可选）：
 #   APPLE_SIGNING_IDENTITY   codesign 身份（「Developer ID Application: …」）；不设就 ad-hoc 签名（--quick 一律 ad-hoc，忽略它与 APPLE_API_*）
 #   APPLE_API_KEY / APPLE_API_ISSUER / APPLE_API_KEY_PATH
-#                            三个都设了才公证（notarytool --wait）并 staple；与 Tauri 打包用的同名变量一致
-#   TAURI_SIGNING_PRIVATE_KEY（私钥内容）或 TAURI_SIGNING_PRIVATE_KEY_PATH（默认 ~/.tauri/umuo-updater.key）
-#   TAURI_SIGNING_PRIVATE_KEY_PASSWORD                       --updater-sign 用；沿用已发布旧客户端的同一把钥匙
+#                            三个都设了才公证（notarytool --wait）并 staple
 #   SPARKLE_PUBLIC_ED_KEY    Sparkle Ed25519 公钥（正式构建必填，generate_keys --account app.umuo.desktop 生成）
 #   OUT_DIR                  产物目录，默认 apps/macos/dist（--quick 时 .build/bundle-smoke）
 #
-# 产物：$OUT_DIR/umuo.app、umuo_<版本>_universal.dmg、umuo.app.tar.gz（+ .sig）。
-# 文件名与 Tauri 版一致：.app 叫 umuo.app、可执行文件叫 umuo-desktop（理由见 packaging/Info.plist 开头）。
+# 产物：$OUT_DIR/umuo.app、umuo.dmg、umuo.app.tar.gz。文件名不带版本号：GitHub Release 原样上传，
+# `releases/latest/download/<文件名>` 因此永远指向最新版（官网下载与 Sparkle 的 SUFeedURL 都靠它）。
+# .app 叫 umuo.app、可执行文件叫 umuo-desktop（理由见 packaging/Info.plist 开头）。
 #
 # 每次组装完都会自检（codesign --verify、Info.plist 的关键值、资源包位置），再从 .app 里跑一次 --selftest
 # 证明它启动得起来（不开界面、不注册快捷键；直接正常启动的话 Bundle ID 是正式的，会注册真实快捷键）。
 set -eu
 
 here="$(cd "$(dirname "$0")/.." && pwd)"
-root="$(cd "$here/../.." && pwd)"
 fail() { echo "✗ bundle: $*" >&2; exit 1; }
 step() { echo "→ $*"; }
 
 quick=0
-updater_sign=0
 VERSION=""
 while [ $# -gt 0 ]; do
   case "$1" in
     --quick) quick=1 ;;
-    --updater-sign) updater_sign=1 ;;
     --version) [ $# -ge 2 ] || fail "--version 要跟版本号"; VERSION=$2; shift ;;
     --) ;; # `bun run bundle:macos -- …` 可能把 -- 原样传进来
-    -h | --help) sed -n '2,22p' "$0"; exit 0 ;;
+    -h | --help) sed -n '2,20p' "$0"; exit 0 ;;
     *) fail "认不出的参数：$1" ;;
   esac
   shift
@@ -50,9 +45,8 @@ if [ -z "$VERSION" ]; then
 fi
 # CFBundleVersion 只认点分数字；更新通道（semver 比较）也只认这种
 echo "$VERSION" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$' || fail "版本号要是 X.Y.Z：$VERSION"
-[ "$quick" = 1 ] && [ "$updater_sign" = 1 ] && fail "--quick 的包不能拿去签更新：它是 debug 构建"
 
-# 冒烟一律 ad-hoc、不公证：为 Tauri 发版 export 过 APPLE_SIGNING_IDENTITY / APPLE_API_* 的机器上，
+# 冒烟一律 ad-hoc、不公证：为发版 export 过 APPLE_SIGNING_IDENTITY / APPLE_API_* 的机器上，
 # verify 也要保持离线、无 Keychain 弹框（Developer ID + --timestamp 要连 Apple 的时间戳服务、会请求用私钥）
 identity=""
 notarize=0
@@ -167,7 +161,7 @@ transcribe_license="$(find "$here/.build" -path '*/TranscribeCpp.xcframework/LIC
 mkdir -p "$app/Contents/Resources/Licenses/transcribe.cpp"
 cp "$(dirname "$transcribe_license")"/LICENSE* "$app/Contents/Resources/Licenses/transcribe.cpp/"
 if [ "$quick" = 0 ]; then
-  plutil -insert SUFeedURL -string 'https://umuo.app/download/macos/appcast.xml' "$app/Contents/Info.plist"
+  plutil -insert SUFeedURL -string 'https://github.com/youming-ai/umuo/releases/latest/download/appcast.xml' "$app/Contents/Info.plist"
   plutil -insert SUPublicEDKey -string "$SPARKLE_PUBLIC_ED_KEY" "$app/Contents/Info.plist"
   plutil -insert SUAutomaticallyUpdate -bool NO "$app/Contents/Info.plist"
   plutil -insert SUEnableSystemProfiling -bool NO "$app/Contents/Info.plist"
@@ -251,7 +245,7 @@ done
 codesign --verify --deep --strict --verbose=2 "$app" 2>/dev/null || { codesign --verify --deep --strict --verbose=2 "$app"; fail "codesign --verify 不通过"; }
 codesign -dv "$app" 2>&1 | grep -q 'flags=.*runtime' || fail "没开 hardened runtime"
 if [ "$quick" = 0 ]; then
-  check SUFeedURL "$(plist_get SUFeedURL)" 'https://umuo.app/download/macos/appcast.xml'
+  check SUFeedURL "$(plist_get SUFeedURL)" 'https://github.com/youming-ai/umuo/releases/latest/download/appcast.xml'
   check SUPublicEDKey "$(plist_get SUPublicEDKey)" "$SPARKLE_PUBLIC_ED_KEY"
   archs="$(lipo -archs "$app/Contents/MacOS/$exe_name")"
   case "$archs" in *arm64*x86_64* | *x86_64*arm64*) ;; *) fail "不是通用二进制：$archs" ;; esac
@@ -286,36 +280,15 @@ if [ "$notarize" = 1 ]; then
   xcrun stapler staple "$app"
 fi
 
-# ---- 更新包：顶层恰好一个 umuo.app 目录——Tauri 的更新器会剥掉第一层、换进用户现有的安装位置，
-# 再按新 Info.plist 的 CFBundleExecutable 重启
+# ---- 更新包：顶层恰好一个 umuo.app 目录，Sparkle 解开后整体替换现有安装
 tgz="$OUT_DIR/umuo.app.tar.gz"
-rm -f "$tgz" "$tgz.sig"
+rm -f "$tgz"
 step "打 $tgz"
 COPYFILE_DISABLE=1 tar -czf "$tgz" -C "$OUT_DIR" umuo.app
-if [ "$updater_sign" = 1 ]; then
-  if [ -z "$identity" ]; then
-    # 现在的 Tauri 版本身也是 ad-hoc 发的：每次更新 cdhash 都变，TCC 授权与 Keychain 访问本来就会要重新给一次。
-    # 换成 Swift 版这一次也一样，不更糟；有了 Developer ID 之后就不再这样（见 docs/SWIFTUI-MIGRATION.md）
-    echo "⚠ ad-hoc 签名的更新包：装上后用户要重新授权辅助功能 / 输入监控 / 屏幕录制，读 Key 会弹一次 Keychain 授权（与现在的 Tauri 更新相同）" >&2
-  fi
-  step "用更新通道的 minisign 私钥签 $tgz"
-  key_path="${TAURI_SIGNING_PRIVATE_KEY_PATH:-$HOME/.tauri/umuo-updater.key}"
-  if [ -z "${TAURI_SIGNING_PRIVATE_KEY:-}" ]; then
-    [ -f "$key_path" ] || fail "找不到更新签名私钥：设 TAURI_SIGNING_PRIVATE_KEY 或把私钥放在 $key_path"
-  fi
-  # 仅显式 --updater-sign 时下载固定版本的旧通道签名工具；不依赖旧客户端。
-  # 私钥只经环境变量传入，不出现在命令行（ps 看得见）里
-  # （_PATH 要整个去掉：设成空串它也当成「给了路径」而报错）
-  (cd "$root" &&
-    TAURI_SIGNING_PRIVATE_KEY="${TAURI_SIGNING_PRIVATE_KEY:-$(cat "$key_path")}" \
-      TAURI_SIGNING_PRIVATE_KEY_PASSWORD="${TAURI_SIGNING_PRIVATE_KEY_PASSWORD:-}" \
-      env -u TAURI_SIGNING_PRIVATE_KEY_PATH bunx --package @tauri-apps/cli@2.12.1 tauri signer sign "$tgz")
-  [ -s "$tgz.sig" ] || fail "签名文件没写出来：$tgz.sig"
-fi
 
 # ---- .dmg：拖进「应用程序」的标准布局；冒烟不打（hdiutil 慢，验的东西上面都验过了）
 if [ "$quick" = 0 ]; then
-  dmg="$OUT_DIR/umuo_${VERSION}_universal.dmg"
+  dmg="$OUT_DIR/umuo.dmg"
   step "打 $dmg"
   stage="$(mktemp -d)"
   trap 'rm -rf "$stage"' EXIT

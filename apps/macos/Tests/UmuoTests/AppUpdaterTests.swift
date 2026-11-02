@@ -7,7 +7,7 @@ struct AppUpdaterTests {
     private let publicKey = Data(repeating: 1, count: 32).base64EncodedString()
 
     @Test func 更新仅对已配置HTTPS与公钥的正式应用启用() {
-        let info: [String: Any] = ["SUFeedURL": "https://umuo.app/download/macos/appcast.xml", "SUPublicEDKey": publicKey]
+        let info: [String: Any] = ["SUFeedURL": "https://github.com/youming-ai/umuo/releases/latest/download/appcast.xml", "SUPublicEDKey": publicKey]
         #expect(AppUpdater.hasConfiguration(bundleIdentifier: "app.umuo.desktop", info: info))
         #expect(!AppUpdater.hasConfiguration(bundleIdentifier: nil, info: info))
         #expect(!AppUpdater.hasConfiguration(bundleIdentifier: "app.umuo.desktop", info: [:]))

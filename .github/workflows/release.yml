@@ -1,8 +1,9 @@
 name: Release
 
-# 客户端改动合入 main 时自动构建通用安装包并发布到 GitHub Releases（预发布：未经 Apple 公证）。
-# 版本号 = Cargo.toml 的主.次版本 + 本工作流的运行序号（如 0.1.12）；手动运行时可指定版本。
-# 只发 GitHub Releases，不上传 R2、不改官网下载。签名与更新要求见 docs/SWIFTUI-MIGRATION.md。
+# 客户端改动合入 main 时自动构建通用安装包并发布到 GitHub Releases（正式版并标为 Latest；尚未经 Apple 公证）。
+# 版本号 = Cargo.toml 的主.次版本 + 本工作流的运行序号（如 0.2.12）；手动运行时可指定版本。
+# 附件名固定（umuo.dmg / umuo.app.tar.gz / appcast.xml）：官网的 /download/macos 与 Sparkle 的 SUFeedURL
+# 都指向 releases/latest/download/<文件名>，发布即上线。签名与更新要求见 docs/SWIFTUI-MIGRATION.md。
 on:
   push:
     branches: [main]
@@ -108,8 +109,8 @@ jobs:
         with:
           name: umuo-${{ env.VERSION }}-universal
           path: |
-            apps/macos/dist/*.dmg
-            apps/macos/dist/*.app.tar.gz
+            apps/macos/dist/umuo.dmg
+            apps/macos/dist/umuo.app.tar.gz
             apps/macos/dist/appcast.xml
           retention-days: 14
 
@@ -117,9 +118,16 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          # 更新说明从上一个 Release 起算；第一次发布没有上一个，就让 GitHub 从头生成
+          # 更新说明从上一个 Release 起算；第一次发布没有上一个，就让 GitHub 从头生成。
+          # 正式版并标 Latest：releases/latest/download/<文件名> 才会指向这一版（预发布不算 latest）
           previous=$(gh release list --limit 1 --json tagName --jq '.[0].tagName // empty')
-          set -- --target "$GITHUB_SHA" --prerelease --generate-notes --title "umuo $VERSION"
+          notes=$(mktemp)
+          cat >"$notes" <<'EOF'
+          > 本版本尚未经 Apple 公证。首次打开时 macOS 会拦下：请到「系统设置 › 隐私与安全性」底部点「仍要打开」放行，之后正常启动。
+          >
+          > 下载 `umuo.dmg`（通用安装包，macOS 14+），拖进「应用程序」即可；已安装的版本可在「设置 › 关于」里检查更新并升级。
+          EOF
+          set -- --target "$GITHUB_SHA" --latest --generate-notes --notes-file "$notes" --title "umuo $VERSION"
           [ -n "$previous" ] && set -- "$@" --notes-start-tag "$previous"
           gh release create "v$VERSION" "$@" \
-            apps/macos/dist/*.dmg apps/macos/dist/*.app.tar.gz apps/macos/dist/appcast.xml
+            apps/macos/dist/umuo.dmg apps/macos/dist/umuo.app.tar.gz apps/macos/dist/appcast.xml

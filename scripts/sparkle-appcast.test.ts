@@ -20,7 +20,9 @@ describe('Sparkle 更新清单', () => {
     const input = fixture()
     const xml = createAppcast(input)
     expect(xml).toContain('<sparkle:minimumSystemVersion>14.0.0</sparkle:minimumSystemVersion>')
-    expect(xml).toContain('https://umuo.app/download/macos/umuo-0.2.0-universal.app.tar.gz')
+    expect(xml).toContain(
+      'https://github.com/youming-ai/umuo/releases/download/v0.2.0/umuo.app.tar.gz',
+    )
     expect(xml).toContain(
       `sparkle:edSignature="${input.signature}" length="${input.archive.length}"`,
     )
