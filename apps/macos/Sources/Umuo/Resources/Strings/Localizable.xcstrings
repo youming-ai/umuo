@@ -1345,25 +1345,25 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "隐私模式已开启：这期间的翻译不会写入历史。要记录就先到「设置 → 数据」关掉它。"
+            "value": "隐私模式已开启：期间的翻译不会写入历史。如需记录，请到「设置 → 高级」关闭它。"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "隱私模式已開啟：這期間的翻譯不會寫入歷史。要記錄請先到「設定 → 資料」關掉它。"
+            "value": "隱私模式已開啟：期間的翻譯不會寫入歷史。若需記錄，請到「設定 → 進階」關閉它。"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Privacy mode is on: translations are not written to history. Turn it off under Settings → Data to record them."
+            "value": "Private mode is on: translations are not saved to history. Turn it off under Settings → Advanced to record them."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "プライバシーモードが有効です：この間の翻訳は履歴に書き込まれません。記録するには「設定 → データ」で解除してください。"
+            "value": "プライベートモードが有効です：この間の翻訳は履歴に保存されません。記録するには「設定 → 詳細設定」でオフにしてください。"
           }
         }
       }
@@ -1937,7 +1937,7 @@
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "快捷面板"
+            "value": "快速面板"
           }
         },
         "en": {
@@ -2124,7 +2124,7 @@
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "文字が認識されませんでした。別の範囲で試してください"
+            "value": "文字が認識されませんでした。別の範囲を選択してもう一度お試しください。"
           }
         }
       }
@@ -2240,7 +2240,7 @@
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "screencapture を起動できません：%1$@"
+            "value": "screencapture を起動できませんでした：%1$@"
           }
         }
       },
@@ -2329,7 +2329,7 @@
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "スクリーンショット用の一時フォルダを作成できません：%1$@"
+            "value": "スクリーンショット用の一時フォルダを作成できませんでした：%1$@"
           }
         }
       },
@@ -2412,13 +2412,13 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Used to read the text you select. Without it, selection translation cannot work — the only \"required\" permission."
+            "value": "Used to read the text you select. Without it, selection translation won’t work — this is the only required permission."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "選択したテキストを読むために使います。これが無いと選択翻訳は動作しません——唯一の「必須」権限です。"
+            "value": "選択したテキストを読み取るために使用します。これが無いと選択翻訳は動作しません（唯一の必須権限です）。"
           }
         }
       }
@@ -2464,7 +2464,7 @@
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "檢測本機模型（Ollama / LM Studio）"
+            "value": "偵測本機模型（Ollama / LM Studio）"
           }
         },
         "en": {
@@ -2757,13 +2757,13 @@
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "沒檢測到 Ollama 或 LM Studio。確認其中一個已啟動（ollama serve，或在 LM Studio 裡打開本機服務）再試一次"
+            "value": "沒偵測到 Ollama 或 LM Studio。確認其中一個已啟動（ollama serve，或在 LM Studio 裡開啟本機服務）再試一次"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Couldn't find Ollama or LM Studio. Make sure one of them is running (ollama serve, or start the local server in LM Studio) and try again"
+            "value": "Couldn’t detect Ollama or LM Studio. Make sure one of them is running (ollama serve, or start the local server in LM Studio) and try again."
           }
         },
         "ja": {
@@ -2792,7 +2792,7 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Ollama / LM Studio is running, but no models have been downloaded yet"
+            "value": "Ollama / LM Studio is running, but no models have been downloaded yet."
           }
         },
         "ja": {
@@ -2809,25 +2809,25 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "填一把自己的 API Key 就能用。Key 存进系统 Keychain，只参与请求头，不写进配置文件、不进日志、也不会传给界面。"
+            "value": "填入自己的 API Key 即可使用。Key 存入系统钥匙串，只参与请求头，不写进配置文件、不进日志、也不会传给界面。"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "填一把自己的 API Key 就能用。Key 存進系統 Keychain，只參與請求標頭，不寫進設定檔、不進日誌、也不會傳給介面。"
+            "value": "填入自己的 API Key 即可使用。Key 儲存於系統鑰匙圈，只參與請求標頭，不寫入設定檔、不進日誌、也不會傳給介面。"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Paste one of your own API keys and it works. The key is stored in the system Keychain and is only used in request headers — never in config files, logs, or the interface."
+            "value": "Paste your own API key to get started. The key is stored in the system Keychain and only used in request headers — never in config files, logs, or the interface."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "自分の API キーを貼れば使えます。キーはシステムの Keychain に保存され、リクエストヘッダーにのみ使われます——設定ファイル・ログ・画面には決して現れません。"
+            "value": "自分の API キーを入力すればすぐに使えます。キーはシステムのキーチェーンに安全に保存され、リクエストヘッダーにのみ使用されます（設定ファイル、ログ、画面に記録されることはありません）。"
           }
         }
       }
@@ -2897,25 +2897,25 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "还没有可用的引擎，现在结束的话客户端翻不了任何东西——可以退回第 3 步填一把 Key，或先启动本机 Ollama。"
+            "value": "还没有可用的引擎。如果现在退出引导，将无法进行翻译——可以返回上一步填入 Key，或先启动本机 Ollama。"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "還沒有可用的引擎，現在結束的話用戶端翻不了任何東西——可以退回第 3 步填一把 Key，或先啟動本機 Ollama。"
+            "value": "還沒有可用的引擎。如果現在結束引導，將無法進行翻譯——可以返回上一步填入 Key，或先啟動本機 Ollama。"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "No usable engine yet, so the app could not translate anything right now — go back to step 3 to paste a key, or start a local Ollama."
+            "value": "No engine is available yet. Nothing will translate if you finish now — you can go back to the previous step to add an API key, or start a local Ollama instance first."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "まだ使えるエンジンがありません。このままだと何も翻訳できません——ステップ 3 に戻ってキーを貼るか、ローカルの Ollama を起動してください。"
+            "value": "まだ利用可能なエンジンがありません。このまま終了すると翻訳機能が使用できません。前のステップに戻ってキーを入力するか、ローカルの Ollama などを起動してください。"
           }
         }
       }
@@ -3118,7 +3118,7 @@
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "パネルが現れましたか？——あれが本物の翻訳結果です"
+            "value": "パネルが表示されましたか？ それが実際の翻訳結果です"
           }
         }
       }
@@ -3461,13 +3461,13 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Only needed for screenshot OCR (%1$@). If you do not use screenshots you can skip it — the system will not ask, and neither do we."
+            "value": "Only needed for screenshot OCR (%1$@). If you don’t use screenshots you can skip it — the system won’t ask, and neither will we."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "スクリーンショット OCR（%1$@）の時だけ必要です。使わないなら許可しなくて構いません——その場合システムは聞きませんし、こちらも要求しません。"
+            "value": "スクリーンショット OCR（%1$@）でのみ必要です。スクリーンショット機能を使わない場合は許可しなくても問題ありません。システムから確認されることも、アプリから要求することもありません。"
           }
         }
       },
@@ -3799,25 +3799,25 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "系统对话框一个进程只弹一次；被拒绝之后请走「打开系统设置」手动勾选。"
+            "value": "系统对话框每个进程只弹出一次；被拒绝之后请点击「打开系统设置」手动允许。"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "系統對話框一個程序只會彈一次；被拒絕之後請走「開啟系統設定」手動勾選。"
+            "value": "系統對話框每個行程只會出現一次；被拒絕之後請至「開啟系統設定」手動允許。"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "The system dialog is shown once per process; after a denial use \"Open System Settings\" to tick it manually."
+            "value": "The system dialog is shown once per process. If denied, open System Settings to allow it manually."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "システムのダイアログはプロセスにつき一度だけ表示されます。拒否した後は「システム設定を開く」から手動でチェックしてください。"
+            "value": "システムのダイアログはプロセスごとに一度だけ表示されます。拒否された後は「システム設定を開く」から手動で許可してください。"
           }
         }
       }
@@ -3869,13 +3869,13 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Setup has five steps: languages, model, permissions, and one real translation. Every step can be skipped, and everything can be changed later in settings."
+            "value": "Setup takes five steps: languages, model, permissions, and a quick practice translation. Every step can be skipped, and everything can be changed later in Settings."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "セットアップは5ステップ：言語、モデル、権限、そして実際に一度翻訳。どのステップも省略でき、後から設定で変更できます。"
+            "value": "セットアップは 5 つのステップです：言語、モデル、権限、そして翻訳のお試し。すべてのステップはスキップ可能で、後から「設定」でいつでも変更できます。"
           }
         }
       }
@@ -4387,7 +4387,7 @@
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "釘住後切到別的應用也不會自動收合"
+            "value": "釘住後切換到別的應用程式也不會自動收合"
           }
         },
         "en": {
@@ -4504,7 +4504,7 @@
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "把譯文取代回原本選取的位置（來源應用可寫入時）"
+            "value": "把譯文取代回原本選取的位置（來源應用程式可寫入時）"
           }
         },
         "en": {
@@ -5004,13 +5004,13 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Settings and history stay on this Mac, and API keys live only in the Keychain. Translation requests go straight from your computer to the provider you chose."
+            "value": "Settings and history stay on this Mac; API keys are stored only in the Keychain. Translation requests go directly from your Mac to the provider you chose."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "設定と履歴はこの Mac に保存され、API キーはキーチェーンにだけあります。翻訳のリクエストはあなたの Mac から設定した提供元へ直接送られます。"
+            "value": "設定と履歴はこの Mac に保存され、API キーはキーチェーンでのみ安全に保管されます。翻訳リクエストはお使いの Mac から設定した提供元へ直接送信されます。"
           }
         }
       }
@@ -5254,25 +5254,25 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "只存在这台电脑上。关掉后一条都不记。"
+            "value": "仅保存在本机。关闭后将不再记录历史。"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "只存在這台電腦上。關掉後一條都不記。"
+            "value": "僅儲存在本機。關閉後將不再記錄歷史。"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Stored only on this Mac. Turn it off and nothing is recorded."
+            "value": "Stored only on this Mac. Turn it off to stop recording history."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "この Mac にだけ保存します。オフにすると何も記録しません。"
+            "value": "この Mac にのみ保存されます。オフにすると履歴は記録されません。"
           }
         }
       }
@@ -5318,7 +5318,7 @@
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "打開翻譯歷史"
+            "value": "開啟翻譯歷史"
           }
         },
         "en": {
@@ -6011,19 +6011,19 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "还没有配置。不配就无法翻译。"
+            "value": "还没有配置。未配置时无法进行翻译。"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "還沒有設定。不設定就無法翻譯。"
+            "value": "還沒有設定。未設定時無法進行翻譯。"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Not set yet. Translation won’t work without it."
+            "value": "Not configured yet. Translation requires an API key."
           }
         },
         "ja": {
@@ -6233,7 +6233,7 @@
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "モデル名を直接入力できます。一覧は候補にすぎません。"
+            "value": "モデル名を直接入力することもできます。一覧は推奨候補です。"
           }
         }
       }
@@ -6343,7 +6343,7 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Open at login"
+            "value": "Launch at login"
           }
         },
         "ja": {
@@ -6366,7 +6366,7 @@
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "登入後自動執行，快捷鍵一開機就能用。下次登入生效。"
+            "value": "登入後自動執行，快速鍵一開機就能用。下次登入生效。"
           }
         },
         "en": {
@@ -6953,7 +6953,7 @@
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "重新走一遍語言、引擎、權限與快捷鍵的設定。"
+            "value": "重新走一遍語言、引擎、權限與快速鍵的設定。"
           }
         },
         "en": {
@@ -7081,7 +7081,7 @@
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "選択翻訳・作成ウインドウ・入力欄の置換で、既定で訳す言語です。"
+            "value": "選択翻訳・作成ウィンドウ・入力欄の置換で、既定で翻訳する言語です。"
           }
         }
       }
@@ -7285,7 +7285,7 @@
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "⌃ / ⌥ / ⌘ のどれかを含めてください。そうしないと、すべてのアプリでこのキーが使えなくなります。"
+            "value": "⌃ / ⌥ / ⌘ のいずれかを含めてください。そうしないと、すべてのアプリでこのキーが使えなくなります。"
           }
         }
       }
@@ -7314,7 +7314,7 @@
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "組み合わせを押すか、修飾キーを素早く 2 回…（Esc で取消）"
+            "value": "組み合わせを押すか、修飾キーを素早く 2 回…（Esc でキャンセル）"
           }
         }
       }
@@ -7331,7 +7331,7 @@
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "這個快捷鍵沒能生效，可能被別的應用程式佔用了，換一個試試。"
+            "value": "這個快速鍵沒能生效，可能被別的應用程式佔用了，換一個試試。"
           }
         },
         "en": {
@@ -7778,7 +7778,7 @@
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "macOS が「%1$@」に使っています。使うとその機能が動かなくなります。"
+            "value": "macOS が「%1$@」に使用しているため、割り当てるとその機能が動作しなくなります。"
           }
         }
       },
@@ -7796,7 +7796,7 @@
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "連按快捷鍵沒能啟用：需要在「系統設定 → 隱私權與安全性」的「輔助使用」或「輸入監控」裡允許 umuo。"
+            "value": "連按快速鍵沒能啟用：需要在「系統設定 → 隱私權與安全性」的「輔助使用」或「輸入監控」裡允許 umuo。"
           }
         },
         "en": {
@@ -7854,7 +7854,7 @@
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "這個鍵不能用作快捷鍵，換一個試試。"
+            "value": "這個按鍵不能用作快速鍵，換一個試試。"
           }
         },
         "en": {
@@ -8028,7 +8028,7 @@
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "打開系統設定"
+            "value": "開啟系統設定"
           }
         },
         "en": {
@@ -8138,25 +8138,25 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "截图翻译需要它来读取你框选的屏幕区域。授权后通常要重启 umuo 才显示为已授权。"
+            "value": "截图翻译需要它来读取你框选的屏幕区域。授权后通常需要重启 umuo 才能生效。"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "截圖翻譯需要它來讀取你框選的螢幕區域。授權後通常要重新啟動 umuo 才顯示為已授權。"
+            "value": "截圖翻譯需要它來讀取你框選的螢幕區域。授權後通常需要重新啟動 umuo 才能生效。"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Needed for screenshot translation to read the area you select. After granting it, umuo usually has to restart before it shows as granted."
+            "value": "Needed for screenshot translation to read the selected area. After granting permission, umuo usually needs to restart before it shows as granted."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "スクリーンショット翻訳で、囲んだ画面を読み取るために必要です。許可したあと、たいてい umuo の再起動で「許可済み」になります。"
+            "value": "スクリーンショット翻訳で選択範囲を読み取るために必要です。権限を許可した後、反映には通常 umuo の再起動が必要です。"
           }
         }
       }
@@ -8580,7 +8580,7 @@
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "撰寫窗"
+            "value": "撰寫視窗"
           }
         },
         "en": {
@@ -8592,7 +8592,7 @@
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "作成ウインドウ"
+            "value": "作成ウィンドウ"
           }
         }
       }
@@ -8609,7 +8609,7 @@
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "打開置中的撰寫窗：上面用母語寫，下面即時出譯文。"
+            "value": "打開置中的撰寫視窗：上面用母語寫，下面即時出譯文。"
           }
         },
         "en": {
@@ -8621,7 +8621,7 @@
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "中央に作成ウインドウを開きます。上に母語で書くと、下に訳文がすぐ表示されます。"
+            "value": "中央に作成ウィンドウを開きます。上に母語で書くと、下に訳文がリアルタイムで表示されます。"
           }
         }
       }
@@ -8754,7 +8754,7 @@
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "快捷鍵"
+            "value": "快速鍵"
           }
         },
         "en": {
@@ -9653,7 +9653,7 @@
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "已暫停：全域快捷鍵暫時不回應，關閉「暫停」即可恢復。"
+            "value": "已暫停：全域快速鍵暫時不回應，關閉「暫停」即可恢復。"
           }
         },
         "en": {
@@ -9711,7 +9711,7 @@
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "快捷面板無法使用：%1$@"
+            "value": "快速面板無法使用：%1$@"
           }
         },
         "en": {
@@ -10177,7 +10177,7 @@
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "按得太短了：按住快捷鍵說話，說完再放開。"
+            "value": "按得太短了：按住快速鍵說話，說完再放開。"
           }
         },
         "en": {
@@ -10293,7 +10293,7 @@
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "umuo 需要使用麥克風，錄下你按住語音快捷鍵時說的話，並在本機轉寫成文字。錄音只用於當次，結束後即刪除。"
+            "value": "umuo 需要使用麥克風，錄下你按住語音快速鍵時說的話，並在本機轉寫成文字。錄音只用於當次，結束後即刪除。"
           }
         },
         "en": {
@@ -10305,7 +10305,7 @@
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "umuo は、音声ショートカットを押している間の発話を録音し、この Mac 上で文字に変換するためにマイクを使用します。録音はその回だけに使い、終了後に削除します。"
+            "value": "umuo は、音声ショートカットを押している間の音声を録音し、この Mac 上で文字に変換するためにマイクを使用します。録音データはその回でのみ使用され、完了後に直ちに削除されます。"
           }
         }
       }
@@ -10644,7 +10644,7 @@
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "打開麥克風設定"
+            "value": "開啟麥克風設定"
           }
         },
         "en": {
@@ -10708,7 +10708,7 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Preparing the speech engine. The first time can take about a minute…"
+            "value": "Preparing the speech engine. This can take about a minute the first time…"
           }
         },
         "ja": {
@@ -10912,7 +10912,7 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Not Inserted"
+            "value": "Not inserted"
           }
         },
         "ja": {
@@ -10947,7 +10947,7 @@
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "別のアプリに切り替わったため、結果は自動入力していません。コピーできます。"
+            "value": "別のアプリに切り替わったため、結果は自動入力されませんでした。コピーできます。"
           }
         }
       }
@@ -11005,7 +11005,7 @@
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "別の入力欄にフォーカスが移ったため、結果は自動入力していません。コピーできます。"
+            "value": "別の入力欄にフォーカスが移ったため、結果は自動入力されませんでした。コピーできます。"
           }
         }
       }
@@ -11092,7 +11092,7 @@
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "パスワード欄かセキュア入力が有効なため、自動入力していません。結果はコピーできます。"
+            "value": "パスワード入力欄またはセキュア入力が有効なため、自動入力されませんでした。コピーできます。"
           }
         }
       }
@@ -11150,7 +11150,7 @@
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "入力先を確認できなかったため、自動入力していません。コピーできます。"
+            "value": "入力先を確認できなかったため、結果は自動入力されませんでした。コピーできます。"
           }
         }
       }
