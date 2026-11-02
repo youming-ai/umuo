@@ -21,8 +21,7 @@
     "type-check": "tsc --noEmit && tsc -p tsconfig.worker.json && bun run --filter umuo-web type-check",
     "test": "vitest",
     "test:run": "vitest run",
-    "verify": "bun run lint && bun run type-check && bun run test:run && bun run build",
-    "prepare:handoff": "bun scripts/prepare-void-handoff.ts"
+    "verify": "bun run lint && bun run type-check && bun run test:run && bun run build"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.6.2",

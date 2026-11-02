@@ -9,7 +9,7 @@ export default defineConfig({
     // 既有 Vite 前端又有中间件，不写会停下来让人选；部署两者
     appType: 'void',
     build: 'bun run build',
-    // 绑定都是手写的自定义名（ASSETS / NOTIFY_KV / RELEASES），不要 Void 再推断出默认的 DB / KV / STORAGE / AI
+    // 只有静态资源（ASSETS）与版本元数据两个绑定，不要 Void 再推断出默认的 DB / KV / STORAGE / AI
     bindings: { db: false, kv: false, storage: false, ai: false },
   },
   // nodejs_compat 不能去掉：Void 运行时用 node:async_hooks 的 AsyncLocalStorage（见构建产物 dist/ssr/index.js）
@@ -36,8 +36,6 @@ export default defineConfig({
     preview_urls: false,
     // 首次接管前先为现有 Worker 添加同名绑定，供 Void 在不开放 Version URL 时验证候选版本。
     version_metadata: { binding: 'VERSION_METADATA' },
-    kv_namespaces: [{ binding: 'NOTIFY_KV', id: 'dad4b460f4a14797adc1e9491e42f7f1' }],
-    r2_buckets: [{ binding: 'RELEASES', bucket_name: 'umuo-releases' }],
     observability: {
       enabled: true,
       logs: { enabled: true, persist: true, invocation_logs: true },

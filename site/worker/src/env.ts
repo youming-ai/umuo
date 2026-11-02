@@ -2,28 +2,9 @@
  * Worker 的绑定。
  *
  * 这里手写而不提交生成类型：生成物要么提交（会与 void.config.ts 漂移），
- * 要么每次构建前重跑（构建多一步、失败多一种）。我们只用到 KV 的两个方法，
- * 手写反而更不容易出错。
- *
- * `NotifyStore` 是 KV 的**最小可用子集**，而不是 `KVNamespace` 本身 ——
- * 真实的 `KVNamespace` 结构上满足它，测试里也就能用一个几十行的假实现替身，
- * 不需要为了类型检查去伪造整个 KV API。
+ * 要么每次构建前重跑（构建多一步、失败多一种）。现在只剩静态资源一个绑定，手写更不容易出错。
+ * 上线通知（KV）与安装包（R2）都已下线：安装包在 GitHub Releases，Worker 只做跳转（见 releases.ts）。
  */
-export interface NotifyStore {
-  get(key: string): Promise<string | null>
-  put(key: string, value: string, options?: { expirationTtl?: number }): Promise<void>
-}
-
-/** R2 的最小可用子集：只读、按 key 取对象。真实的 `R2Bucket` 结构上满足它。 */
-export interface ReleaseObject {
-  body: ReadableStream | null
-  size: number
-  text(): Promise<string>
-}
-
-export interface ReleaseStore {
-  get(key: string): Promise<ReleaseObject | null>
-}
 
 /** 静态资源绑定的最小可用子集：Worker 用它取各语言的预渲染页面 */
 export interface AssetFetcher {
@@ -33,8 +14,4 @@ export interface AssetFetcher {
 export interface Env {
   /** 官网静态产物（Void 生成的 assets.binding） */
   ASSETS: AssetFetcher
-  /** 上线通知的邮箱列表（KV namespace: umuo-notify，见 docs/DEPLOY.md） */
-  NOTIFY_KV: NotifyStore
-  /** 客户端安装包（R2 桶 umuo-releases，由仓库的 Release 工作流写入，见 docs/DEPLOY.md） */
-  RELEASES: ReleaseStore
 }

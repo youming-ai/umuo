@@ -1,8 +1,7 @@
 import type { Env } from './env'
 import { json } from './http'
 import { handlePage, localeRedirect } from './locale'
-import { handleHealth, handleNotify } from './notify'
-import { handleMacosDownload, handleMacosUpdateFile, handleRelease } from './releases'
+import { handleMacosDownload, handleMacosUpdateFile } from './releases'
 
 /**
  * 静态资源也没命中时的兜底页。
@@ -79,18 +78,18 @@ async function assetOrNotFound(request: Request, env: Env): Promise<Response> {
  *
  * `/`（按语言挑预渲染页）、语言前缀的旧地址、
  * `/api/*` 与 `/download/*` 由这里处理；其余路径交给静态资源层（见 assetOrNotFound）。
+ * 下载只做跳转（安装包在 GitHub Releases，见 releases.ts），`/download/macos/` 下认不出的旧地址回 404 页。
  */
 export async function dispatch(request: Request, env: Env): Promise<Response> {
   const { pathname } = new URL(request.url)
   if (pathname === '/') return handlePage(request, env)
   const redirect = localeRedirect(pathname, request.url)
   if (redirect) return redirect
-  if (pathname === '/api/notify') return handleNotify(request, env)
-  if (pathname === '/api/health') return handleHealth(env)
-  if (pathname === '/api/release') return handleRelease(env)
-  if (pathname === '/download/macos') return handleMacosDownload(env)
+  // 部署后不要账号就能用的探针：`curl -s https://umuo.app/api/health`
+  if (pathname === '/api/health') return json({ ok: true, service: 'umuo' })
+  if (pathname === '/download/macos') return handleMacosDownload()
   if (pathname.startsWith('/download/macos/'))
-    return handleMacosUpdateFile(env, pathname.slice('/download/macos/'.length))
+    return handleMacosUpdateFile(pathname.slice('/download/macos/'.length)) ?? notFoundPage()
   if (pathname.startsWith('/api/')) return json({ ok: false, error: 'not_found' }, 404)
   return assetOrNotFound(request, env)
 }

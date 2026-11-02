@@ -2,6 +2,10 @@
 
 > 2026-11-02 起 umuo 改为免费开源，收费与许可证代码、`LICENSES` 绑定与 `WAFFO_*` 变量已从仓库删除；
 > 下文中关于 Waffo secret 与结账的内容是当时的接管记录，之后的部署不再需要核对 `WAFFO_PRIVATE_KEY`。
+>
+> 2026-11-02 起安装包改由 GitHub Releases 提供、上线通知表单下线：`RELEASES`（R2）与 `NOTIFY_KV`（KV）绑定、
+> `/api/release`、`/api/notify` 与 `/download/macos/update.json` 等旧下载地址已删除。下文提到的 KV / R2 与这些路径都是当时的记录；
+> 接管已完成，下文的 `prepare:handoff`（`scripts/prepare-void-handoff.ts`）随之删除，需要时从提交历史取回。
 
 目标：保留 `umuo-app`、`umuo.app`、现有 KV / R2 与 Waffo secret，用 Void + Vite 构建，
 由 `scripts/cf-deploy.ts` 以 `cf deploy --prebuilt` 部署、`cf` 管理 Cloudflare 资源。

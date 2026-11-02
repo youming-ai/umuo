@@ -10,8 +10,7 @@ export function json(body: unknown, status = 200, headers: Record<string, string
     status,
     headers: {
       'content-type': 'application/json; charset=utf-8',
-      // 上线通知的响应是「这一次提交」的结果，没有任何可复用性；
-      // 中间层缓存住它会让我们把限流与重复提交都判错。
+      // 接口响应（健康检查与各种 404）都很小，缓存它们没有收益，只会让修好的问题继续被看到。
       'cache-control': 'no-store',
       ...headers,
     },

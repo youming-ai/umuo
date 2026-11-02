@@ -23,7 +23,7 @@ export function DownloadButton({
   const classes = `btn-primary ${className}`.trim()
   if (MACOS_DOWNLOAD_URL) {
     return (
-      // 不加 download 属性：Safari 会拿地址最后一段（macos）当文件名，压过服务器给的 Content-Disposition
+      // 不加 download 属性：Safari 会拿地址最后一段（macos）当文件名，压过跳转后 GitHub 给的 Content-Disposition
       <a
         href={MACOS_DOWNLOAD_URL}
         className={classes}

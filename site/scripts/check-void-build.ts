@@ -24,8 +24,6 @@ export async function prepareVerifiedCfBuild() {
       ),
     )
     const routes = expected.routes as { pattern: string }[] | undefined
-    const kv = expected.kv_namespaces as { binding: string; id: string }[]
-    const r2 = expected.r2_buckets as { binding: string; bucket_name: string }[]
     const vars = workerVars
 
     assert.equal(worker.name, expected.name, 'Worker 名称不一致')
@@ -56,22 +54,13 @@ export async function prepareVerifiedCfBuild() {
       'observability 不一致',
     )
     assert.deepEqual(worker.assets?.runWorkerFirst, ['/**'], 'assets.runWorkerFirst 不一致')
-    for (const { binding, id } of kv)
-      assert.deepEqual(worker.env[binding], { type: 'kv', id }, `${binding} 不一致`)
-    for (const { binding, bucket_name } of r2)
-      assert.deepEqual(worker.env[binding], { type: 'r2', name: bucket_name }, `${binding} 不一致`)
     assert.equal(worker.env.VERSION_METADATA?.type, 'version-metadata', '版本元数据绑定缺失')
     assert.equal(worker.env.ASSETS?.type, 'assets', '静态资源绑定缺失')
     for (const [name, value] of Object.entries(vars))
       assert.deepEqual(worker.env[name], { type: 'text', value }, `变量 ${name} 不一致`)
 
-    const expectedKeys = [
-      'ASSETS',
-      'VERSION_METADATA',
-      ...kv.map((x) => x.binding),
-      ...r2.map((x) => x.binding),
-      ...Object.keys(vars),
-    ].sort()
+    // 没有 KV / R2：上线通知与安装包都已下线（安装包在 GitHub Releases），绑定只剩这两个加上变量
+    const expectedKeys = ['ASSETS', 'VERSION_METADATA', ...Object.keys(vars)].sort()
     assert.deepEqual(
       Object.keys(worker.env ?? {}).sort(),
       expectedKeys,
@@ -97,8 +86,8 @@ if (import.meta.main) {
   assert.deepEqual(built.routes, expected.routes, '域名不一致')
   assert.equal(built.workers_dev, expected.workers_dev, 'workers.dev 开关不一致')
   assert.equal(built.preview_urls, expected.preview_urls, 'Version URL 开关不一致')
-  assert.deepEqual(built.kv_namespaces, expected.kv_namespaces, 'KV 绑定不一致')
-  assert.deepEqual(built.r2_buckets, expected.r2_buckets, 'R2 绑定不一致')
+  assert.deepEqual(built.kv_namespaces ?? [], [], '不应再有 KV 绑定')
+  assert.deepEqual(built.r2_buckets ?? [], [], '不应再有 R2 绑定')
   assert.deepEqual(built.version_metadata, version, '版本元数据绑定缺失')
   assert.equal(built.assets?.binding, 'ASSETS', '静态资源绑定缺失')
   assert.deepEqual(built.assets?.run_worker_first, ['/**'], '资源路由与 Void 不一致')

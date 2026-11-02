@@ -5,9 +5,8 @@ import {
   createAssetFallback,
   createWorkerFetch,
 } from '../../node_modules/void/dist/runtime/routing.mjs'
-import type { Env, ReleaseObject } from './env'
+import type { Env } from './env'
 import worker from './index'
-import { LATEST_KEY, UPDATE_KEY } from './releases'
 import { legacyMiddleware } from './void-middleware'
 
 /**
@@ -77,50 +76,10 @@ const fakeAssets = {
   },
 }
 
-// ---------- 假的 KV / R2 ----------
+// ---------- 绑定：只剩静态资源（上线通知的 KV 与安装包的 R2 都已下线） ----------
 
-function store() {
-  const data = new Map<string, string>()
-  return {
-    get: async (key: string) => data.get(key) ?? null,
-    put: async (key: string, value: string) => {
-      data.set(key, value)
-    },
-  }
-}
-
-const manifest = {
-  version: '0.2.0',
-  key: 'macos/umuo-0.2.0-universal.dmg',
-  size: 4,
-  sha256: 'abc',
-  commit: 'deadbeef',
-  publishedAt: '2026-10-08T00:00:00Z',
-}
-
-function env(releases: Record<string, string>): Env {
-  return {
-    ASSETS: fakeAssets,
-    NOTIFY_KV: store(),
-    RELEASES: {
-      async get(key): Promise<ReleaseObject | null> {
-        const content = releases[key]
-        if (content === undefined) return null
-        return {
-          body: new Response(content).body,
-          size: new TextEncoder().encode(content).length,
-          text: async () => content,
-        }
-      },
-    },
-  }
-}
-
-const WITH_RELEASE = {
-  [LATEST_KEY]: JSON.stringify(manifest),
-  [manifest.key]: 'DMG!',
-  [UPDATE_KEY]: '{"version":"0.2.0"}',
-  'macos/umuo-0.2.0-universal.app.tar.gz': 'TARGZ',
+function env(): Env {
+  return { ASSETS: fakeAssets }
 }
 
 // ---------- 两种部署 ----------
@@ -199,7 +158,7 @@ async function snapshot(response: Response) {
 
 // ---------- 路径表 ----------
 
-type Case = [label: string, path: string, init?: RequestInit, releases?: Record<string, string>]
+type Case = [label: string, path: string, init?: RequestInit]
 
 const ja = { headers: { 'accept-language': 'ja,en;q=0.8' } }
 const cookieKo = { headers: { cookie: 'umuo-lang=ko' } }
@@ -226,10 +185,10 @@ const CASES: Case[] = [
   ['语言前缀内部文件', '/en/index.html'],
   ['语言前缀未知子路径', '/zh-tw/faq/'],
   ['/api/health', '/api/health'],
-  ['/api/release（有版本）', '/api/release', undefined, WITH_RELEASE],
-  ['/api/release（无版本）', '/api/release'],
-  ['/api/notify POST', '/api/notify', post({ email: 'a@example.com' })],
-  ['/api/notify GET', '/api/notify'],
+  // 安装包改走 GitHub Releases 后 /api/release 已删除；上线通知表单下线后 /api/notify 已删除
+  ['已删除的 /api/release', '/api/release'],
+  ['已删除的 /api/notify POST', '/api/notify', post({ email: 'a@example.com' })],
+  ['已删除的 /api/notify GET', '/api/notify'],
   // umuo 改为免费开源后收费与许可证接口已删除，旧路径落到 /api 的 404
   ['已删除的 /api/checkout', '/api/checkout', post({ locale: 'en' })],
   ['已删除的 /api/waffo/webhook', '/api/waffo/webhook', post({})],
@@ -237,14 +196,12 @@ const CASES: Case[] = [
   // 已删除的激活页：旧快照里它在 run_worker_first 中，现在回 404 页
   ['已删除的 /activate', '/activate', html],
   ['/api 未知路径', '/api/nope', html],
-  ['/download/macos（有版本）', '/download/macos', undefined, WITH_RELEASE],
-  ['/download/macos（无版本）', '/download/macos'],
-  ['update.json 200', '/download/macos/update.json', undefined, WITH_RELEASE],
-  ['update.json 204', '/download/macos/update.json'],
-  ['Sparkle 空频道', '/download/macos/appcast.xml'],
-  ['tar.gz 200', '/download/macos/umuo-0.2.0-universal.app.tar.gz', undefined, WITH_RELEASE],
-  ['tar.gz 缺失 404', '/download/macos/umuo-9.9.9-universal.app.tar.gz', undefined, WITH_RELEASE],
-  ['下载目录外的文件名 404', '/download/macos/latest.json', html, WITH_RELEASE],
+  ['/download/macos 跳到 GitHub', '/download/macos'],
+  ['appcast.xml 跳到 GitHub', '/download/macos/appcast.xml'],
+  // R2 下线后的旧下载地址
+  ['已删除的 update.json', '/download/macos/update.json', html],
+  ['已删除的 latest.json', '/download/macos/latest.json', html],
+  ['已删除的版本化更新包', '/download/macos/umuo-0.2.0-universal.app.tar.gz', html],
   ['静态资源 js', '/assets/index-Cwmi45Kp.js'],
   ['静态资源 css', '/assets/index-Dnv3QVWi.css'],
   ['静态资源 HEAD', '/assets/index-Cwmi45Kp.js', { method: 'HEAD' }],
@@ -262,25 +219,30 @@ describe('Void 中间件与现状逐字节一致', () => {
     expect(runWorkerFirst.length).toBeGreaterThan(10)
   })
 
-  it.each(CASES)('%s', async (_label, path, init, releases = {}) => {
+  it.each(CASES)('%s', async (_label, path, init) => {
     const url = `https://umuo.app${path}`
-    const expected = await snapshot(await today(new Request(url, init), env(releases)))
-    const actual = await snapshot(await callVoid(new Request(url, init), env(releases)))
+    const expected = await snapshot(await today(new Request(url, init), env()))
+    const actual = await snapshot(await callVoid(new Request(url, init), env()))
     expect(actual).toEqual(expected)
   })
 
   it('几个关键结果本身也对（避免两边一起错）', async () => {
-    const call = async (path: string, init?: RequestInit, releases = {}) =>
-      callVoid(new Request(`https://umuo.app${path}`, init), env(releases))
-    expect((await call('/download/macos/update.json')).status).toBe(204)
-    expect((await call('/download/macos/update.json', undefined, WITH_RELEASE)).status).toBe(200)
-    const tar = await call(
-      '/download/macos/umuo-0.2.0-universal.app.tar.gz',
-      undefined,
-      WITH_RELEASE,
+    const call = async (path: string, init?: RequestInit) =>
+      callVoid(new Request(`https://umuo.app${path}`, init), env())
+    const download = await call('/download/macos')
+    expect(download.status).toBe(302)
+    expect(download.headers.get('location')).toBe(
+      'https://github.com/youming-ai/umuo/releases/latest/download/umuo.dmg',
     )
-    expect(tar.headers.get('cache-control')).toBe('public, max-age=31536000, immutable')
-    for (const path of ['/api/checkout', '/api/waffo/webhook', '/api/license/claim']) {
+    expect((await call('/download/macos/update.json', html)).status).toBe(404)
+    expect(await (await call('/api/health')).json()).toEqual({ ok: true, service: 'umuo' })
+    for (const path of [
+      '/api/checkout',
+      '/api/waffo/webhook',
+      '/api/license/claim',
+      '/api/notify',
+      '/api/release',
+    ]) {
       const gone = await call(path, post({}))
       expect(gone.status).toBe(404)
       expect(await gone.json()).toEqual({ ok: false, error: 'not_found' })
@@ -302,7 +264,7 @@ describe('Void 中间件与现状逐字节一致', () => {
   it('/__void/* 交还给 Void', async () => {
     let passed = false
     const response = await legacyMiddleware(
-      { req: { raw: new Request('https://umuo.app/__void/ready') }, env: env({}) },
+      { req: { raw: new Request('https://umuo.app/__void/ready') }, env: env() },
       async () => {
         passed = true
       },
@@ -314,7 +276,7 @@ describe('Void 中间件与现状逐字节一致', () => {
   it('就绪检查返回候选版本的元数据', async () => {
     const response = await viaVoid(
       new Request('https://umuo.app/__void/ready'),
-      { ...env({}), VERSION_METADATA: { id: 'candidate-version' } } as unknown as Record<
+      { ...env(), VERSION_METADATA: { id: 'candidate-version' } } as unknown as Record<
         string,
         unknown
       >,

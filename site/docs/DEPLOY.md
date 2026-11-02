@@ -7,13 +7,15 @@
 
 ## 配置和资源
 
-`void.config.ts` 声明自定义域名 `umuo.app`、`nodejs_compat`、访问开关与现有绑定：
+`void.config.ts` 声明自定义域名 `umuo.app`、`nodejs_compat`、访问开关与绑定：
 
 | 绑定 | 资源 | 用途 |
 | --- | --- | --- |
 | `ASSETS` | Vite 生成的静态资源 | 五语言预渲染页面 |
-| `NOTIFY_KV` | `umuo-notify` | 上线通知邮箱 |
-| `RELEASES` | `umuo-releases` | 客户端安装包与更新清单 |
+| `VERSION_METADATA` | 版本元数据 | Void 就绪探针 |
+
+Worker 没有 KV / R2 绑定：上线通知表单与 `/api/notify` 已删除（原 KV `umuo-notify`），
+客户端安装包改由 GitHub Releases 提供（原 R2 桶 `umuo-releases` 已删除）。`scripts/check-void-build.ts` 核对构建输出里只有上面这些绑定。
 
 umuo 免费开源，Worker 没有收费接口，也不需要任何 secret 或变量。`nodejs_compat` 仍要保留：
 Void 运行时用到 `node:async_hooks`。
@@ -27,7 +29,7 @@ Void 运行时用到 `node:async_hooks`。
 ```bash
 bun install --frozen-lockfile
 bun run build:web        # 为 Worker 开发准备预渲染页面
-bun run dev:worker       # Vite + Void，本地 KV / R2
+bun run dev:worker       # Vite + Void
 bun run verify           # lint、类型、Vitest、官网与 Worker 构建
 ```
 
@@ -51,7 +53,12 @@ bun run deploy
 
 ## 客户端安装包
 
-安装包的发布与更新通道见根目录 `docs/SWIFTUI-MIGRATION.md`。`release:swift` 默认只产出文件，
-显式 `--publish` 才使用 `cf` 将包与清单上传 R2；先传包、最后更新 `macos/latest.json`。
-发布前须在 `site/` 执行 `bun install --frozen-lockfile`，安装锁定版本的 `cf`。
-Worker 为下载及更新接口设置响应缓存头。`cf` 当前对象上传单次上限为 300 MB；更大的包需先选择支持分片上传的方案。
+安装包在 GitHub Releases（客户端改动合入 main 时由根目录 `.github/workflows/release.yml` 发布，见 `docs/SWIFTUI-MIGRATION.md`），
+官网不存任何安装包。Worker 只做 302 跳转（`no-store`）：
+
+| 路径 | 跳到 |
+| --- | --- |
+| `/download/macos` | `https://github.com/youming-ai/umuo/releases/latest/download/umuo.dmg` |
+| `/download/macos/appcast.xml` | `https://github.com/youming-ai/umuo/releases/latest/download/appcast.xml` |
+
+`/download/macos/` 下的其他旧地址（`update.json`、`latest.json`、带版本号的安装包与更新包）与 `/api/release` 已删除，返回 404。
