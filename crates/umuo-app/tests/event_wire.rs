@@ -91,6 +91,21 @@ fn translate_events_keep_their_wire_format() {
             "translate://error",
             r#"{"requestId":7,"message":"e","actions":["open_model_settings"],"needsPermission":true,"permission":"accessibility","source":"src"}"#,
         ),
+        (
+            ErrorPayload {
+                message: "e".into(),
+                actions: CoreError::Network {
+                    message: "x".into(),
+                }
+                .actions(),
+                needs_permission: false,
+                permission: None,
+                source: None,
+            }
+            .into(),
+            "translate://error",
+            r#"{"requestId":7,"message":"e","actions":["retry","check_network"],"needsPermission":false,"permission":null,"source":null}"#,
+        ),
     ];
     for (event, name, json) in cases {
         assert_eq!(translate(event), (name, json.to_string()));

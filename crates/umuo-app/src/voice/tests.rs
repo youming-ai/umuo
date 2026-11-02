@@ -519,7 +519,7 @@ async fn the_owned_entry_point_is_send_and_runs_to_the_same_result() {
     let core = Arc::new(env.core);
     let cancel = Arc::new(AtomicBool::new(false));
 
-    let future = core.start_voice(VoiceRequest::tidy("嗯，周四开会"), cancel.clone());
+    let future = core.post_process_voice(VoiceRequest::tidy("嗯，周四开会"), cancel.clone());
     assert_send_static(&future);
     let output = tokio::spawn(future).await.unwrap().unwrap();
 
@@ -580,7 +580,7 @@ async fn history_is_skipped_when_disabled_truncated_or_failed() {
         total_ms: 1,
         truncated: true,
     };
-    record_history(&core, &truncated);
+    record_history(&core, &truncated, None);
     assert!(history(&core).is_empty());
 
     // 关闭记录：完整结果也不写。
@@ -589,9 +589,9 @@ async fn history_is_skipped_when_disabled_truncated_or_failed() {
         ..truncated
     };
     core.settings.lock().unwrap().history_enabled = false;
-    record_history(&core, &complete);
+    record_history(&core, &complete, None);
     assert!(history(&core).is_empty());
     core.settings.lock().unwrap().history_enabled = true;
-    record_history(&core, &complete);
+    record_history(&core, &complete, None);
     assert_eq!(history(&core).len(), 1);
 }

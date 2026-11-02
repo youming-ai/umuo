@@ -1,14 +1,13 @@
-//! 界面命令的业务部分：历史、用量、收藏、配置导入导出、Key 状态、模型列表。
+//! 界面命令的业务部分：供应商目录、Key 状态、模型列表、历史、快捷面板、配置导入导出。
 //!
-//! 宿主的命令层只做参数转发、调这里、再做窗口操作——业务规则不放进 Swift 或 FFI 导出层。
-//! 这里返回的 DTO 就是 IPC 契约（`ipc.ts` 按它们的 camelCase 字段读），改字段等于改契约。
+//! `umuo-ffi` 只做参数转发与换型、调这里——业务规则不放进 Swift 或 FFI 导出层。
+//! 这里的 DTO 由 `umuo-ffi/src/ops.rs` 用不带 `..` 的解构换成 UniFFI Record，改字段那边当场编译失败。
 //!
 //! Key 的约定不变：这里只回「配没配过」，**不回明文**。
 
 use std::path::Path;
 use std::time::Duration;
 
-use serde::{Deserialize, Serialize};
 use umuo_core::provider::{self, ProviderKind};
 
 use crate::config_io::ImportSummary;
@@ -19,8 +18,7 @@ use crate::{config_io, history, AppCore};
 
 // ---------------------------------------------------------------- 供应商
 
-#[derive(Debug, Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
+#[derive(Debug, Clone)]
 pub struct ProviderDto {
     pub id: String,
     pub label: String,
@@ -51,36 +49,16 @@ pub fn to_dto(p: &provider::Provider) -> ProviderDto {
     }
 }
 
-/// 浮窗的「换个模型」下拉要用的：**这次真能用**的供应商。
-///
-/// 只列已配 Key 的（本地模型不需要 Key，也算）。把没配 Key 的也列出来，
-/// 用户选中后只会得到 401——那不是「切换模型」，是踩坑。
-pub fn configured_providers(core: &AppCore) -> Vec<ProviderDto> {
-    provider::PROVIDERS
-        .iter()
-        .filter(|p| {
-            !p.requires_key()
-                || core
-                    .host
-                    .api_key(p.id)
-                    .ok()
-                    .flatten()
-                    .is_some_and(|key| !key.trim().is_empty())
-        })
-        .map(to_dto)
-        .collect()
-}
-
 /// 只回「配没配过」，不回明文——见模块文档。
 pub fn key_status(core: &AppCore, provider_id: &str) -> Result<bool, String> {
     let secret = core.host.api_key(provider_id)?;
     Ok(secret.is_some_and(|s| !s.trim().is_empty()))
 }
 
-/// 存 Key 之前的规则（与 Tauri 的 `save_api_key` 一致）：供应商必须存在，Key 去掉首尾空白。
+/// 存 Key 之前的规则：供应商必须存在，Key 去掉首尾空白。
 ///
 /// 返回要写进 Keychain 的值。写本身是宿主的事（Swift 直接调 Security.framework），
-/// 规则放在这里是为了两个客户端只有一份：拼错的 id 会在 Keychain 里留下一条永远读不到的记录。
+/// 规则放在 Rust 里只有一份：拼错的 id 会在 Keychain 里留下一条永远读不到的记录。
 pub fn prepare_api_key(provider_id: &str, api_key: &str) -> Result<String, String> {
     if provider::find_provider(provider_id).is_none() {
         return Err(format!("未知供应商：{provider_id}"));
@@ -109,14 +87,13 @@ pub async fn list_models(core: &AppCore, provider_id: &str) -> Result<Vec<String
 
 // ---------------------------------------------------------------- 翻译历史（PRD §5.9）
 
-/// 历史列表每页最多多少条。上限是给前端兜底的：一次拉几千条会让窗口卡住，
+/// 历史列表每页最多多少条。上限是给界面兜底的：一次拉几千条会让窗口卡住，
 /// 而用户真正会翻的也就是最近这些。
 const HISTORY_PAGE_MAX: u32 = 500;
 
 /// 历史检索条件（PRD §5.9）：只有关键词搜索。来源 App / 模型筛选已退出（第四批精简），
 /// 存储层的筛选能力保留不动。
-#[derive(Debug, Clone, Default, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[derive(Debug, Clone, Default)]
 pub struct HistoryFilterDto {
     pub query: Option<String>,
 }
@@ -133,7 +110,6 @@ pub fn history_query(
         store.query(
             &umuo_store::HistoryFilter {
                 query: filter.query,
-                ..Default::default()
             },
             limit.min(HISTORY_PAGE_MAX),
             offset,
@@ -150,10 +126,9 @@ pub fn history_clear(core: &AppCore) -> Result<usize, String> {
     history::with_store(core, |store| store.clear())
 }
 
-/// 历史的一行。与 `umuo_store::Record` 分开是为了**不让存储层的形状直接变成 IPC 契约**：
-/// 表结构以后要加列时，前端不该被迫一起改。
-#[derive(Debug, Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
+/// 历史的一行。与 `umuo_store::Record` 分开是为了**不让存储层的形状直接变成 FFI 契约**：
+/// 表结构以后要加列时，Swift 不该被迫一起改。
+#[derive(Debug, Clone)]
 pub struct RecordDto {
     pub id: i64,
     pub created_at: i64,
@@ -171,7 +146,7 @@ pub struct RecordDto {
     pub estimated: bool,
 }
 
-/// 存储层记录 → IPC 记录。
+/// 存储层记录 → 界面记录。
 ///
 /// 用普通函数而不是 `impl From<Vec<...>> for Vec<...>`：后者会撞上孤儿规则
 /// （`Vec` 是外部类型），而且一个自由函数在这里读起来也更直白。
@@ -207,8 +182,7 @@ const PANEL_TEXT_LIMIT: usize = 60;
 ///
 /// **打成一个命令**而不是四个：面板一打开就要四样东西，四次往返只会让
 /// 它先渲染出一个半空的界面再跳一下。
-#[derive(Serialize)]
-#[serde(rename_all = "camelCase")]
+#[derive(Debug, Clone)]
 pub struct QuickState {
     pub paused: bool,
     pub provider_label: String,
@@ -216,11 +190,11 @@ pub struct QuickState {
     pub recent: Vec<QuickRecord>,
 }
 
-#[derive(Serialize)]
-#[serde(rename_all = "camelCase")]
+/// 快捷面板里的一条最近翻译，原文与译文已按面板宽度截断。
+#[derive(Debug, Clone)]
 pub struct QuickRecord {
-    /// 历史记录 id。**用它当列表 key**，不要用下标——
-    /// 列表会随新翻译而变化，下标当 key 会让 React 复用错行。
+    /// 历史记录 id。**用它当列表标识**，不要用下标——
+    /// 列表会随新翻译而变化，下标当标识会让 SwiftUI 复用错行。
     pub id: i64,
     pub source: String,
     pub translation: String,
@@ -305,12 +279,15 @@ pub fn import_config(core: &AppCore, path: &Path) -> Result<Imported, String> {
     let current = core.settings.lock().expect("设置锁不应中毒").clone();
     let glossaries = Glossaries::load(&core.config_dir);
     let prepared = config_io::prepare_import(&raw, &current, &glossaries)?;
-    prepared
-        .glossaries
-        .save(&core.config_dir)
-        .map_err(|e| e.to_string())?;
+    // 术语表在设置**校验通过之后、落盘之前**写：保存时对着最新文件再校验一次，
+    // 那次不通过也不能让术语表已经被覆盖。
     let patch = serde_json::to_value(&prepared.settings).expect("设置结构体一定可序列化");
-    let (settings, effects) = core.apply_settings_patch(patch)?;
+    let (settings, effects) = core.apply_settings_patch_with(patch, || {
+        prepared
+            .glossaries
+            .save(&core.config_dir)
+            .map_err(|e| e.to_string())
+    })?;
     Ok(Imported {
         summary: prepared.summary,
         settings,
@@ -375,18 +352,6 @@ mod tests {
     }
 
     #[test]
-    fn configured_providers_are_the_ones_with_a_key_plus_local_models() {
-        let core = open_in("configured");
-        let ids: Vec<String> = configured_providers(&core)
-            .into_iter()
-            .map(|p| p.id)
-            .collect();
-        assert!(ids.contains(&"deepseek".to_string()));
-        assert!(!ids.contains(&"openai".to_string()));
-        assert!(ids.contains(&"ollama".to_string()), "本地模型不要 Key");
-    }
-
-    #[test]
     fn an_exported_config_imports_back_through_the_settings_patch() {
         let core = open_in("export");
         core.apply_settings_patch(
@@ -401,6 +366,49 @@ mod tests {
         assert_eq!(imported.settings.theme, "dark");
         assert!(imported.effects.hotkeys);
         assert_eq!(*other.settings.lock().unwrap(), imported.settings);
+    }
+
+    #[test]
+    fn an_import_rejected_by_the_settings_patch_writes_no_file_at_all() {
+        // 内存里有一条已存在的局域网 http 覆盖（老配置，放行），导出包原样带着它，
+        // 预校验对着内存放行；之后设置文件被外部改掉、去掉了这条覆盖，
+        // 保存时对着重载的文件校验就会拒绝。这时术语表也不能已经被覆盖。
+        let core = open_in("import-rejected");
+        std::fs::write(
+            Settings::path_in(&core.config_dir),
+            r#"{"providerBaseUrls":{"openai":"http://10.0.0.1/v1"}}"#,
+        )
+        .unwrap();
+        *core.settings.lock().unwrap() = Settings::load(&core.config_dir);
+        let glossaries = core
+            .config_dir
+            .join(crate::legacy_glossaries::GLOSSARIES_FILE);
+        std::fs::write(&glossaries, r#"{"lists":[{"id":"local"}]}"#).unwrap();
+        let bundle = config_io::export_json(
+            &core.settings.lock().unwrap(),
+            &Glossaries {
+                lists: vec![serde_json::json!({ "id": "imported" })],
+                ..Glossaries::default()
+            },
+        );
+        let path = core.config_dir.join("bundle.json");
+        std::fs::write(&path, bundle).unwrap();
+        std::thread::sleep(std::time::Duration::from_millis(20));
+        std::fs::write(Settings::path_in(&core.config_dir), "{}").unwrap();
+        let glossary_bytes = std::fs::read(&glossaries).unwrap();
+        let settings_bytes = std::fs::read(Settings::path_in(&core.config_dir)).unwrap();
+
+        assert!(import_config(&core, &path).is_err());
+        assert_eq!(
+            std::fs::read(&glossaries).unwrap(),
+            glossary_bytes,
+            "术语表不变"
+        );
+        assert_eq!(
+            std::fs::read(Settings::path_in(&core.config_dir)).unwrap(),
+            settings_bytes,
+            "设置文件不变"
+        );
     }
 
     #[test]

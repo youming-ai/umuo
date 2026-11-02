@@ -14,8 +14,7 @@ use umuo_store::{NewRecord, Store};
 
 use crate::AppCore;
 
-/// 一次翻译的原始素材。时间戳与来源 App 由 [`record`] 补齐——
-/// 调用方在做翻译，不该操心这些。
+/// 一次翻译的原始素材。时间戳由 [`record`] 补齐。
 #[derive(Debug, Clone)]
 pub struct Draft {
     pub source_text: String,
@@ -25,8 +24,11 @@ pub struct Draft {
     pub provider_id: String,
     pub model: String,
     pub style_id: String,
-    /// 场景标签：selection / silentReplace / compose / compare。
+    /// 场景标签：selection / silentReplace / compose / ocr / voice（旧库里还可能有 compare）。
     pub scene: String,
+    /// 来源应用名，由调用方在**发起时**取一次：翻译要几秒，完成时的前台应用可能已经换了。
+    /// 拿不到就是 None，历史里留空，而不是塞个 pid 之类的占位符。
+    pub source_app: Option<String>,
     pub input_tokens: u32,
     pub output_tokens: u32,
     pub estimated: bool,
@@ -48,9 +50,6 @@ pub fn record(core: &AppCore, draft: Draft) {
         }
     }
 
-    // 来源应用名拿不到就是 None。历史里留空，而不是塞个 pid 之类的占位符。
-    let source_app = core.host.frontmost_app_name();
-
     let entry = NewRecord {
         created_at,
         source_text: draft.source_text,
@@ -61,7 +60,7 @@ pub fn record(core: &AppCore, draft: Draft) {
         model: draft.model,
         style_id: draft.style_id,
         scene: draft.scene,
-        source_app,
+        source_app: draft.source_app,
         input_tokens: draft.input_tokens,
         output_tokens: draft.output_tokens,
         estimated: draft.estimated,
@@ -70,7 +69,7 @@ pub fn record(core: &AppCore, draft: Draft) {
 
     let guard = core.store.lock().expect("存储锁不应中毒");
     let Some(store) = guard.as_ref() else {
-        // 启动时没能打开库（见 main.rs），此时静默跳过而不是反复报错。
+        // 启动时没能打开库（见 `AppCore::open`），此时静默跳过而不是反复报错。
         return;
     };
     if let Err(error) = store.insert(&entry) {
@@ -83,7 +82,7 @@ pub fn record(core: &AppCore, draft: Draft) {
 /// 返回 `Err` 时客户端**照常启动**：历史不可用不该让整个翻译工具打不开。
 ///
 /// 库文件损坏时挪成 `history.db.corrupt-<时间戳>` 再建新库——否则用户只能自己去
-/// 删文件，而这一整段会话的历史与月度上限都不可用。清理失败（比如磁盘将满）
+/// 删文件，而这一整段会话的历史都不可用。清理失败（比如磁盘将满）
 /// 只打日志：库本身是好的，不该因为删不掉旧记录就把它整个丢掉。
 pub fn open_and_prune(
     dir: &std::path::Path,
@@ -98,21 +97,33 @@ pub fn open_and_prune(
         );
     }
 
-    let pruned = if retention_days == 0 {
-        // 0 = 不自动清理。用户要么想全部留着，要么自己去清。
-        0
-    } else {
-        let cutoff = now_unix() - i64::from(retention_days) * 86_400;
-        store.prune_before(cutoff).unwrap_or_else(|error| {
-            eprintln!("umuo: 清理旧历史失败（历史仍可用）：{error}");
-            0
-        })
-    };
+    let pruned = prune(&store, retention_days);
     Ok((store, pruned))
 }
 
-/// 「本月」的起点与用量都交给存储层算——SQLite 自带 `localtime` 与 `start of month`
-/// 修饰符，比在这里手写日期算术（还要处理时区）靠谱得多。
+/// 按保留天数删掉超期的记录，返回删了几条。0 天 = 不自动清理（用户要么想全部留着，要么自己去清）。
+///
+/// 清理失败（比如磁盘将满）只打日志：库本身是好的，不该因为删不掉旧记录就不能用。
+fn prune(store: &Store, retention_days: u32) -> usize {
+    if retention_days == 0 {
+        return 0;
+    }
+    let cutoff = now_unix() - i64::from(retention_days) * 86_400;
+    store.prune_before(cutoff).unwrap_or_else(|error| {
+        eprintln!("umuo: 清理旧历史失败（历史仍可用）：{error}");
+        0
+    })
+}
+
+/// 保存设置后按新的保留天数清理一次：保留期改短了当场生效，不等下次启动。库不可用时什么都不做。
+pub fn prune_expired(core: &AppCore, retention_days: u32) {
+    let guard = core.store.lock().expect("存储锁不应中毒");
+    if let Some(store) = guard.as_ref() {
+        prune(store, retention_days);
+    }
+}
+
+/// 当前 Unix 秒。系统时钟早于 1970 年时为 0。
 pub fn now_unix() -> i64 {
     std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
@@ -120,7 +131,7 @@ pub fn now_unix() -> i64 {
         .unwrap_or(0)
 }
 
-/// 便捷包装：`AppState` 里有库时才执行查询。
+/// 便捷包装：[`AppCore`] 里有库时才执行查询，没有就返回打开失败的原因。
 pub fn with_store<T>(
     core: &AppCore,
     query: impl FnOnce(&Store) -> Result<T, umuo_store::StoreError>,

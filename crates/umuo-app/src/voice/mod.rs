@@ -28,12 +28,12 @@ use std::sync::Arc;
 use umuo_core::error::CoreError;
 use umuo_core::transport::{self, ChatTarget, StreamOptions};
 use umuo_core::wire::TokenUsage;
-use umuo_core::{lang, prompt, provider, voice};
+use umuo_core::{lang, prompt, voice};
 
 pub use umuo_core::voice::VoiceTask;
 
 use crate::settings::Settings;
-use crate::translate::resolve_model;
+use crate::translate::{resolve_endpoint, Endpoint};
 use crate::AppCore;
 
 /// 一次语音后处理的输入。
@@ -172,19 +172,10 @@ impl fmt::Display for VoiceFailure {
 impl std::error::Error for VoiceFailure {}
 
 impl AppCore {
-    /// [`run`] 的自有参数版本：返回的 future 是 `Send + 'static`，宿主可直接放到自己的运行时上跑。
+    /// 宿主（语音会话）用的入口：[`run`] + 成功后按 [`record_history`] 记一条历史。
     ///
+    /// 返回的 future 是 `Send + 'static`，宿主可直接放到自己的运行时上跑。
     /// `cancel` 由调用方持有（会话层按 Esc 或新会话顶掉旧会话时置位），语义同 [`run`]。
-    pub fn start_voice(
-        self: &Arc<Self>,
-        request: VoiceRequest,
-        cancel: Arc<AtomicBool>,
-    ) -> impl Future<Output = Result<VoiceOutput, VoiceFailure>> + Send + 'static {
-        let core = self.clone();
-        async move { run(&core, &request, &cancel).await }
-    }
-
-    /// 宿主（语音会话）用的入口：[`Self::start_voice`] + 成功后按 [`record_history`] 记一条历史。
     ///
     /// 历史在返回结果之前写：与文字翻译「显示与落库是同一次成功的两个后果」一致，落库失败只打日志。
     pub fn post_process_voice(
@@ -194,9 +185,11 @@ impl AppCore {
     ) -> impl Future<Output = Result<VoiceOutput, VoiceFailure>> + Send + 'static {
         let core = self.clone();
         async move {
+            // 来源 App 在发起时取一次（同文字翻译）：后处理要几秒，完成时前台可能已经换了。
+            let source_app = core.host.frontmost_app_name();
             let result = run(&core, &request, &cancel).await;
             if let Ok(output) = &result {
-                record_history(&core, output);
+                record_history(&core, output, source_app);
             }
             result
         }
@@ -210,7 +203,8 @@ pub const HISTORY_SCENE: &str = "voice";
 ///
 /// 规则与文字翻译相同：「关闭记录」与隐私模式下一条都不写（[`crate::history::record`] 负责）；
 /// **截断的不写**——历史里的结果会被当成完整结果复制、再利用。不保存音频。
-pub fn record_history(core: &AppCore, output: &VoiceOutput) {
+/// `source_app` 是发起时取到的来源应用名。
+pub fn record_history(core: &AppCore, output: &VoiceOutput, source_app: Option<String>) {
     if output.truncated {
         return;
     }
@@ -231,6 +225,7 @@ pub fn record_history(core: &AppCore, output: &VoiceOutput) {
             model: output.model.clone(),
             style_id: prompt::DEFAULT_STYLE_ID.to_string(),
             scene: HISTORY_SCENE.to_string(),
+            source_app,
             input_tokens: output.usage.input_tokens,
             output_tokens: output.usage.output_tokens,
             estimated: output.usage.estimated,
@@ -275,22 +270,12 @@ async fn process(
     // 锁只在这个语句里存活：MutexGuard 不能跨 await，否则 future 不是 Send。
     let settings: Settings = core.settings.lock().expect("设置锁不应中毒").clone();
 
-    let provider = provider::find_provider(&settings.provider_id)
-        .ok_or_else(|| failed(CoreError::NoEngine))?;
-    let api_key = core
-        .host
-        .api_key(provider.id)
-        .map_err(|e| {
-            failed(CoreError::BadResponse {
-                detail: format!("读取 Keychain 失败：{e}"),
-            })
-        })?
-        .unwrap_or_default();
-    if provider.requires_key() && api_key.trim().is_empty() {
-        return Err(failed(CoreError::MissingKey));
-    }
-    let base_url = settings.base_url_override(provider).map_err(failed)?;
-    let model = resolve_model(&settings, provider);
+    let Endpoint {
+        provider,
+        api_key,
+        base_url,
+        model,
+    } = resolve_endpoint(core, &settings).map_err(failed)?;
 
     let (source, output) = resolve_languages(request, transcript, &settings);
     let source_name = source.as_deref().map(lang::display_name);

@@ -4,7 +4,7 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 publish.workspace = true
-description = "umuo 本机存储：翻译历史、收藏与用量统计（SQLite）"
+description = "umuo 本机存储：翻译历史（SQLite；收藏与用量表只保留旧数据）"
 
 [dependencies]
 serde.workspace = true

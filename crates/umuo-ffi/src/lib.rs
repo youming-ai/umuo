@@ -61,39 +61,9 @@ pub fn provider_catalog() -> Vec<ProviderInfo> {
         .collect()
 }
 
-/// 第 0 阶段演示用的流式接收方，由 Swift 实现。真正的翻译走 [`event::TranslateSink`]。
-#[uniffi::export(foreign)]
-pub trait DeltaSink: Send + Sync {
-    fn on_delta(&self, text: String);
-    fn on_done(&self, full_text: String);
-}
-
-/// 第 0 阶段的回调演示：按字推送，验证 Rust → Swift 的回调与多字节字符都正确。
-#[uniffi::export]
-pub fn demo_stream(text: String, sink: std::sync::Arc<dyn DeltaSink>) {
-    let mut full = String::new();
-    for ch in text.chars() {
-        full.push(ch);
-        sink.on_delta(ch.to_string());
-    }
-    sink.on_done(full);
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::sync::Mutex;
-
-    #[derive(Default)]
-    struct Collect(Mutex<Vec<String>>);
-    impl DeltaSink for Collect {
-        fn on_delta(&self, text: String) {
-            self.0.lock().unwrap().push(text);
-        }
-        fn on_done(&self, full_text: String) {
-            self.0.lock().unwrap().push(format!("done:{full_text}"));
-        }
-    }
 
     #[test]
     fn exports_match_the_core() {
@@ -106,21 +76,5 @@ mod tests {
             provider_catalog().len(),
             umuo_core::provider::PROVIDERS.len()
         );
-    }
-
-    #[test]
-    fn demo_stream_keeps_multibyte_chars_whole() {
-        let sink = std::sync::Arc::new(Collect::default());
-        struct Forward(std::sync::Arc<Collect>);
-        impl DeltaSink for Forward {
-            fn on_delta(&self, text: String) {
-                self.0.on_delta(text)
-            }
-            fn on_done(&self, full_text: String) {
-                self.0.on_done(full_text)
-            }
-        }
-        demo_stream("你好".into(), std::sync::Arc::new(Forward(sink.clone())));
-        assert_eq!(*sink.0.lock().unwrap(), vec!["你", "好", "done:你好"]);
     }
 }

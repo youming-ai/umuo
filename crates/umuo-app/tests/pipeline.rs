@@ -30,6 +30,8 @@ struct Fake {
     keys: HashMap<String, String>,
     /// 前台应用的标识。测试中途改它，模拟「翻译期间用户切走了」。
     frontmost: Mutex<Option<String>>,
+    /// 前台应用的显示名（来源 App）。
+    app_name: Mutex<Option<String>>,
     /// 每次静默翻译的写回：（来源，原文，译文）。
     writes: Mutex<Vec<(FocusSource, String, String)>>,
 }
@@ -42,6 +44,7 @@ impl Fake {
                 .map(|(id, key)| (id.to_string(), key.to_string()))
                 .collect(),
             frontmost: Mutex::new(Some("pid-1".into())),
+            app_name: Mutex::new(Some("TextEdit".into())),
             writes: Mutex::new(Vec::new()),
         }
     }
@@ -56,7 +59,7 @@ impl Host for Fake {
         Ok(self.keys.get(provider_id).cloned())
     }
     fn frontmost_app_name(&self) -> Option<String> {
-        Some("TextEdit".into())
+        self.app_name.lock().unwrap().clone()
     }
     fn frontmost_app_token(&self) -> Option<String> {
         self.frontmost.lock().unwrap().clone()
@@ -783,6 +786,35 @@ async fn silent_replace_writes_back_only_after_success() {
 }
 
 #[tokio::test]
+async fn silent_replace_of_a_short_phrase_writes_back_the_translation_not_a_word_card() {
+    // ≤3 个词在浮窗里会走词卡；原地替换要写回的是译文，词卡 JSON 绝不能进用户的输入框。
+    let env = Env::new(|hit| match hit.path.as_str() {
+        "/openai/chat/completions" if hit.body.contains("part_of_speech") => sse(&[
+            r#"{"word":"hello world","senses":[{"part_of_speech":"n.","definition":"你好世界"}]}"#,
+        ]),
+        "/openai/chat/completions" => sse(&["你好，世界"]),
+        _ => not_found(),
+    })
+    .await;
+
+    let events = env.translate(silent("hello world"), Some("pid-1")).await;
+
+    assert_eq!(events[0].body["wordMode"], false, "写回模式不走词卡");
+    assert!(names(&events)
+        .iter()
+        .all(|name| *name != "translate://card"));
+    assert_eq!(events.last().unwrap().body["replaced"], true);
+    assert_eq!(
+        env.fake.writes(),
+        [(
+            FocusSource::WholeField,
+            "hello world".to_string(),
+            "你好，世界".to_string()
+        )]
+    );
+}
+
+#[tokio::test]
 async fn silent_replace_never_touches_the_document_when_translation_fails() {
     let env = Env::new(|hit| match hit.path.as_str() {
         "/openai/chat/completions" => server_error(),
@@ -882,6 +914,65 @@ async fn silent_replace_never_writes_back_if_cancelled_just_as_stream_completes(
         "流完成瞬间取消也绝不能写回原文"
     );
     assert_eq!(env.history_count(), 0);
+}
+
+#[tokio::test]
+async fn history_records_the_app_the_translation_was_started_from() {
+    // 来源 App 在发起时取一次：翻译期间用户切到别的应用，历史里记的仍是发起的那个。
+    let env = Env::new(|_| sse(&["译文"])).await;
+
+    struct SwitchAppOnStart(Arc<Fake>);
+    impl TranslateSink for SwitchAppOnStart {
+        fn send(&self, _: Route, event: TranslateEvent) {
+            if event.name() == "translate://start" {
+                *self.0.app_name.lock().unwrap() = Some("Slack".into());
+            }
+        }
+    }
+
+    let ticket = env.core.requests.begin(PANEL_LABEL);
+    translate::run(
+        &env.core,
+        &SwitchAppOnStart(env.fake.clone()),
+        Request::selection(SENTENCE),
+        None,
+        ticket,
+    )
+    .await;
+
+    let records = umuo_app::history::with_store(&env.core, |store| store.recent(1, 0)).unwrap();
+    assert_eq!(records[0].entry.source_app.as_deref(), Some("TextEdit"));
+}
+
+#[tokio::test]
+async fn remembering_a_per_app_target_keeps_an_external_edit_to_the_settings_file() {
+    // 按 App 记目标语言要写设置：文件被外部改过时先重载，不能拿内存旧值盖掉外部修改。
+    let env = Env::new(|_| sse(&["译文"])).await;
+    env.settings(|s| s.target_lang_mode = "perApp".into());
+    let path = env.core.config_dir.join("settings.json");
+    std::thread::sleep(Duration::from_millis(20));
+    std::fs::write(&path, r#"{"proxyMode":"none","theme":"dark"}"#).unwrap();
+
+    let chosen = Request::with_overrides(
+        SENTENCE,
+        translate::Mode::Compose,
+        translate::Overrides {
+            source_lang: None,
+            target_lang: Some("ja".into()),
+        },
+    );
+    let _ = env.translate(chosen, None).await;
+
+    let saved: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(&path).unwrap()).unwrap();
+    assert_eq!(saved["theme"], "dark", "外部修改不能被冲掉");
+    assert_eq!(saved["appTargetLangs"]["TextEdit"], "ja");
+    let memory = env.core.settings.lock().unwrap().clone();
+    assert_eq!(memory.theme, "dark");
+    assert_eq!(
+        memory.app_target_langs.get("TextEdit").map(String::as_str),
+        Some("ja")
+    );
 }
 
 #[tokio::test]

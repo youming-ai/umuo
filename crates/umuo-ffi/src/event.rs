@@ -67,10 +67,8 @@ pub struct CardSense {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, uniffi::Enum)]
 pub enum SuggestedAction {
     Retry,
-    SwitchModel,
     OpenModelSettings,
     CheckNetwork,
-    UseLocalModel,
 }
 
 /// 收翻译事件的一方，由 Swift 实现。
@@ -108,10 +106,8 @@ impl From<CoreAction> for SuggestedAction {
     fn from(action: CoreAction) -> Self {
         match action {
             CoreAction::Retry => Self::Retry,
-            CoreAction::SwitchModel => Self::SwitchModel,
             CoreAction::OpenModelSettings => Self::OpenModelSettings,
             CoreAction::CheckNetwork => Self::CheckNetwork,
-            CoreAction::UseLocalModel => Self::UseLocalModel,
         }
     }
 }

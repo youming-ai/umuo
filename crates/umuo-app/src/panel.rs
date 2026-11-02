@@ -3,7 +3,7 @@
 //! SwiftUI 客户端经 `umuo-ffi` 调用这份规则，避免在视图层重复实现。
 //!
 //! 标识（token）一律是前台应用的 pid 十进制字符串，与 `Host::frontmost_app_token` 同一口径；
-//! `own` 是本应用自己的 pid。浮窗归属是 `own` 表示「没有源应用」（截图 OCR、快捷面板输入）。
+//! `own` 是本应用自己的 pid。浮窗归属是 `own` 表示「没有源应用」（截图 OCR）。
 
 use umuo_core::error::CoreError;
 
@@ -18,7 +18,7 @@ use crate::translate::target_still_matches;
 /// 拿不到标识时**不收起**：宁可让浮窗多留一会儿，也不能让用户正在读的东西凭空消失。
 ///
 /// 前台是自己（用户在用本应用的撰写窗、设置窗）不算切走（审查 H5）。
-/// 浮窗归属于自己（没有源应用）时也不按切走收起——否则快捷面板一收起、焦点回到别的应用，
+/// 浮窗归属于自己（没有源应用）时也不按切走收起——否则截图框选一结束、焦点回到别的应用，
 /// 浮窗就跟着消失了。
 pub fn should_auto_hide(
     pinned: bool,
@@ -38,7 +38,7 @@ pub fn should_auto_hide(
 /// 浮窗「替换原文」写回前该怎么做（审查 H5）。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ReplacePlan {
-    /// 浮窗没有源应用（截图 OCR、快捷面板输入）：没有原文可替换。
+    /// 浮窗没有源应用（截图 OCR）：没有原文可替换。
     NoSource,
     /// 前台是本应用：先把源应用切回前台，等焦点回来再写。
     Refocus,
@@ -125,7 +125,7 @@ mod auto_hide_tests {
 
     #[test]
     fn a_panel_owned_by_umuo_itself_is_not_hidden_by_focus_changes() {
-        // 快捷面板输入：浮窗显示时前台是自己，面板收起后焦点回到别的应用也不该收起。
+        // 截图 OCR：浮窗显示时前台是自己，框选结束后焦点回到别的应用也不该收起。
         assert!(!should_auto_hide(false, Some(OWN), Some("app-B"), OWN));
     }
 }
@@ -146,7 +146,7 @@ mod replace_plan_tests {
 
     #[test]
     fn a_panel_without_a_source_app_has_nothing_to_replace() {
-        // 不能写回本应用自己：那会把译文打进快捷面板或浮窗。
+        // 不能写回本应用自己：那会把译文打进本应用的窗口。
         assert_eq!(
             plan_replace(Some(OWN), Some(OWN), OWN),
             ReplacePlan::NoSource
@@ -155,7 +155,7 @@ mod replace_plan_tests {
 
     #[test]
     fn entries_without_a_selection_never_write_back_or_auto_hide() {
-        // 截图 OCR / 快捷面板的结果不能写进上一次划词的应用、也不能写进截图结束后的前台应用。
+        // 截图 OCR 的结果不能写进上一次划词的应用、也不能写进截图结束后的前台应用。
         for current in [OWN, "app-A", "app-B"] {
             assert_eq!(
                 plan_replace(Some(OWN), Some(current), OWN),

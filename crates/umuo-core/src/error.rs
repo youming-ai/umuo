@@ -1,7 +1,7 @@
 //! 错误分类：把「一次失败的翻译」变成「用户能做的下一步」。
 //!
 //! PRD §7.5 要求错误不弹系统级警告框，只在结果卡片里给一条提示 + 可操作按钮
-//! （重试 / 切换模型 / 打开设置）。所以这里的核心不是错误文案，而是
+//! （重试 / 打开模型设置 / 检查网络）。所以这里的核心不是错误文案，而是
 //! [`SuggestedAction`]：UI 直接照它渲染按钮，不需要自己判断「这个错误该不该给重试」。
 //!
 //! 分类的全部难点在 [`classify_http_error`]：各家 HTTP 状态码相同但语义不同
@@ -12,19 +12,16 @@ use std::time::Duration;
 /// 结果卡片上可以给出的下一步动作。
 ///
 /// 保持这个枚举很小是刻意的：每多一个动作，就要在 UI 上多一次取舍。
+/// 只有一个当前模型（PRD §6.3），「换个模型」与「打开模型设置」是同一个去处，不再分开。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum SuggestedAction {
     /// 再发一次同样的请求（限流、超时、5xx）。
     Retry,
-    /// 换成备用模型（模型不可用、上下文超长）。
-    SwitchModel,
-    /// 打开「模型」设置页（Key 无效、余额不足、配置缺失）。
+    /// 打开「模型」设置页：Key 无效、余额不足、配置缺失，或该换个模型（模型不可用、上下文超长、截断）。
     OpenModelSettings,
     /// 检查网络或代理（不可达、DNS、TLS）。
     CheckNetwork,
-    /// 切换到本地模型（离线时的降级路径，PRD §7.5）。
-    UseLocalModel,
 }
 
 /// 内核错误分类。
@@ -113,26 +110,21 @@ impl CoreError {
     pub fn actions(&self) -> Vec<SuggestedAction> {
         match self {
             CoreError::RateLimited { .. } | CoreError::Timeout { .. } => {
-                vec![SuggestedAction::Retry, SuggestedAction::SwitchModel]
+                vec![SuggestedAction::Retry, SuggestedAction::OpenModelSettings]
             }
             // 5xx 与限流一样是「供应商侧的临时问题」：等一下或换一家都可能成功。
             CoreError::ServerError { .. } => {
-                vec![SuggestedAction::Retry, SuggestedAction::SwitchModel]
+                vec![SuggestedAction::Retry, SuggestedAction::OpenModelSettings]
             }
-            CoreError::Network { .. } => vec![
-                SuggestedAction::Retry,
-                SuggestedAction::CheckNetwork,
-                SuggestedAction::UseLocalModel,
-            ],
+            CoreError::Network { .. } => {
+                vec![SuggestedAction::Retry, SuggestedAction::CheckNetwork]
+            }
             CoreError::InvalidKey | CoreError::MissingKey | CoreError::InsufficientBalance => {
                 vec![SuggestedAction::OpenModelSettings]
             }
-            CoreError::ModelUnavailable { .. } => vec![
-                SuggestedAction::SwitchModel,
-                SuggestedAction::OpenModelSettings,
-            ],
+            CoreError::ModelUnavailable { .. } => vec![SuggestedAction::OpenModelSettings],
             CoreError::ContextTooLong => {
-                vec![SuggestedAction::SwitchModel, SuggestedAction::Retry]
+                vec![SuggestedAction::OpenModelSettings, SuggestedAction::Retry]
             }
             CoreError::RegionBlocked => vec![
                 SuggestedAction::OpenModelSettings,
@@ -144,7 +136,9 @@ impl CoreError {
             // 而在「目标已变」的情况下那正是我们要避免的行为。
             CoreError::WriteTargetChanged | CoreError::WriteBackFailed { .. } => vec![],
             // 截断多半是输出上限太小：换个模型最可能管用；连接中断的话重试也行。
-            CoreError::Truncated => vec![SuggestedAction::SwitchModel, SuggestedAction::Retry],
+            CoreError::Truncated => {
+                vec![SuggestedAction::OpenModelSettings, SuggestedAction::Retry]
+            }
             CoreError::CustomEndpointMissing
             | CoreError::AzureEndpointMissing
             | CoreError::NoEngine => {
@@ -277,7 +271,7 @@ fn extract_quoted(message: &str) -> Option<String> {
 }
 
 /// 错误体可能很长（有的供应商会回整段 Markdown），截断后再进 UI；
-/// 同时对常见的 Key 前缀（如 `sk-...`、`Bearer ...`）做脱敏，防止第三方端点在 400/500 错误里原样回显 Key。
+/// 同时经 [`redact_secrets`] 脱敏，防止第三方端点在 400/500 错误里原样回显 Key。
 fn summarize(body: &str) -> String {
     let trimmed = body.trim();
     if trimmed.is_empty() {
@@ -291,9 +285,16 @@ fn summarize(body: &str) -> String {
     out
 }
 
-fn redact_secrets(input: &str) -> String {
+/// 把文本里像凭据的片段换成 `[REDACTED]`：供应商错误体、流内错误、代理与网络错误都要过它再进界面或日志。
+///
+/// 认的格式：`Bearer <token>`、`sk-…`（OpenAI 系与多数中转）、`AIza…`（Gemini）、
+/// 恰好 32 位的独立十六进制串（Azure OpenAI 的 Key），以及 URL 里的 `user:pass@`（只去凭据、留主机，方便排查）。
+/// 宁可多遮一个长得像的请求 id，也不能让 Key 原样出现在浮窗或日志里。
+pub fn redact_secrets(input: &str) -> String {
     let mut out = String::with_capacity(input.len());
     let mut rest = input;
+    // 上一个原文字符是不是「词内」字符：32 位十六进制只在独立成词时才算 Key。
+    let mut prev_word = false;
     while !rest.is_empty() {
         if let Some(after_bearer) = rest
             .strip_prefix("Bearer ")
@@ -304,21 +305,40 @@ fn redact_secrets(input: &str) -> String {
                 .find(|c: char| c.is_whitespace() || matches!(c, '"' | '\'' | ',' | '}' | ')'))
                 .unwrap_or(after_bearer.len());
             rest = &after_bearer[token_len..];
+            prev_word = false;
             continue;
         }
-        if rest.starts_with("sk-") {
-            let token_len = rest
-                .find(|c: char| !(c.is_ascii_alphanumeric() || c == '-' || c == '_'))
-                .unwrap_or(rest.len());
-            if token_len >= 8 {
-                out.push_str("[REDACTED]");
-                rest = &rest[token_len..];
+        if let Some(after_scheme) = rest.strip_prefix("://") {
+            // 主机部分到第一个路径、查询或空白为止；其中有 `@` 就说明带了凭据。
+            let authority_len = after_scheme
+                .find(|c: char| {
+                    c.is_whitespace() || matches!(c, '/' | '?' | '#' | '"' | '\'' | ')' | '>')
+                })
+                .unwrap_or(after_scheme.len());
+            if let Some(at) = after_scheme[..authority_len].rfind('@') {
+                out.push_str("://[REDACTED]@");
+                rest = &after_scheme[at + 1..];
+                prev_word = false;
                 continue;
             }
+        }
+        let token_len = rest
+            .find(|c: char| !(c.is_ascii_alphanumeric() || c == '-' || c == '_'))
+            .unwrap_or(rest.len());
+        let token = &rest[..token_len];
+        let is_secret = (token.starts_with("sk-") && token_len >= 8)
+            || (token.starts_with("AIza") && token_len >= 30)
+            || (!prev_word && token_len == 32 && token.bytes().all(|b| b.is_ascii_hexdigit()));
+        if is_secret {
+            out.push_str("[REDACTED]");
+            rest = &rest[token_len..];
+            prev_word = false;
+            continue;
         }
         let ch = rest.chars().next().unwrap();
         out.push(ch);
         rest = &rest[ch.len_utf8()..];
+        prev_word = ch.is_alphanumeric() || ch == '-' || ch == '_';
     }
     out
 }
@@ -350,7 +370,7 @@ mod tests {
         }
         assert_eq!(
             err.actions(),
-            vec![SuggestedAction::Retry, SuggestedAction::SwitchModel]
+            vec![SuggestedAction::Retry, SuggestedAction::OpenModelSettings]
         );
     }
 
@@ -406,11 +426,23 @@ mod tests {
     }
 
     #[test]
-    fn a_truncated_translation_suggests_switching_model() {
+    fn a_truncated_translation_points_at_the_model_settings() {
         // 截断是在「成功」之后才判的：文本已经显示了，由用户决定要不要换模型再来。
         assert!(CoreError::Truncated
             .actions()
-            .contains(&SuggestedAction::SwitchModel));
+            .contains(&SuggestedAction::OpenModelSettings));
+    }
+
+    #[test]
+    fn a_network_failure_offers_retry_and_a_network_check_but_no_local_fallback() {
+        // 本机模型自动回落已退出（PRD §6.3）：断网时只给重试与检查网络。
+        let error = CoreError::Network {
+            message: "dns".to_string(),
+        };
+        assert_eq!(
+            error.actions(),
+            vec![SuggestedAction::Retry, SuggestedAction::CheckNetwork]
+        );
     }
 
     #[test]
@@ -445,7 +477,7 @@ mod tests {
         let err = classify_http_error(503, "", None);
         assert_eq!(
             err.actions(),
-            vec![SuggestedAction::Retry, SuggestedAction::SwitchModel]
+            vec![SuggestedAction::Retry, SuggestedAction::OpenModelSettings]
         );
     }
 
@@ -505,5 +537,43 @@ mod tests {
             }
             other => panic!("期望 BadResponse，实际 {other:?}"),
         }
+    }
+
+    #[test]
+    fn gemini_and_azure_keys_are_redacted_too() {
+        let gemini = "AIzaSyA1234567890abcdefghijklmnopqrstuv";
+        let azure = "0123456789abcdef0123456789ABCDEF";
+        let text = format!("key={gemini} api-key: {azure} end");
+        let redacted = redact_secrets(&text);
+        assert!(!redacted.contains(gemini), "{redacted}");
+        assert!(!redacted.contains(azure), "{redacted}");
+        assert!(
+            redacted.starts_with("key=") && redacted.ends_with(" end"),
+            "{redacted}"
+        );
+    }
+
+    #[test]
+    fn longer_hex_runs_and_ordinary_words_are_left_alone() {
+        // 只认恰好 32 位的独立十六进制串：64 位的哈希、普通单词与数字不动。
+        let sha = "a".repeat(64);
+        let text = format!("model gpt-4o-mini status 429 hash {sha} id deadbeef");
+        assert_eq!(redact_secrets(&text), text);
+    }
+
+    #[test]
+    fn credentials_in_urls_are_redacted() {
+        let redacted = redact_secrets("代理 socks5://alice:s3cret@proxy.example:1080 连不上");
+        assert!(!redacted.contains("alice"), "{redacted}");
+        assert!(!redacted.contains("s3cret"), "{redacted}");
+        assert!(
+            redacted.contains("proxy.example:1080"),
+            "主机留着，方便排查：{redacted}"
+        );
+        assert_eq!(
+            redact_secrets("https://api.example.com/v1?x=1"),
+            "https://api.example.com/v1?x=1",
+            "没有凭据的地址原样保留"
+        );
     }
 }

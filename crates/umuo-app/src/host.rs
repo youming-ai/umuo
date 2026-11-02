@@ -1,4 +1,4 @@
-//! 应用层要向Swift 原生宿主要的东西。
+//! 应用层要向 Swift 原生宿主要的东西。
 //!
 //! 原则：能提前取的值由宿主先取好再传进来，流水线中途必须现取的才走这里。
 
@@ -14,10 +14,11 @@ pub enum FocusSource {
 /// 宿主提供的平台能力，由 Swift 通过 HostBridge 直接调用 Apple API。
 pub trait Host: Send + Sync {
     /// 某个供应商的 API Key（Keychain：service `app.umuo.desktop`，account = 供应商 id）。
-    /// 预算检查要看其它供应商有没有配 Key，所以不能由宿主一次性预取。
+    /// 设置页查「配没配过」、拉模型列表都按供应商现取，所以不由宿主随请求预取。
     fn api_key(&self, provider_id: &str) -> Result<Option<String>, String>;
 
-    /// 当前前台应用的显示名，记在历史里作「来源应用」。要便宜：每条历史调一次。
+    /// 当前前台应用的显示名，用于历史的「来源应用」与按 App 记目标语言。
+    /// 要便宜：每次翻译发起时调一次。
     fn frontmost_app_name(&self) -> Option<String>;
 
     /// 当前前台应用的标识（macOS 上是 pid）。写回守卫拿它与取词时记下的比对。

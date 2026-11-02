@@ -1,7 +1,7 @@
 //! 应用设置的持久化。
 //!
-//! **这个文件里没有 API Key，将来也不许有。** Key 由 [`umuo_platform::SecretStore`]
-//! 存进系统凭据存储，这里只放「不敏感但需要记住」的偏好。
+//! **这个文件里没有 API Key，将来也不许有。** Key 由 Swift 宿主存进系统 Keychain，
+//! Rust 只经 [`crate::Host::api_key`] 读取；这里只放「不敏感但需要记住」的偏好。
 //! 结构体上有一条测试专门守这个不变量（`settings_json_never_contains_a_key`）。
 
 use std::io;
@@ -46,13 +46,6 @@ pub fn parse_selection_blacklist(text: &str) -> Vec<String> {
     }
     out
 }
-
-/// 界面缩放的合法档位。任意值会让排版在各种窗口里各自坏掉，
-/// 所以只给四档——覆盖"小一点/正常/大一点/很大"。
-pub const UI_SCALES: [f64; 4] = [0.85, 1.0, 1.25, 1.5];
-
-/// 归一化时找最近档位用的有序副本（UI_SCALES 本身已按升序书写）。
-const UI_SCALES_BY_VALUE: [f64; 4] = UI_SCALES;
 
 /// 默认界面缩放：1.0（跟随系统）。
 fn default_ui_scale() -> f64 {
@@ -100,11 +93,9 @@ pub struct Settings {
     pub compare_hotkey: String,
     /// 截图 OCR 的全局快捷键，默认 ⌥⌘O。
     pub ocr_hotkey: String,
-    /// 静默 OCR（识别后只复制原文，不翻译不弹窗）的快捷键，默认 ⌥⇧O（PRD §5.5）。
     /// 旧静默 OCR 快捷键，仅保留读写兼容，不再注册。
     pub ocr_silent_hotkey: String,
-    /// 朗读选中文本（PRD §7.2）。
-    /// 旧独立朗读快捷键，仅保留读写兼容；结果朗读仍可用。
+    /// 旧独立朗读快捷键，仅保留读写兼容，不再注册；结果朗读仍可用。
     pub speak_hotkey: String,
     /// 语音输入「按住说话」（同语言整理）的全局快捷键，默认 ⌥⌘V（PRD §5.11）。
     /// 按住说话要按下与松开两个事件，只接受组合键，不接受连按两下修饰键。
@@ -121,10 +112,10 @@ pub struct Settings {
     /// 会落在同一个地方，不必再加一个字段。
     #[serde(default)]
     pub provider_base_urls: std::collections::BTreeMap<String, String>,
-    /// 主题（PRD §7.3 通用）：`system` / `light` / `dark` / `highContrast`。
+    /// 主题（PRD §7.3 通用）：`system` / `light` / `dark`。
     ///
     /// 存成字符串而不是枚举：手改配置、或旧版本写进来的值都不该让设置文件读不出来。
-    /// 认不出来的值由客户端的 `resolveTheme` 回落「跟随系统」。
+    /// 旧版的 `highContrast` 与认不出来的值由 Swift 宿主按「跟随系统」处理（高对比度交给系统设置）。
     #[serde(default = "default_theme")]
     pub theme: String,
     /// 母语（PRD §7.3 语言组）。
@@ -136,11 +127,11 @@ pub struct Settings {
     /// 取词黑名单（PRD §7.3）：这些应用里**连读都不读**。
     ///
     /// 把密码管理器里选中的内容发给云端是安全事故，不是体验问题——
-    /// 所以判定的位置在**读取之前**（见 translator 的取词路径）。
+    /// 所以判定的位置在**读取之前**（Swift 宿主取词前按 [`Self::is_selection_blocked`] 判断）。
     /// 匹配不区分大小写、且支持双向包含（填 "keepass" 也能命中 KeePassXC）。
     #[serde(default = "default_selection_blacklist")]
     pub selection_blacklist: Vec<String>,
-    /// 界面缩放（PRD §7.3 通用）。1.0 = 跟随系统；只接受预设档位。
+    /// 旧界面缩放，仅保留读写兼容：SwiftUI 客户端跟随系统字号，不读取它。
     #[serde(default = "default_ui_scale")]
     pub ui_scale: f64,
     /// 代理模式（PRD §8）：`system`（默认，跟随系统）/ `none`（直连）/ `custom`。
@@ -332,27 +323,6 @@ impl Settings {
     ///
     pub fn normalize_selection_blacklist(&mut self) {
         self.selection_blacklist = parse_selection_blacklist(&self.selection_blacklist.join("\n"));
-    }
-
-    /// 归一化后的界面缩放：不在档位里的值取最接近的一档。
-    ///
-    /// 手改配置写进来的 1.1 不该被原样接受——四个窗口各自按它缩放，
-    /// 排版问题会以最难归因的方式出现。
-    pub fn normalized_ui_scale(&self) -> f64 {
-        // 非有限值（NaN / ±inf）**显式**回默认，而不是靠数值比较碰运气——
-        // inf 到四档的距离全是无穷大，min_by 会随实现返回任意一档（这条测试抓到过）。
-        if !self.ui_scale.is_finite() {
-            return 1.0;
-        }
-        UI_SCALES_BY_VALUE
-            .iter()
-            .copied()
-            .min_by(|a, b| {
-                (a - self.ui_scale)
-                    .abs()
-                    .total_cmp(&(b - self.ui_scale).abs())
-            })
-            .unwrap_or(1.0)
     }
 
     /// 当前会注册的快捷键（四个翻译入口 + 两个语音键），按固定顺序；退役字段仅为旧配置兼容保留。
@@ -623,33 +593,6 @@ mod tests {
 
         let loaded = Settings::load(&dir);
         assert_eq!(loaded, settings);
-    }
-
-    #[test]
-    fn an_off_scale_value_snaps_to_the_nearest_step() {
-        // 四个窗口各自按缩放值排版，任意值会让排版问题以最难归因的方式出现。
-        let mut settings = Settings {
-            ui_scale: 1.1,
-            ..Settings::default()
-        };
-        assert_eq!(settings.normalized_ui_scale(), 1.0, "1.1 离 1.0 更近");
-        settings.ui_scale = 1.4;
-        assert_eq!(settings.normalized_ui_scale(), 1.5, "1.4 离 1.5 更近");
-        settings.ui_scale = 0.85;
-        assert_eq!(settings.normalized_ui_scale(), 0.85);
-    }
-
-    #[test]
-    fn a_broken_scale_value_falls_back_to_normal() {
-        // 手改配置写进来的 NaN / inf 不该让窗口缩放跟着坏掉。
-        let mut settings = Settings {
-            ui_scale: f64::NAN,
-            ..Settings::default()
-        };
-        assert_eq!(settings.normalized_ui_scale(), 1.0);
-        settings.ui_scale = f64::INFINITY;
-        // 到四档的距离全是无穷大，数值比较没有意义——所以显式回默认。
-        assert_eq!(settings.normalized_ui_scale(), 1.0);
     }
 
     #[test]

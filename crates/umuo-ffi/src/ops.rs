@@ -1,4 +1,4 @@
-//! `umuo_app::ops` 的其余命令经 [`Engine`] 导出：历史、收藏、用量、Key 状态与模型列表、
+//! `umuo_app::ops` 的其余命令经 [`Engine`] 导出：供应商目录、Key 状态与模型列表、历史、
 //! 配置导入导出、快捷面板，以及宿主自己发提示时要的请求登记。
 //!
 //! 和 [`crate::event`] 一样**只做换型**：DTO 摊平成 Record，`From` 一律用不带 `..` 的解构，
@@ -19,7 +19,7 @@ fn failed(message: String) -> EngineError {
 
 // ---------------------------------------------------------------- 供应商、Key
 
-/// 供应商目录里的一条，设置页与浮窗「换个模型」要的全部字段（`ops::ProviderDto`）。
+/// 供应商目录里的一条，设置页要的全部字段（`ops::ProviderDto`）。
 #[derive(Debug, Clone, uniffi::Record)]
 pub struct ProviderDetail {
     pub id: String,
@@ -183,7 +183,7 @@ pub struct ImportResult {
     pub blacklist_removed: Vec<String>,
     /// 规范化之后的整份设置（JSON，同 `SettingsUpdate.settings_json`）。
     pub settings_json: String,
-    /// 快捷键改了：Swift 要当场重注册（Tauri 在这里跑 `run_settings_effects`）。
+    /// 快捷键改了：Swift 要当场重注册。
     pub hotkeys_changed: bool,
 }
 
@@ -198,7 +198,7 @@ impl Engine {
     /// 为 `surface` 窗口登记一次新请求并返回 id，同一窗口的上一次请求随之取消。
     ///
     /// 不经流水线的提示（取词失败、黑名单、缺权限、截图识别不到文字）用它：拿到 id 后由宿主自己
-    /// 发一条 `Error` 事件，与 Tauri 的 `translator::emit_notice` 一样，浮窗按 id 把旧请求的迟到事件丢掉。
+    /// 发一条 `Error` 事件；浮窗按 id 把旧请求的迟到事件丢掉。
     pub fn begin_request(&self, surface: String) -> u64 {
         self.core.requests.begin(&surface).id
     }
@@ -209,14 +209,6 @@ impl Engine {
     }
 
     // ------------------------------------------------ 供应商、Key
-
-    /// 浮窗「换个模型」要的：这次真能用的供应商（已配 Key 的，加上本地模型）。逐家读 Keychain。
-    pub fn configured_providers(&self) -> Vec<ProviderDetail> {
-        ops::configured_providers(&self.core)
-            .into_iter()
-            .map(Into::into)
-            .collect()
-    }
 
     /// 只回「配没配过」，不回明文。空白 Key 等于没配。
     pub fn key_status(&self, provider_id: String) -> Result<bool, EngineError> {
@@ -249,7 +241,7 @@ impl Engine {
         ops::history_delete(&self.core, id).map_err(failed)
     }
 
-    /// 清空历史（收藏不受影响），返回清掉的条数。
+    /// 清空历史，返回清掉的条数。库里的旧收藏与用量账本不受影响。
     pub fn history_clear(&self) -> Result<u32, EngineError> {
         ops::history_clear(&self.core).map(count).map_err(failed)
     }
@@ -386,17 +378,10 @@ mod tests {
     }
 
     #[test]
-    fn keys_and_providers_follow_the_host() {
+    fn keys_follow_the_host_and_providers_follow_the_catalog() {
         let engine = open();
         assert!(engine.key_status("deepseek".into()).unwrap());
         assert!(!engine.key_status("openai".into()).unwrap());
-        let ids: Vec<String> = engine
-            .configured_providers()
-            .into_iter()
-            .map(|p| p.id)
-            .collect();
-        assert!(ids.contains(&"deepseek".to_string()) && ids.contains(&"ollama".to_string()));
-        assert!(!ids.contains(&"openai".to_string()));
         assert_eq!(
             provider_details().len(),
             umuo_core::provider::PROVIDERS.len()

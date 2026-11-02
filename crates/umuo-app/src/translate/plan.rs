@@ -2,7 +2,6 @@
 //!
 //! 全是纯函数与数据，不发请求、不碰宿主——流水线（`super`）按这里的结论去执行。
 
-use umuo_core::error::CoreError;
 use umuo_core::provider;
 
 use crate::host::FocusSource;
@@ -22,25 +21,6 @@ pub fn resolve_source<'a>(request: &'a Request, detected: Option<&'a str>) -> Op
     match request.source_override.as_deref().map(str::trim) {
         Some(pinned) if !pinned.is_empty() => Some(pinned),
         _ => detected,
-    }
-}
-
-/// 浮窗的「重译」允许指定的模式（PRD §5.2 / §5.5）。
-///
-/// **只放 Selection 与 Ocr 进来。** 其余两个各自有专门的入口：
-/// 撰写窗的结果要去另一个窗口，静默替换会真的改写用户的文档——
-/// 让浮窗的重译按钮有机会触发它们，是纯粹的意外通道。
-pub fn retranslate_mode(id: Option<&str>) -> Result<Mode, CoreError> {
-    match id.map(str::trim).filter(|value| !value.is_empty()) {
-        None => Ok(Mode::Selection),
-        // 走 `from_id` 而不是再手写一遍映射：两处映射迟早会分叉，
-        // 而分叉的表现是「某个模式在别处能识别、在这里被拒」，很难查。
-        Some(value) => match Mode::from_id(value) {
-            Some(mode @ (Mode::Selection | Mode::Ocr)) => Ok(mode),
-            _ => Err(CoreError::BadResponse {
-                detail: format!("重译不支持的模式：{value}（只支持 selection 与 ocr）"),
-            }),
-        },
     }
 }
 
@@ -75,17 +55,6 @@ impl Mode {
             Mode::SilentReplace => "silentReplace",
             Mode::Compose => "compose",
             Mode::Ocr => "ocr",
-        }
-    }
-
-    /// 从字符串还原。`as_str` 的逆运算（有往返测试钉住）。
-    pub fn from_id(id: &str) -> Option<Self> {
-        match id {
-            "selection" => Some(Mode::Selection),
-            "silentReplace" => Some(Mode::SilentReplace),
-            "compose" => Some(Mode::Compose),
-            "ocr" => Some(Mode::Ocr),
-            _ => None,
         }
     }
 
@@ -159,11 +128,6 @@ impl Request {
         Self::base(text, Mode::Selection)
     }
 
-    /// 浮窗的「重译」：同一段原文用当前模型再翻一次。
-    pub fn retranslate(text: impl Into<String>, mode: Mode) -> Self {
-        Self::base(text, mode)
-    }
-
     pub fn silent_replace(text: impl Into<String>, source: FocusSource) -> Self {
         Self {
             focus_source: Some(source),
@@ -233,40 +197,12 @@ mod mode_tests {
     use super::*;
 
     #[test]
-    fn mode_strings_round_trip() {
+    fn mode_strings_are_pinned() {
         // 前端按这个字符串决定展示文案，改了就是破坏性变更。
-        for mode in [
-            Mode::Selection,
-            Mode::SilentReplace,
-            Mode::Compose,
-            Mode::Ocr,
-        ] {
-            assert_eq!(Mode::from_id(mode.as_str()), Some(mode));
-        }
-        assert_eq!(Mode::from_id("nonsense"), None);
-    }
-
-    #[test]
-    fn retranslate_defaults_to_selection() {
-        assert_eq!(retranslate_mode(None).unwrap(), Mode::Selection);
-        assert_eq!(retranslate_mode(Some("")).unwrap(), Mode::Selection);
-        assert_eq!(retranslate_mode(Some("  ")).unwrap(), Mode::Selection);
-    }
-
-    #[test]
-    fn retranslate_keeps_the_ocr_mode_so_the_source_stays_editable() {
-        // 这条是「可编辑后重译」能**反复**用的前提：重译后模式退回 selection 的话，
-        // 原文立刻又变成只读，用户只能改一次。
-        assert_eq!(retranslate_mode(Some("ocr")).unwrap(), Mode::Ocr);
-    }
-
-    #[test]
-    fn retranslate_refuses_modes_that_have_their_own_entry_points() {
-        // 撰写窗的结果要去另一个窗口；静默替换会真的改写用户的文档。
-        // 浮窗的重译按钮不该有通道触发它们。
-        assert!(retranslate_mode(Some("compose")).is_err());
-        assert!(retranslate_mode(Some("silentReplace")).is_err());
-        assert!(retranslate_mode(Some("nonsense")).is_err());
+        assert_eq!(Mode::Selection.as_str(), "selection");
+        assert_eq!(Mode::SilentReplace.as_str(), "silentReplace");
+        assert_eq!(Mode::Compose.as_str(), "compose");
+        assert_eq!(Mode::Ocr.as_str(), "ocr");
     }
 }
 

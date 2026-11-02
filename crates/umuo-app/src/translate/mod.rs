@@ -1,7 +1,7 @@
 //! 翻译流水线：规划 → 流式请求（分片）→ 写回 → 落库 → 事件。
 //!
 //! 这一层只做「组装」：语言判断、Prompt、计量、传输都在 `umuo-core` 里。
-//! 平台能力（Keychain、前台应用、写回）经 [`Host`](crate::Host) 向宿主要，结果经 [`TranslateSink`] 发出；
+//! 平台能力（Keychain、前台应用、写回）经 [`Host`] 向宿主要，结果经 [`TranslateSink`] 发出；
 //! 取词、窗口定位这些留在宿主里。
 //!
 //! 只用一个当前模型（PRD §6.3）：分场景模型、备用顺序、月度上限换供应商与本机自动回落都已退出，
@@ -10,9 +10,6 @@
 mod plan;
 
 pub use plan::*;
-
-use std::future::Future;
-use std::sync::Arc;
 
 use umuo_core::error::CoreError;
 use umuo_core::transport::{self, ChatTarget, ChunkTarget, StreamOptions};
@@ -30,25 +27,6 @@ use crate::AppCore;
 /// 流水线里用的发送：只认 [`TranslateSink`]，不碰窗口系统。
 fn send(sink: &dyn TranslateSink, route: Route, event: impl Into<TranslateEvent>) {
     sink.send(route, event.into());
-}
-
-impl AppCore {
-    /// 从别处传入文本时用这个：浮窗的「重译」按钮、撰写窗的翻译命令、截图 OCR 的结果。
-    ///
-    /// `guard` 只有静默翻译才需要——它是写回前的目标校验凭据。
-    ///
-    /// 登记在调用时**同步**完成：新请求立刻顶掉同一窗口的旧请求，不必等异步任务排上队。
-    /// 返回的 future 由宿主放到自己的运行时上跑。
-    pub fn start_translation(
-        self: &Arc<Self>,
-        request: Request,
-        guard: Option<String>,
-        sink: Arc<dyn TranslateSink>,
-    ) -> impl Future<Output = ()> + Send + 'static {
-        let ticket = self.requests.begin(request.mode.surface());
-        let core = self.clone();
-        async move { run(&core, &*sink, request, guard, ticket).await }
-    }
 }
 
 /// 用一张已经登记好的凭据跑一次翻译。
@@ -71,6 +49,39 @@ pub async fn run(
     }
 }
 
+/// 这次请求发往哪里：供应商、Key、端点覆盖与模型。
+pub(crate) struct Endpoint {
+    pub provider: &'static provider::Provider,
+    pub api_key: String,
+    pub base_url: Option<String>,
+    pub model: String,
+}
+
+/// 按设置解析当前供应商 → 读 Key → 校验 → 端点覆盖 → 模型。文字翻译与语音后处理共用这一份。
+pub(crate) fn resolve_endpoint(core: &AppCore, settings: &Settings) -> Result<Endpoint, CoreError> {
+    let provider = provider::find_provider(&settings.provider_id).ok_or(CoreError::NoEngine)?;
+    let api_key = core
+        .host
+        .api_key(provider.id)
+        .map_err(|e| CoreError::BadResponse {
+            detail: format!("读取 Keychain 失败：{e}"),
+        })?
+        .unwrap_or_default();
+    // 本机供应商（Ollama / LM Studio）没有 Key 条目，照常发请求。
+    if provider.requires_key() && api_key.trim().is_empty() {
+        return Err(CoreError::MissingKey);
+    }
+    // 自定义端点没填地址时直接报错，而不是把空地址发出去。
+    let base_url = settings.base_url_override(provider)?;
+    let model = resolve_model(settings, provider);
+    Ok(Endpoint {
+        provider,
+        api_key,
+        base_url,
+        model,
+    })
+}
+
 /// 流水线向外要的全部东西：应用层状态（含宿主）与事件出口。
 struct Deps<'a> {
     core: &'a AppCore,
@@ -90,22 +101,12 @@ async fn translate(
     // 锁只在这个语句里存活：MutexGuard 不能跨 await，否则 future 不是 Send。
     let settings: Settings = state.settings.lock().expect("设置锁不应中毒").clone();
 
-    let provider = provider::find_provider(&settings.provider_id).ok_or(CoreError::NoEngine)?;
-    let api_key = deps
-        .core
-        .host
-        .api_key(provider.id)
-        .map_err(|e| CoreError::BadResponse {
-            detail: format!("读取 Keychain 失败：{e}"),
-        })?
-        .unwrap_or_default();
-    // 本机供应商（Ollama / LM Studio）没有 Key 条目，照常发请求。
-    if provider.requires_key() && api_key.trim().is_empty() {
-        return Err(CoreError::MissingKey);
-    }
-    // 自定义端点没填地址时直接报错，而不是把空地址发出去。
-    let base_url = settings.base_url_override(provider)?;
-    let model = resolve_model(&settings, provider);
+    let Endpoint {
+        provider,
+        api_key,
+        base_url,
+        model,
+    } = resolve_endpoint(state, &settings)?;
 
     // 语言判断与目标切换（PRD §5.2）：源语言 == 第一目标语言时改用第二目标语言。
     // 撰写窗显式选了目标语言时不做切换——那是用户的明确意图，
@@ -116,16 +117,18 @@ async fn translate(
     let source = resolve_source(request, detected.as_deref());
     // PRD §5.4 的目标语言规则：显式指定 > 按 App 记忆 > 常规规则。
     //
-    // 只有开了「按 App 记忆」才去读来源 App——那是一次 AX 往返（十几毫秒），
-    // 默认路径不该付这个成本（PRD §8 的唤起速度门槛很紧）。
+    // 来源 App 在**发起时**取一次，按 App 记忆与历史的「来源应用」共用：翻译要几秒，
+    // 完成时再取，拿到的可能是用户已经切过去的另一个应用。两处都用不到时不取。
     let per_app = settings.uses_per_app_target();
-    let app_name = if per_app {
+    let records_history = settings.history_enabled && !settings.privacy_mode;
+    let app_name = if per_app || records_history {
         deps.core.host.frontmost_app_name()
     } else {
         None
     };
     let remembered = app_name
         .as_deref()
+        .filter(|_| per_app)
         .and_then(|app| settings.app_target_langs.get(app))
         .cloned();
 
@@ -149,16 +152,10 @@ async fn translate(
                 .filter(|v| !v.is_empty()),
         ) {
             if settings.app_target_langs.get(app).map(String::as_str) != Some(chosen) {
-                // 在锁里对**最新**设置打补丁，而不是把请求开始时的快照整份写回：
-                // 中间隔着 Keychain 与 AX 查询，这段时间里用户在设置窗改的东西会被冲掉。
-                let mut current = state.settings.lock().expect("设置锁不应中毒");
-                let mut updated = current.clone();
+                // 对**最新**设置打补丁，而不是把请求开始时的快照整份写回：中间隔着 Keychain 查询，
+                // 这段时间里用户在设置窗改的、或在外部改过文件的东西都不能被冲掉。
                 // 存不下也不影响这次翻译，只是下次还得再选一次。
-                if updated.remember_app_target(app, chosen)
-                    && updated.save(&state.config_dir).is_ok()
-                {
-                    *current = updated;
-                }
+                state.update_settings(|latest| latest.remember_app_target(app, chosen));
             }
         }
     }
@@ -172,7 +169,8 @@ async fn translate(
 
     // 单选一个词（≤3 个词）时走词卡（PRD §5.2），其余的走普通翻译。
     // 判定与 Prompt 都来自核心层的同一份实现，客户端不重复写一遍。
-    let word_mode = umuo_core::word_card::is_word_mode(text);
+    // 原地替换要把结果写回用户的输入框：那里要的是译文，词卡 JSON 绝不能写进去。
+    let word_mode = !mode.write_back() && umuo_core::word_card::is_word_mode(text);
     let chat = if word_mode {
         umuo_core::word_card::build_request(text, &vars)
     } else {
@@ -346,6 +344,7 @@ async fn translate(
                 model: model.clone(),
                 style_id: prompt::DEFAULT_STYLE_ID.to_string(),
                 scene: mode.as_str().to_string(),
+                source_app: app_name,
                 input_tokens: outcome.usage.input_tokens,
                 output_tokens: outcome.usage.output_tokens,
                 estimated: outcome.usage.estimated,
@@ -406,62 +405,16 @@ fn emit_core_error(sink: &dyn TranslateSink, route: Route, source: &str, error: 
 
 #[cfg(test)]
 mod tests {
-    use std::sync::atomic::Ordering;
-
     use super::*;
-
-    struct NoHost;
-
-    impl Host for NoHost {
-        fn api_key(&self, _: &str) -> Result<Option<String>, String> {
-            Ok(None)
-        }
-        fn frontmost_app_name(&self) -> Option<String> {
-            None
-        }
-        fn frontmost_app_token(&self) -> Option<String> {
-            None
-        }
-        fn write_back(&self, _: FocusSource, _: &str, _: &str) -> Result<(), String> {
-            unreachable!("这些测试不跑流水线")
-        }
-    }
-
-    struct NoSink;
-
-    impl TranslateSink for NoSink {
-        fn send(&self, _: Route, _: TranslateEvent) {}
-    }
-
-    fn core() -> Arc<AppCore> {
-        let dir = std::env::temp_dir().join(format!("umuo-app-translate-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&dir);
-        std::fs::create_dir_all(&dir).unwrap();
-        Arc::new(AppCore::open(dir, Arc::new(NoHost)).unwrap())
-    }
 
     #[test]
     fn events_go_to_the_window_the_mode_belongs_to() {
-        // 窗口标签是外壳与前端共用的契约：外壳的 PANEL_LABEL / COMPOSE_LABEL 就是它们的别名。
+        // 窗口标签是宿主与流水线共用的契约：Swift 按它把事件分给浮窗或撰写窗。
         assert_eq!(PANEL_SURFACE, "panel");
         assert_eq!(COMPOSE_SURFACE, "compose");
         for mode in [Mode::Selection, Mode::SilentReplace, Mode::Ocr] {
             assert_eq!(mode.surface(), PANEL_SURFACE);
         }
         assert_eq!(Mode::Compose.surface(), COMPOSE_SURFACE);
-    }
-
-    #[test]
-    fn starting_a_translation_supersedes_the_previous_one_on_the_same_window_right_away() {
-        // 登记是同步的：返回的 future 还没被运行时排上，旧请求就已经被顶掉。
-        let core = core();
-        let old = core.requests.begin(PANEL_SURFACE);
-        let compose = core.requests.begin(COMPOSE_SURFACE);
-
-        let run = core.start_translation(Request::selection("hello"), None, Arc::new(NoSink));
-
-        assert!(old.cancel.load(Ordering::Relaxed), "同一窗口的旧请求被取消");
-        assert!(!compose.cancel.load(Ordering::Relaxed), "别的窗口不受影响");
-        drop(run);
     }
 }

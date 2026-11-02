@@ -14,7 +14,7 @@ use std::time::{Duration, Instant};
 
 use futures_util::StreamExt;
 
-use crate::error::{classify_http_error, CoreError};
+use crate::error::{classify_http_error, redact_secrets, CoreError};
 use crate::provider::{Protocol, Provider};
 use crate::wire::{
     build_chat_request_at, parse_stream_event, ChatRequest, SseDecoder, StreamEvent, TokenUsage,
@@ -35,29 +35,23 @@ const ERROR_BODY_TIMEOUT: Duration = Duration::from_secs(10);
 const CANCEL_POLL_INTERVAL: Duration = Duration::from_millis(100);
 
 /// 分片路径同时在途的请求数上限（审查：切分门槛降到几千字后，长文动辄几十片，
-/// 全部同时发出会撞上厂商的 RPM/TPM 限流，限流又触发整批故障转移，下一个候选
-/// 照样被打满）。4 路并发已经能把总耗时压到串行的几分之一。
+/// 全部同时发出会撞上厂商的 RPM/TPM 限流，整批失败）。4 路并发已经能把总耗时压到串行的几分之一。
 pub const MAX_CONCURRENT_CHUNKS: usize = 4;
 
 /// 重定向最多跟几跳。自定义策略会顶掉 reqwest 默认的 10 跳上限，这里补回来。
 const MAX_REDIRECTS: usize = 10;
 
-/// 构造 HTTP 客户端。
+/// 按代理意图构建 HTTP 客户端（PRD §8）。
 ///
 /// 刻意不带任何遥测 / 追踪头：BYOK 模式下请求是用户与供应商之间的事，
 /// 我们连自己的标识都不该加进去。
-pub fn build_client() -> Result<reqwest::Client, CoreError> {
-    build_client_with(&crate::proxy::ProxyChoice::System)
-}
-
-/// 按代理意图构建客户端（PRD §8）。
 ///
 /// 三种意图的来源不同，所以必须**显式**落下去：
-/// - [`ProxyChoice::System`]：什么都不设，交给 reqwest 读系统代理（macOS 上由
+/// - [`ProxyChoice::System`](crate::proxy::ProxyChoice::System)：什么都不设，交给 reqwest 读系统代理（macOS 上由
 ///   `system-proxy` feature 提供）；
-/// - [`ProxyChoice::Direct`]：`no_proxy()`——注意它连系统代理也一起忽略，
+/// - [`ProxyChoice::Direct`](crate::proxy::ProxyChoice::Direct)：`no_proxy()`——注意它连系统代理也一起忽略，
 ///   这才是"直连"应有的语义（否则公司网络里根本绕不开那个代理）；
-/// - [`ProxyChoice::Custom`]：`Proxy::all`，http/https/socks5 都走同一条。
+/// - [`ProxyChoice::Custom`](crate::proxy::ProxyChoice::Custom)：`Proxy::all`，http/https/socks5 都走同一条。
 pub fn build_client_with(choice: &crate::proxy::ProxyChoice) -> Result<reqwest::Client, CoreError> {
     let mut builder =
         reqwest::Client::builder().user_agent(concat!("umuo/", env!("CARGO_PKG_VERSION")));
@@ -67,7 +61,8 @@ pub fn build_client_with(choice: &crate::proxy::ProxyChoice) -> Result<reqwest::
         crate::proxy::ProxyChoice::Direct => builder = builder.no_proxy(),
         crate::proxy::ProxyChoice::Custom(url) => {
             let proxy = reqwest::Proxy::all(url).map_err(|e| CoreError::Network {
-                message: format!("代理地址不可用：{e}"),
+                // reqwest 的错误原文可能带着代理地址（含 `user:pass@`），进界面与日志前脱敏。
+                message: format!("代理地址不可用：{}", redact_secrets(&e.to_string())),
             })?;
             builder = builder.proxy(proxy);
         }
@@ -91,7 +86,7 @@ pub fn build_client_with(choice: &crate::proxy::ProxyChoice) -> Result<reqwest::
     }));
 
     builder.build().map_err(|e| CoreError::Network {
-        message: e.to_string(),
+        message: redact_secrets(&e.to_string()),
     })
 }
 
@@ -265,7 +260,7 @@ impl Default for StreamOptions<'_> {
 /// `on_delta` 每收到一段增量就被调用一次——UI 靠它做逐字渲染。
 /// `cancel` 是一个轮询标志：长文本翻译时用户按 Esc 要能立刻停下，而不是等完整条流。
 ///
-/// 回调刻意要求 `Send`：调用方几乎总是把它丢进 `tokio::spawn`（Tauri 命令就是这么做的），
+/// 回调刻意要求 `Send`：调用方几乎总是把它丢进 `tokio::spawn`（`umuo-ffi` 的 Engine 就是这么做的），
 /// 而一个非 `Send` 的回调会让整个 future 变成非 `Send`，报错却指向几十层之外的 spawn。
 /// 在这里钉住这个约束，比在调用方绕过它要诚实得多。
 pub async fn stream_chat(
@@ -287,7 +282,6 @@ pub async fn stream_chat(
         model,
         api_key,
         chat,
-        true,
     )?;
     let started = Instant::now();
 
@@ -326,7 +320,7 @@ pub async fn stream_chat(
             Ok(None) => break,
             Ok(Some(Err(e))) => {
                 return Err(CoreError::Network {
-                    message: e.to_string(),
+                    message: redact_secrets(&e.to_string()),
                 })
             }
             Ok(Some(Ok(bytes))) => bytes,
@@ -365,7 +359,7 @@ pub async fn stream_chat(
         });
     }
     // 厂商没回用量（或只回了一半）时本地估算并标成估算值——
-    // 否则这次翻译会以 0 token、$0 的「精确值」进历史与账本，月度上限跟着失明。
+    // 否则这次翻译会以 0 token 的「精确值」进历史。
     outcome.usage = crate::usage::fill_missing_usage(
         outcome.usage,
         &format!("{}\n{}", chat.system, chat.user),
@@ -432,7 +426,7 @@ pub async fn fetch_json(
         Err(_) => return Err(CoreError::Timeout { after: timeout }),
         Ok(Err(e)) => {
             return Err(CoreError::Network {
-                message: e.to_string(),
+                message: redact_secrets(&e.to_string()),
             })
         }
         Ok(Ok(body)) => body,
@@ -459,8 +453,9 @@ async fn send(
     match tokio::time::timeout(timeout, builder.send()).await {
         // 超时归 Timeout（可重试、可转移），而不是 Network：两者给用户的动作不同。
         Err(_) => Err(CoreError::Timeout { after: timeout }),
+        // reqwest 的错误原文带着请求 URL：自定义端点可能写了 user:pass@，进界面前脱敏。
         Ok(Err(e)) => Err(CoreError::Network {
-            message: e.to_string(),
+            message: redact_secrets(&e.to_string()),
         }),
         Ok(Ok(response)) => Ok(response),
     }
@@ -559,6 +554,14 @@ mod proxy_client_tests {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_broken_proxy_address_error_does_not_echo_its_credentials() {
+        let choice = crate::proxy::ProxyChoice::Custom("http://alice:s3cret@[::1".to_string());
+        let error = build_client_with(&choice).unwrap_err().to_string();
+        assert!(!error.contains("s3cret"), "{error}");
+        assert!(!error.contains("alice"), "{error}");
+    }
 
     fn apply_payloads(protocol: Protocol, payloads: &[&str]) -> (StreamOutcome, Vec<String>) {
         let mut outcome = StreamOutcome::default();

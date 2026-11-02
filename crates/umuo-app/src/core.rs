@@ -16,11 +16,11 @@ use crate::settings::Settings;
 pub struct AppCore {
     pub config_dir: PathBuf,
     pub settings: Mutex<Settings>,
-    /// settings.json 上次由 [`AppCore::apply_settings_patch`] 读写时的 mtime，与文件不同说明别处改过。
-    /// 只在持有 `settings` 锁时读写。其它写设置的地方（按 App 记住目标语言、引导完成）不更新它：
-    /// 下次保存时多重载一次内容相同的文件，无害。
+    /// settings.json 上次由本进程读写时的 mtime，与文件不同说明别处改过。
+    /// 只在持有 `settings` 锁时读写；所有写设置的路径（[`AppCore::apply_settings_patch`]、
+    /// 按 App 记住目标语言）都走 `settings_patch` 里的同一套重载逻辑并更新它。
     pub(crate) settings_mtime: Mutex<Option<SystemTime>>,
-    /// 翻译历史与用量的 SQLite 库（PRD §5.9）。
+    /// 翻译历史的 SQLite 库（PRD §5.9）。
     ///
     /// `None` = 打开失败。**这时客户端照常启动**——历史不可用不该让整个翻译工具打不开，
     /// 失败原因留在 `store_error` 里给 UI 显示。
@@ -123,6 +123,7 @@ mod tests {
             model: "gpt-4o-mini".into(),
             style_id: "natural".into(),
             scene: "selection".into(),
+            source_app: Some("Safari".into()),
             input_tokens: 1,
             output_tokens: 1,
             estimated: false,
@@ -142,7 +143,7 @@ mod tests {
     }
 
     #[test]
-    fn history_takes_the_source_app_from_the_host() {
+    fn history_records_the_source_app_given_in_the_draft() {
         let core = open_in("source-app");
         history::record(&core, draft());
         let records = history::with_store(&core, |s| s.recent(10, 0)).unwrap();

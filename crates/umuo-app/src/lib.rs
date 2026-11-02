@@ -1,11 +1,12 @@
 //! umuo 客户端的应用层：内核（`umuo-core`）之上、界面之下的那一层。
 //!
-//! 放在这里的是与窗口系统无关的应用逻辑：设置的读写与校验、
-//! 旧术语数据的配置转移、配置导入导出、每个窗口的请求登记、翻译流水线（`translate`）。
-//! SwiftUI 客户端经 `umuo-ffi` 调用，同一份逻辑只写一次。
+//! 放在这里的是与窗口系统无关的应用逻辑：设置的读写与校验（`settings`、`settings_patch`）、
+//! 配置导入导出与旧术语数据的转移（`config_io`、`legacy_glossaries`）、历史（`history`）、
+//! 每个窗口的请求登记（`requests`）、翻译流水线（`translate`）、语音后处理与会话（`voice`、`voice_session`）、
+//! 浮窗规则（`panel`）与界面命令（`ops`）。SwiftUI 客户端经 `umuo-ffi` 调用，同一份逻辑只写一次。
 //!
-//! 硬约束：**不依赖 Tauri、uniffi 或任何平台 API**，因此能在 Linux 上直接 `cargo test`。
-//! 迁移的分步计划见 `docs/SWIFTUI-MIGRATION.md`。
+//! 硬约束：**不依赖 uniffi 或任何平台 API**，平台能力只经 [`Host`] 向 Swift 宿主要，
+//! 因此能在 Linux 上直接 `cargo test`。
 
 pub mod config_io;
 pub mod core;

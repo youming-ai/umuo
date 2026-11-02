@@ -6,9 +6,8 @@
 //!
 //! 关于模型名：各家模型会改名、下架、按账号灰度，任何写死的默认值都会过时。
 //! 所以 `suggested_models` 只是**离线兜底**；正常路径是 PRD §6.2 的第 3 步——
-//! 拿用户自己的 Key 去调厂商的模型列表接口，用真实可用的列表覆盖它。
-//!
-//! [`crate::wire::list_models_request`]: crate::wire::list_models_request
+//! 拿用户自己的 Key 去调厂商的模型列表接口（[`crate::wire::build_models_request`]），
+//! 用真实可用的列表覆盖它。
 
 use serde::Serialize;
 
@@ -321,11 +320,6 @@ pub fn find_provider(id: &str) -> Option<&'static Provider> {
     PROVIDERS.iter().find(|p| p.id == id)
 }
 
-/// 本机模型的默认探测顺序（PRD §6.1「自动探测 localhost 端口」）。
-pub fn local_providers() -> impl Iterator<Item = &'static Provider> {
-    PROVIDERS.iter().filter(|p| p.kind == ProviderKind::Local)
-}
-
 #[cfg(test)]
 mod context_tests {
     use super::*;
@@ -458,7 +452,7 @@ mod tests {
 
     #[test]
     fn local_providers_need_no_key_and_have_no_static_model() {
-        for p in local_providers() {
+        for p in PROVIDERS.iter().filter(|p| p.kind == ProviderKind::Local) {
             assert!(!p.requires_key(), "{} 是本机模型，不该要求 Key", p.id);
             // 本机有什么模型只有探测了才知道，写死一个会误导用户。
             assert!(p.default_model.is_empty(), "{} 不该有静态默认模型", p.id);
