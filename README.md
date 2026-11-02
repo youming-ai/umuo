@@ -6,6 +6,11 @@
 
 macOS 14+ · Apple Silicon · Swift + SwiftUI + AppKit · Rust 共享核心 · 纯 BYOK · MIT 开源
 
+[官网](https://umuo.app) · [下载预览版](https://umuo.app/download/macos) · [贡献指南](CONTRIBUTING.md)
+
+[![CI](https://github.com/youming-ai/umuo/actions/workflows/ci.yml/badge.svg)](https://github.com/youming-ai/umuo/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
 </div>
 
 ---
@@ -25,11 +30,16 @@ umuo 完全免费、以 MIT 许可证开源，纯 BYOK：用户自带模型 Key�
 模型 Key 存系统 Keychain，供应商请求从本机直连用户配置的端点。语音在本机用 transcribe.cpp + Qwen3-ASR-0.6B 转写，
 不需要额外的语音 Key；整理与翻译复用文字模型，使用云端文字模型时，转写文本会发送给该供应商。
 
+## 下载与安装
+
+从 [umuo.app/download/macos](https://umuo.app/download/macos) 下载预览版（macOS 14+，仅 Apple Silicon）。
+预览版尚未经 Apple 公证：首次打开如被拦截，到**系统设置 → 隐私与安全性**点「仍要打开」。
+也可以按下方「从源码构建」自己编译。
+
 ## 当前状态与开发入口
 
-2026-11-02：原生迁移、Sparkle 代码接入与语音输入（录音、本机转写、整理/翻译、写回输入框）已完成，尚未正式发布；真机验收与 Developer ID 签名公证待做。
-已完成五批精简：移除多模型对比、静默 OCR、独立朗读快捷键、风格/术语管理及注入、费用报表与月度预算、分场景/备用模型与本地自动回落、回译与临时换模型、收藏与复杂历史筛选、词卡学习内容、快捷面板快速输入与菜单栏图标样式；旧数据保留。
-历史实现不代表首版继续承诺这些能力。
+2026-11-02：原生客户端、Sparkle 更新代码与语音输入（录音、本机转写、整理/翻译、写回输入框）已完成，尚未正式发布；
+真机验收与 Developer ID 签名公证待做。为收敛首版，多模型对比、风格与术语管理、费用预算、收藏等旧功能已移除（旧数据保留）。
 
 - [产品需求](docs/PRD.md)：当前功能与商业边界。
 - [首版开发计划](docs/IMPLEMENTATION-PLAN.md)：精简、语音、开源与发布的次序和完成条件。
@@ -38,9 +48,12 @@ umuo 完全免费、以 MIT 许可证开源，纯 BYOK：用户自带模型 Key�
 - [迁移与发布记录](docs/SWIFTUI-MIGRATION.md)：Developer ID、公证、Sparkle N → N+1 与旧用户桥接待办。
 - [贡献指南](CONTRIBUTING.md)：许可、开发前须知与 PR 要求。
 
-官网 [umuo.app](https://umuo.app) 与 Worker 在 [site/](site/)，合入 `main` 后由 Cloudflare Workers Builds 自动部署。
+官网 [umuo.app](https://umuo.app)（单页首页）与 Worker 在 [site/](site/)，合入 `main` 后由 Cloudflare Workers Builds 自动部署。
 
-## 快速开始
+## 从源码构建
+
+需要：Apple Silicon Mac、macOS 14+；Xcode 26（或带 macOS 26 SDK 的 Command Line Tools，浮窗用到 Liquid Glass）、
+Rust stable、[Bun](https://bun.sh) 1.2+。
 
 ```bash
 bun install          # 仓库工具脚本依赖
@@ -62,7 +75,7 @@ bun run dev:macos    # 编 Rust 绑定与 SwiftUI 客户端后启动（macOS 14+
 | `bun run type-check` | 工具脚本的 TypeScript 类型检查 |
 | `bun run test:rust` | Rust workspace 单测与流水线回归测试 |
 | `bun run verify:macos` | Swift 构建、Swift Testing、FFI 自检与打包冒烟 |
-| `bun run verify` | 提交前完整门禁，与客户端 CI 对齐 |
+| `bun run verify` | 提交前完整门禁，与 GitHub Actions 的 CI 对齐 |
 
 ### 跑通划词翻译需要一次系统授权
 
@@ -110,6 +123,11 @@ docs/              PRD、架构、迁移与发布验收记录
 - 翻译历史存在本机 SQLite，可搜索、删除，可设置保留天数，也可完全关闭。
 - 语音在本机转写：录音只写入临时文件，转写结束或取消后立即删除，不发给 umuo，也不发给模型供应商。
 - 默认不开启内容遥测。
+
+## 参与贡献
+
+欢迎提 Issue 与 Pull Request。开发前先读 [AGENTS.md](AGENTS.md)（分层规则、命令与测试约定，人和 agent 共用）与 [CONTRIBUTING.md](CONTRIBUTING.md)；
+提交前在本机跑通 `bun run verify`（改官网时另在 `site/` 跑 `bun run verify`），PR 会由 CI 再跑一遍。
 
 ## 许可
 
