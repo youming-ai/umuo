@@ -67,7 +67,8 @@ export function DownloadPanel({ platform }: { platform: PlatformCard }) {
           <DownloadButton
             label={platform.actionLabel}
             status={platform.statusLabel}
-            describedBy={noteId}
+            // 点了之后系统要求那段换成「接下来」三步，描述随之撤掉，不能指向已经不在的元素
+            describedBy={started ? undefined : noteId}
             onDownload={() => setStarted(true)}
           />
         </div>

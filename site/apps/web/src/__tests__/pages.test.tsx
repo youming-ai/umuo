@@ -163,8 +163,9 @@ describe('首页一屏', () => {
     expect(host.querySelector('footer ul')).toBeNull()
   })
 
-  it('主题切换只在 Footer，选择会被保存', () => {
+  it('主题切换只在 Footer；挂载时不写存储（保持跟随系统），亲手切换后才保存', () => {
     expect(host.querySelector('header button[aria-label="主题"]')).toBeNull()
+    expect(window.localStorage.getItem('umuo-theme')).toBeNull()
     click('footer button[aria-label="主题"]')
     expect(document.documentElement.dataset.theme).toBe('light')
     expect(window.localStorage.getItem('umuo-theme')).toBe('light')
@@ -173,6 +174,19 @@ describe('首页一屏', () => {
     )
     click('footer button[aria-label="主题"]')
     expect(document.documentElement.dataset.theme).toBe('dark')
+    expect(window.localStorage.getItem('umuo-theme')).toBe('dark')
+  })
+
+  it('点了下载后，按钮的 aria-describedby 不再指向已移除的系统要求', () => {
+    const download = host.querySelector<HTMLAnchorElement>('#download a.btn-solid')
+    const describedBy = download?.getAttribute('aria-describedby')
+    expect(describedBy && document.getElementById(describedBy)?.textContent).toContain('macOS 14')
+    // 不让 happy-dom 真的跟着链接走；React 的 onClick 照常触发
+    document.addEventListener('click', (event) => event.preventDefault(), { once: true })
+    act(() => download?.click())
+    expect(host.querySelector('.download-next')?.textContent).toContain('接下来')
+    expect(host.querySelector('.download-requirement')).toBeNull()
+    expect(download?.hasAttribute('aria-describedby')).toBe(false)
   })
 
   it('下载按钮指向 Worker 给出的最新安装包，带预览版标签与放行说明', () => {

@@ -19,11 +19,11 @@ export function App() {
   }, [locale])
 
   return (
-    <div id="top" className="landing min-h-screen bg-background text-text-primary">
+    <div id="top" className="landing bg-background text-text-primary">
       <LanguageGrid />
       <a
         href="#main"
-        className="sr-only focus:not-sr-only focus:absolute focus:top-3 focus:left-3 focus:z-50 focus:focus:bg-surface focus:px-4 focus:py-2 focus:text-sm focus:text-text-primary"
+        className="sr-only focus:not-sr-only focus:absolute focus:top-3 focus:left-3 focus:z-50 focus:bg-surface focus:px-4 focus:py-2 focus:text-sm focus:text-text-primary"
       >
         {content.nav.skipToContent}
       </a>

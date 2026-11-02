@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react'
 
 /**
  * 主题只切换 `<html data-theme>`，颜色全部来自 apps/web/src/styles/app.css 的令牌，
- * 官网不另外定义任何颜色。默认跟随系统，选择记在 localStorage。
+ * 官网不另外定义任何颜色。默认跟随系统；只有访客亲手切换过，选择才记进 localStorage——
+ * 挂载时不写，否则「跟随系统」会被固化成一次显式选择，之后系统换了深浅色页面也不跟。
  */
 export type Theme = 'dark' | 'light'
 
@@ -28,11 +29,17 @@ export function useTheme(): { theme: Theme; toggleTheme: () => void } {
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme
-    window.localStorage.setItem(STORAGE_KEY, theme)
   }, [theme])
 
-  return {
-    theme,
-    toggleTheme: () => setTheme((current) => (current === 'dark' ? 'light' : 'dark')),
+  const toggleTheme = () => {
+    const next: Theme = theme === 'dark' ? 'light' : 'dark'
+    setTheme(next)
+    try {
+      window.localStorage.setItem(STORAGE_KEY, next)
+    } catch {
+      // 隐私模式等存不了时，这次访问内照样生效，只是下次不记得
+    }
   }
+
+  return { theme, toggleTheme }
 }
