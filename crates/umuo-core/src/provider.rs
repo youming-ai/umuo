@@ -6,9 +6,8 @@
 //!
 //! 关于模型名：各家模型会改名、下架、按账号灰度，任何写死的默认值都会过时。
 //! 所以 `suggested_models` 只是**离线兜底**；正常路径是 PRD §6.2 的第 3 步——
-//! 拿用户自己的 Key 去调厂商的模型列表接口，用真实可用的列表覆盖它。
-//!
-//! [`crate::wire::list_models_request`]: crate::wire::list_models_request
+//! 拿用户自己的 Key 去调厂商的模型列表接口（[`crate::wire::build_models_request`]），
+//! 用真实可用的列表覆盖它。
 
 use serde::Serialize;
 

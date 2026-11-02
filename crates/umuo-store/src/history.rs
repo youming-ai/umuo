@@ -22,7 +22,7 @@ pub struct NewRecord {
     pub provider_id: String,
     pub model: String,
     pub style_id: String,
-    /// 场景标签（selection / silentReplace / compose / compare），
+    /// 场景标签（selection / silentReplace / compose / ocr / voice；旧库里还可能有 compare），
     /// 让用户能看出「这条是划词来的还是撰写窗来的」。
     pub scene: String,
     /// 来源应用名。拿不到时为 `None`——**不填一个假的占位符**。

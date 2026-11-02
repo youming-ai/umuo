@@ -4,7 +4,7 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 publish.workspace = true
-description = "umuo-core 给 SwiftUI 客户端的 UniFFI 导出层（只做类型转换，不写业务逻辑）"
+description = "umuo-app / umuo-core 给 SwiftUI 客户端的 UniFFI 导出层（只做类型转换，不写业务逻辑）"
 
 [lib]
 name = "umuo_ffi"

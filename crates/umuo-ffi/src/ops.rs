@@ -1,4 +1,4 @@
-//! `umuo_app::ops` 的其余命令经 [`Engine`] 导出：历史、收藏、用量、Key 状态与模型列表、
+//! `umuo_app::ops` 的其余命令经 [`Engine`] 导出：供应商目录、Key 状态与模型列表、历史、
 //! 配置导入导出、快捷面板，以及宿主自己发提示时要的请求登记。
 //!
 //! 和 [`crate::event`] 一样**只做换型**：DTO 摊平成 Record，`From` 一律用不带 `..` 的解构，
@@ -19,7 +19,7 @@ fn failed(message: String) -> EngineError {
 
 // ---------------------------------------------------------------- 供应商、Key
 
-/// 供应商目录里的一条，设置页与浮窗「换个模型」要的全部字段（`ops::ProviderDto`）。
+/// 供应商目录里的一条，设置页要的全部字段（`ops::ProviderDto`）。
 #[derive(Debug, Clone, uniffi::Record)]
 pub struct ProviderDetail {
     pub id: String,
@@ -183,7 +183,7 @@ pub struct ImportResult {
     pub blacklist_removed: Vec<String>,
     /// 规范化之后的整份设置（JSON，同 `SettingsUpdate.settings_json`）。
     pub settings_json: String,
-    /// 快捷键改了：Swift 要当场重注册（Tauri 在这里跑 `run_settings_effects`）。
+    /// 快捷键改了：Swift 要当场重注册。
     pub hotkeys_changed: bool,
 }
 
@@ -198,7 +198,7 @@ impl Engine {
     /// 为 `surface` 窗口登记一次新请求并返回 id，同一窗口的上一次请求随之取消。
     ///
     /// 不经流水线的提示（取词失败、黑名单、缺权限、截图识别不到文字）用它：拿到 id 后由宿主自己
-    /// 发一条 `Error` 事件，与 Tauri 的 `translator::emit_notice` 一样，浮窗按 id 把旧请求的迟到事件丢掉。
+    /// 发一条 `Error` 事件；浮窗按 id 把旧请求的迟到事件丢掉。
     pub fn begin_request(&self, surface: String) -> u64 {
         self.core.requests.begin(&surface).id
     }
@@ -241,7 +241,7 @@ impl Engine {
         ops::history_delete(&self.core, id).map_err(failed)
     }
 
-    /// 清空历史（收藏不受影响），返回清掉的条数。
+    /// 清空历史，返回清掉的条数。库里的旧收藏与用量账本不受影响。
     pub fn history_clear(&self) -> Result<u32, EngineError> {
         ops::history_clear(&self.core).map(count).map_err(failed)
     }

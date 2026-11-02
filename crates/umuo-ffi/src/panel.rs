@@ -8,7 +8,7 @@ use crate::engine::Engine;
 /// 「替换原文」写回前该怎么做，见 `umuo_app::panel::ReplacePlan`。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, uniffi::Enum)]
 pub enum ReplacePlan {
-    /// 没有源应用（截图 OCR、快捷面板输入）：没有原文可替换。
+    /// 没有源应用（截图 OCR）：没有原文可替换。
     NoSource,
     /// 前台是本应用：先把源应用切回前台再写。
     Refocus,

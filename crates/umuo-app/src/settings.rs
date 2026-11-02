@@ -1,7 +1,7 @@
 //! 应用设置的持久化。
 //!
-//! **这个文件里没有 API Key，将来也不许有。** Key 由 [`umuo_platform::SecretStore`]
-//! 存进系统凭据存储，这里只放「不敏感但需要记住」的偏好。
+//! **这个文件里没有 API Key，将来也不许有。** Key 由 Swift 宿主存进系统 Keychain，
+//! Rust 只经 [`crate::Host::api_key`] 读取；这里只放「不敏感但需要记住」的偏好。
 //! 结构体上有一条测试专门守这个不变量（`settings_json_never_contains_a_key`）。
 
 use std::io;
@@ -93,11 +93,9 @@ pub struct Settings {
     pub compare_hotkey: String,
     /// 截图 OCR 的全局快捷键，默认 ⌥⌘O。
     pub ocr_hotkey: String,
-    /// 静默 OCR（识别后只复制原文，不翻译不弹窗）的快捷键，默认 ⌥⇧O（PRD §5.5）。
     /// 旧静默 OCR 快捷键，仅保留读写兼容，不再注册。
     pub ocr_silent_hotkey: String,
-    /// 朗读选中文本（PRD §7.2）。
-    /// 旧独立朗读快捷键，仅保留读写兼容；结果朗读仍可用。
+    /// 旧独立朗读快捷键，仅保留读写兼容，不再注册；结果朗读仍可用。
     pub speak_hotkey: String,
     /// 语音输入「按住说话」（同语言整理）的全局快捷键，默认 ⌥⌘V（PRD §5.11）。
     /// 按住说话要按下与松开两个事件，只接受组合键，不接受连按两下修饰键。
@@ -114,10 +112,10 @@ pub struct Settings {
     /// 会落在同一个地方，不必再加一个字段。
     #[serde(default)]
     pub provider_base_urls: std::collections::BTreeMap<String, String>,
-    /// 主题（PRD §7.3 通用）：`system` / `light` / `dark` / `highContrast`。
+    /// 主题（PRD §7.3 通用）：`system` / `light` / `dark`。
     ///
     /// 存成字符串而不是枚举：手改配置、或旧版本写进来的值都不该让设置文件读不出来。
-    /// 认不出来的值由客户端的 `resolveTheme` 回落「跟随系统」。
+    /// 旧版的 `highContrast` 与认不出来的值由 Swift 宿主按「跟随系统」处理（高对比度交给系统设置）。
     #[serde(default = "default_theme")]
     pub theme: String,
     /// 母语（PRD §7.3 语言组）。
@@ -129,11 +127,11 @@ pub struct Settings {
     /// 取词黑名单（PRD §7.3）：这些应用里**连读都不读**。
     ///
     /// 把密码管理器里选中的内容发给云端是安全事故，不是体验问题——
-    /// 所以判定的位置在**读取之前**（见 translator 的取词路径）。
+    /// 所以判定的位置在**读取之前**（Swift 宿主取词前按 [`Self::is_selection_blocked`] 判断）。
     /// 匹配不区分大小写、且支持双向包含（填 "keepass" 也能命中 KeePassXC）。
     #[serde(default = "default_selection_blacklist")]
     pub selection_blacklist: Vec<String>,
-    /// 界面缩放（PRD §7.3 通用）。1.0 = 跟随系统；只接受预设档位。
+    /// 旧界面缩放，仅保留读写兼容：SwiftUI 客户端跟随系统字号，不读取它。
     #[serde(default = "default_ui_scale")]
     pub ui_scale: f64,
     /// 代理模式（PRD §8）：`system`（默认，跟随系统）/ `none`（直连）/ `custom`。

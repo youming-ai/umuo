@@ -4,7 +4,7 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 publish.workspace = true
-description = "umuo 共享翻译内核：Provider 目录、请求构造、流式解析、Prompt 引擎、路由与计量"
+description = "umuo 翻译内核：供应商目录、请求构造、流式解析、Prompt、长文切分、传输与计量"
 
 [dependencies]
 serde.workspace = true
