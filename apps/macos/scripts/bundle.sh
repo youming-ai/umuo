@@ -132,8 +132,28 @@ otool -l "$app/Contents/MacOS/$exe_name" | sed -n 's/^ *path \(.*\) (offset .*$/
 sed "s/@VERSION@/$VERSION/g" "$here/packaging/Info.plist" >"$app/Contents/Info.plist"
 printf 'APPL????' >"$app/Contents/PkgInfo"
 cp "$here/packaging/icon.icns" "$app/Contents/Resources/icon.icns"
-# Bundle.module 先在 Bundle.main.resourceURL（Contents/Resources）里找 Umuo_Umuo.bundle（文案表与菜单栏图标）
-cp -R "$resources" "$app/Contents/Resources/"
+# Bundle.module 先在 Bundle.main.resourceURL（Contents/Resources）里找 Umuo_Umuo.bundle（文案表与菜单栏图标）。
+# 新构建系统（本机 Swift 6.4）产出标准的 Contents/Resources + Info.plist；旧构建系统（CI 上 Xcode 26 的 swift build）
+# 产出平铺、没有 Info.plist 的目录，放进 .app 后 Foundation 不认，Bundle.module 会退回编译时的绝对路径。统一整理成标准结构
+bundle_dest="$app/Contents/Resources/Umuo_Umuo.bundle"
+if [ -d "$resources/Contents" ]; then
+  cp -R "$resources" "$app/Contents/Resources/"
+else
+  mkdir -p "$bundle_dest/Contents/Resources"
+  cp -R "$resources"/. "$bundle_dest/Contents/Resources/"
+  cat >"$bundle_dest/Contents/Info.plist" <<'PLIST'
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>CFBundleIdentifier</key><string>app.umuo.desktop.resources</string>
+  <key>CFBundleName</key><string>Umuo_Umuo</string>
+  <key>CFBundlePackageType</key><string>BNDL</string>
+  <key>CFBundleInfoDictionaryVersion</key><string>6.0</string>
+</dict>
+</plist>
+PLIST
+fi
 # SwiftPM 的二进制依赖放在 bin_dir；用 ditto 保留 framework 的符号链接与执行权限。
 [ -d "$bin_dir/Sparkle.framework" ] || fail "Sparkle.framework 缺失"
 ditto "$bin_dir/Sparkle.framework" "$app/Contents/Frameworks/Sparkle.framework"
@@ -223,11 +243,9 @@ done
 for f in LICENSE LICENSE.ggml LICENSE.silero_vad LICENSE.miniz; do
   [ -f "$app/Contents/Resources/Licenses/transcribe.cpp/$f" ] || fail "transcribe.cpp 的 $f 没随包"
 done
-# SwiftPM 的资源包有两种布局：只装 CLT 时是 macOS 式的 Contents/Resources/，完整 Xcode（CI 的 Xcode 26）是平铺的。
-# Bundle.module 两种都认；后面从 .app 里跑的 --selftest 会真的加载文案表，这里只确认文件随包。
+# 资源包在组装时已统一成标准结构（见上）；后面从 .app 里跑的 --selftest 会确认真的从 .app 里加载
 for f in Strings/Localizable.xcstrings Tray; do
-  [ -e "$app/Contents/Resources/Umuo_Umuo.bundle/Contents/Resources/$f" ] || [ -e "$app/Contents/Resources/Umuo_Umuo.bundle/$f" ] ||
-    fail "Contents/Resources/Umuo_Umuo.bundle 里缺 $f"
+  [ -e "$bundle_dest/Contents/Resources/$f" ] || fail "Contents/Resources/Umuo_Umuo.bundle/Contents/Resources/$f 缺了"
 done
 [ -e "$app/Contents/Resources/icon.icns" ] || fail "Contents/Resources/icon.icns 缺了"
 codesign --verify --deep --strict --verbose=2 "$app" 2>/dev/null || { codesign --verify --deep --strict --verbose=2 "$app"; fail "codesign --verify 不通过"; }
