@@ -6,7 +6,7 @@ import AppKit
 protocol PasteboardAccess: AnyObject {
     var changeCount: Int { get }
     @discardableResult func clearContents() -> Int
-    func setString(_ string: String, forType dataType: NSPasteboard.PasteboardType) -> Bool
+    @discardableResult func setString(_ string: String, forType dataType: NSPasteboard.PasteboardType) -> Bool
     func string(forType dataType: NSPasteboard.PasteboardType) -> String?
     /// 每个 item 的每种类型（UTI）与原始字节。
     func snapshotItems() -> [[Pasteboard.Snapshot.Entry]]

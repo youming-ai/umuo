@@ -26,7 +26,7 @@ final class FakePasteboard: PasteboardAccess, @unchecked Sendable {
         }
     }
 
-    func setString(_ string: String, forType dataType: NSPasteboard.PasteboardType) -> Bool {
+    @discardableResult func setString(_ string: String, forType dataType: NSPasteboard.PasteboardType) -> Bool {
         lock.withLock {
             items = [[.init(type: dataType.rawValue, data: Data(string.utf8))]]
             count += 1
