@@ -145,7 +145,9 @@ final class PanelController: PanelBackend {
         watchdog = Task { [weak self] in
             while !Task.isCancelled {
                 try? await Task.sleep(for: .milliseconds(500))
-                guard let self, self.window.isVisible else { continue }
+                // 控制器没了就结束循环，不再空转
+                guard let self else { return }
+                guard self.window.isVisible else { continue }
                 let owner = self.session.owner
                 let pinned = self.session.pinned
                 let current = await Task.detached { FrontmostApp.liveToken() }.value

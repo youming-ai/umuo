@@ -164,7 +164,6 @@ struct VoiceOverlayView: View {
             ResultText(text: text)
             HStack {
                 Button(model.copied ? t("voice.copied") : t("voice.copy")) { model.onCopy?(text) }
-                    .keyboardShortcut("c", modifiers: .command)
                 Spacer()
                 Text(t("voice.escHint")).font(.callout).foregroundStyle(.secondary)
             }
@@ -176,7 +175,6 @@ struct VoiceOverlayView: View {
             ResultText(text: text)
             HStack {
                 Button(model.copied ? t("voice.copied") : t("voice.copy")) { model.onCopy?(text) }
-                    .keyboardShortcut("c", modifiers: .command)
                 if truncated {
                     Button(t("voice.retry")) { model.onRetry?() }
                 }

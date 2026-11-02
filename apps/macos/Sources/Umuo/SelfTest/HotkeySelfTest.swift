@@ -176,7 +176,9 @@ enum HotkeySelfTest {
         let pausedBlocks = center.suspended
         center.paused = false
         center.setRecording(true)
-        let recording = center.suspended && center.registeredCombos == 0
+        // 录键期间设置变了（导入配置、另一行改了快捷键）：只记下新设置，不把组合键注册回来抢录键器的按键
+        center.reregister(values)
+        let recording = center.suspended && center.registeredCombos == 0 && notified == 0
         center.setRecording(false)
         let restored = !center.suspended && center.registeredCombos == 2 && notified == 1
         center.reregister(values)
@@ -185,7 +187,7 @@ enum HotkeySelfTest {
         center.unregisterAll()
         let clean = center.registeredCombos == 0
         check("HotkeyCenter.suspend", pausedBlocks && recording && restored && reregistered && clean,
-              "暂停与录键期间不响应；录键时注销全部组合键，结束后按原设置重注册并通知；重注册不累积失败")
+              "暂停与录键期间不响应；录键时注销全部组合键、期间的重注册只记设置，结束后按设置重注册并通知；重注册不累积失败")
     }
 
     /// 修饰键监听：没有「输入监控」权限就跳过，不去建监听（建监听本身可能弹授权）。

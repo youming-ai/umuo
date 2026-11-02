@@ -163,6 +163,13 @@ final class VoiceController {
 
     // MARK: - 副作用
 
+    /// 副作用里当场就失败（没接上交付、没接上后处理、建不了临时文件）：失败事件**异步**喂回去。
+    /// 同步 \`feed\` 会在这一轮 \`for effect in step.effects\` 还没跑完时就推进状态机，
+    /// 剩下的旧副作用再按旧的一步执行，浮层也会被旧一步的可见性盖回去。
+    private func feedLater(_ input: VoiceInput) {
+        Task { self.feed(input) }
+    }
+
     private func run(_ effect: VoiceEffect) {
         switch effect {
         case let .startRecording(session): startRecording(session)
@@ -182,7 +189,7 @@ final class VoiceController {
 
     private func deliver(_ session: UInt64, _ text: String) {
         guard let deliverer else {
-            return feed(.deliveryRefused(session: session, reason: .unverifiable))
+            return feedLater(.deliveryRefused(session: session, reason: .unverifiable))
         }
         Task {
             if let reason = await deliverer.deliver(session: session, text: text) {
@@ -202,7 +209,7 @@ final class VoiceController {
         do {
             output = try files.create(session)
         } catch {
-            return feed(.recordingFailed(session: session, kind: .recording, detail: "\(error)"))
+            return feedLater(.recordingFailed(session: session, kind: .recording, detail: "\(error)"))
         }
         Task {
             do {
@@ -243,9 +250,8 @@ final class VoiceController {
     }
 
     private func postProcess(_ session: UInt64, _ text: String, _ task: VoiceTask) {
-        guard let postProcessor else {
-            return feed(.postProcessFailed(session: session, detail: "后处理还没有接上"))
-        }
+        // 没接上时状态机本来就不会走到后处理；万一走到了只显示通用的失败文案（详情留空）
+        guard let postProcessor else { return feedLater(.postProcessFailed(session: session, detail: "")) }
         Task {
             do {
                 let result = try await postProcessor.run(session: session, text: text, task: task)

@@ -127,6 +127,11 @@ final class HotkeyCenter {
     /// 清掉全部旧注册、按新设置重注册，**不用重启**。只在快捷键真的变了时调（`SettingsUpdate.hotkeysChanged`）：
     /// 每拨一个开关都重注册一遍会白白清空又重建失败记录。
     func reregister(_ values: [String: String]) {
+        // 正在录快捷键：组合键此刻是故意注销的（否则录键器收不到）。只记下新设置，录键结束或超时后再按它注册
+        guard recordingUntil == nil else {
+            self.values = values
+            return
+        }
         for status in combos.unregisterAll() {
             print("umuo: 清除旧快捷键失败：OSStatus \(status)")
         }
