@@ -119,7 +119,8 @@ final class AppModel {
         let panel = VoicePanelController(model: controller.overlay, escape: escape)
         panel.settingsJson = { [weak self] in self?.settingsJson }
         controller.presenter = panel
-        controller.postProcessor = EngineVoicePostProcessor { [weak self] in self?.engine }
+        controller.postProcessor = EngineVoicePostProcessor(engine: { [weak self] in self?.engine },
+                                                            unavailable: { [weak self] in self?.engineStatus ?? "" })
         controller.deliverer = FocusedFieldDelivery()
         controller.overlay.hotkeyLabels = HotkeyCenter.voiceLabels([:])
         controller.overlay.onOpenMicSettings = { NSWorkspace.shared.open(MicrophoneAccess.settingsURL) }

@@ -829,6 +829,26 @@ struct VoiceRulesTests {
         }
     }
 
+    @Test @MainActor func 后处理在登记句柄之前被取消_不再发请求() async {
+        // 状态机发 cancelPostProcess 时，run 可能还排在 Task 里没开始：那时没有句柄可取消。
+        // 取消要先记下，run 一开始就认出来，不去调 Engine.startVoice（否则请求照发、照计费）。
+        var asked = 0
+        let processor = EngineVoicePostProcessor(engine: {
+            asked += 1
+            return nil
+        }, unavailable: { "内核还没有启动" })
+        processor.cancel(session: 3)
+        await #expect(throws: VoiceFault.self) {
+            _ = try await processor.run(session: 3, text: "你好", task: .tidy)
+        }
+        #expect(asked == 0, "已取消的会话不该再去拿 Engine 发请求")
+        // 别的会话不受影响
+        await #expect(throws: VoiceFault(kind: .postProcess, detail: "内核还没有启动")) {
+            _ = try await processor.run(session: 4, text: "你好", task: .tidy)
+        }
+        #expect(asked == 1)
+    }
+
     @Test func 每种错误与下载失败都有四语言文案() {
         let catalog = StringCatalog.main
         let kinds: [VoiceErrorKind] = [.micPermissionDenied, .noInputDevice, .recording, .tooShort, .noSpeech,
