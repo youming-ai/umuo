@@ -21,7 +21,7 @@ function redirectTo(file: string): Response {
   })
 }
 
-/** `/download/macos`：最新版的通用安装包（GitHub Release 的 umuo.dmg）。 */
+/** `/download/macos`：最新版的安装包（Apple Silicon，GitHub Release 的 umuo.dmg）。 */
 export function handleMacosDownload(): Response {
   return redirectTo('umuo.dmg')
 }
