@@ -179,13 +179,13 @@ describe('首页一屏', () => {
     expect(download?.textContent).toContain('预览版')
     expect(host.querySelector('#download')?.textContent).toContain('仍要打开')
     expect(host.querySelector('form')).toBeNull()
-    // 购买开关默认关闭：首页下载区不出现购买按钮
-    // 下载按钮旁只有一句「免费、自带 Key」；仓库公开前（SOURCE_PUBLIC 关闭）是纯文字，没有任何链接
+    // 下载按钮旁只有一句「免费开源、自带 Key」；仓库已公开（SOURCE_PUBLIC 打开），这句链到源码，页脚也有源码链接
     const note = host.querySelector('#download .hero-free-note')
-    expect(note?.textContent).toBe('免费，自带 Key，即将开源')
-    expect(note?.tagName).toBe('SPAN')
+    expect(note?.textContent).toBe('免费开源（MIT），自带 Key')
+    expect(note?.tagName).toBe('A')
+    expect(note?.getAttribute('href')).toBe('https://github.com/youming-ai/umuo')
+    expect(host.querySelector('footer a[href="https://github.com/youming-ai/umuo"]')).not.toBeNull()
     expect(host.querySelector('a[href*="pricing"]')).toBeNull()
-    expect(host.querySelector('a[href*="github.com"]')).toBeNull()
   })
 })
 

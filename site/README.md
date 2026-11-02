@@ -23,4 +23,4 @@ bun run verify       # lint + 类型检查 + 测试 + 官网与 Worker 构建
 
 ## 许可
 
-umuo 客户端将以 MIT 许可证开源；官网代码（`site/`）的许可待仓库公开时决定。字体等第三方资源按各自的许可使用（如 `apps/web/public/fonts/*/OFL.txt`）。
+与仓库其余部分一样采用 [MIT](../LICENSE) 许可证；「umuo」名称与图标不随 MIT 授权。字体等第三方资源按各自的许可使用（如 `apps/web/public/fonts/*/OFL.txt`）。

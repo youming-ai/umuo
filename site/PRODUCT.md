@@ -49,7 +49,7 @@ umuo 免费、按 MIT 许可证开源，模型调用费用直接付给用户自�
 
 ## Capabilities and Constraints
 
-- 仅 macOS 14+、仅 Apple Silicon；客户端为 Swift 6 / SwiftUI / AppKit + Rust，按 **MIT 许可证开源**，但仓库尚未公开：源码链接由 `config.ts` 的 `SOURCE_PUBLIC` 控制（默认关闭），公开前只写「将以 MIT 许可证开源 / 源码即将公开」。
+- 仅 macOS 14+、仅 Apple Silicon；客户端为 Swift 6 / SwiftUI / AppKit + Rust，按 **MIT 许可证开源**，源码在 github.com/youming-ai/umuo（2026-11-02 公开，`config.ts` 的 `SOURCE_PUBLIC` 已打开）。
 - 价格：完全免费，没有付费版、内购、试用期、许可证或激活；模型调用费用只在用户与供应商之间。
 - 模型：自带 API Key（GPT、Claude、Gemini 等）、本地模型或自定义端点；Key 存系统 Keychain。
 - 不在范围、不得宣传为「即将推出」：订阅、付费版、umuo 账号、官方模型额度 / 充值、AI 网关、云同步、团队版、浏览器扩展、其他平台、Mac App Store。

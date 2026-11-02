@@ -131,7 +131,8 @@
 - [x] 根目录许可证改为 MIT，Cargo/npm 元数据、README 与 agent 指令同步；新增 `CONTRIBUTING.md`（不要求 CLA）。
 - [x] 删除客户端 `License/`、试用门控、设置许可证页与 `umuo://activate` 深链接。
 - [x] 删除 Worker 收费与许可证路由、Waffo 依赖与 KV 绑定；官网删除购买/激活，改为免费开源说明，条款与隐私 v3.0。
-- [ ] 仓库公开前：决定 `site/` 是否开源或拆分、核查第三方许可、审查 git 历史中的敏感信息、配置源码链接（`SOURCE_PUBLIC`）。
+- [x] 仓库公开：整个仓库（含 `site/`）MIT；历史整理脱敏后重建公开仓库 github.com/youming-ai/umuo；官网 `SOURCE_PUBLIC` 打开（2026-11-02）。
+- [ ] 逐项核查第三方依赖许可并补全 `THIRD_PARTY_NOTICES`。
 
 完成条件：客户端与官网不再有任何收费、许可证或试用路径；根 verify 与 site verify 通过。
 

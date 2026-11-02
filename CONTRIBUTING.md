@@ -1,6 +1,6 @@
 # 参与贡献
 
-umuo 以 [MIT](LICENSE) 许可证开源（`site/` 目录除外）。欢迎提 Issue 与 Pull Request。
+umuo 以 [MIT](LICENSE) 许可证开源（含官网 `site/`）。欢迎提 Issue 与 Pull Request。
 
 ## 许可
 

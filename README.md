@@ -113,4 +113,4 @@ docs/              PRD、架构、迁移与发布验收记录
 
 ## 许可
 
-[MIT](LICENSE)。`site/`（官网与官网 Worker）不在 MIT 范围内，其许可待定。「umuo」名称与图标不随 MIT 授权，分发修改版请换名。贡献方式见 [CONTRIBUTING.md](CONTRIBUTING.md)。参考与复用的第三方实现记在 [THIRD_PARTY_NOTICES](THIRD_PARTY_NOTICES)。
+[MIT](LICENSE)，整个仓库（含官网 `site/`）。「umuo」名称与水獭图标不随 MIT 授权：分发修改版请换用其他名称与图标，说明作品基于 umuo 不受限制。贡献方式见 [CONTRIBUTING.md](CONTRIBUTING.md)。参考与复用的第三方实现记在 [THIRD_PARTY_NOTICES](THIRD_PARTY_NOTICES)。

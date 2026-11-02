@@ -4,7 +4,7 @@
 
 ## 项目与边界
 
-umuo 是 macOS 系统级 AI 翻译客户端，BYOK、MIT 开源（`site/` 除外，许可待定）。客户端使用 Swift 6 + SwiftUI + AppKit（macOS 14+），
+umuo 是 macOS 系统级 AI 翻译客户端，BYOK、MIT 开源（含 `site/`），仓库公开于 github.com/youming-ai/umuo。客户端使用 Swift 6 + SwiftUI + AppKit（macOS 14+），
 Rust 内核经 UniFFI 调用。2026-10-22 已按用户要求删除旧 Tauri 客户端、React UI、CSS tokens 与 Rust 平台适配层。
 官网及 Worker 在 `site/`，是独立 Bun 项目；修改它时先读 `site/AGENTS.md`。
 
