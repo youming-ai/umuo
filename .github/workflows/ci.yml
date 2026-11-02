@@ -6,6 +6,7 @@ name: CI
 # - 客户端改动（release.yml 的触发路径）合入 main 时由 Release 工作流以 workflow_call 调用这一整套，
 #   所以 push 这里排除同一组路径，免得同一次合入跑两遍；
 # - 只改文档、官网（site.yml 管）时不跑；其余（工具脚本、根配置、Tests、本文件）由这里跑。
+# 一次 push 同时改了客户端与工具脚本 / Tests 时两边都会跑（GitHub 的路径过滤只能按「全部文件都被忽略」跳过），属正常。
 # 改 release.yml 的 paths 时同步改下面 push 的 paths-ignore。
 # pull_request 不加文档类路径过滤：路径过滤会让被跳过的检查一直挂起，PR 合不进来。
 on:
