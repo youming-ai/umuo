@@ -31,6 +31,12 @@ pub struct ChatRequest {
     /// 提示传输层尽量启用结构化输出。Anthropic 没有对应参数，只能靠 Prompt 约束。
     pub json_mode: bool,
     pub max_tokens: u32,
+    /// 强制不发 `temperature`。
+    ///
+    /// 平时由 [`accepts_temperature`] 按模型名判断；这个开关留给传输层的兜底重试：
+    /// 认不出的模型（Azure 部署名、自定义端点上的推理模型）回 400 说不支持
+    /// temperature 时，去掉它再发一次（见 [`is_temperature_rejection`]）。
+    pub omit_temperature: bool,
 }
 
 impl ChatRequest {
@@ -41,7 +47,19 @@ impl ChatRequest {
             temperature: 0.2,
             json_mode: false,
             max_tokens: DEFAULT_MAX_OUTPUT_TOKENS,
+            omit_temperature: false,
         }
+    }
+
+    /// 同一个请求，但不带 `temperature`。供传输层在 400 之后重试用。
+    pub fn without_temperature(mut self) -> Self {
+        self.omit_temperature = true;
+        self
+    }
+
+    /// 这次请求实际要不要发 `temperature`：显式关掉的不发，模型不接受的也不发。
+    fn sends_temperature(&self, model: &str) -> bool {
+        !self.omit_temperature && accepts_temperature(model)
     }
 
     pub fn json(mut self) -> Self {
@@ -53,6 +71,83 @@ impl ChatRequest {
         self.temperature = if t.is_finite() { t } else { 0.2 };
         self
     }
+}
+
+/// 这个模型是否接受 `temperature` 参数。
+///
+/// 推理模型会把带 `temperature` 的请求直接 400 掉（"Unsupported value: 'temperature'"），
+/// 而翻译总会带它——所以对这些模型必须**不发**，而不是发个默认值。
+///
+/// 只看最后一段路径（OpenRouter 的 `openai/o3`、`anthropic/claude-haiku-5.5` 取 `/` 之后），
+/// 不区分大小写。认不出的名字一律视为接受：本地模型和绝大多数兼容端点都吃 temperature，
+/// 漏判的由传输层在 400 之后去掉它重试一次兜底（[`is_temperature_rejection`]）。
+///
+/// - OpenAI：o 系列（`o1`/`o3`/`o4`…）与 `gpt-5` 及以后（`gpt-5-mini`、`gpt-6-luna`…）
+///   都是推理模型，推理强度不是 `none` 时不接受 temperature，而默认强度都不是 `none`。
+/// - Anthropic：Claude 4.7 及以后（含 5.x、Fable、Mythos）不接受 temperature/top_p/top_k；
+///   4.6 及以前、Claude 3 系列照常接受。
+pub fn accepts_temperature(model: &str) -> bool {
+    let lower = model.trim().to_ascii_lowercase();
+    let name = lower.rsplit('/').next().unwrap_or(&lower);
+    !(is_openai_reasoning_model(name) || is_claude_without_sampling(name))
+}
+
+/// `o1`、`o3-mini`、`o4-mini`、`gpt-5`、`gpt-5.1`、`gpt-6-luna`……
+fn is_openai_reasoning_model(name: &str) -> bool {
+    let bytes = name.as_bytes();
+    if bytes.len() >= 2 && bytes[0] == b'o' && bytes[1].is_ascii_digit() {
+        return true;
+    }
+    name.strip_prefix("gpt-")
+        .and_then(leading_number)
+        .is_some_and(|major| major >= 5)
+}
+
+/// Claude 4.7 及以后的模型不接受采样参数。
+///
+/// 名字有两种写法：`claude-3-5-haiku-latest`（版本在前）与 `claude-haiku-4-5`
+/// （版本在后，OpenRouter 写成 `claude-haiku-4.5`）。日期快照后缀
+/// （`claude-sonnet-4-20250514`）不能被当成小版本号。
+fn is_claude_without_sampling(name: &str) -> bool {
+    let Some(rest) = name.strip_prefix("claude-") else {
+        return false;
+    };
+    let parts: Vec<&str> = rest.split(['-', '.']).collect();
+    let Some(major_at) = parts.iter().position(|p| p.parse::<u32>().is_ok()) else {
+        // 没有版本号的新命名（`claude-fable`、`claude-mythos-preview`）都是新模型。
+        return true;
+    };
+    let major: u32 = parts[major_at].parse().unwrap_or(0);
+    // 小版本号最多两位；八位数是日期快照，等同于 `.0`。
+    let minor: u32 = parts
+        .get(major_at + 1)
+        .and_then(|p| p.parse::<u32>().ok())
+        .filter(|n| *n < 100)
+        .unwrap_or(0);
+    (major, minor) >= (4, 7)
+}
+
+/// 字符串开头的十进制整数（`"5-mini"` → 5，`"6.1-sol"` → 6）。
+fn leading_number(s: &str) -> Option<u32> {
+    let end = s.find(|c: char| !c.is_ascii_digit()).unwrap_or(s.len());
+    s[..end].parse().ok()
+}
+
+/// 400 响应体是不是在说「这个模型不支持 temperature」。
+///
+/// 按模型名的规则认不出 Azure 部署名（用户自己起的名字）与自定义端点上的推理模型，
+/// 传输层看到这种错误就去掉 temperature 重发一次。措辞各家不同：
+/// OpenAI 是 "Unsupported parameter/value: 'temperature' …"，
+/// 也见过 "temperature is not supported" / "does not support temperature"。
+pub fn is_temperature_rejection(status: u16, body: &str) -> bool {
+    if status != 400 {
+        return false;
+    }
+    let lower = body.to_ascii_lowercase();
+    lower.contains("temperature")
+        && (lower.contains("unsupported")
+            || lower.contains("not supported")
+            || lower.contains("does not support"))
 }
 
 /// 一个可以直接交给 HTTP 客户端的请求。
@@ -135,12 +230,15 @@ pub fn build_chat_request_at(
                     { "role": "system", "content": req.system },
                     { "role": "user", "content": req.user },
                 ],
-                "temperature": req.temperature,
                 "stream": true,
                 // 不开这个开关，OpenAI 兼容的流式响应里根本不会带 usage，
                 // 于是历史里的用量只能全部标注为估算。
                 "stream_options": { "include_usage": true },
             });
+            // 推理模型（o 系列、gpt-5 及以后）收到 temperature 会直接 400。
+            if req.sends_temperature(model) {
+                body["temperature"] = json!(req.temperature);
+            }
             if req.json_mode {
                 body["response_format"] = json!({ "type": "json_object" });
             }
@@ -159,10 +257,13 @@ pub fn build_chat_request_at(
                     { "role": "system", "content": req.system },
                     { "role": "user", "content": req.user },
                 ],
-                "temperature": req.temperature,
                 "stream": true,
                 "stream_options": { "include_usage": true },
             });
+            // 部署名多半是用户自己起的，按名字常常认不出；认不出的靠传输层 400 兜底重试。
+            if req.sends_temperature(model) {
+                body["temperature"] = json!(req.temperature);
+            }
             if req.json_mode {
                 body["response_format"] = json!({ "type": "json_object" });
             }
@@ -178,16 +279,19 @@ pub fn build_chat_request_at(
                 "anthropic-version".to_string(),
                 ANTHROPIC_VERSION.to_string(),
             ));
-            let body = json!({
+            let mut body = json!({
                 "model": model,
                 "max_tokens": req.max_tokens,
                 "system": req.system,
                 "messages": [ { "role": "user", "content": req.user } ],
-                // Anthropic 只接受 0..=1，而我们的范围是 0..=2（OpenAI 的上限）。
-                // 按协议各夹一次，比为了迁就它把所有人的自由度都压到 1 更合适。
-                "temperature": req.temperature.min(1.0),
                 "stream": true,
             });
+            // Claude 4.7 及以后不接受采样参数，发了就 400。
+            if req.sends_temperature(model) {
+                // Anthropic 只接受 0..=1，而我们的范围是 0..=2（OpenAI 的上限）。
+                // 按协议各夹一次，比为了迁就它把所有人的自由度都压到 1 更合适。
+                body["temperature"] = json!(req.temperature.min(1.0));
+            }
             Ok(WireRequest {
                 method: "POST",
                 url: join_url(base_url, "messages"),
@@ -202,8 +306,12 @@ pub fn build_chat_request_at(
                 "contents": [
                     { "role": "user", "parts": [ { "text": req.user } ] }
                 ],
-                "generationConfig": { "temperature": req.temperature },
+                "generationConfig": {},
             });
+            // Gemini 目前没有拒收 temperature 的模型；只尊重传输层兜底时的显式关闭。
+            if !req.omit_temperature {
+                body["generationConfig"]["temperature"] = json!(req.temperature);
+            }
             if req.json_mode {
                 body["generationConfig"]["responseMimeType"] = json!("application/json");
             }
@@ -1067,6 +1175,83 @@ mod tests {
             1.0,
             "Anthropic 只接受到 1"
         );
+    }
+
+    #[test]
+    fn reasoning_and_new_claude_models_do_not_accept_temperature() {
+        for model in [
+            "o1",
+            "o3-mini",
+            "o4-mini",
+            "gpt-5",
+            "gpt-5.4-mini",
+            "GPT-5-nano",
+            "openai/gpt-5.6-luna",
+            "claude-haiku-5-5",
+            "claude-sonnet-5-5",
+            "claude-opus-4-7",
+            "anthropic/claude-haiku-5.5",
+            "claude-fable-5-1",
+        ] {
+            assert!(!accepts_temperature(model), "{model} 不该带 temperature");
+        }
+        for model in [
+            "gpt-4o-mini",
+            "gpt-4.1-mini",
+            "openai/gpt-4o-mini",
+            "claude-3-5-haiku-latest",
+            "claude-sonnet-4-5",
+            "claude-sonnet-4-20250514",
+            "claude-opus-4-6",
+            "gemini-2.5-flash",
+            "deepseek-chat",
+            "qwen2.5:7b",
+            "omni-model",
+        ] {
+            assert!(accepts_temperature(model), "{model} 应当照常带 temperature");
+        }
+    }
+
+    #[test]
+    fn temperature_is_left_out_of_the_body_when_not_accepted() {
+        let req = ChatRequest::new("s", "u");
+        let body_of = |provider: &str, model: &str, req: &ChatRequest| -> serde_json::Value {
+            let wire =
+                build_chat_request(find_provider(provider).unwrap(), model, "sk-x", req).unwrap();
+            serde_json::from_str(wire.body.as_deref().unwrap()).unwrap()
+        };
+        assert!(body_of("openai", "gpt-5-mini", &req)
+            .get("temperature")
+            .is_none());
+        assert!(body_of("anthropic", "claude-haiku-5-5", &req)
+            .get("temperature")
+            .is_none());
+        assert!(body_of("openai", "gpt-4o-mini", &req)
+            .get("temperature")
+            .is_some());
+
+        // 兜底重试：显式关闭后，任何协议都不带
+        let bare = req.clone().without_temperature();
+        assert!(body_of("openai", "gpt-4o-mini", &bare)
+            .get("temperature")
+            .is_none());
+        assert!(
+            body_of("gemini", "gemini-2.5-flash", &bare)["generationConfig"]
+                .get("temperature")
+                .is_none()
+        );
+    }
+
+    #[test]
+    fn only_a_400_about_temperature_triggers_the_retry() {
+        let openai = r#"{"error":{"message":"Unsupported value: 'temperature' does not support 0.2 with this model. Only the default (1) value is supported.","type":"invalid_request_error","param":"temperature"}}"#;
+        assert!(is_temperature_rejection(400, openai));
+        assert!(is_temperature_rejection(
+            400,
+            "temperature is not supported for this model"
+        ));
+        assert!(!is_temperature_rejection(400, "max_tokens is too large"));
+        assert!(!is_temperature_rejection(500, openai));
     }
 
     #[test]

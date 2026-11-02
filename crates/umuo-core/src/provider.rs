@@ -104,7 +104,9 @@ pub const DEFAULT_CONTEXT_TOKENS: usize = 8_192;
 /// 供应商的模型列表接口不返回上下文长度，所以这张表是必要的——
 /// 没有它就无法执行 PRD §6.3 的「超过上下文 70% 时切分」。
 pub fn context_window_for(model: &str) -> usize {
-    let name = model.trim().to_ascii_lowercase();
+    let lower = model.trim().to_ascii_lowercase();
+    // OpenRouter 的模型名带厂商前缀（`anthropic/claude-haiku-5.5`），按最后一段匹配。
+    let name = lower.rsplit('/').next().unwrap_or(&lower);
     if name.is_empty() {
         return DEFAULT_CONTEXT_TOKENS;
     }
@@ -114,6 +116,8 @@ pub fn context_window_for(model: &str) -> usize {
         ("gpt-4o", 128_000),
         ("gpt-4.1", 128_000),
         ("gpt-4-turbo", 128_000),
+        // gpt-5 系列实际更大（约 400k），按 128k 保守估。
+        ("gpt-5", 128_000),
         ("gpt-4", 8_192),
         ("o1", 200_000),
         ("o3", 200_000),
@@ -183,9 +187,9 @@ pub const PROVIDERS: &[Provider] = &[
         auth: Auth::XApiKey,
         kind: ProviderKind::Cloud,
         base_url: "https://api.anthropic.com/v1",
-        default_model: "claude-3-5-haiku-latest",
-        // 用 `-latest` 别名而不是日期快照：快照会被下架，别名不会。
-        suggested_models: &["claude-3-5-haiku-latest", "claude-3-5-sonnet-latest"],
+        // 用不带日期的别名；但别名也会随模型一起退役（3.5 系列已下线），换代时要跟着改。
+        default_model: "claude-haiku-5-5",
+        suggested_models: &["claude-haiku-5-5", "claude-sonnet-5-5"],
         keys_url: "https://console.anthropic.com/settings/keys",
         key_prefixes: &["sk-ant-"],
     },
@@ -196,8 +200,9 @@ pub const PROVIDERS: &[Provider] = &[
         auth: Auth::XGoogApiKey,
         kind: ProviderKind::Cloud,
         base_url: "https://generativelanguage.googleapis.com/v1beta",
-        default_model: "gemini-2.0-flash",
-        suggested_models: &["gemini-2.0-flash", "gemini-2.5-flash", "gemini-2.5-pro"],
+        // gemini-2.0-flash 已弃用；2.5 系列是当前的稳定版。
+        default_model: "gemini-2.5-flash",
+        suggested_models: &["gemini-2.5-flash", "gemini-2.5-flash-lite", "gemini-2.5-pro"],
         keys_url: "https://aistudio.google.com/apikey",
         key_prefixes: &["AIza"],
     },
@@ -262,8 +267,8 @@ pub const PROVIDERS: &[Provider] = &[
         default_model: "openai/gpt-4o-mini",
         suggested_models: &[
             "openai/gpt-4o-mini",
-            "anthropic/claude-3.5-haiku",
-            "google/gemini-2.0-flash-001",
+            "anthropic/claude-haiku-5.5",
+            "google/gemini-2.5-flash",
         ],
         keys_url: "https://openrouter.ai/keys",
         key_prefixes: &["sk-or-"],
@@ -363,6 +368,9 @@ mod context_tests {
     fn local_models_are_not_overestimated() {
         // Ollama 的 num_ctx 常被压到 2k–8k，按 128k 估会直接把请求打爆。
         assert_eq!(context_window_for("llama3.1:8b"), DEFAULT_CONTEXT_TOKENS);
+        // OpenRouter 的厂商前缀不能让匹配落空
+        assert_eq!(context_window_for("anthropic/claude-haiku-5.5"), 200_000);
+        assert_eq!(context_window_for("openai/gpt-5.4-mini"), 128_000);
         assert_eq!(context_window_for("mistral-nemo"), DEFAULT_CONTEXT_TOKENS);
     }
 

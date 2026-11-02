@@ -17,8 +17,8 @@ use futures_util::StreamExt;
 use crate::error::{classify_http_error, redact_secrets, CoreError};
 use crate::provider::{Protocol, Provider};
 use crate::wire::{
-    build_chat_request_at, parse_stream_event, ChatRequest, SseDecoder, StreamEvent, TokenUsage,
-    WireRequest,
+    build_chat_request_at, is_temperature_rejection, parse_stream_event, ChatRequest, SseDecoder,
+    StreamEvent, TokenUsage, WireRequest,
 };
 
 /// 等首个响应头的超时（PRD §6.3 默认 8 s）。只约束首字延迟，流式读取另有空闲超时。
@@ -276,25 +276,30 @@ pub async fn stream_chat(
         api_key,
         chat,
     } = *target;
-    let wire = build_chat_request_at(
-        provider,
-        base_url.unwrap_or(provider.base_url),
-        model,
-        api_key,
-        chat,
-    )?;
+    let base_url = base_url.unwrap_or(provider.base_url);
     let started = Instant::now();
 
-    // 等响应头的这段也要能取消：推理模型的首字可能要等几十秒。
-    let response = cancellable(options.cancel, send(client, &wire, options.timeout)).await??;
+    // 最多发两次：按模型名认不出的推理模型（Azure 部署名、自定义端点）会回 400
+    // 说不支持 temperature，这时去掉它重发一次，而不是把一个必然可修的错误摔给用户。
+    let mut attempt = chat.clone();
+    let response = loop {
+        let wire = build_chat_request_at(provider, base_url, model, api_key, &attempt)?;
+        // 等响应头的这段也要能取消：推理模型的首字可能要等几十秒。
+        let response = cancellable(options.cancel, send(client, &wire, options.timeout)).await??;
 
-    let status = response.status();
-    if !status.is_success() {
+        let status = response.status();
+        if status.is_success() {
+            break response;
+        }
         let retry_after = parse_retry_after(response.headers());
         // 错误体可能很长，但分类需要完整文本；截断只发生在进入 UI 之前。
         let body = read_error_body(response).await;
+        if !attempt.omit_temperature && is_temperature_rejection(status.as_u16(), &body) {
+            attempt = attempt.without_temperature();
+            continue;
+        }
         return Err(classify_http_error(status.as_u16(), &body, retry_after));
-    }
+    };
 
     let protocol = provider.protocol;
     let mut decoder = SseDecoder::new();
@@ -815,6 +820,87 @@ mod tests {
         // 分片之间还原原文的段间空行，而不是只补一个换行。
         assert_eq!(outcome.text, vec!["译"; count].join("\n\n"));
         assert_eq!(streamed, outcome.text);
+    }
+
+    /// 本机假服务：请求体带 `temperature` 就回 400（像推理模型那样），否则回一段正常的流。
+    /// 返回地址与收到的请求数。
+    fn temperature_rejecting_server() -> (String, std::sync::Arc<std::sync::atomic::AtomicUsize>) {
+        use std::io::{BufRead, BufReader, Read, Write};
+        use std::sync::atomic::AtomicUsize;
+        use std::sync::Arc;
+
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let address = format!("http://{}/v1", listener.local_addr().unwrap());
+        let hits = Arc::new(AtomicUsize::new(0));
+        let hits_out = hits.clone();
+        std::thread::spawn(move || {
+            for stream in listener.incoming() {
+                let Ok(stream) = stream else { break };
+                hits.fetch_add(1, Ordering::SeqCst);
+                let mut reader = BufReader::new(stream);
+                let mut length = 0usize;
+                loop {
+                    let mut line = String::new();
+                    if reader.read_line(&mut line).unwrap_or(0) == 0 || line == "\r\n" {
+                        break;
+                    }
+                    let lower = line.to_ascii_lowercase();
+                    if let Some(value) = lower.strip_prefix("content-length:") {
+                        length = value.trim().parse().unwrap_or(0);
+                    }
+                }
+                let mut body = vec![0u8; length];
+                let _ = reader.read_exact(&mut body);
+                let body = String::from_utf8_lossy(&body);
+                let mut stream = reader.into_inner();
+                if body.contains("\"temperature\"") {
+                    let err = r#"{"error":{"message":"Unsupported value: 'temperature' does not support 0.2 with this model.","param":"temperature"}}"#;
+                    let _ = write!(
+                        stream,
+                        "HTTP/1.1 400 Bad Request\r\nContent-Type: application/json\r\n\
+                         Content-Length: {}\r\nConnection: close\r\n\r\n{err}",
+                        err.len()
+                    );
+                } else {
+                    let sse = "data: {\"choices\":[{\"delta\":{\"content\":\"译\"}}]}\n\n\
+                               data: {\"choices\":[{\"delta\":{},\"finish_reason\":\"stop\"}]}\n\n\
+                               data: [DONE]\n\n";
+                    let _ = write!(
+                        stream,
+                        "HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\n\
+                         Content-Length: {}\r\nConnection: close\r\n\r\n{sse}",
+                        sse.len()
+                    );
+                }
+            }
+        });
+        (address, hits_out)
+    }
+
+    #[tokio::test]
+    async fn a_400_about_temperature_is_retried_once_without_it() {
+        // Azure 部署名、自定义端点上的推理模型按名字认不出，靠这次重试兜底。
+        let (base_url, hits) = temperature_rejecting_server();
+        let client = build_client_with(&crate::proxy::ProxyChoice::Direct).unwrap();
+        let provider = crate::provider::find_provider("openai").unwrap();
+        let chat = ChatRequest::new("system", "原文");
+        let mut sink = |_: &str| {};
+        let outcome = stream_chat(
+            &client,
+            &ChatTarget {
+                provider,
+                base_url: Some(&base_url),
+                model: "my-deployment",
+                api_key: "sk-test",
+                chat: &chat,
+            },
+            &StreamOptions::default(),
+            &mut sink,
+        )
+        .await
+        .expect("去掉 temperature 后应当成功");
+        assert_eq!(outcome.text, "译");
+        assert_eq!(hits.load(Ordering::SeqCst), 2, "只重试一次");
     }
 
     #[test]
