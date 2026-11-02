@@ -70,8 +70,19 @@ enum ScreenOCR {
         case cancelled
         /// 给用户看的一句话；`permission` 非空时 UI 要附上「去授权」入口（`PermissionKind` 的原始值）。
         case notice(UserText, permission: String?)
+        /// 截图或识别失败：`stage` 是外层那句（「截图失败：…」），`error` 是具体原因，两段都按界面语言取。
+        case failed(stage: String, error: CaptureError)
         /// 识别到的文本交给翻译流水线。
         case recognized(String)
+
+        /// 要提示用户的那句话（取消与识别到文本时没有）。
+        func message(_ t: Translate) -> String? {
+            switch self {
+            case .cancelled, .recognized: nil
+            case let .notice(text, _): t(text)
+            case let .failed(stage, error): t(stage, ["reason": t(error.text)])
+            }
+        }
     }
 
     static let permissionNotice = UserText("ocr.permissionNotice")
@@ -94,14 +105,14 @@ enum ScreenOCR {
             guard let captured = try capture() else { return .cancelled }
             image = captured
         } catch {
-            return .notice(UserText("ocr.captureFailed", ["reason": error.text.description]), permission: nil)
+            return .failed(stage: "ocr.captureFailed", error: error)
         }
         do {
             let result = try recognize(image)
             // 截到图片、纯色区域时很常见。要说清楚，否则用户以为快捷键没生效
             return result.isEmpty ? .notice(emptyNotice, permission: nil) : .recognized(result.text)
         } catch {
-            return .notice(UserText("ocr.recognizeFailed", ["reason": error.text.description]), permission: nil)
+            return .failed(stage: "ocr.recognizeFailed", error: error)
         }
     }
 }

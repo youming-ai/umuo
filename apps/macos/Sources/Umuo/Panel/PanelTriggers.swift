@@ -74,8 +74,11 @@ extension PanelController {
                 switch outcome {
                 case .cancelled:
                     return
-                case let .notice(message, permission):
-                    self.showNotice(self.session.t(message), permission: permission.flatMap(PermissionKind.init(rawValue:)))
+                case let .notice(_, permission):
+                    self.showNotice(outcome.message(self.session.t) ?? "",
+                                    permission: permission.flatMap(PermissionKind.init(rawValue:)))
+                case .failed:
+                    self.showNotice(outcome.message(self.session.t) ?? "", permission: nil)
                 case let .recognized(text):
                     self.ensureShown()
                     self.startTranslation(TranslateRequest(

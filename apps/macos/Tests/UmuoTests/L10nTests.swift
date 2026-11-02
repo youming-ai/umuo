@@ -96,6 +96,13 @@ struct CatalogTests {
         #expect(HotkeyConflict.systemKeys.count == 13)
     }
 
+    @Test func 截图失败的提示整句按界面语言取_不夹源语言() {
+        let outcome = ScreenOCR.run(hasPermission: { true }, capture: { () throws(CaptureError) in throw .permissionDenied })
+        #expect(outcome.message(Translate(locale: .en)) == "Screenshot failed: Requires system permission: Screen Recording")
+        #expect(outcome.message(Translate(locale: .zhCN)) == "截图失败：需要系统权限：屏幕录制")
+        #expect(ScreenOCR.run(hasPermission: { true }, capture: { nil }).message(Translate(locale: .en)) == nil)
+    }
+
     @Test func 读不到Key时提示去设置里重新保存() {
         #expect(Translate(locale: .zhCN)("keychain.resaveKey") == "凭据存储不可用：请在设置里重新保存 Key")
         for locale in AppLocale.allCases {

@@ -102,10 +102,10 @@ enum CaptureSelfTest {
         }
         let ok = outcome { nil } == .cancelled
             && outcome { () throws(CaptureError) in throw .permissionDenied }
-            == .notice(UserText("ocr.captureFailed", ["reason": CaptureError.permissionDenied.description]), permission: nil)
+            == .failed(stage: "ocr.captureFailed", error: .permissionDenied)
             && outcome { image } == .notice(ScreenOCR.emptyNotice, permission: nil)
             && outcome({ image }, { _ throws(CaptureError) in throw .other(UserText("ocr.visionFailed", ["reason": "x"])) })
-            == .notice(UserText("ocr.recognizeFailed", ["reason": "Vision 识别失败：x"]), permission: nil)
+            == .failed(stage: "ocr.recognizeFailed", error: .other(UserText("ocr.visionFailed", ["reason": "x"])))
             && outcome({ image }, { _ in OcrResult(lines: [OcrLine(text: " 你好 ", confidence: 1)]) })
             == .recognized("你好")
         check("ScreenOCR.outcomes", ok, "取消不提示；截图失败 / 识别失败 / 没识别到文字各一句；识别到的文本原样交出")

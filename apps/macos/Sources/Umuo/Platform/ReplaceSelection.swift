@@ -35,6 +35,7 @@ enum ReplaceSelection {
     static func pasteFallback(_ text: String, paster: ControlledPaste = ControlledPaste()) throws(AXWriteBack.Refused) {
         switch paster.run(text, proceed: { true }) {
         case .pasted: return
+        // proceed 恒为 true（前台核对在调用方做过），走不到这里；万一走到了按「没写成」报
         case .skipped: throw AXWriteBack.Refused("error.clipboardUnavailable")
         case let .failed(text): throw AXWriteBack.Refused(text)
         }
