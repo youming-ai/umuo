@@ -80,7 +80,6 @@ export interface HeroContent {
    * 下载按钮旁的一句「免费、自带 Key」说明。按 config.ts 的 `SOURCE_PUBLIC` 二选一：
    * 仓库公开前写「即将开源」（纯文字），公开后写「MIT 开源」并链到 `SOURCE_URL`。
    */
-  freeNote: { pending: string; public: string }
   demo: {
     label: string
     /** 第一项是默认展示的模式 */

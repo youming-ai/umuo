@@ -30,10 +30,6 @@ export const ja: SiteContent = {
     title: '書いたその場で、\n外国語に',
     subtitle:
       '⌥ を 2 回押せば、入力欄の文章がその場で外国語に。選択したテキストもスクショも翻訳できます。',
-    freeNote: {
-      pending: '無料、自前のキーで利用、近日オープンソース',
-      public: '無料・MIT オープンソース、自前のキーで利用',
-    },
     demo: {
       label: '翻訳プレビュー',
       modes: [

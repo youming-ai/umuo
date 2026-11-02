@@ -63,9 +63,13 @@ describe('首页一屏', () => {
     expect(hrefs).toContain('/privacy')
   })
 
-  it('页眉只有 logo，没有「免费与开源」链接与下载按钮', () => {
+  it('页眉左边 logo、右边 GitHub，没有「免费与开源」链接与下载按钮', () => {
     const links = [...(host.querySelector('header')?.querySelectorAll('a') ?? [])]
-    expect(links.map((link) => link.getAttribute('href'))).toEqual(['/'])
+    expect(links.map((link) => link.getAttribute('href'))).toEqual([
+      '/',
+      'https://github.com/youming-ai/umuo',
+    ])
+    expect(links[1]?.textContent).toBe('GitHub')
     expect(host.querySelector('header a[href*="pricing"]')).toBeNull()
     expect(host.querySelector('header')?.textContent).not.toContain('免费与开源')
     expect(host.querySelector('header button')).toBeNull()
@@ -179,11 +183,8 @@ describe('首页一屏', () => {
     expect(download?.textContent).toContain('预览版')
     expect(host.querySelector('#download')?.textContent).toContain('仍要打开')
     expect(host.querySelector('form')).toBeNull()
-    // 下载按钮旁只有一句「免费开源、自带 Key」；仓库已公开（SOURCE_PUBLIC 打开），这句链到源码，页脚也有源码链接
-    const note = host.querySelector('#download .hero-free-note')
-    expect(note?.textContent).toBe('免费开源（MIT），自带 Key')
-    expect(note?.tagName).toBe('A')
-    expect(note?.getAttribute('href')).toBe('https://github.com/youming-ai/umuo')
+    // 下载按钮旁不再放说明句；源码链接在页眉右侧与页脚
+    expect(host.querySelector('#download a[href*="github.com"]')).toBeNull()
     expect(host.querySelector('footer a[href="https://github.com/youming-ai/umuo"]')).not.toBeNull()
     expect(host.querySelector('a[href*="pricing"]')).toBeNull()
   })

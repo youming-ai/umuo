@@ -49,10 +49,10 @@ export const MACOS_DOWNLOAD_URL: string | null = '/download/macos'
 export const SOURCE_URL = 'https://github.com/youming-ai/umuo'
 
 /**
- * 源码链接开关：打开后，页脚出现指向 `SOURCE_URL` 的链接，首页下载旁那句也换成链到源码的「MIT 开源」。
+ * 源码链接开关：打开后，页眉右侧出现「GitHub」、页脚出现「源码」，都指向 `SOURCE_URL`。
  *
  * **默认关闭**：main 合入即部署正式站，仓库公开前不能放一个打不开的链接；
- * 关闭时首页只写「即将开源」，不出现任何链接。仓库已于 2026-11-02 公开，故打开；若改回私有须先关掉。
+ * 关闭时页面上不出现任何源码链接。仓库已于 2026-11-02 公开，故打开；若改回私有须先关掉。
  */
 export const SOURCE_PUBLIC: boolean = true
 

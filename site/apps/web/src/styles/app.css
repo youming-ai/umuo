@@ -606,26 +606,6 @@
   }
 
   /* 下载按钮旁的一句「免费、自带 Key」：仓库公开前是纯文字；SOURCE_PUBLIC 打开后是链到源码的链接 */
-  .hero-free-note {
-    color: var(--coffee-strong);
-    font-size: 0.9375rem;
-    font-weight: 500;
-  }
-
-  a.hero-free-note {
-    text-decoration: underline;
-    text-decoration-color: color-mix(in srgb, var(--coffee) 65%, transparent);
-    text-underline-offset: 0.3em;
-    transition:
-      color 150ms ease,
-      text-decoration-color 150ms ease;
-  }
-
-  a.hero-free-note:hover {
-    color: var(--ink);
-    text-decoration-color: var(--accent-strong);
-  }
-
   /* 首屏内部的纵向节奏随视口高度收放，矮屏也能一屏放下 */
   .hero-gap {
     margin-top: clamp(0.75rem, 2.4svh, 1.5rem);

@@ -5,7 +5,6 @@ import {
   useId,
   useState,
 } from 'react'
-import { SOURCE_PUBLIC, SOURCE_URL } from '../config'
 import type { DemoMode, DemoModeId, SiteContent } from '../content/types'
 import { DownloadPanel } from './DownloadButton'
 
@@ -30,20 +29,7 @@ export function Hero({ content }: { content: SiteContent }) {
           <p className="lead hero-gap">{hero.subtitle}</p>
           {macos ? (
             <div className="hero-gap-lg">
-              <DownloadPanel
-                platform={macos}
-                // 首页只有一屏：按钮旁只放一句「免费、自带 Key」。仓库公开前是纯文字；
-                // SOURCE_PUBLIC 打开后换成「MIT 开源」并链到源码
-                aside={
-                  SOURCE_PUBLIC ? (
-                    <a href={SOURCE_URL} className="hero-free-note">
-                      {hero.freeNote.public}
-                    </a>
-                  ) : (
-                    <span className="hero-free-note">{hero.freeNote.pending}</span>
-                  )
-                }
-              />
+              <DownloadPanel platform={macos} />
             </div>
           ) : null}
         </div>

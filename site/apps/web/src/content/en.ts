@@ -30,10 +30,6 @@ export const en: SiteContent = {
     title: 'Translate right\nwhere you write',
     subtitle:
       'Tap ⌥ twice and the text in your input box turns into another language, in place. Selections and screenshots translate too.',
-    freeNote: {
-      pending: 'Free, your own key, open source soon',
-      public: 'Free and open source (MIT), your own key',
-    },
     demo: {
       label: 'Translation preview',
       modes: [

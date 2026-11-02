@@ -165,7 +165,7 @@
     {
       "name": "Navigation",
       "kind": "nav",
-      "description": "只有左边的 logo + 小写字样，高度固定 64px。",
+      "description": "左边 logo + 小写字样，右边文字链接「GitHub」（仓库公开时显示），高度固定 64px。",
       "html": "<nav class=\"ds-nav\"><span class=\"ds-brand\"><span class=\"ds-logo\"></span>umuo</span></nav>",
       "css": ".ds-nav{display:flex;align-items:center;justify-content:space-between;height:64px;padding:0 24px;font-family:'Open Sans',-apple-system,sans-serif}.ds-brand{display:flex;align-items:center;gap:10px;font-size:1.25rem;font-weight:600;color:var(--ink,#2a1f1a)}.ds-logo{width:40px;height:40px;border-radius:9px;background:#0a84ff;box-shadow:0 3px 10px -3px rgb(42 31 26/.3)}.ds-nav a{font-size:.9375rem;font-weight:500;color:var(--ink-2,#5c4638);text-decoration:none}.ds-nav a:hover{color:var(--ink,#2a1f1a)}.ds-nav a[aria-current=page]{color:var(--accent-strong,#7e5236);text-decoration:underline;text-underline-offset:.4em;text-decoration-color:var(--accent,#a8734d)}"
     }

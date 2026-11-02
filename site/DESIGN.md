@@ -247,7 +247,7 @@ components:
 指针附近亮起一圈加深的咖啡色聚光，这是访客触发的效果，不算自发动效。
 
 ### Navigation
-只有左边的 logo 加小写字样「umuo」，右边留空；页眉高度固定 4rem，只剩 logo 也不塌。页眉不放 GitHub 链接；源码链接只在仓库公开（`SOURCE_PUBLIC`）后出现在页脚与首页下载旁的那句说明。
+左边是 logo 加小写字样「umuo」，右边是文字链接「GitHub」（`text-secondary`，悬停转 `text-primary`，占原「免费与开源」的位置）；页眉高度固定 4rem。GitHub 链接只在仓库公开（`SOURCE_PUBLIC`）时出现，页脚另有源码链接；首页下载旁不放说明句。
 
 ## Do's and Don'ts
 

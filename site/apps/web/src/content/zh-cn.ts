@@ -29,10 +29,6 @@ export const zhCn: SiteContent = {
   hero: {
     title: '在哪里写，\n就在哪里译',
     subtitle: '写完按两下 ⌥，输入框里的文字原地换成外语；划词、截图也能译。',
-    freeNote: {
-      pending: '免费，自带 Key，即将开源',
-      public: '免费开源（MIT），自带 Key',
-    },
     demo: {
       label: '翻译预览',
       modes: [

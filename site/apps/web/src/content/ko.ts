@@ -27,10 +27,6 @@ export const ko: SiteContent = {
     title: '쓰는 그 자리에서\n바로 번역',
     subtitle:
       '⌥를 두 번 누르면 입력창의 글이 그 자리에서 외국어로 바뀝니다. 선택한 텍스트와 스크린샷도 번역합니다.',
-    freeNote: {
-      pending: '무료, 내 API 키 사용, 곧 오픈 소스',
-      public: '무료 MIT 오픈 소스, 내 API 키 사용',
-    },
     demo: {
       label: '번역 미리보기',
       modes: [

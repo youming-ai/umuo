@@ -29,10 +29,6 @@ export const zhTw: SiteContent = {
   hero: {
     title: '在哪裡寫，\n就在哪裡譯',
     subtitle: '寫完按兩下 ⌥，輸入框裡的文字原地換成外語；劃詞、截圖也能譯。',
-    freeNote: {
-      pending: '免費，自帶金鑰，即將開源',
-      public: '免費開源（MIT），自帶金鑰',
-    },
     demo: {
       label: '翻譯預覽',
       modes: [
