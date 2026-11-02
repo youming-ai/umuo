@@ -97,9 +97,10 @@ enum SelectionSelfTest {
                 wrote.withLock { $0 = true }
             }
         }
-        let window = Double(ClipboardFallback.pollAttempts) * ClipboardFallback.pollInterval
-            + ClipboardFallback.lateCopyWindow
-        if let landed = landedAt.withLock({ $0 }), landed < window {
+        // 以 read() 实际结束的时刻为准：慢机器上读取本身会往后推，按常量算的窗口不可靠。
+        // 迟到的复制要在读取结束前一个轮询间隔落地，「再恢复一次」才有机会发生
+        let finished = Date().timeIntervalSince(started)
+        if let landed = landedAt.withLock({ $0 }), landed + ClipboardFallback.lateCopyPollInterval < finished {
             check("ClipboardFallback.lateCopy", late == .failure(.noSelection) && wrote.withLock { $0 } && restoredAfterLate,
                   "恢复之后才到的复制结果被再恢复一次")
         } else {
