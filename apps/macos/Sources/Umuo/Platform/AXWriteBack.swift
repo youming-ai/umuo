@@ -23,10 +23,12 @@ enum AXWriteBack {
     /// 按「这个属性可不可写」决定能不能往里写（`check_writable`）：
     /// 明确不可写一律拒绝；问不出来时选区放行（Electron 一类常常问不出来却写得进去），整框拒绝。
     static func checkWritable(_ source: FocusSource, _ settable: Bool?) throws(Refused) {
-        switch (source, settable) {
-        case (_, true), (.selection, nil): return
-        case (.selection, false): throw Refused(detail: "当前位置不可写入：选中的内容是只读的")
-        case (.wholeField, _): throw Refused(detail: "当前位置不可写入：当前输入框不支持整体改写")
+        // 不用 (source, settable) 元组 switch：较旧的编译器（CI 上的 Xcode 16）证明不了它穷尽
+        switch source {
+        case .selection:
+            if settable == false { throw Refused(detail: "当前位置不可写入：选中的内容是只读的") }
+        case .wholeField:
+            if settable != true { throw Refused(detail: "当前位置不可写入：当前输入框不支持整体改写") }
         }
     }
 
