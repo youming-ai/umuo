@@ -34,7 +34,7 @@ Vite + Void 负责开发和构建。Worker 没有任何 secret 或变量。
 - **文案只有一个来源**：`apps/web/src/content/<locale>.ts`，五种语言（zh-cn / zh-tw / en / ja / ko）结构一致；新增文案五种语言都要写，
   `content.test.ts` 会拦空串与漏翻。组件不写死句子。
 - **预渲染必须能 hydrate**：渲染期不读 `window`、不用随机数和计时器，副作用放进 effect（`hydration.test.tsx` 守着）。
-- **不放假下载链接**：`MACOS_DOWNLOAD_URL` 指向 Worker 的 `/download/macos`（302 到 GitHub Releases 最新版的 `umuo.dmg`）；设回 `null` 时下载按钮变为不可点。官网不显示版本号，也不在页面里调 GitHub API。
+- **不放假下载链接**：`MACOS_DOWNLOAD_URL` 指向 Worker 的 `/download/macos`（Worker 读 GitHub `releases/latest` 的跳转拿到最新 tag，再 302 到 `umuo-v<版本>.dmg`，缓存 5 分钟）；设回 `null` 时下载按钮变为不可点。官网不显示版本号，也不在页面里调 GitHub API。
 - 目前站点只有首页一屏，不再提供条款与隐私页：`/terms`、`/privacy` 已删除（不做重定向，旧地址返回 404），不要再加回。页眉左边是 logo（蓝底、从水里探出头的小水獭，`LogoMark` 与 `public/favicon.svg` 是同一张图），右边是 GitHub 标志图标链到源码（原「免费与开源」链接的位置）。原来的「免费与开源」页 `/pricing` 已删除（不做重定向，旧地址返回 404），不要再加回定价页。页脚只有一行：版权与语言 / 主题切换，不放条款、隐私、源码与联系邮箱链接。站点按语言区分、不分页面（`lib/router.tsx` 只管当前语言）；真要再加页面，预渲染（`vite.config.ts`、`scripts/prerender-web.ts`）与 Worker（`worker/src/dispatch.ts`、`locale.ts`）都要相应加上。
 - **产品范围**：文字翻译、OCR 截图翻译、语音输入后润色/翻译，完全免费、纯 BYOK。修改产品页面前读根目录 `docs/PRD.md` 与 `docs/PRD-CONFORMANCE.md`；只宣称已发布能力，语音尚未实现。账号、订阅、付费版、官方额度与 AI 网关退出范围，不继续宣传为即将推出。
 - **免费与开源**：umuo 免费，没有付费版、内购、试用期、许可证或激活；模型调用费用只在用户与供应商之间。整个仓库（含官网）按 MIT 许可证开源，源码地址是 `apps/web/src/config.ts` 的 `SOURCE_URL`（github.com/youming-ai/umuo，2026-11-02 公开）。同文件的 `SOURCE_PUBLIC` 已打开：页眉右侧有 GitHub 源码链接（站内唯一的源码入口）；首页下载旁不放说明句。仓库若再改为私有，须先把它改回 false（关闭时页面上不出现源码链接）。「umuo」名称与水獭图标不随 MIT 授权。

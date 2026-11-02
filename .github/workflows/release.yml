@@ -3,8 +3,8 @@ name: Release
 # 客户端改动合入 main 时自动构建 Apple Silicon（arm64）安装包并发布到 GitHub Releases
 # （正式版并标为 Latest；ad-hoc 签名，尚未经 Apple 公证）。
 # 版本号 = Cargo.toml 的主.次版本 + 本工作流的运行序号（如 0.2.12）；手动运行（workflow_dispatch）时可指定版本。
-# 附件名固定（umuo.dmg / umuo.app.tar.gz / appcast.xml）：官网的 /download/macos 与 Sparkle 的 SUFeedURL
-# 都指向 releases/latest/download/<文件名>，发布即上线。签名、密钥与失败后的清理见 docs/SWIFTUI-MIGRATION.md。
+# 附件：umuo-v<版本>.dmg（安装包，带版本号；官网 /download/macos 由 Worker 查最新 tag 后跳过去）、
+# umuo.app.tar.gz 与 appcast.xml（名字固定；Sparkle 的 SUFeedURL 指向 releases/latest/download/appcast.xml），发布即上线。签名、密钥与失败后的清理见 docs/SWIFTUI-MIGRATION.md。
 on:
   push:
     branches: [main]
@@ -113,7 +113,7 @@ jobs:
         with:
           name: umuo-${{ env.VERSION }}-arm64
           path: |
-            apps/macos/dist/umuo.dmg
+            apps/macos/dist/umuo-v${{ env.VERSION }}.dmg
             apps/macos/dist/umuo.app.tar.gz
             apps/macos/dist/appcast.xml
           retention-days: 14
@@ -129,9 +129,9 @@ jobs:
           cat >"$notes" <<'EOF'
           > 本版本尚未经 Apple 公证。首次打开时 macOS 会拦下：请到「系统设置 › 隐私与安全性」底部点「仍要打开」放行，之后正常启动。
           >
-          > 下载 `umuo.dmg`（Apple Silicon（arm64），macOS 14+），拖进「应用程序」即可；已安装的版本可在「设置 › 关于」里检查更新并升级。
+          > 下载 `umuo-v$VERSION.dmg`（Apple Silicon（arm64），macOS 14+），拖进「应用程序」即可；已安装的版本可在「设置 › 关于」里检查更新并升级。
           EOF
           set -- --target "$GITHUB_SHA" --latest --generate-notes --notes-file "$notes" --title "umuo $VERSION"
           [ -n "$previous" ] && set -- "$@" --notes-start-tag "$previous"
           gh release create "v$VERSION" "$@" \
-            apps/macos/dist/umuo.dmg apps/macos/dist/umuo.app.tar.gz apps/macos/dist/appcast.xml
+            "apps/macos/dist/umuo-v$VERSION.dmg" apps/macos/dist/umuo.app.tar.gz apps/macos/dist/appcast.xml

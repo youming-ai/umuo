@@ -67,7 +67,7 @@
 | 编号 | PRD | 要求 | 状态 | 实现证据与剩余验收 |
 | --- | --- | --- | --- | --- |
 | R1 | §12 | Sparkle 代码与签名清单链路 | 🟡 | `App/AppUpdater.swift`、`bundle.sh`、`scripts/sparkle-appcast.ts`、`release.yml`：SUFeedURL 为 GitHub `releases/latest/download/appcast.xml`，enclosure 指向同版本 Release 的 `umuo.app.tar.gz`；本机签名冒烟通过，N → N+1 未实测 |
-| R2 | §12 | 正式密钥、GitHub Releases 分发、N → N+1 更新 | 🟡 | 合入 main 自动发正式 Release（标 Latest，附件 `umuo.dmg` / `umuo.app.tar.gz` / `appcast.xml`），官网 `/download/macos` 302 到最新 `umuo.dmg`，R2 已下线；从 GitHub 真实下载、验签、替换、重启全流程待实测，不能以本机清单生成替代 |
+| R2 | §12 | 正式密钥、GitHub Releases 分发、N → N+1 更新 | 🟡 | 合入 main 自动发正式 Release（标 Latest，附件 `umuo-v<版本>.dmg` / `umuo.app.tar.gz` / `appcast.xml`），官网 `/download/macos` 302 到最新的 `umuo-v<版本>.dmg`，R2 已下线；从 GitHub 真实下载、验签、替换、重启全流程待实测，不能以本机清单生成替代 |
 | R3 | §8、§12 | Developer ID、公证、Gatekeeper、DMG 与系统权限 | ⬜ | 实际正式产物及安装/升级记录 |
 | R4 | §8、§12 | Apple Silicon 真机、原生 release 性能 | ⬜ | 按 `NATIVE-WALKTHROUGH.md`「性能测量」新测，旧 Tauri 数字不算通过 |
 | R5 | §12 | 官网直装与 Homebrew | 🟡 | 官网直装经 GitHub Releases 已打通（未公证）；Homebrew Cask 未建立。旧 Tauri 用户桥接不适用：没有旧 Tauri 用户，相关代码与脚本已删除 |

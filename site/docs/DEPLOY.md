@@ -59,7 +59,7 @@ Worker 没有 secret，部署前不需要核对 secret；Workers Builds 与回�
 
 | 路径 | 跳到 |
 | --- | --- |
-| `/download/macos` | `https://github.com/youming-ai/umuo/releases/latest/download/umuo.dmg` |
+| `/download/macos` | `https://github.com/youming-ai/umuo/releases/download/v<最新>/umuo-v<最新>.dmg`（读 `releases/latest` 的跳转得到 tag，缓存 5 分钟；查不到时跳到最新 Release 页面） |
 | `/download/macos/appcast.xml` | `https://github.com/youming-ai/umuo/releases/latest/download/appcast.xml` |
 
 `/download/macos/` 下的其他旧地址（`update.json`、`latest.json`、带版本号的安装包与更新包）与 `/api/release` 已删除，返回 404。

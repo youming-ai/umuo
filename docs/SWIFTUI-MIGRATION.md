@@ -26,7 +26,7 @@
 
 | 附件 | 用途 |
 | --- | --- |
-| `umuo.dmg` | 安装包；官网 `/download/macos` 302 到 `releases/latest/download/umuo.dmg` |
+| `umuo-v<版本>.dmg` | 安装包，文件名带版本号；官网 `/download/macos` 由 Worker 读 `releases/latest` 的跳转拿到最新 tag，再 302 到 `releases/download/v<版本>/umuo-v<版本>.dmg` |
 | `umuo.app.tar.gz` | Sparkle 更新包；appcast 的 enclosure 指向 `releases/download/v<版本>/umuo.app.tar.gz` |
 | `appcast.xml` | Sparkle 清单；包内 SUFeedURL 为 `https://github.com/youming-ai/umuo/releases/latest/download/appcast.xml` |
 
@@ -58,7 +58,7 @@ git push origin --delete v0.2.N              # 只剩 tag、没有 Release 时
 - 组装后自检：codesign、Info.plist 关键值、主程序为 arm64、框架含 arm64 切片、资源包与许可文件位置，再从 `.app` 里跑 `--selftest`。
 - `--quick` 复用 `verify.sh` 刚编好的 debug 产物，只做 ad-hoc、不公证、不打 `.dmg`，是 `bun run verify` 里的打包冒烟。
 
-产物在 `apps/macos/dist`：`umuo.app`、`umuo.dmg`、`umuo.app.tar.gz`；再跑 `bun scripts/sparkle-appcast.ts "$PWD/apps/macos/dist" X.Y.Z`
+产物在 `apps/macos/dist`：`umuo.app`、`umuo-vX.Y.Z.dmg`、`umuo.app.tar.gz`；再跑 `bun scripts/sparkle-appcast.ts "$PWD/apps/macos/dist" X.Y.Z`
 生成 `appcast.xml`。正常发布走 release.yml；本机产物只用于自测。
 
 ## Sparkle 原生应用内更新
@@ -121,4 +121,4 @@ Release 工作流目前**不传**这些变量，因为 runner 上还没有证书
 - `settings.json` 字段与 camelCase 格式不变，只由 Rust 读写；Swift 只提交 patch，保留未知字段。
 - 历史沿用 `history.db` 与 `umuo-store` 的迁移；不要更改已发布迁移。
 - 默认键位只影响新装，不改写旧用户保存的键位。
-- 附件名 `umuo.dmg` / `umuo.app.tar.gz` / `appcast.xml` 与 SUFeedURL 不变。
+- 附件命名（`umuo-v<版本>.dmg`、`umuo.app.tar.gz`、`appcast.xml`）与 SUFeedURL 不变。

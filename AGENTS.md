@@ -65,8 +65,9 @@ Swift 视图模型与纯规则用 Swift Testing；不要在测试里碰真实 Ke
 
 客户端改动合入 main 即由 `.github/workflows/release.yml` 发布到 GitHub Releases（`v0.2.<运行序号>`，arm64，正式版并标 Latest，ad-hoc 签名、尚未公证）。
 手动发版用该工作流的 workflow_dispatch；发布失败后的清理见 `docs/SWIFTUI-MIGRATION.md`。
-附件名固定为 `umuo.dmg` / `umuo.app.tar.gz` / `appcast.xml`：官网 `/download/macos` 与 Sparkle 的 SUFeedURL 都指向
-`releases/latest/download/<文件名>`，不要改附件名，也不要把 Release 标成预发布（预发布不算 latest）。
+附件：安装包 `umuo-v<版本>.dmg`（官网 `/download/macos` 由 Worker 读 `releases/latest` 的跳转拿到最新 tag 再跳过去，缓存 5 分钟），
+更新包 `umuo.app.tar.gz` 与 `appcast.xml` 名字固定（Sparkle 的 SUFeedURL 指向 `releases/latest/download/appcast.xml`）。
+不要改这些命名规则，也不要把 Release 标成预发布（预发布不算 latest）。
 本机 `bun run bundle:macos -- --version X.Y.Z` 只产出文件、不上传。官网不存安装包（没有 R2）。
 
 保留 Bundle ID `app.umuo.desktop`、`umuo.app` 与可执行文件名 `umuo-desktop`，不能破坏 Keychain、系统授权与旧 LaunchAgent。

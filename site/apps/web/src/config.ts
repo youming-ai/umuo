@@ -17,7 +17,7 @@ export const SITE_URL = 'https://umuo.app'
  */
 
 /**
- * macOS 安装包地址。Worker 把它 302 到 GitHub Releases 最新版的 umuo.dmg（见 worker/src/releases.ts）；
+ * macOS 安装包地址。Worker 把它 302 到 GitHub Releases 最新版的 umuo-v<版本>.dmg（见 worker/src/releases.ts）；
  * 客户端改动每次合进 main 都会自动发一个新版本。设回 null 则下载按钮变为不可点。
  */
 export const MACOS_DOWNLOAD_URL: string | null = '/download/macos'

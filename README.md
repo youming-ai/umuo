@@ -33,7 +33,7 @@ umuo 完全免费、以 MIT 许可证开源，纯 BYOK：用户自带模型 Key�
 ## 下载与安装
 
 从 [umuo.app/download/macos](https://umuo.app/download/macos) 下载（macOS 14+，仅 Apple Silicon），
-它会跳到 [GitHub Releases](https://github.com/youming-ai/umuo/releases) 最新版的 `umuo.dmg`；每次客户端改动合入 `main` 都会自动发布一个新的正式版（标为 Latest），
+它会跳到 [GitHub Releases](https://github.com/youming-ai/umuo/releases) 最新版的安装包（如 `umuo-v0.2.5.dmg`）；每次客户端改动合入 `main` 都会自动发布一个新的正式版（标为 Latest），
 已安装的应用可在「设置 › 关于」里检查更新。
 安装包尚未经 Apple 公证：首次打开如被拦截，到**系统设置 → 隐私与安全性**点「仍要打开」。
 也可以按下方「从源码构建」自己编译。

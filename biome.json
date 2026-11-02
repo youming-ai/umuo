@@ -9,7 +9,8 @@
       "!**/.build",
       "!**/.core",
       "!site",
-      "!.claude/worktrees"
+      "!.claude/worktrees",
+      "!.impeccable"
     ]
   },
   "formatter": {

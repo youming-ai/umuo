@@ -13,8 +13,9 @@
 #   SPARKLE_PUBLIC_ED_KEY    Sparkle Ed25519 公钥（正式构建必填，generate_keys --account app.umuo.desktop 生成）
 #   OUT_DIR                  产物目录，默认 apps/macos/dist（--quick 时 .build/bundle-smoke）
 #
-# 产物：$OUT_DIR/umuo.app、umuo.dmg、umuo.app.tar.gz。文件名不带版本号：GitHub Release 原样上传，
-# `releases/latest/download/<文件名>` 因此永远指向最新版（官网下载与 Sparkle 的 SUFeedURL 都靠它）。
+# 产物：$OUT_DIR/umuo.app、umuo-v<版本>.dmg、umuo.app.tar.gz，GitHub Release 原样上传。
+# 安装包带版本号，下载下来一看就知道是哪一版（官网 /download/macos 由 Worker 查最新 tag 后跳过去）；
+# 更新包名固定、按 tag 区分（appcast 的 enclosure 指向 releases/download/v<版本>/umuo.app.tar.gz）。
 # .app 叫 umuo.app、可执行文件叫 umuo-desktop（理由见 packaging/Info.plist 开头）。
 #
 # 每次组装完都会自检（codesign --verify、Info.plist 的关键值、资源包位置），再从 .app 里跑一次 --selftest
@@ -283,7 +284,7 @@ COPYFILE_DISABLE=1 tar -czf "$tgz" -C "$OUT_DIR" umuo.app
 
 # ---- .dmg：拖进「应用程序」的标准布局；冒烟不打（hdiutil 慢，验的东西上面都验过了）
 if [ "$quick" = 0 ]; then
-  dmg="$OUT_DIR/umuo.dmg"
+  dmg="$OUT_DIR/umuo-v$VERSION.dmg"
   step "打 $dmg"
   stage="$(mktemp -d)"
   trap 'rm -rf "$stage"' EXIT

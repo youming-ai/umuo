@@ -1,5 +1,5 @@
 /// <reference types="node" />
-import { describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { legacyMiddleware } from '../../middleware/01.legacy'
 // Void 运行时里真正包住应用的两层（与构建生成的 .void/entry.ts 一致）。void 锁在 1.2.1，路径稳定。
 import {
@@ -7,6 +7,7 @@ import {
   createWorkerFetch,
 } from '../../node_modules/void/dist/runtime/routing.mjs'
 import type { Env } from './env'
+import { resetLatestTagCache } from './releases'
 
 /**
  * 经 Void 运行时（createWorkerFetch → 中间件 → createAssetFallback，参数照抄生成的入口：
@@ -117,6 +118,23 @@ const post = (body: unknown): RequestInit => ({
 
 const RELEASES = 'https://github.com/youming-ai/umuo/releases/latest/download'
 
+/** /download/macos 要问一次 GitHub 最新版的 tag：只替身这一个地址，别的请求原样放过 */
+const realFetch = globalThis.fetch
+beforeAll(() => {
+  resetLatestTagCache()
+  vi.stubGlobal('fetch', (input: RequestInfo | URL, init?: RequestInit) =>
+    String(input) === 'https://github.com/youming-ai/umuo/releases/latest'
+      ? Promise.resolve(
+          new Response(null, {
+            status: 302,
+            headers: { location: 'https://github.com/youming-ai/umuo/releases/tag/v0.2.5' },
+          }),
+        )
+      : realFetch(input, init),
+  )
+})
+afterAll(() => vi.unstubAllGlobals())
+
 type Expected = {
   status: number
   location?: string
@@ -176,7 +194,11 @@ const CASES: Case[] = [
     '/download/macos 跳到 GitHub',
     '/download/macos',
     undefined,
-    { status: 302, location: `${RELEASES}/umuo.dmg`, cache: 'no-store' },
+    {
+      status: 302,
+      location: 'https://github.com/youming-ai/umuo/releases/download/v0.2.5/umuo-v0.2.5.dmg',
+      cache: 'no-store',
+    },
   ],
   [
     'appcast.xml 跳到 GitHub',

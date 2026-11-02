@@ -142,7 +142,7 @@
 - [ ] 配置 Sparkle 正式密钥，从 GitHub Releases 实测 N → N+1 下载、验签、安装与重启（appcast 随 Release 发布，无需部署路由）。
 - [ ] Developer ID 签名、公证、Gatekeeper、DMG 拖装、TCC 与 Keychain 升级访问验收（Release 工作流要补的步骤见 [SWIFTUI-MIGRATION.md](SWIFTUI-MIGRATION.md)）。
 - [ ] 原生 release 的性能、Apple Silicon 真机、VoiceOver、完整键盘操作、多显示器与权限走查。
-- [x] 官网直装：客户端改动合入 main 自动发 GitHub Releases 正式版（标 Latest，固定附件名），官网 `/download/macos` 302 到最新 `umuo.dmg`；R2 与旧 Tauri 桥接已删除（没有旧 Tauri 用户）。
+- [x] 官网直装：客户端改动合入 main 自动发 GitHub Releases 正式版（标 Latest，安装包名带版本号），官网 `/download/macos` 302 到最新的 `umuo-v<版本>.dmg`；R2 与旧 Tauri 桥接已删除（没有旧 Tauri 用户）。
 - [ ] Homebrew Cask。
 
 完成条件：实际正式产物的发布证据齐全；代码接入、测试包和正式发布分别记录。
