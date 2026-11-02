@@ -1,6 +1,6 @@
 import Foundation
 
-/// 界面语言，取值与 `settings.json` 里 `uiLanguage` 的写法一致（Tauri 版 `i18n/index.ts` 的 `Locale`）。
+/// 界面语言，取值与 `settings.json` 里 `locale` 的写法一致。
 enum AppLocale: String, CaseIterable, Sendable {
     case zhCN = "zh-CN"
     case zhTW = "zh-TW"
@@ -20,7 +20,13 @@ enum AppLocale: String, CaseIterable, Sendable {
         }
     }
 
-    /// 设置里的语言值 + 系统语言偏好 → 真正使用的语言（`resolveLocale` 的同一规则）。
+    /// 整份设置（`Engine.settingsJson()`）→ 界面语言。读不到设置（Engine 还没开好）就按系统语言。
+    static func resolve(settingsJson: String?, systemLanguages: [String] = Locale.preferredLanguages) -> AppLocale {
+        let settings = settingsJson.flatMap(JSONValue.object(json:))
+        return resolve(setting: settings?["locale"]?.stringValue ?? "system", systemLanguages: systemLanguages)
+    }
+
+    /// 设置里的语言值 + 系统语言偏好 → 真正使用的语言。
     ///
     /// 明选的语言优先；认不出来的值当作「跟随系统」——手改过的配置文件不该让界面变成一种不存在的语言。
     /// 系统偏好里繁体地区（台湾、香港、澳门、显式 Hant）认成繁体：只按 `zh` 前缀判断会让繁体用户看到简体。
@@ -148,4 +154,38 @@ struct Translate: Sendable {
     func callAsFunction(_ key: String, _ params: [String: String] = [:]) -> String {
         catalog.string(key, locale: locale, params: params)
     }
+
+    func callAsFunction(_ text: UserText) -> String { self(text.key, text.params) }
+
+    /// 错误给用户看的那句话：带文案键的按界面语言取，其余原样描述。
+    func message(_ error: Error) -> String {
+        (error as? any UserFacingError).map { self($0.text) } ?? "\(error)"
+    }
+}
+
+/// 原生层给用户看的一句话：文案键 + 参数。
+///
+/// 平台层（取词、截图、写回、剪贴板、Keychain、开机启动）不知道界面语言，只带着键往外抛；
+/// 到知道界面语言的边界（浮窗、撰写窗、设置、宿主回调）再用 `Translate` 取成句子。
+/// 参数是运行时文本（系统给的错误描述、OSStatus），本身不再翻译。
+struct UserText: Equatable, Sendable, CustomStringConvertible {
+    let key: String
+    var params: [String: String] = [:]
+
+    init(_ key: String, _ params: [String: String] = [:]) {
+        self.key = key
+        self.params = params
+    }
+
+    /// 只给日志与调试用（源语言）；界面上一律经 `Translate` 按界面语言取。
+    var description: String { Translate(locale: .source)(self) }
+}
+
+/// 带一句给用户看的话的错误（平台层抛出，边界处按界面语言取成句子）。
+protocol UserFacingError: Error, CustomStringConvertible {
+    var text: UserText { get }
+}
+
+extension UserFacingError {
+    var description: String { text.description }
 }

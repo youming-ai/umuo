@@ -32,7 +32,7 @@ enum PanelSelfTest {
                 if !lockedDuringPaste { Pasteboard.exclusive.unlock() }
             }, restoreDelay: 0))
         } catch {
-            check("ReplaceSelection.pasteFallback", false, error.detail)
+            check("ReplaceSelection.pasteFallback", false, error.description)
             return
         }
         // 粘完恢复用户原来的剪贴板（期间没人动过）
@@ -45,10 +45,10 @@ enum PanelSelfTest {
         var failure = ""
         do {
             try ReplaceSelection.pasteFallback("译文", paster: ControlledPaste(pasteboard: pasteboard, paste: {
-                () throws(SelectionError) in throw .other("无法创建键盘事件")
+                () throws(SelectionError) in throw .other(UserText("error.keyEventFailed"))
             }, restoreDelay: 0))
-        } catch { failure = error.detail }
-        check("ReplaceSelection.pasteFallback.error", failure == "无法创建键盘事件", "合成按键失败如实上报：\(failure)")
+        } catch { failure = error.text.key }
+        check("ReplaceSelection.pasteFallback.error", failure == "error.keyEventFailed", "合成按键失败如实上报：\(failure)")
     }
 
     static func replacePermission(_ check: (String, Bool, String) -> Void) {
@@ -57,10 +57,10 @@ enum PanelSelfTest {
             return
         }
         var detail = ""
-        do { try ReplaceSelection.replace("译文") } catch { detail = error.detail }
-        check("ReplaceSelection.replace", detail == "需要系统权限：辅助功能", "没有辅助功能权限时拒绝：\(detail)")
+        do { try ReplaceSelection.replace("译文") } catch { detail = error.text.key }
+        check("ReplaceSelection.replace", detail == "error.accessibilityRequired", "没有辅助功能权限时拒绝：\(detail)")
         // 没权限时 pid 也取不到：守卫按「之前就拿不到」放行，写入本身再被权限拦下
-        let refused = PanelController.replaceSource("译文", owner: nil)
+        let refused = PanelController.replaceSource("译文", owner: nil, t: Translate(locale: .zhCN))
         check("PanelController.replaceSource", refused == "写回原文失败：需要系统权限：辅助功能",
               refused ?? "nil")
     }

@@ -227,7 +227,7 @@ struct SettingsModelTests {
     @Test func 开机启动以实现返回的状态为准被拒时说出原因且不存设置() async {
         let backend = FakeBackend(base)
         let model = await loaded(backend)
-        backend.autostartResult = .failure(Autostart.Failure(message: "临时位置"))
+        backend.autostartResult = .failure(EngineError.Failed(message: "临时位置"))
         await model.setAutostart(true)
         #expect(model.general.autostartError == "临时位置")
         #expect(backend.patches.isEmpty)

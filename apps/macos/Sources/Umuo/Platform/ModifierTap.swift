@@ -15,7 +15,7 @@ import UmuoCore
 ///
 /// 只报物理键与按下 / 松开（直接用 FFI 的 `TapInput`），「是不是连按了两下」交给 Rust 的 `DoubleTapDetector`。
 enum ModifierTap {
-    /// 启动失败。文案与 Tauri 外壳 `double_tap.rs` 的提示逐字一致。
+    /// 启动失败。`description` 只进日志；界面按失败的字段名显示 `prefs.hotkey.tapFailed`。
     enum Failure: Error, Equatable, CustomStringConvertible {
         /// 创建监听失败几乎总是缺权限。
         case permissionDenied

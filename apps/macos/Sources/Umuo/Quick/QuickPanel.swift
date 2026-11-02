@@ -57,8 +57,7 @@ final class QuickPanelController: NSObject, QuickBackend, NSPopoverDelegate {
     func popoverDidClose(_: Notification) { closedAt = Self.now() }
 
     private func refreshAppearance() {
-        let appearance = PanelRules.appearance(settingsJson: app.settingsJson)
-        model.t = Translate(locale: appearance.locale)
+        model.t = Translate(locale: app.locale)
     }
 
     // MARK: - QuickBackend
@@ -77,7 +76,8 @@ final class QuickPanelController: NSObject, QuickBackend, NSPopoverDelegate {
     }
 
     func copy(_ text: String) async -> String? {
-        await Task.detached { Pasteboard.copy(text) }.value
+        let t = app.t
+        return await Task.detached { Pasteboard.copy(text) }.value.map { t($0) }
     }
 
     func openSettings() {

@@ -23,7 +23,7 @@ struct ControlledPaste: @unchecked Sendable {
         /// 最后一道检查没过，没按 ⌘V，剪贴板已还原。
         case skipped
         /// 写剪贴板或按键失败，已尽量还原。
-        case failed(String)
+        case failed(UserText)
     }
 
     func run(_ text: String, proceed: () -> Bool) -> Outcome {
@@ -33,7 +33,7 @@ struct ControlledPaste: @unchecked Sendable {
         pasteboard.clearContents()
         guard pasteboard.setString(text, forType: .string) else {
             snapshot.restore(pasteboard)
-            return .failed("剪贴板不可用：写入失败")
+            return .failed(UserText("error.clipboardUnavailable"))
         }
         let ours = pasteboard.changeCount
         guard proceed() else {
@@ -44,7 +44,7 @@ struct ControlledPaste: @unchecked Sendable {
             try paste()
         } catch {
             if pasteboard.changeCount == ours { snapshot.restore(pasteboard) }
-            return .failed(error.description)
+            return .failed(error.text)
         }
         if restoreDelay > 0 { Thread.sleep(forTimeInterval: restoreDelay) }
         guard pasteboard.changeCount == ours else { return .pasted(restored: false) }

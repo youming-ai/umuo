@@ -78,7 +78,7 @@ final class StatusBarController: NSObject, NSMenuItemValidation {
             app.toggleQuickPanel()
         case .menu:
             app.hideQuickPanel()
-            item.menu = makeMenu(t: Translate(locale: PanelRules.appearance(settingsJson: app.settingsJson).locale))
+            item.menu = makeMenu(t: app.t)
             sender.performClick(nil)
             item.menu = nil
         }
@@ -116,7 +116,7 @@ final class StatusBarController: NSObject, NSMenuItemValidation {
     @objc private func choose(_ sender: NSMenuItem) {
         guard let index = sender.representedObject as? Int, let entry = Self.entries[index]?.entry else { return }
         switch entry {
-        case let .action(action): app.actions.perform(action)
+        case let .action(action): app.perform(action)
         // 菜单收起之后再弹：菜单还在跟踪鼠标时弹出的面板会被当成「点到外面」立刻收起
         case .quick: DispatchQueue.main.async { self.app.toggleQuickPanel() }
         case .history: app.openHistory()

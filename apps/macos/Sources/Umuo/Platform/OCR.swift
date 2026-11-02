@@ -48,7 +48,7 @@ enum OCR {
 
         let handler = VNImageRequestHandler(cgImage: image, options: [:])
         do { try handler.perform([request]) } catch {
-            throw .other("Vision 识别失败：\(error.localizedDescription)")
+            throw .other(UserText("ocr.visionFailed", ["reason": error.localizedDescription]))
         }
 
         // 每行只取置信度最高的候选——多个候选是给「选字」交互用的，这里没有那个交互
@@ -68,14 +68,14 @@ enum ScreenOCR {
     enum Outcome: Equatable {
         /// 用户取消了框选：什么都不做，也不提示。
         case cancelled
-        /// 给用户看的一句话；`permission` 非空时 UI 要附上「去授权」入口（值与 Tauri 的 `screenRecording` 一致）。
-        case notice(String, permission: String?)
+        /// 给用户看的一句话；`permission` 非空时 UI 要附上「去授权」入口（`PermissionKind` 的原始值）。
+        case notice(UserText, permission: String?)
         /// 识别到的文本交给翻译流水线。
         case recognized(String)
     }
 
-    static let permissionNotice = "需要「屏幕录制」权限才能截图翻译：系统设置 → 隐私与安全性 → 屏幕录制"
-    static let emptyNotice = "没有识别到文字，换一块区域再试"
+    static let permissionNotice = UserText("ocr.permissionNotice")
+    static let emptyNotice = UserText("ocr.empty")
 
     /// 同步阻塞到用户框选完成，**不要在主线程上调**。
     static func run(
@@ -94,14 +94,14 @@ enum ScreenOCR {
             guard let captured = try capture() else { return .cancelled }
             image = captured
         } catch {
-            return .notice("截图失败：\(error)", permission: nil)
+            return .notice(UserText("ocr.captureFailed", ["reason": error.text.description]), permission: nil)
         }
         do {
             let result = try recognize(image)
             // 截到图片、纯色区域时很常见。要说清楚，否则用户以为快捷键没生效
             return result.isEmpty ? .notice(emptyNotice, permission: nil) : .recognized(result.text)
         } catch {
-            return .notice("文字识别失败：\(error)", permission: nil)
+            return .notice(UserText("ocr.recognizeFailed", ["reason": error.text.description]), permission: nil)
         }
     }
 }

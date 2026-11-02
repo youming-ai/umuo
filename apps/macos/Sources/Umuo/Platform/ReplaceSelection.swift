@@ -16,7 +16,7 @@ enum ReplaceSelection {
     }
 
     static func replace(_ text: String) throws(AXWriteBack.Refused) {
-        guard AXIsProcessTrusted() else { throw AXWriteBack.Refused(detail: "需要系统权限：辅助功能") }
+        guard AXIsProcessTrusted() else { throw AXWriteBack.Refused("error.accessibilityRequired") }
         let element = AX.focusedElement()
         let name = kAXSelectedTextAttribute as CFString
         try checkPanelWritable(settable: element.flatMap { AX.isSettable($0, name) },
@@ -35,8 +35,8 @@ enum ReplaceSelection {
     static func pasteFallback(_ text: String, paster: ControlledPaste = ControlledPaste()) throws(AXWriteBack.Refused) {
         switch paster.run(text, proceed: { true }) {
         case .pasted: return
-        case .skipped: throw AXWriteBack.Refused(detail: "剪贴板不可用：写入失败")
-        case let .failed(detail): throw AXWriteBack.Refused(detail: detail)
+        case .skipped: throw AXWriteBack.Refused("error.clipboardUnavailable")
+        case let .failed(text): throw AXWriteBack.Refused(text)
         }
     }
 

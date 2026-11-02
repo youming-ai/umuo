@@ -2,16 +2,16 @@ import CoreGraphics
 import Foundation
 import ImageIO
 
-/// 截图失败。`description` 与 Rust 的 `PlatformError` Display 逐字一致，两个客户端的提示不分叉。
-enum CaptureError: Error, Equatable, CustomStringConvertible {
+/// 截图失败。给用户看的话是文案键（`text`），由浮窗按界面语言取成句子。
+enum CaptureError: UserFacingError, Equatable {
     /// 没有屏幕录制权限。单独一个分支：UI 要据此把用户引到系统设置（PRD §5.5）。
     case permissionDenied
-    case other(String)
+    case other(UserText)
 
-    var description: String {
+    var text: UserText {
         switch self {
-        case .permissionDenied: "需要系统权限：屏幕录制"
-        case let .other(message): message
+        case .permissionDenied: UserText("error.screenRecordingRequired")
+        case let .other(text): text
         }
     }
 }
@@ -49,7 +49,9 @@ enum ScreenCapture {
             process.executableURL = URL(fileURLWithPath: "/usr/sbin/screencapture")
             // -i 交互式框选；-x 不播放快门声；-o 不附带窗口阴影
             process.arguments = ["-i", "-x", "-o", path.path]
-            do { try process.run() } catch { throw .other("无法启动 screencapture：\(error.localizedDescription)") }
+            do { try process.run() } catch {
+                throw .other(UserText("ocr.launchFailed", ["reason": error.localizedDescription]))
+            }
             process.waitUntilExit()
             // 退出码不看：用户按 Esc 取消时进程照样返回 0，是否截到只看文件在不在
         }
@@ -71,7 +73,7 @@ enum ScreenCapture {
                 at: dir, withIntermediateDirectories: false, attributes: [.posixPermissions: 0o700]
             )
         } catch {
-            throw .other("无法创建截图临时目录：\(error.localizedDescription)")
+            throw .other(UserText("ocr.tempDirFailed", ["reason": error.localizedDescription]))
         }
         defer { try? FileManager.default.removeItem(at: dir) }
 
@@ -79,7 +81,7 @@ enum ScreenCapture {
         try shoot(path)
         guard let data = try? Data(contentsOf: path) else {
             // 用户按 Esc 取消：没有写出文件。这是正常路径。
-            if FileManager.default.fileExists(atPath: path.path) { throw .other("读不到截图文件") }
+            if FileManager.default.fileExists(atPath: path.path) { throw .other(UserText("ocr.fileUnreadable")) }
             return nil
         }
         return try decode(data)
@@ -93,8 +95,8 @@ enum ScreenCapture {
         guard let source = CGImageSourceCreateWithData(data as CFData, nil),
               CGImageSourceGetCount(source) > 0,
               let image = CGImageSourceCreateImageAtIndex(source, 0, nil)
-        else { throw .other("截图不是合法 PNG") }
-        guard image.width > 0, image.height > 0 else { throw .other("截图尺寸为 0") }
+        else { throw .other(UserText("ocr.invalidImage")) }
+        guard image.width > 0, image.height > 0 else { throw .other(UserText("ocr.emptyImage")) }
         return image
     }
 }

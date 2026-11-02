@@ -131,8 +131,7 @@ final class PanelController: PanelBackend {
     /// 主题、界面语言与界面缩放跟设置走（所有窗口同一套），「跟随系统」时按当前系统外观。
     /// 每次显示时重读：设置改了之后下一次弹出浮窗生效（Tauri 是广播 `settings://*` 即时生效）。
     private func refreshAppearance() {
-        let appearance = PanelRules.appearance(settingsJson: app.settingsJson)
-        session.locale = appearance.locale
+        session.locale = app.locale
     }
 
     /// 「切走就收起」看门狗（PRD §7.1：失焦关闭，可钉住）。
@@ -226,7 +225,8 @@ final class PanelController: PanelBackend {
 
     func copy(_ text: String) async -> String? {
         // 拿剪贴板互斥锁：⌘C 取词降级的事务可能正在另一个线程上跑（最长约 1 秒），不在主线程上等
-        await Task.detached { Pasteboard.copy(text) }.value
+        let t = session.t
+        return await Task.detached { Pasteboard.copy(text) }.value.map { t($0) }
     }
 
     /// 语言由 Rust 从文本推断，不由界面传：同一段文本在浮窗与撰写窗必须用同一个发音人。
@@ -239,7 +239,8 @@ final class PanelController: PanelBackend {
     func stopSpeaking() { app.speech.stop() }
 
     func replace(_ text: String, owner: String?) async -> String? {
-        await Task.detached { Self.replaceSource(text, owner: owner) }.value
+        let t = session.t
+        return await Task.detached { Self.replaceSource(text, owner: owner, t: t) }.value
     }
 
     func openCompose(text: String, translation: String?, owner: String?) {
@@ -262,7 +263,7 @@ final class PanelController: PanelBackend {
     /// 守卫用**显示浮窗时记下的那个应用**：与静默翻译同一套保护，用户切走了就不写回。
     /// 浮窗是真·非激活面板，点按钮不会激活 umuo，所以通常直接走 `.write`；前台恰好是 umuo 自己的别的窗口时，
     /// 先把源应用切回前台、等焦点回来再写（`.refocus`）。
-    nonisolated static func replaceSource(_ text: String, owner: String?) -> String? {
+    nonisolated static func replaceSource(_ text: String, owner: String?, t: Translate) -> String? {
         switch planReplace(owner: owner, current: FrontmostApp.liveToken(), own: ownToken) {
         case .noSource: return noSourceMessage()
         case .refocus: if let owner { ReplaceSelection.refocus(owner) }
@@ -270,7 +271,7 @@ final class PanelController: PanelBackend {
         }
         // 焦点没回来时守卫会如实拒绝（目标已改变），不会写到别处
         if let refusal = replaceTargetError(owner: owner, current: FrontmostApp.liveToken()) { return refusal }
-        do { try ReplaceSelection.replace(text) } catch { return writeBackFailedMessage(detail: error.detail) }
+        do { try ReplaceSelection.replace(text) } catch { return writeBackFailedMessage(detail: t(error.text)) }
         return nil
     }
 }

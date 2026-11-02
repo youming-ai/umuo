@@ -8,9 +8,13 @@ import UmuoCore
 /// 流水线据此报 `WriteBackFailed`，浮窗不会假装替换成功。
 ///
 /// 全是线程安全的 AX C API，直接在 Rust 的工作线程上调，不切主线程（§2.3）。
-/// 错误文案与 Rust 版（`PlatformError` 的 Display）逐字一致，两个客户端的提示不分叉。
+/// 拒绝理由是文案键，由宿主（`SwiftHost`）或浮窗按界面语言取成句子。
 enum AXWriteBack {
-    struct Refused: Error { let detail: String }
+    struct Refused: UserFacingError {
+        let text: UserText
+        init(_ key: String) { text = UserText(key) }
+        init(_ text: UserText) { self.text = text }
+    }
 
     /// 每种来源写回时改的 AX 属性。整框读的是 AXValue，写回也必须写 AXValue；写 AXSelectedText 会变成光标处插入。
     static func attribute(_ source: FocusSource) -> String {
@@ -26,9 +30,9 @@ enum AXWriteBack {
         // 不用 (source, settable) 元组 switch：较旧的编译器（CI 上的 Xcode 16）证明不了它穷尽
         switch source {
         case .selection:
-            if settable == false { throw Refused(detail: "当前位置不可写入：选中的内容是只读的") }
+            if settable == false { throw Refused("error.selectionReadOnly") }
         case .wholeField:
-            if settable != true { throw Refused(detail: "当前位置不可写入：当前输入框不支持整体改写") }
+            if settable != true { throw Refused("error.fieldNotReplaceable") }
         }
     }
 
@@ -36,13 +40,13 @@ enum AXWriteBack {
     static func checkUnchanged(_ source: FocusSource, _ current: String?, _ original: String) throws(Refused) {
         if current == original { return }
         switch source {
-        case .selection: throw Refused(detail: "选区在翻译期间变了，已放弃替换")
-        case .wholeField: throw Refused(detail: "输入框内容在翻译期间变了，已放弃替换")
+        case .selection: throw Refused("error.selectionChanged")
+        case .wholeField: throw Refused("error.fieldChanged")
         }
     }
 
     static func replace(_ source: FocusSource, original: String, text: String) throws(Refused) {
-        guard AXIsProcessTrusted() else { throw Refused(detail: "需要系统权限：辅助功能") }
+        guard AXIsProcessTrusted() else { throw Refused("error.accessibilityRequired") }
         // 写回时再查一次：同一应用里焦点可能已经换到别的控件，前台 pid 守卫拦不住。
         // 没有聚焦元素时与 Rust 一样落到「问不出来 / 读不到」：两道检查会给出对应的拒绝理由。
         let element = AX.focusedElement()
@@ -50,7 +54,7 @@ enum AXWriteBack {
         try checkWritable(source, element.flatMap { AX.isSettable($0, name) })
         try checkUnchanged(source, element.flatMap { AX.string($0, name) }, original)
         guard let element, AXUIElementSetAttributeValue(element, name, text as CFString) == .success else {
-            throw Refused(detail: "当前位置不可写入：应用拒绝了写入")
+            throw Refused("error.writeRejected")
         }
     }
 }

@@ -37,8 +37,8 @@ enum CaptureSelfTest {
             && empty.isEmpty && empty.text.isEmpty && empty.lines.isEmpty
             && confidence.lines.map(\.confidence) == [0.31, 0.99]
         check("OcrResult", ok, "按行 \\n 拼接、丢空行、逐行 trim、空结果不是错误、置信度逐行保留")
-        let messages = CaptureError.permissionDenied.description == "需要系统权限：屏幕录制"
-        check("CaptureError", messages, "文案与 PlatformError 逐字一致")
+        let messages = CaptureError.permissionDenied.text.key == "error.screenRecordingRequired"
+        check("CaptureError", messages, "缺权限有自己的文案键，界面按语言取")
     }
 
     /// RGBA、RGB（没有 alpha 的 PNG，Rust 版要手动补通道的那种）都要解得开；不是 PNG 是带说明的错误。
@@ -53,7 +53,7 @@ enum CaptureSelfTest {
             check("decode", false, error.description)
         }
         let garbage = Result { () throws(CaptureError) in try ScreenCapture.decode(Data("not a png".utf8)) }
-        check("decode.garbage", failure(garbage) == .other("截图不是合法 PNG"), "不是 PNG → 带说明的错误")
+        check("decode.garbage", failure(garbage) == .other(UserText("ocr.invalidImage")), "不是 PNG → 带说明的错误")
     }
 
     /// 取消（没写文件）→ nil；写了图 → 解出来；无论哪种，临时目录都整个删掉且只有本用户可读写。
@@ -78,7 +78,7 @@ enum CaptureSelfTest {
         let gone = seen.allSatisfy { !FileManager.default.fileExists(atPath: $0.deletingLastPathComponent().path) }
         let ok = (try? cancelled.get()) == .some(nil)
             && (try? captured.get())??.width == 3
-            && failure(broken) == .other("截图不是合法 PNG")
+            && failure(broken) == .other(UserText("ocr.invalidImage"))
             && Set(seen).count == 3 && gone && privateDir
         check("captureInteractively.temp", ok, "取消 → nil、截到 → 解码、坏文件 → 报错；每次新目录（0700），结束即删")
     }
@@ -102,10 +102,10 @@ enum CaptureSelfTest {
         }
         let ok = outcome { nil } == .cancelled
             && outcome { () throws(CaptureError) in throw .permissionDenied }
-            == .notice("截图失败：需要系统权限：屏幕录制", permission: nil)
-            && outcome { image } == .notice("没有识别到文字，换一块区域再试", permission: nil)
-            && outcome({ image }, { _ throws(CaptureError) in throw .other("Vision 识别失败：x") })
-            == .notice("文字识别失败：Vision 识别失败：x", permission: nil)
+            == .notice(UserText("ocr.captureFailed", ["reason": CaptureError.permissionDenied.description]), permission: nil)
+            && outcome { image } == .notice(ScreenOCR.emptyNotice, permission: nil)
+            && outcome({ image }, { _ throws(CaptureError) in throw .other(UserText("ocr.visionFailed", ["reason": "x"])) })
+            == .notice(UserText("ocr.recognizeFailed", ["reason": "Vision 识别失败：x"]), permission: nil)
             && outcome({ image }, { _ in OcrResult(lines: [OcrLine(text: " 你好 ", confidence: 1)]) })
             == .recognized("你好")
         check("ScreenOCR.outcomes", ok, "取消不提示；截图失败 / 识别失败 / 没识别到文字各一句；识别到的文本原样交出")

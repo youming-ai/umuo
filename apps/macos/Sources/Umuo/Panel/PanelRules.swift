@@ -22,16 +22,4 @@ enum PanelRules {
         y = min(y, visible.maxY)
         return CGPoint(x: x, y: y)
     }
-
-    struct Appearance: Equatable {
-        var locale: AppLocale
-    }
-
-    /// 设置里的界面语言 → 浮窗用哪套文案。读不到设置（Engine 还没开好）就按系统语言。
-    /// 配色与外观由 `ThemeChoice.apply` 统一设到整个应用上，这里不管。
-    static func appearance(settingsJson: String?, systemLanguages: [String] = Locale.preferredLanguages) -> Appearance {
-        let settings = settingsJson.flatMap(JSONValue.object(json:))
-        return Appearance(locale: AppLocale.resolve(setting: settings?["locale"]?.stringValue ?? "system",
-                                                    systemLanguages: systemLanguages))
-    }
 }

@@ -43,7 +43,7 @@ extension PanelController {
                 switch read {
                 case let .failure(error):
                     let permission: PermissionKind? = error == .permissionDenied ? .accessibility : nil
-                    self.report(requestId: id, message: error.description, permission: permission)
+                    self.report(requestId: id, message: self.session.t(error.text), permission: permission)
                 case let .success(focus):
                     self.startTranslation(
                         TranslateRequest(text: focus.text, mode: silent ? .silentReplace : .selection,
@@ -76,7 +76,7 @@ extension PanelController {
                 case .cancelled:
                     return
                 case let .notice(message, permission):
-                    self.showNotice(message, permission: permission.flatMap(PermissionKind.init(rawValue:)))
+                    self.showNotice(self.session.t(message), permission: permission.flatMap(PermissionKind.init(rawValue:)))
                 case let .recognized(text):
                     self.ensureShown()
                     self.startTranslation(TranslateRequest(

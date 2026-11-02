@@ -71,6 +71,38 @@ struct CatalogTests {
         }
     }
 
+    @Test func 原生层抛给用户的每句话都有四语言文案() {
+        // 平台层（取词、截图、写回、剪贴板、Keychain、开机启动）只带文案键往外抛，边界处按界面语言取。
+        // 新增一种错误却忘了补文案的话，界面上会直接露出 key。
+        let texts: [UserText] = [
+            SelectionError.permissionDenied.text, SelectionError.noSelection.text,
+            CaptureError.permissionDenied.text, ScreenOCR.permissionNotice, ScreenOCR.emptyNotice,
+            ComposeRules.emptyText, ComposeRules.pasteNotBack,
+            Keychain.Failure.status(-25300, .read).text, Keychain.Failure.status(-25300, .write).text,
+            Keychain.Failure.status(-25300, .delete).text, Keychain.Failure.notUtf8.text,
+            Autostart.checkLaunchPath("/Volumes/umuo/umuo.app/Contents/MacOS/umuo-desktop")!,
+        ]
+        let keys = texts.map(\.key) + HotkeyConflict.systemKeys + [
+            "error.keyEventFailed", "error.selectionReadOnly", "error.fieldNotReplaceable", "error.selectionChanged",
+            "error.fieldChanged", "error.writeRejected", "error.clipboardUnavailable", "error.copyFailed",
+            "ocr.captureFailed", "ocr.recognizeFailed", "ocr.launchFailed", "ocr.tempDirFailed", "ocr.fileUnreadable",
+            "ocr.invalidImage", "ocr.emptyImage", "ocr.visionFailed", "keychain.unavailable", "keychain.resaveKey",
+            "autostart.writeFailed", "autostart.devBuild", "app.engineStarting", "app.engineFailed", "app.noHome",
+            "prefs.settingsInvalid", "onboarding.modelWithProvider", "common.nothingToTranslate",
+        ]
+        for key in keys {
+            #expect(catalog.entries[key]?.values.count == 4, "缺文案：\(key)")
+        }
+        #expect(HotkeyConflict.systemKeys.count == 13)
+    }
+
+    @Test func 读不到Key时提示去设置里重新保存() {
+        #expect(Translate(locale: .zhCN)("keychain.resaveKey") == "凭据存储不可用：请在设置里重新保存 Key")
+        for locale in AppLocale.allCases {
+            #expect(!Translate(locale: locale)("keychain.resaveKey").contains("授权"), "没有授权入口，不该让用户去授权")
+        }
+    }
+
     @Test func 按语言取到对应的句子() {
         #expect(Translate(locale: .zhCN)("panel.copy") == "复制")
         #expect(Translate(locale: .en)("panel.copy") == "Copy")

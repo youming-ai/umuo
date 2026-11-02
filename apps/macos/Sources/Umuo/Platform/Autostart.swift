@@ -59,11 +59,9 @@ enum Autostart {
     }
 
     /// 从磁盘映像或系统隔离目录运行时拒绝：登录项会指向一个下次登录时已经不存在的路径。原因直接说清楚怎么办。
-    static func checkLaunchPath(_ program: String) -> String? {
+    static func checkLaunchPath(_ program: String) -> UserText? {
         let temporary = program.hasPrefix("/Volumes/") || program.split(separator: "/").contains("AppTranslocation")
-        return temporary
-            ? "umuo 正从临时位置运行（磁盘映像或系统隔离目录）。请先把它拖进「应用程序」文件夹、从那里打开，再开启开机启动"
-            : nil
+        return temporary ? UserText("autostart.temporaryLocation") : nil
     }
 
     static func isEnabled(home: URL) -> Bool {
@@ -77,23 +75,22 @@ enum Autostart {
     static func setEnabled(_ enabled: Bool, home: URL, program: String) throws -> Bool {
         let url = plistURL(home: home)
         if enabled {
-            if let refusal = checkLaunchPath(program) { throw Failure(message: refusal) }
+            if let refusal = checkLaunchPath(program) { throw Failure(text: refusal) }
             do {
                 try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
                 try plist(program: program).write(to: url, atomically: true, encoding: .utf8)
             } catch {
-                throw Failure(message: "写入失败：\(error.localizedDescription)")
+                throw Failure(text: UserText("autostart.writeFailed", ["reason": error.localizedDescription]))
             }
         } else if FileManager.default.fileExists(atPath: url.path) {
             do { try FileManager.default.removeItem(at: url) } catch {
-                throw Failure(message: "写入失败：\(error.localizedDescription)")
+                throw Failure(text: UserText("autostart.writeFailed", ["reason": error.localizedDescription]))
             }
         }
         return isEnabled(home: home)
     }
 
-    struct Failure: Error, CustomStringConvertible {
-        let message: String
-        var description: String { message }
+    struct Failure: UserFacingError {
+        let text: UserText
     }
 }

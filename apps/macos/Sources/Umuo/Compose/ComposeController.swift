@@ -82,8 +82,7 @@ final class ComposeController: ComposeBackend {
 
     /// 主题、界面语言与界面缩放跟设置走，每次唤出时重读（与浮窗同一套规则）。
     private func refreshAppearance() {
-        let appearance = PanelRules.appearance(settingsJson: app.settingsJson)
-        session.locale = appearance.locale
+        session.locale = app.locale
     }
 
     /// 只接管撰写窗自己的按键；输入法组字时原样放行。
@@ -132,17 +131,20 @@ final class ComposeController: ComposeBackend {
     /// （粘完恢复用户原来的剪贴板）。确认不了（从 umuo 自己的窗口唤出、原应用已退出、没有辅助功能权限）
     /// 就只留在剪贴板里，并用浮窗说一声——撰写窗已经收起，它自己的提示没人看得见。
     func commit(_ text: String, paste: Bool, owner: String?) async -> String? {
-        if text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { return ComposeRules.emptyText }
+        let t = session.t
+        if text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { return t(ComposeRules.emptyText) }
         guard paste else {
             // 拿剪贴板互斥锁：⌘C 取词降级的事务可能正在另一个线程上跑，不在主线程上等
-            if let failure = await Task.detached(operation: { Pasteboard.copy(text) }).value { return failure }
+            if let failure = await Task.detached(operation: { Pasteboard.copy(text) }).value { return t(failure) }
             hideCompose()
             return nil
         }
         hideCompose()
-        let failure = await Task.detached { Self.pasteBack(text, owner: owner) }.value
-        if let failure { app.panel?.showNotice(failure, permission: nil) }
-        return failure
+        guard let failure = await Task.detached(operation: { Self.pasteBack(text, owner: owner) }).value else {
+            return nil
+        }
+        app.panel?.showNotice(t(failure), permission: nil)
+        return t(failure)
     }
 
     /// 把唤出撰写窗之前的应用叫回前台，轮询到它真的在前台再受控粘贴。固定等一段时间不够：撰写窗收起后接过焦点的
@@ -153,21 +155,21 @@ final class ComposeController: ComposeBackend {
         _ text: String, owner: String?, paster: ControlledPaste = ControlledPaste(),
         refocus: (String) -> Void = ReplaceSelection.refocus,
         frontmost: () -> String? = FrontmostApp.liveToken
-    ) -> String? {
+    ) -> UserText? {
         guard let owner else { return keepOnClipboard(text, paster.pasteboard) ?? ComposeRules.pasteNotBack }
         refocus(owner)
         // ⌘V 发往前台：按下前最后核对一次前台仍是原应用
         switch paster.run(text, proceed: { frontmost() == owner }) {
         case .pasted: return nil
         case .skipped: return keepOnClipboard(text, paster.pasteboard) ?? ComposeRules.pasteNotBack
-        case let .failed(detail):
+        case let .failed(reason):
             _ = keepOnClipboard(text, paster.pasteboard)
-            return detail
+            return reason
         }
     }
 
     /// 没粘成时把译文复制到剪贴板。复制失败返回原因。
-    private nonisolated static func keepOnClipboard(_ text: String, _ pasteboard: PasteboardAccess) -> String? {
+    private nonisolated static func keepOnClipboard(_ text: String, _ pasteboard: PasteboardAccess) -> UserText? {
         Pasteboard.copy(text, to: pasteboard)
     }
 }

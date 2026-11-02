@@ -61,7 +61,7 @@ private final class PasteRig: @unchecked Sendable {
 
     func paster() -> ControlledPaste {
         ControlledPaste(pasteboard: pasteboard, paste: { () throws(SelectionError) in
-            if self.pasteFails { throw SelectionError.other("无法创建键盘事件") }
+            if self.pasteFails { throw SelectionError.other(UserText("error.keyEventFailed")) }
             self.count.withLock { $0 += 1 }
             let current = self.pasteboard.string(forType: .string) ?? ""
             self.seen.withLock { $0.append(current) }
@@ -175,7 +175,7 @@ struct ControlledPasteTests {
         rig.pasteboard.clearContents()
         rig.pasteboard.setString("旧的", forType: .string)
         rig.pasteFails = true
-        #expect(rig.paster().run("后天见。") { true } == .failed("无法创建键盘事件"))
+        #expect(rig.paster().run("后天见。") { true } == .failed(UserText("error.keyEventFailed")))
         #expect(rig.pasteboard.string(forType: .string) == "旧的")
     }
 

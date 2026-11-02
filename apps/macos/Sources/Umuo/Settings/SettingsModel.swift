@@ -367,12 +367,12 @@ final class HotkeyEditor {
         return Self.warning(HotkeyConflict.check(value, others: others(field)), t)
     }
 
-    static func warning(_ conflict: HotkeyConflict.Conflict?, _ t: Translate) -> String? {
+    nonisolated static func warning(_ conflict: HotkeyConflict.Conflict?, _ t: Translate) -> String? {
         guard let conflict else { return nil }
         switch conflict.kind {
         case .noModifier: return t("prefs.hotkey.noModifier")
         case .duplicate: return t("prefs.hotkey.duplicate", ["name": conflict.subject ?? ""])
-        case .system: return t("prefs.hotkey.system", ["name": conflict.subject ?? ""])
+        case .system: return t("prefs.hotkey.system", ["name": conflict.subject.map { t($0) } ?? ""])
         }
     }
 

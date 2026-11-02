@@ -8,7 +8,7 @@ import Carbon
 /// 按住说话（语音）另外要松开（`kEventHotKeyReleased`），注册时给 `onRelease` 才会转发。
 @MainActor
 final class GlobalHotkeys {
-    /// 注册失败。`description` 是日志里「：」之后那段原因。
+    /// 注册失败。`description` 只进日志（「：」之后那段原因）；界面按失败的字段名显示本地化文案。
     enum Failure: Error, Equatable, CustomStringConvertible {
         /// 键在 macOS 上没有虚拟键码。
         case unsupportedKey(String)

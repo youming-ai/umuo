@@ -64,8 +64,7 @@ final class HistoryWindowController: NSObject, NSWindowDelegate, NSToolbarDelega
     }
 
     private func refreshAppearance() {
-        let appearance = PanelRules.appearance(settingsJson: app.settingsJson)
-        model.t = Translate(locale: appearance.locale)
+        model.t = Translate(locale: app.locale)
         // 标题跟随界面语言（原来写死中文）
         window.title = model.t("menu.history")
         search.searchField.placeholderString = model.t("history.searchPlaceholder")
@@ -153,7 +152,8 @@ final class EngineHistoryBackend: HistoryBackend {
 
     func copy(_ text: String) async -> String? {
         // 拿剪贴板互斥锁：⌘C 取词降级的事务可能正在另一个线程上跑，不在主线程上等
-        await Task.detached { Pasteboard.copy(text) }.value
+        let t = app.t
+        return await Task.detached { Pasteboard.copy(text) }.value.map { t($0) }
     }
 
     /// 历史窗不带浮窗归属（nil）：粘贴目标只认当前前台的外部应用（`ComposeRules.ownerForCaller`）。

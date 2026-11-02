@@ -70,7 +70,7 @@ enum HostSelfTest {
                   "\(testService)：写入、覆盖、删除、重复删除")
         } catch let error as Keychain.Failure where error.interactionNotAllowed {
             print("- Keychain: skipped: default keychain locked (no user session)")
-        } catch HostFailure.Failed(detail: "凭据存储不可用：需要在设置中授权访问") {
+        } catch HostFailure.Failed(detail: Translate(locale: .source)("keychain.resaveKey")) {
             // 读不弹框：锁着或要授权时 apiKey 给出这一句而不是卡住
             print("- Keychain: skipped: read needs user interaction (locked or not authorized)")
         } catch {

@@ -16,7 +16,7 @@ private final class Board: @unchecked Sendable {
 
     func paster(fails: Bool = false) -> ControlledPaste {
         ControlledPaste(pasteboard: pasteboard, paste: { () throws(SelectionError) in
-            if fails { throw SelectionError.other("无法创建键盘事件") }
+            if fails { throw SelectionError.other(UserText("error.keyEventFailed")) }
             self.pasted.append(self.pasteboard.string(forType: .string) ?? "")
         }, restoreDelay: 0)
     }

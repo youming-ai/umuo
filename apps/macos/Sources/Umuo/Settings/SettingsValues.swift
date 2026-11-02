@@ -69,12 +69,15 @@ enum SettingsRules {
 
     /// 导入结果的说明。端点与取词黑名单的变化单独列出：前者决定 API Key 发往哪里，
     /// 后者决定哪些应用里的选中内容会被读取——一份别人分享的配置不该悄悄改掉它们。
+    /// 旧风格与术语表只保留数据、不参与翻译，条数为 0 时不提。
     static func importNotice(_ result: ImportResult, _ t: Translate) -> String {
-        var parts = [t("prefs.general.imported", [
-            "version": String(result.bundleVersion),
-            "styles": String(result.customStyleCount),
-            "glossaries": String(result.glossaryCount),
-        ])]
+        var parts = [t("prefs.general.imported", ["version": String(result.bundleVersion)])]
+        if result.customStyleCount > 0 {
+            parts.append(t("prefs.general.importedStyles", ["count": String(result.customStyleCount)]))
+        }
+        if result.glossaryCount > 0 {
+            parts.append(t("prefs.general.importedGlossaries", ["count": String(result.glossaryCount)]))
+        }
         if !result.endpointChanges.isEmpty {
             let list = result.endpointChanges
                 .map { "\($0.providerId) → \($0.url.isEmpty ? t("prefs.general.importedEndpointDefault") : $0.url)" }

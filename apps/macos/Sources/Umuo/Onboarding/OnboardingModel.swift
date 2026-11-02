@@ -146,11 +146,10 @@ final class OnboardingModel {
         }
     }
 
-    /// 探测结果的显示：Ollama 只写模型名（与 Tauri 版一致），别家带上供应商名，免得以为是 Ollama 的模型。
+    /// 探测结果的显示：一律「模型（供应商）」，看得出是哪一家本机服务上的模型。
     func detectedLabel(_ found: EngineChoice) -> String {
-        if found.providerId == "ollama" { return found.model }
         let label = providers.first { $0.id == found.providerId }?.label ?? found.providerId
-        return "\(found.model)（\(label)）"
+        return t("onboarding.modelWithProvider", ["model": found.model, "provider": label])
     }
 
     // MARK: - 权限

@@ -35,7 +35,7 @@ struct HotkeyConflictTests {
     @Test func 与自己其它功能重复会被认出来且别名无关() {
         let conflict = HotkeyConflict.check("Option+D", others: others)
         #expect(conflict?.kind == .duplicate)
-        #expect(conflict?.message.contains("划词翻译") == true)
+        #expect(conflict?.subject == "划词翻译")
     }
 
     @Test func 没有真正的修饰键会被拦下() {
@@ -46,8 +46,11 @@ struct HotkeyConflictTests {
     @Test func 命中已知系统快捷键会说明那个功能是谁的() {
         let spotlight = HotkeyConflict.check("Cmd+Space", others: others)
         #expect(spotlight?.kind == .system)
-        #expect(spotlight?.message.contains("Spotlight") == true)
-        #expect(HotkeyConflict.check("Cmd+Shift+4", others: others)?.message.contains("截取") == true)
+        let zh = Translate(locale: .zhCN), en = Translate(locale: .en)
+        #expect(HotkeyEditor.warning(spotlight, zh)?.contains("Spotlight 搜索") == true)
+        #expect(HotkeyEditor.warning(spotlight, en)?.contains("Spotlight search") == true)
+        let area = HotkeyConflict.check("Cmd+Shift+4", others: others)
+        #expect(HotkeyEditor.warning(area, zh)?.contains("截取屏幕区域") == true)
     }
 
     @Test func 客户端自带的默认快捷键全部通过检查() {
@@ -65,7 +68,7 @@ struct HotkeyConflictTests {
 
     @Test func 与别的功能的连按重叠时报重复() {
         #expect(HotkeyConflict.check("Ctrl Ctrl", others: [(label: "划词翻译", value: "RightCtrl RightCtrl")])
-            == .init(kind: .duplicate, message: "与「划词翻译」重复", subject: "划词翻译"))
+            == .init(kind: .duplicate, subject: "划词翻译"))
         #expect(HotkeyConflict.check("Alt Alt", others: [(label: "划词翻译", value: "Ctrl Ctrl")]) == nil)
     }
 }
