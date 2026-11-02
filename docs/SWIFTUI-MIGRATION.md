@@ -92,7 +92,7 @@ Release 工作流（`.github/workflows/release.yml`）：客户端改动（`apps
 
 `bun run release:swift X.Y.Z` 是本机的「门禁 + 组装」：在干净、与 origin/main 一致的 main 上跑 `bun run verify`，
 构建通用包并生成 appcast，产物与 Release 附件同名，放在 `apps/macos/dist`，**不上传**。Actions 不可用时可据此手动
-`gh release create v<版本> --latest …` 上传。GitHub Actions 目前因账单问题不可用，先在本机跑 `bun run verify`。
+`gh release create v<版本> --latest …` 上传。仓库公开后 GitHub Actions 不受用量限制，正常情况下由 release.yml 自动发布；手动发布前先在本机跑 `bun run verify`。
 旧 `release:local` 和 Tauri 构建工作流已删除，不再产出旧客户端。
 
 ### Sparkle 原生应用内更新（2026-10-23）

@@ -25,7 +25,8 @@ Rust 内核经 UniFFI 调用。2026-10-22 已按用户要求删除旧 Tauri 客�
 Swift build / Swift Testing / FFI selftest / 原生打包冒烟。非 macOS 跳过 Swift 部分，CI 的 macos-app 仍须验证。
 改翻译逻辑必须跑 `bun run test:rust`；改原生 UI 必须跑 `bun run verify:macos`。
 新增 CI 门禁时同步接入 `verify`，避免本机全绿而 CI 漏检。本机与 CI 的 rustfmt 版本可能不同。
-GitHub Actions 目前因账单问题不可用，合并前必须完成本机门禁，并在 PR 描述写明结果。
+仓库公开后 GitHub Actions 不受用量限制：PR 与 main 都跑完整 CI（`ci.yml`），客户端改动合入 main 自动发 GitHub Release（`release.yml`）。
+本机门禁照常先跑，PR 描述写明结果；GitHub 网页合并会用账号默认邮箱，合并改在本地做再推送。
 
 ## 目录与分层
 
