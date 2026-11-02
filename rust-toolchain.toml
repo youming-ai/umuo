@@ -1,0 +1,6 @@
+# 固定 Rust 版本：本机与 CI 用同一套 rustc / rustfmt / clippy，避免「本机格式化通过、CI 报格式」。
+# 升级时只改这里，并在本机跑一遍 bun run verify（fmt 与 clippy 的新 lint 都可能要跟着改）。
+[toolchain]
+channel = "1.98.1"
+components = ["rustfmt", "clippy"]
+profile = "minimal"
