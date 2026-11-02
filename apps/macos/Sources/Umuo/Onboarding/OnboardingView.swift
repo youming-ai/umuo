@@ -137,6 +137,23 @@ struct OnboardingView: View {
                 PrefPicker(label: t("onboarding.provider"), value: model.draftProvider,
                            options: model.providers.map { ($0.id, $0.label) }) { model.draftProvider = $0 }
             }
+            // Azure 与自定义端点：先填地址与模型，Key 才有地方用（与设置的引擎页同一组文案与设置键）
+            if model.needsEndpoint {
+                let azure = model.draftProvider == "azure"
+                let endpointTitle = t(azure ? "prefs.engine.azureEndpoint" : "prefs.engine.customBaseUrl")
+                PrefRow(title: endpointTitle,
+                        description: t(azure ? "prefs.engine.azureEndpointHint" : "prefs.engine.customBaseUrlHint")) {
+                    DraftField(value: model.draftEndpoint,
+                               placeholder: azure ? "https://<name>.openai.azure.com" : "https://gateway.internal/v1",
+                               width: 240, label: endpointTitle) { model.saveEndpoint($0) }
+                }
+                PrefRow(title: t("prefs.engine.model"),
+                        description: t(azure ? "prefs.engine.modelAzureHint" : "prefs.engine.modelHint")) {
+                    TextField(t("prefs.engine.model"), text: $model.draftModel,
+                              prompt: Text(model.draftDetail?.defaultModel ?? ""))
+                        .textFieldStyle(.roundedBorder).labelsHidden().frame(width: 240)
+                }
+            }
             PrefRow(title: t("onboarding.apiKey")) {
                 SecureField(t("onboarding.apiKey"), text: $model.draftKey,
                             prompt: Text(model.keyConfigured ? t("onboarding.keyPlaceholderConfigured")

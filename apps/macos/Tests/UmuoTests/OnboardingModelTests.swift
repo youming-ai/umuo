@@ -53,6 +53,10 @@ private class FakeOnboarding: OnboardingBackend {
                            requiresKey: false, requiresBaseUrl: false, local: true),
             ProviderDetail(id: "lmstudio", label: "LM Studio", defaultModel: "", suggestedModels: [], keysUrl: "",
                            requiresKey: false, requiresBaseUrl: false, local: true),
+            ProviderDetail(id: "azure", label: "Azure OpenAI", defaultModel: "gpt-4o-mini", suggestedModels: [],
+                           keysUrl: "", requiresKey: true, requiresBaseUrl: true, local: false),
+            ProviderDetail(id: "custom", label: "自定义端点", defaultModel: "", suggestedModels: [], keysUrl: "",
+                           requiresKey: true, requiresBaseUrl: true, local: false),
         ]
     }
 
@@ -149,6 +153,47 @@ struct OnboardingModelTests {
         #expect(model.keyConfigured)
         #expect(model.draftKey.isEmpty)
         #expect(model.notice == "已保存 Anthropic 的 Key")
+    }
+
+    @Test func 自定义端点要填地址与模型_地址写进customBaseUrl_存Key用填写的模型() async {
+        let backend = FakeOnboarding(defaults)
+        let model = await loaded(backend)
+        #expect(!model.needsEndpoint, "OpenAI 不需要地址框")
+        model.draftProvider = "custom"
+        #expect(model.needsEndpoint)
+        _ = try? await model.saveEndpoint("  https://gateway.internal/v1  ")?.value
+        #expect(backend.patches.last == ["customBaseUrl": .string("https://gateway.internal/v1")])
+        #expect(model.draftEndpoint == "https://gateway.internal/v1")
+        model.draftModel = " qwen-max "
+        model.draftKey = "sk-c"
+        await model.saveKey()
+        await settle()
+        #expect(backend.keys["custom"] == "sk-c")
+        #expect(backend.patches.last == ["providerId": .string("custom"), "model": .string("qwen-max")])
+    }
+
+    @Test func Azure的端点写进providerBaseUrls且不动其他家的地址() async {
+        var values = defaults
+        values["providerBaseUrls"] = .object(["custom-gw": .string("https://x/v1")])
+        let backend = FakeOnboarding(values)
+        let model = await loaded(backend)
+        model.draftProvider = "azure"
+        #expect(model.needsEndpoint)
+        _ = try? await model.saveEndpoint("https://res.openai.azure.com")?.value
+        #expect(backend.patches.last == ["providerBaseUrls": .object([
+            "custom-gw": .string("https://x/v1"), "azure": .string("https://res.openai.azure.com"),
+        ])])
+        #expect(model.draftEndpoint == "https://res.openai.azure.com")
+    }
+
+    @Test func 需要端点的供应商没填模型时用它的默认模型() async {
+        let backend = FakeOnboarding(defaults)
+        let model = await loaded(backend)
+        model.draftProvider = "azure"
+        model.draftKey = "k"
+        await model.saveKey()
+        await settle()
+        #expect(backend.patches.last == ["providerId": .string("azure"), "model": .string("gpt-4o-mini")])
     }
 
     @Test func 空白Key不保存() async {

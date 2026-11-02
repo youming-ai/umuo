@@ -50,6 +50,8 @@ final class OnboardingModel {
     /// 模型这一步的草稿：选中的供应商与还没保存的 Key。
     var draftProvider = ""
     var draftKey = ""
+    /// 需要端点的供应商（Azure、自定义端点）要自己填的模型名：自定义端点没有默认模型，Azure 是部署名。
+    var draftModel = ""
 
     var t = Translate(locale: .source)
 
@@ -70,6 +72,14 @@ final class OnboardingModel {
 
     var draftDetail: ProviderDetail? { providers.first { $0.id == draftProvider } }
 
+    /// 选中的供应商要不要用户填地址（Azure 的资源终结点、自定义端点；判定来自内核的 `requires_base_url`）。
+    var needsEndpoint: Bool { draftDetail?.requiresBaseUrl ?? false }
+
+    /// 已保存的地址：与设置的引擎页同一份——Azure 在 `providerBaseUrls.azure`，自定义端点在 `customBaseUrl`。
+    var draftEndpoint: String {
+        draftProvider == "azure" ? values.object("providerBaseUrls").string("azure") : values.string("customBaseUrl")
+    }
+
     /// 打开窗口时载入。失败时页面停在载入页并说明原因。
     func load() async {
         do {
@@ -85,12 +95,30 @@ final class OnboardingModel {
     }
 
     func commit(_ patch: SettingsValues) {
-        guard let queue else { return }
+        _ = commitTask(patch)
+    }
+
+    /// 同 `commit`，但把保存任务交回去：草稿输入框据此在失败时退回原值。
+    @discardableResult
+    func commitTask(_ patch: SettingsValues) -> Task<Void, Error>? {
+        guard let queue else { return nil }
         let task = queue.commit(patch)
         lastSave = task
         Task {
             do { try await task.value } catch { self.notice = SettingsRules.message(error) }
         }
+        return task
+    }
+
+    /// 保存选中供应商的地址，写法与设置的引擎页一致；不合法的地址由内核拒绝，原因显示在提示行。
+    func saveEndpoint(_ url: String) -> Task<Void, Error>? {
+        let url = url.trimmingCharacters(in: .whitespacesAndNewlines)
+        if draftProvider == "azure" {
+            var urls = values.object("providerBaseUrls")
+            urls["azure"] = .string(url)
+            return commitTask(["providerBaseUrls": .object(urls)])
+        }
+        return commitTask(["customBaseUrl": .string(url)])
     }
 
     // MARK: - 步骤
@@ -110,7 +138,10 @@ final class OnboardingModel {
             try await backend.saveApiKey(providerId, key)
             draftKey = ""
             keyConfigured = true
-            let engine = Onboarding.engineForSavedKey(providerId: providerId, defaultModel: detail?.defaultModel)
+            // 需要端点的供应商用用户填的模型（自定义端点没有默认模型，空着存会让首次翻译直接报缺模型）
+            let typed = draftModel.trimmingCharacters(in: .whitespacesAndNewlines)
+            let chosen = needsEndpoint && !typed.isEmpty ? typed : detail?.defaultModel
+            let engine = Onboarding.engineForSavedKey(providerId: providerId, defaultModel: chosen)
             commit(["providerId": .string(engine.providerId), "model": .string(engine.model)])
             notice = t("onboarding.keySaved", ["provider": detail?.label ?? providerId])
         } catch {
