@@ -6,7 +6,7 @@ import UmuoCore
 enum TrayIcon {
     /// 资源包里那份 PNG。
     static var url: URL? {
-        Bundle.module.url(forResource: "tray", withExtension: "png", subdirectory: "Tray")
+        ResourceBundle.bundle.url(forResource: "tray", withExtension: "png", subdirectory: "Tray")
     }
 }
 

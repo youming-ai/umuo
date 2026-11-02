@@ -32,9 +32,9 @@ enum SelfTest {
             ok = ok && passed
         }
 
-        // 资源包找不到时 Bundle.module 直接 fatalError：在 .app 里跑到这里就说明 Contents/Resources 的布局对
+        // 资源包从 ResourceBundle 取：在 .app 里应当来自 Contents/Resources，bundle.sh 据此核对不是退回到构建目录
         check("resources", !StringCatalog.main.entries.isEmpty && TrayIcon.url != nil,
-              "\(Bundle.module.bundlePath)（\(Bundle.main.bundleIdentifier ?? "裸二进制，无 Bundle ID")）")
+              "\(ResourceBundle.bundle.bundlePath)（\(Bundle.main.bundleIdentifier ?? "裸二进制，无 Bundle ID")）")
 
         // 必须加载包内 Sparkle，不能碰巧借用了发版机 .build 里的框架。
         let sparkle = Bundle(for: SPUUpdater.self)
