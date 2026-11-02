@@ -278,24 +278,14 @@ for (let i = 0; i < 4; i++) {
 
 /**
  * 菜单栏：22pt 里放不下整张图，只画水獭头的剪影——扁宽的头、两侧偏低的小耳朵、
- * 下面一道水波；彩色版画出脸，剪影版把眼睛和鼻子挖空。设计坐标同样是 0..100。
+ * 下面一道水波；眼睛和鼻子由 HEAD_HOLES 挖空。设计坐标同样是 0..100。
  */
-function otterHead(colored: boolean): Layer[] {
-  const fill: RGB = colored ? FUR : BLACK
-  const face: Layer[] = colored
-    ? [
-        [ellipse(50, 62, 30, 15), CREAM],
-        [ellipse(34, 46, 5, 6), INK],
-        [ellipse(66, 46, 5, 6), INK],
-        [ellipse(50, 57, 8, 5), INK],
-      ]
-    : []
+function otterHead(): Layer[] {
   return [
-    [ellipse(9, 38, 8), fill],
-    [ellipse(91, 38, 8), fill],
-    [ellipse(50, 50, 44, 30), fill],
-    ...face,
-    [stroke(TRAY_WAVE, 7), colored ? WATER : fill],
+    [ellipse(9, 38, 8), BLACK],
+    [ellipse(91, 38, 8), BLACK],
+    [ellipse(50, 50, 44, 30), BLACK],
+    [stroke(TRAY_WAVE, 7), BLACK],
   ]
 }
 
@@ -337,22 +327,16 @@ function renderAppIcon(size: number): Canvas {
 }
 
 /**
- * 菜单栏图标的三种样式（PRD §7.3「菜单栏图标样式」）。
- *
- * - template：黑色剪影 + isTemplate，由系统按菜单栏明暗着色（默认，最融入）。
- * - brand：彩色水獭头、非模板——想让图标更"可见"的用户选这个。
- * - black：恒定黑、非模板——浅色菜单栏下比模板更实。
+ * 菜单栏模板图：黑色剪影，运行时设 isTemplate，由系统按菜单栏明暗着色（菜单栏图标只有这一种样式）。
  */
-type TrayStyleName = 'template' | 'brand' | 'black'
-
-function renderTrayIcon(size: number, style: TrayStyleName = 'template'): Canvas {
+function renderTrayIcon(size: number): Canvas {
   const canvas = createCanvas(size, size)
   const pad = size * 0.04
   // 剪影在设计坐标里纵向占 20..98（耳朵到水波），整体上移 9 个单位让它在画布里上下居中
   const art = size - pad * 2
   const view = { x: pad, y: pad - art * 0.09, size: art }
-  for (const layer of otterHead(style === 'brand')) paint(canvas, view, layer)
-  if (style !== 'brand') punch(canvas, view, HEAD_HOLES)
+  for (const layer of otterHead()) paint(canvas, view, layer)
+  punch(canvas, view, HEAD_HOLES)
   return canvas
 }
 
@@ -390,8 +374,7 @@ function downsample(source: Canvas, size: number): Canvas {
 }
 
 /**
- * 组装 .icns。格式是「容器 + 若干 (类型码, 长度, PNG)」，够简单，
- * 自己写就能省掉 `tauri icon` 那一步的依赖。
+ * 组装 .icns。格式是「容器 + 若干 (类型码, 长度, PNG)」，够简单，自己写，不依赖 iconutil 之类的外部工具。
  */
 function encodeIcns(entries: Array<{ type: string; png: Buffer }>): Buffer {
   const chunks = entries.map(({ type, png }) => {
@@ -443,13 +426,10 @@ if (process.argv.includes('--preview')) {
 mkdirSync(ICON_DIR, { recursive: true })
 mkdirSync(TRAY_DIR, { recursive: true })
 
-// 菜单栏图标：三个样式各一份。template 是默认；运行时按设置换载哪一份。
-for (const style of ['template', 'brand', 'black'] as const) {
-  const name = style === 'template' ? 'tray.png' : `tray-${style}.png`
-  const png = encodePng(renderTrayIcon(40, style))
-  writeFileSync(join(TRAY_DIR, name), png)
-  console.log(`写入 ${name} (40×40, ${png.length} 字节)`)
-}
+// 菜单栏图标：只有模板图一份
+const trayPng = encodePng(renderTrayIcon(40))
+writeFileSync(join(TRAY_DIR, 'tray.png'), trayPng)
+console.log(`写入 tray.png (40×40, ${trayPng.length} 字节)`)
 
 const icns = encodeIcns([
   { type: 'ic07', png: encodePng(renderAppIcon(128)) },

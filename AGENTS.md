@@ -10,22 +10,24 @@ Rust 内核经 UniFFI 调用。2026-10-22 已按用户要求删除旧 Tauri 客�
 
 开发功能或精简入口前，先读 `docs/PRD.md`、`docs/PRD-CONFORMANCE.md` 与 `docs/IMPLEMENTATION-PLAN.md`；
 按开发计划推进，完成后更新验收清单的实现证据与状态。
-迁移、发布待办与兼容性见 `docs/SWIFTUI-MIGRATION.md`。只做 macOS，不为未来平台提前抽象。
+发布流程、Sparkle 密钥与必须守住的兼容性见 `docs/SWIFTUI-MIGRATION.md`。只做 macOS、只发 Apple Silicon（arm64），不为未来平台提前抽象。
 当前核心为文字翻译（含原地替换）、OCR 截图翻译、语音输入后润色/翻译。完全免费、纯 BYOK（2026-11-02 定案）；
 收费、许可证、试用、账号、订阅、官方额度与 AI 网关都不在范围内，不要重新引入。
 语音主要参考 Handy，本地转写引擎先验证再选定；不引入 Tauri 外壳。旧范围与实现记录已归档，不据此恢复退出功能。
 
 ## 开发与验证
 
-需要 Bun >= 1.2（唯一 JS 包管理器）、Rust stable、Swift 6 和 Xcode Command Line Tools。
+需要 Bun 1.4+（唯一 JS 包管理器，版本以 `packageManager` 为准）、rustup（Rust 版本由 `rust-toolchain.toml` 固定）、
+Swift 6 与 macOS 26 SDK（Xcode 26，或带该 SDK 的 Command Line Tools；浮窗的 Liquid Glass 需要它）。
 命令以根 `package.json` 为准。`bun run dev:macos` 从当前源码编译后启动；开发二进制默认不注册快捷键，
 需要时加 `--hotkeys`，先确认只有一个 umuo 实例。不要拿上次编译的二进制验证当前修改。
 
 提交前跑 `bun run verify`：工具 lint / 类型检查、cargo fmt、clippy -D warnings、Rust 测试、
 Swift build / Swift Testing / FFI selftest / 原生打包冒烟。非 macOS 跳过 Swift 部分，CI 的 macos-app 仍须验证。
 改翻译逻辑必须跑 `bun run test:rust`；改原生 UI 必须跑 `bun run verify:macos`。
-新增 CI 门禁时同步接入 `verify`，避免本机全绿而 CI 漏检。本机与 CI 的 rustfmt 版本可能不同。
-仓库公开后 GitHub Actions 不受用量限制：PR 与 main 都跑完整 CI（`ci.yml`），客户端改动合入 main 自动发 GitHub Release（`release.yml`）。
+新增 CI 门禁时同步接入 `verify`，避免本机全绿而 CI 漏检；CI 的 macos-app 直接调用 `verify.sh`。
+CI：PR 跑完整 `ci.yml`；main 上客户端改动由 `release.yml` 调用同一套 CI 后发布，其余非文档改动只跑 `ci.yml`，只改文档不跑。
+功能分支要在 CI 上验证时用 `gh workflow run ci.yml --ref <分支>`。
 本机门禁照常先跑，PR 描述写明结果；GitHub 网页合并会用账号默认邮箱，合并改在本地做再推送。
 
 ## 目录与分层
@@ -34,7 +36,7 @@ Swift build / Swift Testing / FFI selftest / 原生打包冒烟。非 macOS 跳�
 - `crates/umuo-app/`：应用编排、Host、流水线、设置、历史等业务逻辑。
 - `crates/umuo-core/`：翻译协议、Prompt、计量与传输。
 - `crates/umuo-ffi/`：只做类型转换与导出，不写业务逻辑。
-- `crates/umuo-store/`：SQLite 历史、收藏与（已停写的）用量账本。
+- `crates/umuo-store/`：SQLite 历史；旧收藏与用量账本的表与迁移保留，程序不再读写。
 - `scripts/`：图标生成与发布工具；`site/` 独立维护。
 
 `umuo-core` 与 `umuo-app` 不得依赖平台 API、Tauri 或 UniFFI，必须可在 Linux 编译测试。
@@ -61,14 +63,15 @@ Swift 视图模型与纯规则用 Swift Testing；不要在测试里碰真实 Ke
 
 ## 发布与兼容性
 
-客户端改动合入 main 即由 `.github/workflows/release.yml` 发布到 GitHub Releases（`v0.2.<运行序号>`，正式版并标 Latest，尚未公证）。
+客户端改动合入 main 即由 `.github/workflows/release.yml` 发布到 GitHub Releases（`v0.2.<运行序号>`，arm64，正式版并标 Latest，ad-hoc 签名、尚未公证）。
+手动发版用该工作流的 workflow_dispatch；发布失败后的清理见 `docs/SWIFTUI-MIGRATION.md`。
 附件名固定为 `umuo.dmg` / `umuo.app.tar.gz` / `appcast.xml`：官网 `/download/macos` 与 Sparkle 的 SUFeedURL 都指向
 `releases/latest/download/<文件名>`，不要改附件名，也不要把 Release 标成预发布（预发布不算 latest）。
-本机 `bun run bundle:macos -- --version X.Y.Z` 与 `bun run release:swift X.Y.Z` 都只产出文件、不上传。官网不存安装包（没有 R2）。
+本机 `bun run bundle:macos -- --version X.Y.Z` 只产出文件、不上传。官网不存安装包（没有 R2）。
 
 保留 Bundle ID `app.umuo.desktop`、`umuo.app` 与可执行文件名 `umuo-desktop`，不能破坏 Keychain、系统授权与旧 LaunchAgent。
 `settings.json` 只由 Rust 读写，Swift 只提交 patch；保留未知字段。历史沿用 `history.db` 与已发布迁移。
 API Key 只进 Keychain，不写配置、日志、历史，不从界面读回明文；供应商请求走 Rust。
 
-测性能前读 `docs/RELEASE-GATES.md`：内存用 footprint 的 phys_footprint，不用 RSS；快捷键测量前确认只有一个实例。
-旧 Tauri 的实测数据不能当作 SwiftUI 的发布验收结果。
+测性能前读 `docs/NATIVE-WALKTHROUGH.md`「性能测量」：用 release 包，内存用 `footprint` 的 phys_footprint，不用 RSS；
+快捷键测量前确认只有一个 umuo 实例。旧 Tauri 的数字已归档，不能当作 SwiftUI 的发布验收结果。

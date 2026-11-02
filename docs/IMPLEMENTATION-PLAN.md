@@ -1,6 +1,7 @@
 # umuo 首版开发计划
 
-2026-10-30 · 阶段 A 五批代码精简已完成并通过本机门禁（原生真机验收基线未完成）；阶段 B 本地转写选型已定案；阶段 C、D、E 代码已完成待真机验收；2026-11-02 起改为免费 MIT 开源。
+2026-11-02 · 阶段 A–F 的代码都已完成（F 只剩第三方许可核查）；仓库已以 MIT 公开，客户端改动合入 main 自动发 GitHub Releases（未公证）。
+剩下的是真机走查、第三方许可核查、Developer ID 公证与 Homebrew，见文末「待办」。
 
 目标：在 macOS 上交付文字翻译、OCR 截图翻译、语音输入后润色/翻译，免费、MIT 开源、纯 BYOK。
 需求见 [PRD](PRD.md)，逐项进度见 [验收清单](PRD-CONFORMANCE.md)，技术参考见 [Handy 研究](research/handy-voice-analysis.md)。
@@ -12,9 +13,9 @@
 | 三项核心 | 文字翻译保留划词、输入、原地替换；截图翻译保留本地 OCR 与原文修正；新增语音输入/翻译 |
 | 语音模式 | 同语言整理、目标语言翻译，快捷键录音后输出至输入框 |
 | 参考方式 | Handy 为主要源码参考；保留 SwiftUI/AppKit + Rust，不引入其 Tauri/React 外壳 |
-| 许可与商业边界 | 免费、MIT 开源（2026-11-02 定案，取代 10-30 的闭源买断）；用户自带模型 Key；无收费、许可证、试用、订阅、官方额度或 AI 网关，无需 umuo 账号；外部贡献不要求 CLA；仓库公开时间另定 |
+| 许可与商业边界 | 免费、MIT 开源（2026-11-02 定案，取代 10-30 的闭源买断）；用户自带模型 Key；无收费、许可证、试用、订阅、官方额度或 AI 网关，无需 umuo 账号；外部贡献不要求 CLA；仓库 2026-11-02 已公开 |
 | 基础能力 | 单一当前文字模型、自定义端点、必要代理、系统朗读、本地基础记录与隐私控制 |
-| 兼容边界 | macOS 14+、Apple Silicon（M 系列芯片，2026-10-28 确认不再考虑 Intel）、原配置/Keychain/历史/登录项标识继续兼容 |
+| 兼容边界 | macOS 14+、仅 Apple Silicon（M 系列芯片，2026-10-28 确认不再考虑 Intel；安装包只含 arm64）、原配置/Keychain/历史/登录项标识继续兼容 |
 | 本地转写方案 | `transcribe.cpp` v0.4.1（`TranscribeCpp.xcframework`）+ 默认模型 `Qwen3-ASR-0.6B-Q4_K_M.gguf`（562.3 MiB，Apache-2.0）；宿主进程内加载 + `mmap` + 空闲自动卸载 |
 
 以下事项在对应阶段定案，不阻塞文字/OCR 精简和语音开发：
@@ -94,9 +95,9 @@
 
 依赖：阶段 B 的候选与接口已确定。
 
-- [x] Swift 实现麦克风权限、设备与录音生命周期，补用途说明；新增快捷键按下/松开/取消事件（默认 ⌥⌘V，尚未进设置与冲突检查）。
+- [x] Swift 实现麦克风权限、设备与录音生命周期，补用途说明；新增快捷键按下/松开/取消事件（两个语音键进设置与冲突检查见阶段 D）。
 - [x] umuo-app 提供可测试的会话规则与 session id，涵盖录音、转写、后处理、完成、取消与错误（`voice_session/`）。
-- [x] 原生浮层展示状态；Esc 贯穿全链路取消，旧会话结果不能覆盖新会话（与翻译浮窗同时可见时 Esc 冲突待处理）。
+- [x] 原生浮层展示状态；Esc 贯穿全链路取消，旧会话结果不能覆盖新会话；与翻译浮窗同时可见时由 `EscapeRouter` 按最近认领的浮层路由。
 - [x] 模型下载仅在首次语音使用时发生；临时音频在结束/取消后清理，不默认保存音频。
 
 完成条件：假音频测试覆盖状态转换和错误恢复；真机能开始、结束、取消录音与转写，不输出到其他应用。
@@ -130,7 +131,7 @@
 
 - [x] 根目录许可证改为 MIT，Cargo/npm 元数据、README 与 agent 指令同步；新增 `CONTRIBUTING.md`（不要求 CLA）。
 - [x] 删除客户端 `License/`、试用门控、设置许可证页与 `umuo://activate` 深链接。
-- [x] 删除 Worker 收费与许可证路由、Waffo 依赖与 KV 绑定；官网删除购买/激活，改为免费开源说明，条款与隐私 v3.0。
+- [x] 删除 Worker 收费与许可证路由、Waffo 依赖与 KV 绑定；官网删除购买/激活，改为免费开源说明；官网只留首页（条款与隐私页已删除）。
 - [x] 仓库公开：整个仓库（含 `site/`）MIT；历史整理脱敏后重建公开仓库 github.com/youming-ai/umuo；官网 `SOURCE_PUBLIC` 打开（2026-11-02）。
 - [ ] 逐项核查第三方依赖许可并补全 `THIRD_PARTY_NOTICES`。
 
@@ -139,10 +140,10 @@
 ## 阶段 G 正式发布
 
 - [ ] 配置 Sparkle 正式密钥，从 GitHub Releases 实测 N → N+1 下载、验签、安装与重启（appcast 随 Release 发布，无需部署路由）。
-- [ ] Developer ID 签名、公证、Gatekeeper、DMG 拖装、TCC 与 Keychain 升级访问验收。
+- [ ] Developer ID 签名、公证、Gatekeeper、DMG 拖装、TCC 与 Keychain 升级访问验收（Release 工作流要补的步骤见 [SWIFTUI-MIGRATION.md](SWIFTUI-MIGRATION.md)）。
 - [ ] 原生 release 的性能、Apple Silicon 真机、VoiceOver、完整键盘操作、多显示器与权限走查。
 - [x] 官网直装：客户端改动合入 main 自动发 GitHub Releases 正式版（标 Latest，固定附件名），官网 `/download/macos` 302 到最新 `umuo.dmg`；R2 与旧 Tauri 桥接已删除（没有旧 Tauri 用户）。
-- [ ] Homebrew Cask，按迁移文档发布。
+- [ ] Homebrew Cask。
 
 完成条件：实际正式产物的发布证据齐全；代码接入、测试包和正式发布分别记录。
 
@@ -153,5 +154,11 @@
 测试使用假 Host、假音频、私有剪贴板和本地桩，不访问真实 Keychain、用户剪贴板、真实模型或投递系统按键。
 真实系统权限、模型质量、输入交付与正式更新另记真机证据，不能用单测替代。
 
-下一步：阶段 A 只剩原生验收基线（真机走查，按 [NATIVE-WALKTHROUGH.md](NATIVE-WALKTHROUGH.md) 记录）；阶段 B 已定案。
-阶段 C、D、E 代码已完成；下一步是阶段 F 的开源清理与真机走查（文字/OCR 基线、语音全流程与各类输入框），再按阶段 G 正式发布。
+## 待办
+
+代码侧已无未完成的阶段；剩下这些都需要人或外部账号，完成后在 [验收清单](PRD-CONFORMANCE.md) 记证据：
+
+1. **真机走查**：按 [NATIVE-WALKTHROUGH.md](NATIVE-WALKTHROUGH.md) 走文字 / 截图基线与语音全流程（各类输入框交付），并测原生 release 性能（阶段 A、C–E、G）。
+2. **第三方许可核查**：逐项核对 Cargo / Swift 依赖与随包二进制的许可，补全 `THIRD_PARTY_NOTICES`（阶段 F）。
+3. **Developer ID 签名与公证**：需要 Apple 开发者账号；接入步骤见 [SWIFTUI-MIGRATION.md](SWIFTUI-MIGRATION.md)，之后验 N → N+1 更新（阶段 G）。
+4. **Homebrew Cask**（阶段 G）。

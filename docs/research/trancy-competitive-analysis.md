@@ -1,5 +1,8 @@
 # Trancy — Competitive Analysis for a Web-Based Shadowing App
 
+> **历史调研，与当前产品无关，仅供参考。** 本文写于 umuo 早期探索网页跟读 / 浏览器扩展方向时；
+> 现行产品是 macOS 原生翻译与语音表达工具，浏览器扩展、跟读与语言学习都是 [PRD](../PRD.md) 明确的非目标。
+
 **Subject:** Trancy (`trancy.org`), focusing on the Learning Center at `learn.trancy.org`
 **Date of research:** 2026 (site content is dated 2026; latest changelog entry seen is V7.9.3, September 8, 2026)
 **Purpose:** Evidence-based feature breakdown to decide what a focused shadowing/listening app must match or deliberately not match.

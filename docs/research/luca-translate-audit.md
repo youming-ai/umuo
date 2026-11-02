@@ -1,5 +1,8 @@
 # luca-translate 代码复用审计
 
+> **历史调研，仅供参考。** 审计针对已删除的 Tauri 客户端时代（2026-10-06）；当前客户端是 Swift + SwiftUI，
+> 文中「可搬运的模块」一个都没有搬（见 [THIRD_PARTY_NOTICES](../../THIRD_PARTY_NOTICES)），PRD 章节号也已变动。
+
 **审计对象：** [lucaslus/luca-translate](https://github.com/lucaslus/luca-translate)（MIT，Rust + Tauri 2）
 **审计日期：** 2026-10-06
 **审计人：** 工程侧（AI agent），受 `docs/PRD.md` §9.5 委派

@@ -1,21 +1,55 @@
 name: CI
 
-# 门禁：Bun 工具脚本、平台无关 Rust 内核、SwiftUI 客户端。
-# 只改官网（site/）时不跑客户端门禁
+# 门禁：Bun 工具脚本、Rust workspace（Linux）、SwiftUI 客户端（macOS）。
+#
+# 一次 push 只跑一套：
+# - 客户端改动（release.yml 的触发路径）合入 main 时由 Release 工作流以 workflow_call 调用这一整套，
+#   所以 push 这里排除同一组路径，免得同一次合入跑两遍；
+# - 只改文档、官网（site.yml 管）时不跑；其余（工具脚本、根配置、Tests、本文件）由这里跑。
+# 一次 push 同时改了客户端与工具脚本 / Tests 时两边都会跑（GitHub 的路径过滤只能按「全部文件都被忽略」跳过），属正常。
+# 改 release.yml 的 paths 时同步改下面 push 的 paths-ignore。
+# pull_request 不加文档类路径过滤：路径过滤会让被跳过的检查一直挂起，PR 合不进来。
 on:
   push:
     branches: [main]
-    paths-ignore: ['site/**', '.github/workflows/site.yml']
+    paths-ignore:
+      - 'site/**'
+      - '.github/workflows/site.yml'
+      - 'docs/**'
+      - '**.md'
+      # 以下与 release.yml 的 paths 一致（Release 会调用本工作流）
+      - 'apps/macos/.gitignore'
+      - 'apps/macos/Package.swift'
+      - 'apps/macos/Package.resolved'
+      - 'apps/macos/Sources/**'
+      - 'apps/macos/packaging/**'
+      - 'apps/macos/scripts/**'
+      - 'crates/**'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - 'rust-toolchain.toml'
+      - 'package.json'
+      - 'bun.lock'
+      - 'scripts/sparkle-appcast.ts'
+      - '.github/scripts/**'
+      - '.github/workflows/release.yml'
   pull_request:
     branches: [main]
     paths-ignore: ['site/**', '.github/workflows/site.yml']
+  # 手动对任意分支跑一遍（推送功能分支不会自动触发）
+  workflow_dispatch:
   # Release 工作流先调用这一整套门禁，全部通过才构建与发布
   workflow_call:
 
-# 被 Release 调用时 github.workflow 是 "Release"：与 push 触发的那次 CI 分在不同的组，互不取消
+# 只有 PR 的新推送取消同一 PR 上还在跑的旧检查；main 的每次 push 都跑完。
+# 被 Release 以 workflow_call 调用时 github.workflow 是 "Release"、event_name 是 push：
+# 组名与 push 触发的 CI 不同，也不会取消，Release 的门禁不会被别的运行打断。
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
 
 jobs:
   tooling:
@@ -43,34 +77,17 @@ jobs:
       - name: Tooling tests
         run: bun run test:tools
 
-  # 应用层与内核必须不依赖平台：在 Linux 上编译并测试，谁不小心引入 Tauri / AppKit 就在这里红。
-  app-core-linux:
-    name: umuo-app + umuo-core on Linux
+  # 整个 Rust workspace 在 Linux 上检查与测试：umuo-core / umuo-app 必须不依赖平台，
+  # 谁不小心引入 AppKit 一类依赖就在这里红；umuo-ffi、umuo-store 也在 Linux 上编得过、测得了。
+  # 工具链版本由 rust-toolchain.toml 固定，本机与 CI 的 rustfmt / clippy 一致。
+  rust:
+    name: Rust (fmt / clippy / tests, Linux)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
-        with:
-          toolchain: stable
-
-      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
-
-      - name: Tests
-        run: cargo test -p umuo-app -p umuo-core
-
-  rust:
-    name: Rust (fmt / clippy / tests)
-    runs-on: macos-15  # macos-14 镜像 2026-11-02 退役（actions/runner-images#13518）
-    steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
-        with:
-          toolchain: stable
-          components: rustfmt, clippy
+      - name: Install Rust toolchain (rust-toolchain.toml)
+        run: rustup toolchain install && rustc --version
 
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
 
@@ -84,45 +101,35 @@ jobs:
         run: cargo test --workspace
 
   macos-app:
-    # SwiftUI 客户端（apps/macos）。用 macos-15 镜像并切到其上的 Xcode 26（Liquid Glass 需要 macOS 26 SDK），
-    # 不和上面的 Rust job 共用 macos-14。--selftest 从 Swift 逐项调用 Rust 内核并校验结果。
+    # SwiftUI 客户端（apps/macos）：与本机 bun run verify:macos 同一个脚本（verify.sh），按阶段分步调用，
+    # 编内核与绑定 → swift build → Swift Testing → --selftest（从 Swift 逐项调用 Rust 内核）→ 打包冒烟。
+    # 各步与整个 job 都设超时：Swift 测试曾偶发挂死（用例全部 started、无一结束），不能等到 6 小时上限。
     name: macOS app (SwiftUI + umuo-core)
     runs-on: macos-15
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
-      # 浮窗用 macOS 26 的 Liquid Glass（glassEffect），要 Xcode 26 的 SDK；镜像默认的 Xcode 16 编不过。
-      # 选镜像上装好的最新 Xcode 26，找不到就直接失败，免得悄悄退回旧 SDK。
       - name: Select Xcode 26
-        run: |
-          xcode=$(ls -d /Applications/Xcode_26*.app 2>/dev/null | sort -V | tail -1)
-          if [ -z "$xcode" ]; then echo "runner 上没有 Xcode 26" >&2; ls -d /Applications/Xcode*.app >&2; exit 1; fi
-          sudo xcode-select -s "$xcode/Contents/Developer"
-          xcodebuild -version
+        run: sh .github/scripts/select-xcode.sh
 
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
-        with:
-          toolchain: stable
+      - name: Install Rust toolchain (rust-toolchain.toml)
+        run: rustup toolchain install && rustc --version
 
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
 
-      - name: Build core and Swift bindings
-        run: PROFILE=debug apps/macos/scripts/build-core.sh
+      - name: Build core, bindings and app
+        timeout-minutes: 15
+        run: sh apps/macos/scripts/verify.sh build
 
-      - name: Build app
-        working-directory: apps/macos
-        run: swift build
-
-      # 视图模型与纯规则（Swift Testing）。完整 Xcode 自己找得到 TestingMacros；只装 CLT 的本机见 verify.sh
       - name: Swift tests (view models and rules)
-        working-directory: apps/macos
-        run: swift test
+        timeout-minutes: 15
+        run: sh apps/macos/scripts/verify.sh test
 
       - name: Self-test (Swift → Rust)
-        working-directory: apps/macos
-        run: .build/debug/Umuo --selftest
+        timeout-minutes: 5
+        run: sh apps/macos/scripts/verify.sh selftest
 
-      # 打包冒烟：同一份 debug 产物组装成 ad-hoc 签名的 umuo.app，验签名、Info.plist 与资源包位置，再从 .app 里跑 --selftest
       - name: Bundle smoke (umuo.app)
-        run: sh apps/macos/scripts/bundle.sh --quick
+        timeout-minutes: 5
+        run: sh apps/macos/scripts/verify.sh bundle

@@ -6,7 +6,7 @@
 
 macOS 14+ · Apple Silicon · Swift + SwiftUI + AppKit · Rust 共享核心 · 纯 BYOK · MIT 开源
 
-[官网](https://umuo.app) · [下载预览版](https://umuo.app/download/macos) · [贡献指南](CONTRIBUTING.md)
+[官网](https://umuo.app) · [下载（Apple Silicon）](https://umuo.app/download/macos) · [贡献指南](CONTRIBUTING.md)
 
 [![CI](https://github.com/youming-ai/umuo/actions/workflows/ci.yml/badge.svg)](https://github.com/youming-ai/umuo/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
@@ -32,22 +32,23 @@ umuo 完全免费、以 MIT 许可证开源，纯 BYOK：用户自带模型 Key�
 
 ## 下载与安装
 
-从 [umuo.app/download/macos](https://umuo.app/download/macos) 下载预览版（macOS 14+，仅 Apple Silicon），
-它会跳到 [GitHub Releases](https://github.com/youming-ai/umuo/releases) 最新版的 `umuo.dmg`；每次客户端改动合入 `main` 都会自动发布一个新版本，
+从 [umuo.app/download/macos](https://umuo.app/download/macos) 下载（macOS 14+，仅 Apple Silicon），
+它会跳到 [GitHub Releases](https://github.com/youming-ai/umuo/releases) 最新版的 `umuo.dmg`；每次客户端改动合入 `main` 都会自动发布一个新的正式版（标为 Latest），
 已安装的应用可在「设置 › 关于」里检查更新。
-预览版尚未经 Apple 公证：首次打开如被拦截，到**系统设置 → 隐私与安全性**点「仍要打开」。
+安装包尚未经 Apple 公证：首次打开如被拦截，到**系统设置 → 隐私与安全性**点「仍要打开」。
 也可以按下方「从源码构建」自己编译。
 
 ## 当前状态与开发入口
 
-2026-11-02：原生客户端、Sparkle 更新代码与语音输入（录音、本机转写、整理/翻译、写回输入框）已完成，尚未正式发布；
-真机验收与 Developer ID 签名公证待做。为收敛首版，多模型对比、风格与术语管理、费用预算、收藏等旧功能已移除（旧数据保留）。
+2026-11-02：原生客户端、Sparkle 更新与语音输入（录音、本机转写、整理/翻译、写回输入框）已完成，
+客户端改动合入 `main` 即自动发布到 GitHub Releases（正式版，未经 Apple 公证）；真机验收与 Developer ID 签名公证待做。为收敛首版，多模型对比、风格与术语管理、费用预算、收藏等旧功能已移除（旧数据保留）。
 
 - [产品需求](docs/PRD.md)：当前功能与商业边界。
 - [首版开发计划](docs/IMPLEMENTATION-PLAN.md)：精简、语音、开源与发布的次序和完成条件。
 - [实现与验收清单](docs/PRD-CONFORMANCE.md)：已有代码、新范围调整、未实现与真机验收。
 - [Handy 语音研究](docs/research/handy-voice-analysis.md)：源码证据和本地引擎实验方向。
-- [迁移与发布记录](docs/SWIFTUI-MIGRATION.md)：GitHub Releases 发版、Developer ID、公证与 Sparkle N → N+1 待办。
+- [发布与 Sparkle 密钥](docs/SWIFTUI-MIGRATION.md)：GitHub Releases 自动发版、失败清理、密钥与以后接公证的步骤。
+- [真机走查](docs/NATIVE-WALKTHROUGH.md)：文字、截图、语音的真机验收表与性能测量口径。
 - [贡献指南](CONTRIBUTING.md)：许可、开发前须知与 PR 要求。
 
 官网 [umuo.app](https://umuo.app)（单页首页）与 Worker 在 [site/](site/)，合入 `main` 后由 Cloudflare Workers Builds 自动部署。
@@ -55,7 +56,7 @@ umuo 完全免费、以 MIT 许可证开源，纯 BYOK：用户自带模型 Key�
 ## 从源码构建
 
 需要：Apple Silicon Mac、macOS 14+；Xcode 26（或带 macOS 26 SDK 的 Command Line Tools，浮窗用到 Liquid Glass）、
-Rust stable、[Bun](https://bun.sh) 1.2+。
+[rustup](https://rustup.rs)（Rust 版本由 `rust-toolchain.toml` 固定，首次构建自动安装）、[Bun](https://bun.sh) 1.4+（以 `package.json` 的 `packageManager` 为准）。
 
 ```bash
 bun install          # 仓库工具脚本依赖
@@ -71,7 +72,7 @@ bun run dev:macos    # 编 Rust 绑定与 SwiftUI 客户端后启动（macOS 14+
 | --- | --- |
 | `bun run dev:macos` | 编译并启动 SwiftUI 客户端 |
 | `bun run build` | 编译 Rust 绑定与原生客户端 |
-| `bun run bundle:macos -- --version X.Y.Z` | 生成通用 `.app` / `.dmg` / `.app.tar.gz`，须配置 Sparkle 公钥，不上传 |
+| `bun run bundle:macos -- --version X.Y.Z` | 生成 Apple Silicon（arm64）的 `.app` / `.dmg` / `.app.tar.gz`，须配置 Sparkle 公钥，不上传 |
 | `bun run icons` | 直接生成原生应用 ICNS 与菜单栏 PNG |
 | `bun run lint` / `bun run format` | Biome 检查 / 格式化工具脚本 |
 | `bun run type-check` | 工具脚本的 TypeScript 类型检查 |
@@ -105,10 +106,10 @@ crates/umuo-ffi/     UniFFI 导出与类型转换
 crates/umuo-app/     共享应用逻辑：设置、翻译流水线、语音会话与后处理、历史
   tests/             本地 SSE 流水线回归与事件兼容快照
 crates/umuo-core/    平台无关翻译内核：Provider、Prompt、流式解析、计量
-crates/umuo-store/   本地 SQLite：历史、收藏与用量
+crates/umuo-store/   本地 SQLite：历史（旧收藏与用量表只保留数据）
 site/               官网与 Worker，独立 Bun 项目
 scripts/            图标生成与原生发布工具
-docs/              PRD、架构、迁移与发布验收记录
+docs/              PRD、架构、发布、真机走查与验收清单
 ```
 
 ## 架构原则

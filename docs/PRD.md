@@ -1,19 +1,20 @@
 # umuo 产品需求文档
 
-版本 v0.7 · 2026-11-02 · 当前产品范围；开发进度见验收清单。
+版本 v0.8 · 2026-11-02 · 当前产品范围；开发进度见验收清单。
 
 本版依据用户本轮决定替代 v0.4：三项核心为文字翻译、OCR 截图翻译、语音输入后润色或翻译；
 客户端免费、MIT 开源，用户自带模型，umuo 不提供 AI 网关（2026-11-02 起不再收费，取代 v0.6 的买断方案）。语音为首版核心，原地翻译保留。
+v0.8 只同步现状：仓库已公开、官网只做首页与下载跳转、客户端只发 Apple Silicon（arm64）包。
 旧范围及证据已归档，不再要求按竞品功能清单补齐。
 
 ## 1. 文档与范围
 
 - 产品需求以本文为准，进度与实现证据见 [PRD-CONFORMANCE.md](PRD-CONFORMANCE.md)。
 - 开发次序与完成条件见 [IMPLEMENTATION-PLAN.md](IMPLEMENTATION-PLAN.md)。
-- 现有代码的分层见 [ARCHITECTURE.md](ARCHITECTURE.md)，原生迁移与发布见 [SWIFTUI-MIGRATION.md](SWIFTUI-MIGRATION.md)。
+- 现有代码的分层见 [ARCHITECTURE.md](ARCHITECTURE.md)，发布流程与 Sparkle 密钥见 [SWIFTUI-MIGRATION.md](SWIFTUI-MIGRATION.md)。
 - 历史需求见 [v0.4 快照](archive/PRD-v0.4.md)，历史功能实现见 [v0.4 验收记录](archive/PRD-CONFORMANCE-v0.4.md)。
 
-仅做 macOS 14+，Swift 6、SwiftUI、AppKit 与 Rust / UniFFI；支持 Apple Silicon（M 系列芯片），客户端闭源。
+仅做 macOS 14+，Swift 6、SwiftUI、AppKit 与 Rust / UniFFI；只支持 Apple Silicon（M 系列芯片，安装包只含 arm64）。源码以 MIT 开源。
 “已实现”与“已发布”分别记录，文档改版不代表功能已删除或已交付。
 
 ## 2. 产品定位
@@ -50,7 +51,7 @@
 
 三项核心按 §5 的场景验证；性能以原生 release 包测量，内存用 phys_footprint。
 语音分开记录录音结束至转写完成、后处理完成、文字交付的冷/热延迟，不预先承诺未经测量的两秒指标。
-发布门槛与方法见 [RELEASE-GATES.md](RELEASE-GATES.md)，旧 Tauri 数据仅为历史记录。
+测量方法见 [NATIVE-WALKTHROUGH.md](NATIVE-WALKTHROUGH.md)「性能测量」；旧 Tauri 数据仅为[历史记录](archive/RELEASE-GATES-tauri.md)。
 
 ### 3.3 非目标
 
@@ -138,7 +139,7 @@ AX 优先读取选区；必要时串行模拟复制，完整保存并恢复剪�
 
 ### 5.12 免费与开源
 
-全部功能免费，无试用、无许可证激活、无 umuo 账号；源码以 MIT 许可证开源（仓库公开时间另定）。
+全部功能免费，无试用、无许可证激活、无 umuo 账号；源码以 MIT 许可证开源，仓库 2026-11-02 已公开于 github.com/youming-ai/umuo。
 2026-11-02 起撤销买断方案：客户端许可证/试用门控、Worker 收费与官网购买入口一并删除。
 
 ## 6. 模型与隐私
@@ -196,7 +197,7 @@ AX 优先读取选区；必要时串行模拟复制，完整保存并恢复剪�
 
 ## 8. 非功能要求
 
-保持 macOS 14+ 和双架构目标；原生键盘操作、VoiceOver、系统对比度与减少动态效果走查。
+保持 macOS 14+、仅 Apple Silicon（arm64）；原生键盘操作、VoiceOver、系统对比度与减少动态效果走查。
 本地模型记录版本、体积、校验值、许可与来源；分别验证冷/热延迟、空闲内存、加载与卸载，模型资源不默认常驻。
 无遥测。用户历史保存在本机；取词黑名单与敏感输入保护覆盖相应入口。
 
@@ -212,7 +213,8 @@ Handy 为主要语音参考；Typeless 参考语音整理/翻译交互；不承�
 
 ### 9.6 服务端边界
 
-仓库的 `site/` 是官网与 Worker。服务端只负责官网、下载安装分发与更新清单；不做支付、许可证、账号系统、内容同步、模型或语音转发服务。
+仓库的 `site/` 是官网与 Worker。Worker 只提供官网首页，并把 `/download/macos` 与旧的 `/download/macos/appcast.xml` 302 到 GitHub Releases 的最新附件；
+安装包与更新清单都在 GitHub Releases，官网不存文件。不做支付、许可证、账号系统、内容同步、模型或语音转发服务。
 
 ## 10. 许可与商业模式
 
@@ -223,10 +225,11 @@ Handy 为主要语音参考；Typeless 参考语音整理/翻译交互；不承�
 ## 11. 官网
 
 文案围绕三项核心与「免费、开源、自带 Key」，删除购买、激活、试用与退款内容。官网只有首页，不再提供条款与隐私页。
-仅宣称已发布能力；语音与更新的开发状态以验收清单为准。保留当前五语言结构。源码链接在仓库公开前不显示。
+仅宣称已发布能力；语音与更新的开发状态以验收清单为准。保留当前五语言结构。页眉显示 GitHub 源码链接（仓库已公开）。
 
 ## 12. 开发与发布
 
 先收敛现有文字/OCR 范围并验证本地语音候选，再完成语音会话、文字后处理、输入交付和产品整合；
 随后完成官网与正式发布验证。各阶段交付条件见 [IMPLEMENTATION-PLAN.md](IMPLEMENTATION-PLAN.md)。
-Sparkle 已完成代码接入，真实 N → N+1、Developer ID / 公证与旧用户桥接仍待验证；正式发布按迁移记录执行。
+客户端改动合入 main 即自动发布到 GitHub Releases（正式版、未公证），Sparkle 经同一 Release 的 appcast 更新。
+真实 N → N+1 更新与 Developer ID / 公证仍待验证；没有旧 Tauri 用户，不做旧版桥接。发布流程见 [SWIFTUI-MIGRATION.md](SWIFTUI-MIGRATION.md)。
