@@ -257,9 +257,11 @@ private struct Rig {
     var phase: VoicePhase { controller.overlay.phase }
     var session: UInt64 { controller.session.snapshot().session }
 
+    /// 这一句还没走完。交付（`.delivering`）也算：交付在单独的 Task 里写回目标框，
+    /// 漏掉它时 `until { !busy }` 会在交付前返回，交付相关的断言随调度时机偶发失败。
     var busy: Bool {
         switch phase {
-        case .starting, .recording, .transcribing, .postProcessing: true
+        case .starting, .recording, .transcribing, .postProcessing, .delivering: true
         default: false
         }
     }
