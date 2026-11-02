@@ -5,7 +5,6 @@ import type { SiteContent } from './types'
  * 事实性内容来自根目录 docs/PRD.md（v0.5：文字 / 截图 / 语音三项核心，免费、纯 BYOK）。
  */
 export const zhCn: SiteContent = {
-  locale: 'zh-cn',
   seo: {
     title: 'umuo — 读与写，一键翻译 | macOS AI 翻译',
     description:
@@ -54,35 +53,30 @@ export const zhCn: SiteContent = {
           hint: '开发中：按住 ⌃⌘V 说话，松开后翻译成目标语言；按住 ⌥⌘V 则整理成通顺的同语言文字',
           name: '语音输入',
           tag: '开发中',
-          keyHint: '按住',
-          keys: ['⌃', '⌘', 'V'],
           before: '嗯，那个，会议能改到周五吗',
           after: 'Could we move the meeting to Friday?',
           note: '开发中：预览版暂不包含语音输入。',
         },
       ],
     },
-    platforms: [
-      {
-        id: 'macos',
-        requirement: 'macOS 14+，仅支持 Apple Silicon（M 系列芯片）',
-        actionLabel: '下载 macOS 版',
-        statusLabel: '预览版',
-        note: '预览版未经 Apple 公证，首次打开如被拦截，到「隐私与安全性」点「仍要打开」。',
-        mobileNote: 'umuo 是 Mac 应用，请在 Mac 上打开 umuo.app 下载。',
-        copyLink: '复制网址',
-        copied: '已复制',
-        copyFailed: '没能复制，请手动记下 umuo.app',
-        afterDownload: {
-          title: '下载已开始，接下来：',
-          steps: [
-            '打开下载的安装包，把 umuo 拖进「应用程序」文件夹。',
-            '首次打开如被拦截，到「系统设置 › 隐私与安全性」点「仍要打开」。',
-            '按引导选模型供应商、填入你的 API Key；划词翻译需要授予辅助功能权限。',
-          ],
-        },
+    platform: {
+      requirement: 'macOS 14+，仅支持 Apple Silicon（M 系列芯片）',
+      actionLabel: '下载 macOS 版',
+      statusLabel: '预览版',
+      note: '预览版未经 Apple 公证，首次打开如被拦截，到「隐私与安全性」点「仍要打开」。',
+      mobileNote: 'umuo 是 Mac 应用，请在 Mac 上打开 umuo.app 下载。',
+      copyLink: '复制网址',
+      copied: '已复制',
+      copyFailed: '没能复制，请手动记下 umuo.app',
+      afterDownload: {
+        title: '下载已开始，接下来：',
+        steps: [
+          '打开下载的安装包，把 umuo 拖进「应用程序」文件夹。',
+          '首次打开如被拦截，到「系统设置 › 隐私与安全性」点「仍要打开」。',
+          '按引导选模型供应商、填入你的 API Key；划词翻译需要授予辅助功能权限。',
+        ],
       },
-    ],
+    },
   },
   footer: {
     copyright: '© 2026 umuo',

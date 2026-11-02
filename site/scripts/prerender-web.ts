@@ -19,9 +19,8 @@
 import { readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 
-import { LOCALES } from '../apps/web/src/config'
+import { DEFAULT_LOCALE, LOCALES } from '../apps/web/src/config'
 import type { Locale } from '../apps/web/src/content/types'
-import { localeDir, SITE_PAGES, type SitePage } from '../apps/web/src/lib/pages'
 
 const WEB_DIR = join(import.meta.dirname, '..', 'apps/web')
 const DIST = join(WEB_DIR, 'dist')
@@ -30,30 +29,22 @@ const SSR_BUNDLE = join(WEB_DIR, 'dist-ssr/entry-server.js')
 /** 与 index.html 里的挂载点**逐字**对应。改了一边就要改另一边，所以这里直接断言。 */
 const MOUNT_MARKER = '<div id="root"></div>'
 
-const { render } = (await import(SSR_BUNDLE)) as {
-  render: (locale: Locale, page: SitePage) => string
-}
+const { render } = (await import(SSR_BUNDLE)) as { render: (locale: Locale) => string }
 
-const targets: Array<{ file: string; locale: Locale; page: SitePage }> = [
+const targets: Array<{ file: string; locale: Locale }> = [
   // 根路径是 Worker 不在时的兜底，按默认语言预渲染；各语言的内部文件由 Worker 按需挑选
-  { file: join(DIST, 'index.html'), locale: LOCALES[0], page: 'home' },
-  ...LOCALES.flatMap((locale) =>
-    SITE_PAGES.map((page) => ({
-      file: join(DIST, localeDir(locale, page), 'index.html'),
-      locale,
-      page,
-    })),
-  ),
+  { file: join(DIST, 'index.html'), locale: DEFAULT_LOCALE },
+  ...LOCALES.map((locale) => ({ file: join(DIST, locale, 'index.html'), locale })),
 ]
 
 let done = 0
-for (const { file, locale, page } of targets) {
+for (const { file, locale } of targets) {
   const html = readFileSync(file, 'utf8')
   if (!html.includes(MOUNT_MARKER)) {
     throw new Error(`${file} 里找不到挂载点 ${MOUNT_MARKER}——index.html 或构建插件的产物格式变了`)
   }
 
-  const body = render(locale, page)
+  const body = render(locale)
   // 空正文说明 SSR 静默失败了（比如某个组件在服务端抛错被吞掉）。
   // 不检查的话会产出一个「构建成功但页面全白」的站点——这是最糟的失败形态。
   if (body.trim().length < 1000) {
@@ -63,7 +54,7 @@ for (const { file, locale, page } of targets) {
   writeFileSync(file, html.replace(MOUNT_MARKER, `<div id="root">${body}</div>`))
   done++
   console.log(
-    `  预渲染 ${`${locale}/${page}`.padEnd(14)} 正文 ${String(body.length).padStart(7)} 字符 → ${file.replace(`${WEB_DIR}/`, '')}`,
+    `  预渲染 ${locale.padEnd(6)} 正文 ${String(body.length).padStart(7)} 字符 → ${file.replace(`${WEB_DIR}/`, '')}`,
   )
 }
 

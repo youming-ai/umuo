@@ -17,7 +17,6 @@ import { DownloadPanel } from './DownloadButton'
 export function Hero({ content }: { content: SiteContent }) {
   const { hero } = content
   const headingId = useId()
-  const macos = hero.platforms.find((platform) => platform.id === 'macos')
 
   return (
     <section id="download" aria-labelledby={headingId} className="hero-stage">
@@ -27,11 +26,9 @@ export function Hero({ content }: { content: SiteContent }) {
             {hero.title}
           </h1>
           <p className="lead hero-gap">{hero.subtitle}</p>
-          {macos ? (
-            <div className="hero-gap-lg">
-              <DownloadPanel platform={macos} />
-            </div>
-          ) : null}
+          <div className="hero-gap-lg">
+            <DownloadPanel platform={hero.platform} />
+          </div>
         </div>
         <HeroDemo demo={hero.demo} />
       </div>
@@ -140,9 +137,8 @@ function HeroDemo({ demo }: { demo: SiteContent['hero']['demo'] }) {
               <span className="demo-tab-name">{item.name}</span>
               {item.tag ? (
                 <span className="tag">{item.tag}</span>
-              ) : (
+              ) : item.keys ? (
                 <span className="demo-keys" aria-hidden="true">
-                  {item.keyHint ? <span className="demo-key-hint">{item.keyHint}</span> : null}
                   {item.keys.map((key, keyIndex) => (
                     // biome-ignore lint/suspicious/noArrayIndexKey: 键帽是静态列表，且连按会出现两个相同的键
                     <kbd key={keyIndex} className="keycap keycap-xs">
@@ -150,7 +146,7 @@ function HeroDemo({ demo }: { demo: SiteContent['hero']['demo'] }) {
                     </kbd>
                   ))}
                 </span>
-              )}
+              ) : null}
             </button>
           )
         })}

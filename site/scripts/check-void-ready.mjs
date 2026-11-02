@@ -6,13 +6,12 @@ import { fileURLToPath } from 'node:url'
 import { convertV4MiniflareOptions, Miniflare } from 'miniflare'
 
 const site = join(dirname(fileURLToPath(import.meta.url)), '..')
-const project = site
-const built = JSON.parse(readFileSync(join(project, 'dist/ssr/wrangler.json'), 'utf8'))
+const built = JSON.parse(readFileSync(join(site, 'dist/ssr/wrangler.json'), 'utf8'))
 const runtime = new Miniflare(
   convertV4MiniflareOptions({
     name: 'umuo-local-ready',
     modules: true,
-    scriptPath: join(project, 'dist/ssr/index.js'),
+    scriptPath: join(site, 'dist/ssr/index.js'),
     compatibilityDate: built.compatibility_date,
     compatibilityFlags: built.compatibility_flags,
     versionMetadata: built.version_metadata.binding,

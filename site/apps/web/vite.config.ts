@@ -1,11 +1,9 @@
 import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
 import { defineConfig, type Plugin } from 'vite'
-import { HTML_LANG, LOCALES, SITE_URL } from './src/config'
+import { DEFAULT_LOCALE, HTML_LANG, LOCALES } from './src/config'
 import type { Locale } from './src/content/types'
-import { getPageSeo, localeDir, pagePath, SITE_PAGES, type SitePage } from './src/lib/pages'
-
-const DEFAULT_LOCALE: Locale = 'zh-cn'
+import { headTags } from './src/lib/seo'
 
 function escapeHtml(value: string): string {
   return value
@@ -15,25 +13,19 @@ function escapeHtml(value: string): string {
     .replace(/"/g, '&quot;')
 }
 
-/** 每种语言一份 head：title / description / canonical / OG / Twitter Card。地址只有 `/`，不写 hreflang */
-function seoHead(locale: Locale, page: SitePage = 'home'): string {
-  const seo = getPageSeo(locale, page)
-  const url = `${SITE_URL}${pagePath(locale, page)}`
-
-  return `<!-- seo:start -->
-    <title>${escapeHtml(seo.title)}</title>
-    <meta name="description" content="${escapeHtml(seo.description)}" />
-    <link rel="canonical" href="${url}" />
-    <meta property="og:type" content="website" />
-    <meta property="og:site_name" content="umuo" />
-    <meta property="og:title" content="${escapeHtml(seo.title)}" />
-    <meta property="og:description" content="${escapeHtml(seo.description)}" />
-    <meta property="og:url" content="${url}" />
-    <meta property="og:locale" content="${seo.ogLocale}" />
-    <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="${escapeHtml(seo.title)}" />
-    <meta name="twitter:description" content="${escapeHtml(seo.description)}" />
-    <!-- seo:end -->`
+/** 把 lib/seo.ts 的 headTags 写成 HTML，替换 index.html 里 seo:start / seo:end 之间的占位 */
+function seoHead(locale: Locale): string {
+  const head = headTags(locale)
+  const meta = head.meta.map(
+    ([attr, key, content]) => `<meta ${attr}="${key}" content="${escapeHtml(content)}" />`,
+  )
+  return [
+    '<!-- seo:start -->',
+    `<title>${escapeHtml(head.title)}</title>`,
+    `<link rel="canonical" href="${head.canonical}" />`,
+    ...meta,
+    '<!-- seo:end -->',
+  ].join('\n    ')
 }
 
 /**
@@ -66,27 +58,21 @@ function localeHtmlPlugin(): Plugin {
         )
       }
 
-      const htmlFor = (locale: Locale, page: SitePage = 'home') =>
+      const htmlFor = (locale: Locale) =>
         template
           .replace(
             /<html lang="[^"]*"/,
             `<html lang="${HTML_LANG[locale] ?? locale}" data-locale="${locale}"`,
           )
-          .replace(/<!-- seo:start -->[\s\S]*?<!-- seo:end -->/, seoHead(locale, page))
+          .replace(/<!-- seo:start -->[\s\S]*?<!-- seo:end -->/, seoHead(locale))
 
-      // 根路径保留默认语言（Worker 不在时的兜底），再为每种语言产出一份内部文件
+      // 根路径保留默认语言（Worker 不在时的兜底），再为每种语言产出一份内部文件 <locale>/index.html
       entry.source = htmlFor(DEFAULT_LOCALE)
       for (const locale of LOCALES) {
-        for (const page of SITE_PAGES) {
-          this.emitFile({
-            type: 'asset',
-            fileName: `${localeDir(locale, page)}index.html`,
-            source: htmlFor(locale, page),
-          })
-        }
+        this.emitFile({ type: 'asset', fileName: `${locale}/index.html`, source: htmlFor(locale) })
       }
 
-      this.info(`已生成多语言 HTML：${LOCALES.length} 种语言 × ${SITE_PAGES.join(' / ')}`)
+      this.info(`已生成多语言 HTML：${LOCALES.join(' / ')}`)
     },
   }
 }

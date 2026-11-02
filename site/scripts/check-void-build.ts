@@ -3,17 +3,13 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { prepareCfBuildOutput } from 'void/deploy'
-import source from '../void.config'
+import config from '../void.config'
 
 const site = join(import.meta.dirname, '..')
-/** 配置里的 Worker 变量；目前没有任何变量（收费配置已随免费开源删除），未声明时按空对象核对 */
-const workerVars = (source.worker as { vars?: Record<string, string> } | undefined)?.vars ?? {}
+const expected = config.cloudflare as Record<string, unknown>
 
 export async function prepareVerifiedCfBuild() {
-  const project = site
-  const config = source
-  const expected = config.cloudflare as Record<string, unknown>
-  const prepared = await prepareCfBuildOutput(join(project, 'dist/ssr'), { mode: 'production' })
+  const prepared = await prepareCfBuildOutput(join(site, 'dist/ssr'), { mode: 'production' })
   assert.ok(prepared, 'Void 构建无法转换为 cf 构建输出；先运行构建')
 
   try {
@@ -24,7 +20,6 @@ export async function prepareVerifiedCfBuild() {
       ),
     )
     const routes = expected.routes as { pattern: string }[] | undefined
-    const vars = workerVars
 
     assert.equal(worker.name, expected.name, 'Worker 名称不一致')
     assert.deepEqual(
@@ -56,14 +51,10 @@ export async function prepareVerifiedCfBuild() {
     assert.deepEqual(worker.assets?.runWorkerFirst, ['/**'], 'assets.runWorkerFirst 不一致')
     assert.equal(worker.env.VERSION_METADATA?.type, 'version-metadata', '版本元数据绑定缺失')
     assert.equal(worker.env.ASSETS?.type, 'assets', '静态资源绑定缺失')
-    for (const [name, value] of Object.entries(vars))
-      assert.deepEqual(worker.env[name], { type: 'text', value }, `变量 ${name} 不一致`)
-
-    // 没有 KV / R2：上线通知与安装包都已下线（安装包在 GitHub Releases），绑定只剩这两个加上变量
-    const expectedKeys = ['ASSETS', 'VERSION_METADATA', ...Object.keys(vars)].sort()
+    // 没有 KV / R2 与变量：上线通知与安装包都已下线（安装包在 GitHub Releases），绑定只剩这两个
     assert.deepEqual(
       Object.keys(worker.env ?? {}).sort(),
-      expectedKeys,
+      ['ASSETS', 'VERSION_METADATA'],
       'cf 构建输出包含未声明的额外绑定',
     )
 
@@ -75,11 +66,8 @@ export async function prepareVerifiedCfBuild() {
 }
 
 if (import.meta.main) {
-  const project = site
-  const config = source
-  const built = JSON.parse(readFileSync(join(project, 'dist/ssr/wrangler.json'), 'utf8'))
-  const entry = readFileSync(join(project, '.void/entry.ts'), 'utf8')
-  const expected = config.cloudflare as Record<string, unknown>
+  const built = JSON.parse(readFileSync(join(site, 'dist/ssr/wrangler.json'), 'utf8'))
+  const entry = readFileSync(join(site, '.void/entry.ts'), 'utf8')
   const version = expected.version_metadata as { binding: string }
 
   assert.equal(built.name, expected.name, 'Worker 名称不一致')
@@ -91,7 +79,7 @@ if (import.meta.main) {
   assert.deepEqual(built.version_metadata, version, '版本元数据绑定缺失')
   assert.equal(built.assets?.binding, 'ASSETS', '静态资源绑定缺失')
   assert.deepEqual(built.assets?.run_worker_first, ['/**'], '资源路由与 Void 不一致')
-  assert.deepEqual(built.vars ?? {}, workerVars, 'Worker 变量不一致')
+  assert.deepEqual(built.vars ?? {}, {}, '不应有 Worker 变量')
   assert.ok(
     entry.includes(`versionMetadataBinding: ${JSON.stringify(version.binding)}`),
     'Void 就绪探针没有携带版本元数据',
@@ -99,5 +87,5 @@ if (import.meta.main) {
 
   const { prepared } = await prepareVerifiedCfBuild()
   await prepared.dispose()
-  console.log(`✓ Void ${'正式'}构建已核对绑定、访问开关、cf 预构建转换与版本就绪探针`)
+  console.log('✓ Void 构建已核对绑定、访问开关、cf 预构建转换与版本就绪探针')
 }

@@ -5,7 +5,6 @@ import type { SiteContent } from './types'
  * 不是簡體版的逐字轉換。事實依據：docs/PRD.md（v0.5：文字／截圖／語音三項核心，免費、純 BYOK）。
  */
 export const zhTw: SiteContent = {
-  locale: 'zh-tw',
   seo: {
     title: 'umuo — 讀與寫，一鍵翻譯 | Mac AI 翻譯軟體',
     description:
@@ -54,35 +53,30 @@ export const zhTw: SiteContent = {
           hint: '開發中：按住 ⌃⌘V 說話，放開後翻譯成目標語言；按住 ⌥⌘V 則整理成通順的同語言文字',
           name: '語音輸入',
           tag: '開發中',
-          keyHint: '按住',
-          keys: ['⌃', '⌘', 'V'],
           before: '嗯，那個，會議能改到禮拜五嗎',
           after: 'Could we move the meeting to Friday?',
           note: '開發中：預覽版暫不包含語音輸入。',
         },
       ],
     },
-    platforms: [
-      {
-        id: 'macos',
-        requirement: 'macOS 14+，僅支援 Apple Silicon（M 系列晶片）',
-        actionLabel: '下載 macOS 版',
-        statusLabel: '預覽版',
-        note: '預覽版未經 Apple 公證，首次打開若被攔下，到「隱私權與安全性」點「仍要打開」。',
-        mobileNote: 'umuo 是 Mac App，請在 Mac 上開啟 umuo.app 下載。',
-        copyLink: '複製網址',
-        copied: '已複製',
-        copyFailed: '沒能複製，請手動記下 umuo.app',
-        afterDownload: {
-          title: '下載已開始，接下來：',
-          steps: [
-            '打開下載的安裝檔，把 umuo 拖進「應用程式」資料夾。',
-            '首次打開若被攔下，到「系統設定 › 隱私權與安全性」點「仍要打開」。',
-            '依引導選擇模型供應商、填入你的 API 金鑰；劃詞翻譯需要授予輔助使用權限。',
-          ],
-        },
+    platform: {
+      requirement: 'macOS 14+，僅支援 Apple Silicon（M 系列晶片）',
+      actionLabel: '下載 macOS 版',
+      statusLabel: '預覽版',
+      note: '預覽版未經 Apple 公證，首次打開若被攔下，到「隱私權與安全性」點「仍要打開」。',
+      mobileNote: 'umuo 是 Mac App，請在 Mac 上開啟 umuo.app 下載。',
+      copyLink: '複製網址',
+      copied: '已複製',
+      copyFailed: '沒能複製，請手動記下 umuo.app',
+      afterDownload: {
+        title: '下載已開始，接下來：',
+        steps: [
+          '打開下載的安裝檔，把 umuo 拖進「應用程式」資料夾。',
+          '首次打開若被攔下，到「系統設定 › 隱私權與安全性」點「仍要打開」。',
+          '依引導選擇模型供應商、填入你的 API 金鑰；劃詞翻譯需要授予輔助使用權限。',
+        ],
       },
-    ],
+    },
   },
   footer: {
     copyright: '© 2026 umuo',

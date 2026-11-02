@@ -173,12 +173,17 @@ describe('官网内容完整性', () => {
 
   it('只提供 macOS 下载：客户端只做 macOS，不承诺其他平台', () => {
     for (const locale of LOCALES) {
-      const platforms = getContent(locale).hero.platforms
-      expect(
-        platforms.map((platform) => platform.id),
-        locale,
-      ).toEqual(['macos'])
-      expect(platforms[0]?.actionLabel.trim(), `${locale}: 按钮文案为空`).toBeTruthy()
+      const { platform } = getContent(locale).hero
+      expect(platform.actionLabel, locale).toContain('macOS')
+      expect(platform.requirement, locale).toContain('macOS')
+    }
+  })
+
+  it('开发中的演示模式显示标签，不再写选项卡上不显示的键位', () => {
+    for (const locale of LOCALES) {
+      for (const mode of getContent(locale).hero.demo.modes) {
+        expect(Boolean(mode.tag) !== Boolean(mode.keys), `${locale}/${mode.id}`).toBe(true)
+      }
     }
   })
 })

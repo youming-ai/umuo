@@ -7,7 +7,7 @@ import type { Env } from './env'
  * 先看访客上次选的语言（cookie），再看浏览器语言，最后是简体中文。直接返回对应语言的 HTML，
  * 不会先闪一下别的语言。旧的 `/en/` 这类地址记住语言后 301 回 `/`。
  *
- * 语言清单与 apps/web/src/config.ts 的 LOCALES 保持一致（locale.test.ts 会比对）。
+ * 语言清单与默认语言与 apps/web/src/config.ts 的 LOCALES、DEFAULT_LOCALE 保持一致（locale.test.ts 会比对）。
  */
 export const LOCALES = ['zh-cn', 'zh-tw', 'en', 'ja', 'ko'] as const
 export type Locale = (typeof LOCALES)[number]

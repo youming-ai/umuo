@@ -1,8 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { HTML_LANG as WEB_HTML_LANG, LOCALES as WEB_LOCALES } from '../../apps/web/src/config'
+import {
+  DEFAULT_LOCALE as WEB_DEFAULT_LOCALE,
+  HTML_LANG as WEB_HTML_LANG,
+  LOCALES as WEB_LOCALES,
+} from '../../apps/web/src/config'
 import { dispatch } from './dispatch'
 import type { Env } from './env'
-import { HTML_LANG, LOCALES, pickLocale } from './locale'
+import { DEFAULT_LOCALE, HTML_LANG, LOCALES, pickLocale } from './locale'
 
 /** 假的静态资源：只有 /<locale>/ 返回写着语言名的 HTML，其余 404；记下被请求的路径 */
 function fakeEnv(requested: string[] = []): Env {
@@ -29,8 +33,9 @@ const request = (path: string, headers: Record<string, string> = {}) =>
   new Request(`https://umuo.app${path}`, { headers })
 
 describe('按访客挑语言', () => {
-  it('语言清单与 <html lang> 映射都与官网一致', () => {
+  it('语言清单、默认语言与 <html lang> 映射都与官网一致', () => {
     expect([...LOCALES]).toEqual([...WEB_LOCALES])
+    expect(DEFAULT_LOCALE).toBe(WEB_DEFAULT_LOCALE)
     expect(HTML_LANG).toEqual(WEB_HTML_LANG)
   })
 
