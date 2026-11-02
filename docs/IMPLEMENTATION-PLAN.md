@@ -142,7 +142,7 @@
 - [ ] Developer ID 签名、公证、Gatekeeper、DMG 拖装、TCC 与 Keychain 升级访问验收。
 - [ ] 原生 release 的性能、Apple Silicon 真机、VoiceOver、完整键盘操作、多显示器与权限走查。
 - [ ] 旧 Tauri 用户桥接单独验证最低 macOS 版本门槛、配置/历史/Key 与登录项保留。
-- [ ] 官网直装与后续 Homebrew Cask，按迁移文档发布，合入 main 不自动发布客户端。
+- [ ] 官网直装与后续 Homebrew Cask，按迁移文档发布。客户端改动合入 main 自动发 GitHub Releases 预发布包（2026-11-02 起），官网下载与 R2 仍手动更新。
 
 完成条件：实际正式产物的发布证据齐全；代码接入、测试包和正式发布分别记录。
 

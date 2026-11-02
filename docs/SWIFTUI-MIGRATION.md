@@ -74,7 +74,9 @@ AppKit 提供非激活 NSPanel、NSStatusItem、NSPopover 和窗口管理。
 `APPLE_SIGNING_IDENTITY` 配置签名身份；`APPLE_API_KEY`、`APPLE_API_ISSUER`、`APPLE_API_KEY_PATH` 同时存在时调用 notarytool 并 staple。
 `bundle.sh --quick` 复用本机 debug 产物，只做 ad-hoc，不公证、不生成 DMG，供离线门禁使用。
 
-Actions → Release 手动输入版本号，只构建并保存原生安装包 artifact，不上传 R2；合入 main 不发布。
+Release 工作流（`.github/workflows/release.yml`）：客户端改动（`apps/macos/`、`crates/`、`Cargo.*`）合入 main 后，先跑完整 CI，再构建通用安装包，
+以 `v0.1.<运行序号>` 发布到 GitHub Releases（预发布，未公证），附 `.dmg`、`.app.tar.gz` 与 appcast；也可在 Actions 手动运行并指定版本。
+只发 GitHub Releases，不上传 R2、不改官网下载（2026-11-02 起）。
 GitHub Actions 目前因账单问题不可用，先在本机跑 `bun run verify`。
 旧 `release:local` 和 Tauri 构建工作流已删除，不再产出旧客户端。
 

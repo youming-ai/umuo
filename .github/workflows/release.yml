@@ -1,18 +1,31 @@
 name: Release
 
-# 手动构建 SwiftUI 通用安装包，不上传 R2。正式发布前的更新与签名要求见 docs/SWIFTUI-MIGRATION.md。
+# 客户端改动合入 main 时自动构建通用安装包并发布到 GitHub Releases（预发布：未经 Apple 公证）。
+# 版本号 = Cargo.toml 的主.次版本 + 本工作流的运行序号（如 0.1.12）；手动运行时可指定版本。
+# 只发 GitHub Releases，不上传 R2、不改官网下载。签名与更新要求见 docs/SWIFTUI-MIGRATION.md。
 on:
+  push:
+    branches: [main]
+    paths:
+      - 'apps/macos/**'
+      - 'crates/**'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - '.github/workflows/release.yml'
   workflow_dispatch:
     inputs:
       version:
-        description: 原生客户端版本（X.Y.Z）
-        required: true
+        description: 原生客户端版本（X.Y.Z；留空则按 Cargo.toml 主.次版本 + 运行序号）
+        required: false
         type: string
 
-# 手动重复运行时取消前一次构建。
+# 依次发布，不互相取消：每次合入都要有自己的包。
 concurrency:
   group: release
-  cancel-in-progress: true
+  cancel-in-progress: false
+
+permissions:
+  contents: write
 
 jobs:
   # 门禁与 PR 使用同一套 CI（ci.yml），全部通过才生成安装包。
@@ -25,7 +38,7 @@ jobs:
     runs-on: macos-15  # macos-14 镜像 2026-11-02 退役（actions/runner-images#13518）
     timeout-minutes: 60
     env:
-      VERSION: ${{ inputs.version }}
+      VERSION_INPUT: ${{ inputs.version }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
@@ -56,8 +69,18 @@ jobs:
 
       - name: Validate and stamp version
         run: |
-          echo "$VERSION" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'
-          sed -i '' -E '/^\[workspace.package\]/,/^\[/ s/^version = ".*"/version = "'"$VERSION"'"/' Cargo.toml
+          if [ -n "$VERSION_INPUT" ]; then
+            version="$VERSION_INPUT"
+          else
+            base=$(sed -nE '/^\[workspace.package\]/,/^\[/ s/^version = "([0-9]+\.[0-9]+)\..*"/\1/p' Cargo.toml)
+            version="$base.$GITHUB_RUN_NUMBER"
+          fi
+          echo "$version" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'
+          if gh release view "v$version" >/dev/null 2>&1; then echo "v$version 已存在" >&2; exit 1; fi
+          sed -i '' -E '/^\[workspace.package\]/,/^\[/ s/^version = ".*"/version = "'"$version"'"/' Cargo.toml
+          echo "VERSION=$version" >> "$GITHUB_ENV"
+        env:
+          GH_TOKEN: ${{ github.token }}
 
       - name: Build universal native app
         env:
@@ -88,3 +111,14 @@ jobs:
             apps/macos/dist/*.app.tar.gz
             apps/macos/dist/appcast.xml
           retention-days: 14
+
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # 更新说明从上一个 Release 起算；第一次发布没有上一个，就让 GitHub 从头生成
+          previous=$(gh release list --limit 1 --json tagName --jq '.[0].tagName // empty')
+          set -- --target "$GITHUB_SHA" --prerelease --generate-notes --title "umuo $VERSION"
+          [ -n "$previous" ] && set -- "$@" --notes-start-tag "$previous"
+          gh release create "v$VERSION" "$@" \
+            apps/macos/dist/*.dmg apps/macos/dist/*.app.tar.gz apps/macos/dist/appcast.xml
