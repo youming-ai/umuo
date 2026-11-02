@@ -4,7 +4,7 @@
 
 **macOS 翻译与语音表达工具 · 免费开源 · 自带模型 Key**
 
-macOS 专用 · Swift + SwiftUI + AppKit· Rust 共享核心 · 纯 BYOK · MIT 开源
+macOS 14+ · Apple Silicon · Swift + SwiftUI + AppKit · Rust 共享核心 · 纯 BYOK · MIT 开源
 
 </div>
 
@@ -16,27 +16,29 @@ umuo 是 macOS 原生的翻译与语音表达工具，当前产品范围为：
 
 | 核心 | 范围 | 当前状态 |
 | --- | --- | --- |
-| 文字翻译 | 划词、输入翻译、输入框原地替换；复制、朗读与轻量结果窗 | 已有实现，待精简与真机验收 |
-| OCR 截图翻译 | 系统框选、Apple Vision 本地识别、修正原文后翻译 | 已有实现，待入口收敛与真机验收 |
-| 语音表达 | 按键录音、本地转写、同语言润色或目标语言翻译、输入框输出 | 主要参考 Handy，研究完成，功能尚未实现 |
+| 文字翻译 | 划词（⌃⌃）、输入翻译（⌥⌘A）、输入框原地替换（⌥⌥）；复制、朗读与轻量结果窗 | 已实现，待真机验收 |
+| OCR 截图翻译 | 系统框选（⌥⌘O）、Apple Vision 本地识别、修正原文后翻译 | 已实现，待真机验收 |
+| 语音表达 | 按住 ⌥⌘V 说话整理成通顺文字、按住 ⌃⌘V 说话翻译成目标语言；本机转写，结果写回原输入框 | 已实现，待真机验收 |
 
 umuo 完全免费、以 MIT 许可证开源，纯 BYOK：用户自带模型 Key，模型调用直接向供应商付费；umuo 不收费，没有许可证、试用、订阅、官方额度或 AI 网关。
 
-模型 Key 存系统 Keychain，供应商请求从本机直连用户配置的端点。本地转写方案若验证通过，无需额外语音 Key，
-润色/翻译复用文字模型；使用云端文字模型时，转写文本会发送给该供应商。
+模型 Key 存系统 Keychain，供应商请求从本机直连用户配置的端点。语音在本机用 transcribe.cpp + Qwen3-ASR-0.6B 转写，
+不需要额外的语音 Key；整理与翻译复用文字模型，使用云端文字模型时，转写文本会发送给该供应商。
 
 ## 当前状态与开发入口
 
-2026-10-23 已完成原生迁移和 Sparkle 代码接入，尚未完成正式发布。已完成五批精简：移除多模型对比、静默 OCR、独立朗读快捷键、风格/术语管理及注入、费用报表与月度预算、分场景/备用模型与本地自动回落、回译与临时换模型、收藏与复杂历史筛选、词卡学习内容、快捷面板快速输入与菜单栏图标样式；旧数据保留。
+2026-11-02：原生迁移、Sparkle 代码接入与语音输入（录音、本机转写、整理/翻译、写回输入框）已完成，尚未正式发布；真机验收与 Developer ID 签名公证待做。
+已完成五批精简：移除多模型对比、静默 OCR、独立朗读快捷键、风格/术语管理及注入、费用报表与月度预算、分场景/备用模型与本地自动回落、回译与临时换模型、收藏与复杂历史筛选、词卡学习内容、快捷面板快速输入与菜单栏图标样式；旧数据保留。
 历史实现不代表首版继续承诺这些能力。
 
 - [产品需求](docs/PRD.md)：当前功能与商业边界。
 - [首版开发计划](docs/IMPLEMENTATION-PLAN.md)：精简、语音、开源与发布的次序和完成条件。
 - [实现与验收清单](docs/PRD-CONFORMANCE.md)：已有代码、新范围调整、未实现与真机验收。
 - [Handy 语音研究](docs/research/handy-voice-analysis.md)：源码证据和本地引擎实验方向。
-- [迁移与发布记录](docs/SWIFTUI-MIGRATION.md)：Developer ID、公证、Sparkle N → N+1、旧用户桥接与双架构待办。
+- [迁移与发布记录](docs/SWIFTUI-MIGRATION.md)：Developer ID、公证、Sparkle N → N+1 与旧用户桥接待办。
+- [贡献指南](CONTRIBUTING.md)：许可、开发前须知与 PR 要求。
 
-官网及 Worker 在 [site/](site/)，同步改为免费开源说明，不含购买或激活流程。
+官网 [umuo.app](https://umuo.app) 与 Worker 在 [site/](site/)，合入 `main` 后由 Cloudflare Workers Builds 自动部署。
 
 ## 快速开始
 
@@ -70,16 +72,22 @@ bun run dev:macos    # 编 Rust 绑定与 SwiftUI 客户端后启动（macOS 14+
 
 之后在任意 App 里选中文字、连按两下 **⌃**（⌃⌃），译文会以流式方式出现在鼠标附近的浮窗里。
 
+### 语音输入
+
+在任意输入框里按住 **⌥⌘V** 说话，松开后整理成通顺的文字写回输入框；按住 **⌃⌘V** 则翻译成目标语言再写回。
+首次使用会请求麦克风权限，并从 Hugging Face 下载约 560 MB 的转写模型；写回输入框同样需要辅助功能权限。
+两个键都可以在**设置 → 翻译 → 语音输入**里修改。
+
 ## 仓库结构
 
 ```
 apps/macos/          Swift + SwiftUI + AppKit 原生客户端（SwiftPM）
-  Sources/Umuo/      App、Platform、Panel、Compose、History、Settings、Onboarding、Quick
+  Sources/Umuo/      App、Platform、Panel、Compose、Voice、History、Settings、Onboarding、Quick
   Tests/UmuoTests/   Swift Testing：视图模型与纯规则
   packaging/         Info.plist、图标与签名权限
   scripts/           Rust 绑定构建、原生开发、验证与打包
 crates/umuo-ffi/     UniFFI 导出与类型转换
-crates/umuo-app/     共享应用逻辑：设置、流水线、历史
+crates/umuo-app/     共享应用逻辑：设置、翻译流水线、语音会话与后处理、历史
   tests/             本地 SSE 流水线回归与事件兼容快照
 crates/umuo-core/    平台无关翻译内核：Provider、Prompt、流式解析、计量
 crates/umuo-store/   本地 SQLite：历史、收藏与用量
@@ -100,6 +108,7 @@ docs/              PRD、架构、迁移与发布验收记录
 
 - BYOK 模式下，请求只发往你自己配置的端点；umuo 的服务器收不到你的内容，也收不到你的 Key。
 - 翻译历史存在本机 SQLite，可搜索、删除，可设置保留天数，也可完全关闭。
+- 语音在本机转写：录音只写入临时文件，转写结束或取消后立即删除，不发给 umuo，也不发给模型供应商。
 - 默认不开启内容遥测。
 
 ## 许可
