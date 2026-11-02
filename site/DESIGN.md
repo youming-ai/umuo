@@ -234,7 +234,7 @@ components:
 指针附近亮起一圈加深的咖啡色聚光，这是访客触发的效果，不算自发动效。
 
 ### Navigation
-左边是 logo 加小写字样「umuo」，右边是文字链接「GitHub」（`text-secondary`，悬停转 `text-primary`，占原「免费与开源」的位置）；页眉高度固定 4rem。GitHub 链接只在仓库公开（`SOURCE_PUBLIC`）时出现，是站内唯一的源码入口；首页下载旁不放说明句。
+左边是 logo 加小写字样「umuo」，右边是 GitHub 标志图标（`GitHubIcon`，24px、44px 圆形点击区，`text-secondary`，悬停转 `text-primary`，`aria-label="GitHub"`，占原「免费与开源」的位置）；页眉高度固定 4rem。GitHub 链接只在仓库公开（`SOURCE_PUBLIC`）时出现，是站内唯一的源码入口；首页下载旁不放说明句。
 
 ### Footer
 页脚只有一行：左边版权「© 2026 umuo」（`ink-faint` 小字），右边语言与主题切换（Ghost）。不放条款、隐私、源码与联系邮箱链接，也不重复下载 CTA。

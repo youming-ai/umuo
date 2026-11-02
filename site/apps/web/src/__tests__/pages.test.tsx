@@ -67,7 +67,8 @@ describe('首页一屏', () => {
       '/',
       'https://github.com/youming-ai/umuo',
     ])
-    expect(links[1]?.textContent).toBe('GitHub')
+    expect(links[1]?.getAttribute('aria-label')).toBe('GitHub')
+    expect(links[1]?.querySelector('svg[aria-hidden="true"]')).not.toBeNull()
     expect(host.querySelector('header a[href*="pricing"]')).toBeNull()
     expect(host.querySelector('header')?.textContent).not.toContain('免费与开源')
     expect(host.querySelector('header button')).toBeNull()

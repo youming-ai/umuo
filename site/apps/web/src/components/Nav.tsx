@@ -1,5 +1,5 @@
 import { SOURCE_PUBLIC, SOURCE_URL } from '../config'
-import { LogoMark } from './icons'
+import { GitHubIcon, LogoMark } from './icons'
 
 /**
  * 页眉：左边 logo（回首页），右边 GitHub 源码链接（原「免费与开源」的位置，仓库公开即 `SOURCE_PUBLIC` 时才出现）。
@@ -17,12 +17,14 @@ export function Nav() {
           <span>umuo</span>
         </a>
         {SOURCE_PUBLIC ? (
-          // 品牌名不翻译；样式沿用原来右侧「免费与开源」链接
+          // 只放 GitHub 标志，名称交给 aria-label 与 title；44px 点击区，颜色与悬停沿用原来的文字链接
           <a
             href={SOURCE_URL}
-            className="-me-3 ms-auto px-3 text-[0.9375rem] font-medium text-text-secondary transition-colors hover:text-text-primary"
+            aria-label="GitHub"
+            title="GitHub"
+            className="-me-2.5 ms-auto inline-flex h-11 w-11 items-center justify-center rounded-full text-text-secondary transition-colors hover:text-text-primary"
           >
-            GitHub
+            <GitHubIcon className="h-6 w-6" />
           </a>
         ) : null}
       </div>

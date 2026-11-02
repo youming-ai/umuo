@@ -182,8 +182,8 @@
     {
       "name": "Navigation",
       "kind": "nav",
-      "description": "左边 logo + 小写字样「umuo」，右边文字链接「GitHub」（SOURCE_PUBLIC 打开时显示，站内唯一的源码入口），高度固定 64px，没有当前页标记。",
-      "html": "<nav class=\"ds-nav\"><span class=\"ds-brand\"><span class=\"ds-logo\"></span>umuo</span><a href=\"#\">GitHub</a></nav>",
+      "description": "左边 logo + 小写字样「umuo」，右边 GitHub 标志图标（aria-label=\"GitHub\"，SOURCE_PUBLIC 打开时显示，站内唯一的源码入口），高度固定 64px，没有当前页标记。",
+      "html": "<nav class=\"ds-nav\"><span class=\"ds-brand\"><span class=\"ds-logo\"></span>umuo</span><a href=\"#\" aria-label=\"GitHub\">(GitHub 标志)</a></nav>",
       "css": ".ds-nav{display:flex;align-items:center;justify-content:space-between;height:64px;padding:0 24px;font-family:'Open Sans',-apple-system,sans-serif}.ds-brand{display:flex;align-items:center;gap:10px;font-size:1.25rem;font-weight:600;color:var(--ink,#2a1f1a)}.ds-logo{width:40px;height:40px;border-radius:9px;background:#0a84ff;box-shadow:0 3px 10px -3px rgb(42 31 26/.3)}.ds-nav a{font-size:.9375rem;font-weight:500;color:var(--ink-2,#5c4638);text-decoration:none}.ds-nav a:hover{color:var(--ink,#2a1f1a)}"
     }
   ],
