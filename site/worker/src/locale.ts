@@ -118,23 +118,15 @@ export async function handlePage(
   return response
 }
 
-/** 已删除的页面：旧地址 301 回首页。`/pricing`（「免费与开源」页）随 umuo 改为免费开源后删除 */
-const RETIRED_PAGES = ['pricing'] as const
-
-function isRetiredPage(slug: string): boolean {
-  return (RETIRED_PAGES as readonly string[]).includes(slug)
-}
-
 /**
- * 首页的别名地址：`/index.html` 与已删除页面（`/pricing`）301 回 `/`（只留一个首页地址）；
- * `/en/`、`/ja` 这类带语言前缀的旧地址记住语言后 301 回 `/`，`/en/terms` 回 `/terms`，
- * `/en/pricing` 这类已删除页面也回 `/`。查询参数（如 utm）原样保留。
+ * 首页的别名地址：`/index.html` 301 回 `/`（只留一个首页地址）；
+ * `/en/`、`/ja` 这类带语言前缀的旧地址记住语言后 301 回 `/`，`/en/terms` 回 `/terms`。查询参数（如 utm）原样保留。
  */
 export function localeRedirect(pathname: string, url: string): Response | null {
   const target = new URL(url)
   target.pathname = '/'
   target.hash = ''
-  if (pathname === '/index.html' || isRetiredPage(pathname.replace(/^\/|\/$/g, ''))) {
+  if (pathname === '/index.html') {
     return new Response(null, {
       status: 301,
       headers: { location: target.toString(), 'cache-control': 'no-store' },

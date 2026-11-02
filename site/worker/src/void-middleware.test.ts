@@ -218,10 +218,8 @@ const CASES: Case[] = [
     [`页面 ${path}（ja）`, path, ja],
   ]),
   ['/index.html 301', '/index.html?ref=a'],
-  // 已删除的「免费与开源」页：旧地址 301 回 /（旧快照里它在 run_worker_first 中）
-  ['已删除的 /pricing 301', '/pricing'],
-  ['已删除的 /pricing/ 301', '/pricing/?utm_source=x'],
-  ['已删除的 /zh-cn/pricing 301', '/zh-cn/pricing'],
+  // 已删除的「免费与开源」页，与 /activate 一样直接 404（旧快照里它在 run_worker_first 中）
+  ['已删除的 /pricing', '/pricing', html],
   ...LOCALES.map((locale): Case => [`语言前缀 /${locale}/`, `/${locale}/`]),
   ['语言前缀不带斜杠', '/en'],
   ['语言前缀 + 页面', '/ja/terms/?utm_source=x'],
@@ -288,11 +286,7 @@ describe('Void 中间件与现状逐字节一致', () => {
       expect(await gone.json()).toEqual({ ok: false, error: 'not_found' })
     }
     expect((await call('/activate', html)).status).toBe(404)
-    for (const path of ['/pricing', '/pricing/', '/zh-cn/pricing']) {
-      const moved = await call(path, html)
-      expect(moved.status, path).toBe(301)
-      expect(moved.headers.get('location'), path).toBe('https://umuo.app/')
-    }
+    expect((await call('/pricing', html)).status).toBe(404)
     const missing = await call('/no-such-page', html)
     expect(missing.status).toBe(404)
     expect(await missing.text()).toContain('页面不存在')
