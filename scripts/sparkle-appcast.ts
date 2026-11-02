@@ -1,5 +1,24 @@
 import { createPublicKey, verify } from 'node:crypto'
+import { existsSync } from 'node:fs'
 import { join } from 'node:path'
+
+/**
+ * Sparkle 的 `sign_update` 随 SwiftPM 二进制依赖解出，位置取决于构建用的 scratch 目录：
+ * 冒烟 / 本机开发是 `.build`，正式组装（bundle.sh）是每个架构各自的 `.build/bundle-<arch>`。依次找，先找到先用。
+ */
+function findSignTool(): string {
+  const build = new URL('../apps/macos/.build/', import.meta.url).pathname
+  const tail = 'artifacts/sparkle/Sparkle/bin/sign_update'
+  const candidates = [
+    join(build, tail),
+    join(build, 'bundle-arm64', tail),
+    join(build, 'bundle-x86_64', tail),
+  ]
+  const found = candidates.find((path) => existsSync(path))
+  if (!found)
+    throw new Error(`找不到 Sparkle 的 sign_update（先构建一次）：\n${candidates.join('\n')}`)
+  return found
+}
 
 const namespace = 'http://www.andymatuschak.org/xml-namespaces/sparkle'
 
@@ -62,10 +81,7 @@ if (import.meta.main) {
     throw new Error('安装包版本或 Sparkle 公钥无效')
   }
   const archivePath = join(out, 'umuo.app.tar.gz')
-  const signTool = new URL(
-    '../apps/macos/.build/artifacts/sparkle/Sparkle/bin/sign_update',
-    import.meta.url,
-  ).pathname
+  const signTool = findSignTool()
   const privateKeyPath = process.env.SPARKLE_PRIVATE_KEY_PATH
   const args = privateKeyPath
     ? ['--ed-key-file', privateKeyPath]
