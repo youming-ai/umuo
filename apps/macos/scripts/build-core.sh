@@ -5,8 +5,7 @@
 # 静态库单独拷到 .core/lib：target/release 里同名的 .dylib 会被链接器优先选中，
 # 那样 .app 就得再带一个动态库，签名、公证都多一步。
 #
-# UNIVERSAL=1（打包用，scripts/bundle.sh）：分别编 arm64 与 x86_64 两个目标，lipo 成一个通用静态库，
-# 之后按任一架构 swift build 都能从同一个 .core/lib 里链到对的那一半。只支持 release。
+# 按宿主架构编（产品只支持 Apple Silicon，正式组装由 bundle.sh 在 arm64 上调用）。
 set -eu
 here="$(cd "$(dirname "$0")/.." && pwd)"
 root="$(cd "$here/../.." && pwd)"
@@ -21,25 +20,12 @@ target="${CARGO_TARGET_DIR:-$root/target}"
 # Sources/UmuoCore 里只有生成物（被 gitignore），新检出的仓库里这个目录不存在
 mkdir -p "$here/.core/lib" "$here/.core/bindings" "$here/Sources/UmuoCore"
 
-if [ "${UNIVERSAL:-}" = 1 ]; then
-  [ "$profile" = release ] || { echo "UNIVERSAL=1 只支持 release" >&2; exit 1; }
-  for triple in aarch64-apple-darwin x86_64-apple-darwin; do
-    rustup target list --installed | grep -qx "$triple" ||
-      { echo "缺目标 ${triple}：rustup target add $triple" >&2; exit 1; }
-    cargo build -p umuo-ffi --release --target "$triple"
-  done
-  # 带 --target 时产物在 <target>/<triple>/release；绑定与架构无关，按本机那一份生成
-  lipo -create -output "$here/.core/lib/libumuo_ffi.a" \
-    "$target/aarch64-apple-darwin/release/libumuo_ffi.a" "$target/x86_64-apple-darwin/release/libumuo_ffi.a"
-  case "$(uname -m)" in arm64) out="$target/aarch64-apple-darwin/release" ;; *) out="$target/x86_64-apple-darwin/release" ;; esac
-else
-  if [ "$profile" = release ]; then cargo build -p umuo-ffi --release; else cargo build -p umuo-ffi; fi
-  out="$target/$profile"
-  cp "$out/libumuo_ffi.a" "$here/.core/lib/"
-fi
+if [ "$profile" = release ]; then cargo build -p umuo-ffi --release; else cargo build -p umuo-ffi; fi
+out="$target/$profile"
+cp "$out/libumuo_ffi.a" "$here/.core/lib/"
 cargo run -q -p umuo-ffi --bin uniffi-bindgen -- generate \
   --library "$out/libumuo_ffi.dylib" --language swift --out-dir "$here/.core/bindings"
 
 cp "$here/.core/bindings/umuo_ffiFFI.h" "$here/Sources/umuo_ffiFFI/include/"
 cp "$here/.core/bindings/umuo_ffi.swift" "$here/Sources/UmuoCore/"
-echo "umuo-ffi ($profile${UNIVERSAL:+, universal}) → $here/.core/lib/libumuo_ffi.a，绑定已更新"
+echo "umuo-ffi ($profile) → $here/.core/lib/libumuo_ffi.a，绑定已更新"

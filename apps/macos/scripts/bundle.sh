@@ -1,12 +1,13 @@
 #!/bin/sh
-# 组装 SwiftUI 客户端的 umuo.app（阶段 5）：通用二进制 → Info.plist / 图标 / 资源 → 签名 →（可选）公证 →
+# 组装 SwiftUI 客户端的 umuo.app：arm64 二进制 → Info.plist / 图标 / 资源 → 签名 →（可选）公证 →
 # .dmg 与 .app.tar.gz。只在本机产出文件，**不上传任何东西**（发布由 .github/workflows/release.yml 传到 GitHub Releases）。
 #
-#   sh apps/macos/scripts/bundle.sh --version 0.2.0   # 正式组装：arm64 + x86_64，release
+#   sh apps/macos/scripts/bundle.sh --version 0.2.0   # 正式组装：arm64（Apple Silicon）release，须在 Apple Silicon 上跑
 #   sh apps/macos/scripts/bundle.sh --quick           # 冒烟：复用 .build/debug 的产物，只本机架构、ad-hoc、不出 .dmg
 #
 # 环境变量（都可选）：
-#   APPLE_SIGNING_IDENTITY   codesign 身份（「Developer ID Application: …」）；不设就 ad-hoc 签名（--quick 一律 ad-hoc，忽略它与 APPLE_API_*）
+#   APPLE_SIGNING_IDENTITY   codesign 身份（「Developer ID Application: …」）；不设就 ad-hoc 签名（--quick 一律 ad-hoc，忽略它与 APPLE_API_*）。
+#                            Release 工作流目前不传它与 APPLE_API_*（ad-hoc），接公证的步骤见 docs/SWIFTUI-MIGRATION.md
 #   APPLE_API_KEY / APPLE_API_ISSUER / APPLE_API_KEY_PATH
 #                            三个都设了才公证（notarytool --wait）并 staple
 #   SPARKLE_PUBLIC_ED_KEY    Sparkle Ed25519 公钥（正式构建必填，generate_keys --account app.umuo.desktop 生成）
@@ -31,7 +32,7 @@ while [ $# -gt 0 ]; do
     --quick) quick=1 ;;
     --version) [ $# -ge 2 ] || fail "--version 要跟版本号"; VERSION=$2; shift ;;
     --) ;; # `bun run bundle:macos -- …` 可能把 -- 原样传进来
-    -h | --help) sed -n '2,20p' "$0"; exit 0 ;;
+    -h | --help) sed -n '2,21p' "$0"; exit 0 ;;
     *) fail "认不出的参数：$1" ;;
   esac
   shift
@@ -72,48 +73,42 @@ else
   OUT_DIR="${OUT_DIR:-$here/dist}"
 fi
 mkdir -p "$OUT_DIR"
-# 换成绝对路径：下面会 cd 到 apps/macos，相对路径（release-swift-local.sh 从仓库根传的就是）会落到别处
+# 换成绝对路径：下面会 cd 到 apps/macos，从仓库根传来的相对路径会落到别处
 OUT_DIR="$(cd "$OUT_DIR" && pwd)"
 app="$OUT_DIR/umuo.app"
 exe_name=umuo-desktop
 
-# ---- 编译：正式组装两个架构各编一次再 lipo；冒烟直接用 verify.sh 刚编好的 debug 产物
+# ---- 编译：正式组装编一次 arm64 release；冒烟直接用 verify.sh 刚编好的 debug 产物
 cd "$here"
 if [ "$quick" = 1 ]; then
   bin_dir="$here/.build/debug"
   [ -x "$bin_dir/Umuo" ] && [ -d "$bin_dir/Umuo_Umuo.bundle" ] || fail "没有 .build/debug 的产物：先 swift build（verify.sh 会先编）"
-  binaries="$bin_dir/Umuo"
   resources="$bin_dir/Umuo_Umuo.bundle"
 else
-  step "Rust 内核：arm64 + x86_64 → 通用静态库"
-  UNIVERSAL=1 PROFILE=release "$here/scripts/build-core.sh"
-  binaries=""
-  for arch in arm64 x86_64; do
-    step "swift build -c release（${arch}）"
-    # 每个架构单独一个 scratch 目录：新的构建系统按 Products/Release 放产物、不分架构，共用的话后编的覆盖先编的。
-    # SwiftPM 也不把 -L 给的静态库当输入，库换了（debug ↔ 通用 release）它未必重新链接，
-    # 所以链接前先删掉旧的可执行文件，保证里面是这一次的内核
-    flags="-c release --triple $arch-apple-macosx14.0 --scratch-path $here/.build/bundle-$arch"
-    # shellcheck disable=SC2086
-    bin_dir="$(swift build $flags --show-bin-path)"
-    rm -f "$bin_dir/Umuo"
-    # shellcheck disable=SC2086
-    swift build $flags --product Umuo
-    binaries="$binaries $bin_dir/Umuo"
-    resources="$bin_dir/Umuo_Umuo.bundle"
-  done
+  # 产品只支持 Apple Silicon：Rust 内核按宿主架构编，宿主必须是 arm64（Rosetta 下的 shell 也会被拦下）
+  [ "$(uname -m)" = arm64 ] || fail "正式组装要在 Apple Silicon（arm64）上跑，当前是 $(uname -m)"
+  step "Rust 内核（arm64 release）"
+  PROFILE=release "$here/scripts/build-core.sh"
+  step "swift build -c release（arm64）"
+  # 独立 scratch 目录，不和 verify 的 debug 产物混在一起。
+  # SwiftPM 不把 -L 给的静态库当输入，库换了（debug ↔ release）它未必重新链接，
+  # 所以链接前先删掉旧的可执行文件，保证里面是这一次的内核
+  flags="-c release --triple arm64-apple-macosx14.0 --scratch-path $here/.build/bundle-arm64"
+  # shellcheck disable=SC2086
+  bin_dir="$(swift build $flags --show-bin-path)"
+  rm -f "$bin_dir/Umuo"
+  # shellcheck disable=SC2086
+  swift build $flags --product Umuo
+  resources="$bin_dir/Umuo_Umuo.bundle"
 fi
 
 # ---- 组装
 step "组装 ${app}（${VERSION}）"
 rm -rf "$app"
 mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources" "$app/Contents/Frameworks"
-# shellcheck disable=SC2086
-if [ "$quick" = 1 ]; then
-  cp $binaries "$app/Contents/MacOS/$exe_name"
-else
-  lipo -create -output "$app/Contents/MacOS/$exe_name" $binaries
-  # 去掉本地符号：通用二进制 27 MB → 19 MB（安装包门槛 30 MB）。全局符号留着，崩溃栈仍看得出函数名
+cp "$bin_dir/Umuo" "$app/Contents/MacOS/$exe_name"
+if [ "$quick" = 0 ]; then
+  # 去掉本地符号，缩小安装包（门槛 30 MB）。全局符号留着，崩溃栈仍看得出函数名
   strip -x "$app/Contents/MacOS/$exe_name" 2>/dev/null || fail "strip 失败"
 fi
 # SwiftPM 可能留下指向构建机 PackageFrameworks 的绝对 rpath。移除后只从包内加载更新框架。
@@ -151,11 +146,12 @@ fi
 # SwiftPM 的二进制依赖放在 bin_dir；用 ditto 保留 framework 的符号链接与执行权限。
 [ -d "$bin_dir/Sparkle.framework" ] || fail "Sparkle.framework 缺失"
 ditto "$bin_dir/Sparkle.framework" "$app/Contents/Frameworks/Sparkle.framework"
-# 本地语音转写引擎（Package.swift 的 TranscribeCpp 二进制目标，transcribe.cpp v0.4.1）。官方包本身是 arm64 + x86_64 通用的
+# 本地语音转写引擎（Package.swift 的 TranscribeCpp 二进制目标，transcribe.cpp v0.4.1）。
+# 官方包与 Sparkle 一样是 arm64 + x86_64 通用框架，原样嵌入（多出的 x86_64 切片无害，不为省体积再 lipo -thin）
 [ -d "$bin_dir/CTranscribe.framework" ] || fail "CTranscribe.framework 缺失"
 ditto "$bin_dir/CTranscribe.framework" "$app/Contents/Frameworks/CTranscribe.framework"
 # MIT 要求随二进制附带许可原文：官方包把 transcribe.cpp / ggml / Silero VAD / miniz 的许可放在 xcframework 根目录，
-# 不在 framework 里。SwiftPM 解出的产物在各自 scratch 目录的 artifacts 下（冒烟是 .build，正式组装是 .build/bundle-<arch>）
+# 不在 framework 里。SwiftPM 解出的产物在各自 scratch 目录的 artifacts 下（冒烟是 .build，正式组装是 .build/bundle-arm64）
 transcribe_license="$(find "$here/.build" -path '*/TranscribeCpp.xcframework/LICENSE' -print -quit)"
 [ -n "$transcribe_license" ] || fail "找不到 TranscribeCpp.xcframework 的 LICENSE"
 mkdir -p "$app/Contents/Resources/Licenses/transcribe.cpp"
@@ -247,12 +243,11 @@ codesign -dv "$app" 2>&1 | grep -q 'flags=.*runtime' || fail "没开 hardened ru
 if [ "$quick" = 0 ]; then
   check SUFeedURL "$(plist_get SUFeedURL)" 'https://github.com/youming-ai/umuo/releases/latest/download/appcast.xml'
   check SUPublicEDKey "$(plist_get SUPublicEDKey)" "$SPARKLE_PUBLIC_ED_KEY"
-  archs="$(lipo -archs "$app/Contents/MacOS/$exe_name")"
-  case "$archs" in *arm64*x86_64* | *x86_64*arm64*) ;; *) fail "不是通用二进制：$archs" ;; esac
-  framework_archs="$(lipo -archs "$framework/Sparkle")"
-  case "$framework_archs" in *arm64*x86_64* | *x86_64*arm64*) ;; *) fail "Sparkle 不是通用框架：$framework_archs" ;; esac
-  transcribe_archs="$(lipo -archs "$app/Contents/Frameworks/CTranscribe.framework/CTranscribe")"
-  case "$transcribe_archs" in *arm64*x86_64* | *x86_64*arm64*) ;; *) fail "CTranscribe 不是通用框架：$transcribe_archs" ;; esac
+  # 主程序只有 arm64；两个框架是上游的通用包，只要求含 arm64 切片
+  check "主程序架构" "$(lipo -archs "$app/Contents/MacOS/$exe_name")" arm64
+  for bin in "$framework/Sparkle" "$app/Contents/Frameworks/CTranscribe.framework/CTranscribe"; do
+    case " $(lipo -archs "$bin") " in *" arm64 "*) ;; *) fail "$(basename "$bin") 缺 arm64 切片：$(lipo -archs "$bin")" ;; esac
+  done
 fi
 step "从 .app 里跑 --selftest（证明启动得起来、资源包找得到）"
 log="$OUT_DIR/selftest.log"

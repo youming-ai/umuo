@@ -6,13 +6,10 @@
       "!**/node_modules",
       "!**/dist",
       "!**/target",
-      "!**/coverage",
-      "!**/gen",
       "!**/.build",
       "!**/.core",
-      "!**/*.gen.ts",
       "!site",
-      "!**/.claude/worktrees"
+      "!.claude/worktrees"
     ]
   },
   "formatter": {
@@ -29,21 +26,10 @@
       },
       "suspicious": {
         "noExplicitAny": "warn"
-      },
-      "security": {
-        "noDangerouslySetInnerHtml": "warn"
-      },
-      "a11y": {
-        "useSemanticElements": "warn"
       }
     }
   },
   "javascript": {
     "formatter": { "quoteStyle": "single", "semicolons": "asNeeded" }
-  },
-  "css": {
-    "parser": {
-      "tailwindDirectives": true
-    }
   }
 }

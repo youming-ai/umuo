@@ -1,9 +1,20 @@
 {
-  "extends": "./tsconfig.base.json",
   "compilerOptions": {
-    // scripts/ 下是 Bun 脚本（用了 Bun.spawn / Bun.file / Bun.sleep），
-    // 所以这里必须带上 bun 的类型——否则脚本要么不被类型检查，要么报「找不到 Bun」。
-    "types": ["node", "bun"]
+    "target": "es2022",
+    // 根目录只有 scripts/ 下的 Bun 脚本，不跑在浏览器里：不带 DOM 类型
+    "lib": ["es2022"],
+    // scripts/ 用了 Bun.spawn / Bun.file / Bun.sleep，必须带上 bun 的类型，
+    // 否则脚本要么不被类型检查，要么报「找不到 Bun」。
+    "types": ["node", "bun"],
+    "skipLibCheck": true,
+    "strict": true,
+    "noEmit": true,
+    "esModuleInterop": true,
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "verbatimModuleSyntax": true
   },
   "include": ["scripts/**/*.ts"]
 }
