@@ -34,8 +34,9 @@ bun run verify           # lint、类型、Vitest、官网与 Worker 构建
 ```
 
 构建后的 `dist/ssr/wrangler.json` 和 `.void-wrangler.jsonc` 是 Void / Cloudflare 插件生成物，
-不可作为配置来源提交。`void.lock.json` 在实际关联部署并记录资源后提交。
-静态资源走 Void Worker 后再通过 `ASSETS` 返回。
+不可作为配置来源提交。部署走 `cf deploy --prebuilt`，不用 `void deploy`，所以不产生也不提交 `void.lock.json`。
+静态资源走 Void Worker 后再通过 `ASSETS` 返回：带哈希的 `/assets/*` 由 Worker 改为一年 `immutable`，
+所有响应统一补 `X-Frame-Options`、`Referrer-Policy`、`Permissions-Policy` 等安全头（见 `worker/src/dispatch.ts`）。
 
 ## Cloudflare 与生产部署
 
@@ -47,9 +48,9 @@ bun run build
 bun run deploy
 ```
 
-`cf` 从最新上传版本继承 secret；部署前的 secret 核对、Workers Builds 与回滚按 [迁移手册](VOID-MIGRATION.md) 执行。
+Worker 没有 secret，部署前不需要核对 secret；Workers Builds 与回滚按 [迁移手册](VOID-MIGRATION.md) 执行。
 正式配置显式关闭 `workers_dev` 和 `preview_urls`；不要为通过就绪检查擅自打开生产公开入口。
-域名、绑定、secret、活动版本及旧构建设置必须在切换前后核对。
+改域名、绑定或 Workers Builds 设置前后，核对域名、绑定与活动版本。
 
 ## 客户端安装包
 

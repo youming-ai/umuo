@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-10-29T06:11:37.890012+00:00",
+  "generatedAt": "2026-11-02T00:00:00+00:00",
   "title": "Design System: umuo.app",
   "extensions": {
     "colorMeta": {
@@ -70,15 +70,15 @@
     "typographyMeta": {
       "display": {
         "displayName": "Display",
-        "purpose": "首屏主标题，随视口高度缩放。"
-      },
-      "headline": {
-        "displayName": "Headline",
-        "purpose": "页面与章首标题。"
+        "purpose": "首屏主标题（页面上唯一的标题），随视口高度缩放，保证一屏放下。"
       },
       "keycap": {
         "displayName": "Keycap",
-        "purpose": "键帽里的 ⌃ ⌥ ⌘，用系统字体。"
+        "purpose": "演示选项卡里小键帽的 ⌃ ⌥ ⌘，用系统字体。"
+      },
+      "lead": {
+        "displayName": "Lead",
+        "purpose": "标题下的导读。"
       }
     },
     "shadows": [
@@ -102,7 +102,7 @@
       {
         "name": "state",
         "value": "150ms ease",
-        "purpose": "按钮、链接、切换条的状态过渡。"
+        "purpose": "按钮、链接、选项卡的状态过渡。"
       },
       {
         "name": "stream-in",
@@ -112,12 +112,29 @@
     ],
     "breakpoints": [
       {
-        "name": "mobile",
-        "value": "639px"
+        "name": "tabs-compact",
+        "value": "1023px",
+        "purpose": "选项卡只留名称，「开发中」缩成小圆点；仍是左右两栏"
       },
       {
-        "name": "hero-single-column",
-        "value": "1023px"
+        "name": "mobile",
+        "value": "639px",
+        "purpose": "单栏，收紧纵向节奏"
+      },
+      {
+        "name": "demo-write-only",
+        "value": "max-width 639px 且 max-height 820px",
+        "purpose": "收起选项卡与底部提示，只留闪电替换；点了下载后演示让位"
+      },
+      {
+        "name": "demo-note-hidden",
+        "value": "max-width 639px 且 max-height 760px",
+        "purpose": "安全边界小字让位"
+      },
+      {
+        "name": "demo-hidden",
+        "value": "max-width 639px 且 max-height 700px",
+        "purpose": "整个演示让位"
       }
     ]
   },
@@ -134,7 +151,7 @@
       "name": "Secondary Button",
       "kind": "button",
       "refersTo": "button-secondary",
-      "description": "次要操作，白页底、浅咖厚边。",
+      "description": "触屏设备上的「复制网址」：白页底、浅咖厚边。",
       "html": "<button class=\"ds-btn ds-btn-secondary\">复制密钥</button>",
       "css": ".ds-btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:3.5rem;padding:0 28px;font:700 .9375rem/1 'Open Sans',-apple-system,sans-serif;letter-spacing:.025em;border:2px solid transparent;border-bottom-width:4px;border-radius:16px;cursor:pointer;transition:background-color 150ms ease,border-color 150ms ease,transform 100ms ease,border-bottom-width 100ms ease}.ds-btn:hover{transform:translateY(-1px)}.ds-btn:active{transform:translateY(3px);border-bottom-width:1px}.ds-btn:focus-visible{outline:2px solid var(--accent,#a8734d);outline-offset:3px}.ds-btn-secondary{color:var(--ink,#2a1f1a);background:var(--paper-elevated,#fff);border-color:var(--rule-strong,#cdbba7)}.ds-btn-secondary:hover{background:var(--coffee-soft,rgb(168 115 77/.12))}"
     },
@@ -142,9 +159,9 @@
       "name": "Keycap",
       "kind": "custom",
       "refersTo": "keycap",
-      "description": "真键盘式键帽，展示默认快捷键。",
-      "html": "<span class=\"ds-keys\"><kbd class=\"ds-keycap\">⌥</kbd><kbd class=\"ds-keycap\">⌘</kbd><kbd class=\"ds-keycap\">O</kbd></span>",
-      "css": ".ds-keys{display:inline-flex;gap:4px}.ds-keycap{display:inline-flex;align-items:center;justify-content:center;height:36px;min-width:36px;padding:0 10px;font:500 .9375rem/1 -apple-system,BlinkMacSystemFont,system-ui,sans-serif;color:var(--ink-2,#5c4638);background:var(--paper-elevated,#fff);border:1px solid var(--rule-strong,#cdbba7);border-bottom:2px solid var(--coffee,#a8734d);border-radius:5px;box-shadow:0 1px 0 rgb(42 31 26/.06)}"
+      "description": "真键盘式键帽，只出现在演示选项卡里（22px 小号 keycap-xs），展示默认快捷键；当前模式的键帽换成咖啡色。",
+      "html": "<span class=\"ds-keys\"><kbd class=\"ds-keycap\">⌥</kbd><kbd class=\"ds-keycap\">⌥</kbd></span>",
+      "css": ".ds-keys{display:inline-flex;align-items:center;gap:4px}.ds-keycap{display:inline-flex;align-items:center;justify-content:center;height:1.375rem;min-width:1.375rem;padding:0 5px;font:500 .6875rem/1 -apple-system,BlinkMacSystemFont,system-ui,sans-serif;color:var(--ink-2,#5c4638);background:var(--paper-elevated,#fff);border:1px solid var(--rule-strong,#cdbba7);border-bottom:1.5px solid var(--coffee,#a8734d);border-radius:4px;box-shadow:0 1px 0 rgb(42 31 26/.06)}"
     },
     {
       "name": "Status Tag",
@@ -158,16 +175,16 @@
       "name": "Demo Panel",
       "kind": "card",
       "refersTo": "demo-panel",
-      "description": "首屏对照演示：选区 + 浮窗 + 模式切换条。",
-      "html": "<figure class=\"ds-demo\"><div class=\"ds-stage\"><p><mark class=\"ds-sel\">The quick brown fox jumps over the lazy dog.</mark></p><div class=\"ds-pop\">敏捷的棕色狐狸跳过了那只懒狗。</div></div><div class=\"ds-switch\"><button aria-pressed=\"true\">划词翻译</button><button>原地替换</button><button>截图翻译</button></div></figure>",
-      "css": ".ds-demo{margin:0;max-width:560px;background:var(--paper-elevated,#fff);border:1px solid var(--rule-strong,#cdbba7);border-top:3px solid var(--coffee,#a8734d);border-radius:12px;box-shadow:0 1px 0 var(--rule,#e6dccf),0 26px 52px -32px rgb(42 31 26/.28);overflow:hidden;font-family:'Open Sans',-apple-system,sans-serif}.ds-stage{padding:28px;display:flex;flex-direction:column;gap:14px;color:var(--ink-2,#5c4638);font-size:1.1875rem}.ds-stage p{margin:0}.ds-sel{background:var(--select,#efd9bd);color:var(--ink,#2a1f1a);padding:.1em .15em;border-radius:3px}.ds-pop{align-self:flex-start;padding:12px 16px;color:var(--ink,#2a1f1a);background:var(--paper-elevated,#fff);border:1px solid color-mix(in srgb,var(--accent,#a8734d) 35%,var(--rule-strong,#cdbba7));border-radius:8px;box-shadow:0 14px 30px -18px rgb(126 82 54/.22),0 8px 20px -14px rgb(42 31 26/.25)}.ds-switch{display:grid;grid-template-columns:repeat(3,1fr);border-top:1px solid var(--rule,#e6dccf);background:var(--paper-2,#f4ece1)}.ds-switch button{position:relative;padding:14px 16px;text-align:start;font:500 .875rem/1.4 inherit;color:var(--ink-3,#876c5a);background:transparent;border:0;cursor:pointer;transition:background-color 150ms ease,color 150ms ease}.ds-switch button+button{border-inline-start:1px solid var(--rule,#e6dccf)}.ds-switch button:hover{color:var(--ink-2,#5c4638)}.ds-switch button[aria-pressed=true]{background:var(--paper-elevated,#fff);color:var(--ink,#2a1f1a)}.ds-switch button[aria-pressed=true]::before{content:'';position:absolute;inset:-1px 0 auto;height:2.5px;background:var(--accent-strong,#7e5236)}"
+      "description": "首屏对照演示：顶部书签式选项卡（划词翻译、闪电替换、截图翻译、语音输入，名称 + 小键帽或「开发中」标签），中间舞台（选区 + 浮窗 / 划掉的原文 + 译文），底部一行「怎样在这个页面上试」的提示。",
+      "html": "<figure class=\"ds-demo\"><div class=\"ds-tabs\" role=\"tablist\"><button role=\"tab\" aria-selected=\"true\">划词翻译<span class=\"ds-keys\"><kbd class=\"ds-keycap\">⌃</kbd><kbd class=\"ds-keycap\">⌃</kbd></span></button><button role=\"tab\">闪电替换<span class=\"ds-keys\"><kbd class=\"ds-keycap\">⌥</kbd><kbd class=\"ds-keycap\">⌥</kbd></span></button><button role=\"tab\">截图翻译<span class=\"ds-keys\"><kbd class=\"ds-keycap\">⌥</kbd><kbd class=\"ds-keycap\">⌘</kbd><kbd class=\"ds-keycap\">O</kbd></span></button><button role=\"tab\">语音输入<span class=\"ds-tag\">开发中</span></button></div><div class=\"ds-stage\"><p><mark class=\"ds-sel\">The quick brown fox jumps over the lazy dog.</mark></p><div class=\"ds-pop\">敏捷的棕色狐狸跳过了那只懒狗。</div></div><figcaption class=\"ds-hint\">在这个页面连按两下 ⌃ 试试</figcaption></figure>",
+      "css": ".ds-demo{margin:0;max-width:560px;background:var(--paper-elevated,#fff);border:1px solid var(--rule-strong,#cdbba7);border-top:3px solid var(--coffee,#a8734d);border-radius:12px;box-shadow:0 1px 0 var(--rule,#e6dccf),0 26px 52px -32px rgb(42 31 26/.28);overflow:hidden;font-family:'Open Sans',-apple-system,sans-serif}.ds-tabs{display:flex;border-bottom:1px solid var(--rule,#e6dccf);background:var(--paper-2,#f4ece1)}.ds-tabs button{flex:1 1 auto;display:flex;flex-direction:column;align-items:flex-start;gap:6px;padding:12px 16px;text-align:start;font:500 .875rem/1.4 inherit;color:var(--ink-3,#7d6252);background:transparent;border:0;cursor:pointer;transition:background-color 150ms ease,color 150ms ease}.ds-tabs button+button{border-inline-start:1px solid var(--rule,#e6dccf)}.ds-tabs button:hover{color:var(--ink-2,#5c4638)}.ds-tabs button[aria-selected=true]{position:relative;z-index:1;margin-bottom:-1px;padding-bottom:13px;background:var(--paper-elevated,#fff);color:var(--ink,#2a1f1a);font-weight:600}.ds-tabs button[aria-selected=true] .ds-keycap{border-color:var(--coffee,#a8734d);border-bottom-color:var(--coffee-strong,#7e5236);color:var(--coffee-strong,#7e5236)}.ds-stage{padding:28px;display:flex;flex-direction:column;gap:14px;color:var(--ink-2,#5c4638);font-size:1.1875rem}.ds-stage p{margin:0}.ds-sel{background:var(--select,#efd9bd);color:var(--ink,#2a1f1a);padding:.1em .15em;border-radius:3px}.ds-pop{align-self:flex-start;padding:12px 16px;color:var(--ink,#2a1f1a);background:var(--paper-elevated,#fff);border:1px solid color-mix(in srgb,var(--accent,#a8734d) 35%,var(--rule-strong,#cdbba7));border-radius:8px;box-shadow:0 14px 30px -18px rgb(126 82 54/.22),0 8px 20px -14px rgb(42 31 26/.25)}.ds-hint{padding:8px 20px;border-top:1px solid var(--rule,#e6dccf);background:var(--paper-2,#f4ece1);font-size:.75rem;color:var(--ink-3,#7d6252)}.ds-tag{padding:1px 6px;border:1px solid color-mix(in srgb,var(--coffee,#a8734d) 45%,var(--rule-strong,#cdbba7));border-radius:4px;background:rgb(168 115 77/.12);font-size:.75rem;color:var(--accent-strong,#7e5236)}"
     },
     {
       "name": "Navigation",
       "kind": "nav",
-      "description": "左边 logo + 小写字样，右边文字链接「GitHub」（仓库公开时显示），高度固定 64px。",
-      "html": "<nav class=\"ds-nav\"><span class=\"ds-brand\"><span class=\"ds-logo\"></span>umuo</span></nav>",
-      "css": ".ds-nav{display:flex;align-items:center;justify-content:space-between;height:64px;padding:0 24px;font-family:'Open Sans',-apple-system,sans-serif}.ds-brand{display:flex;align-items:center;gap:10px;font-size:1.25rem;font-weight:600;color:var(--ink,#2a1f1a)}.ds-logo{width:40px;height:40px;border-radius:9px;background:#0a84ff;box-shadow:0 3px 10px -3px rgb(42 31 26/.3)}.ds-nav a{font-size:.9375rem;font-weight:500;color:var(--ink-2,#5c4638);text-decoration:none}.ds-nav a:hover{color:var(--ink,#2a1f1a)}.ds-nav a[aria-current=page]{color:var(--accent-strong,#7e5236);text-decoration:underline;text-underline-offset:.4em;text-decoration-color:var(--accent,#a8734d)}"
+      "description": "左边 logo + 小写字样「umuo」，右边文字链接「GitHub」（SOURCE_PUBLIC 打开时显示，站内唯一的源码入口），高度固定 64px，没有当前页标记。",
+      "html": "<nav class=\"ds-nav\"><span class=\"ds-brand\"><span class=\"ds-logo\"></span>umuo</span><a href=\"#\">GitHub</a></nav>",
+      "css": ".ds-nav{display:flex;align-items:center;justify-content:space-between;height:64px;padding:0 24px;font-family:'Open Sans',-apple-system,sans-serif}.ds-brand{display:flex;align-items:center;gap:10px;font-size:1.25rem;font-weight:600;color:var(--ink,#2a1f1a)}.ds-logo{width:40px;height:40px;border-radius:9px;background:#0a84ff;box-shadow:0 3px 10px -3px rgb(42 31 26/.3)}.ds-nav a{font-size:.9375rem;font-weight:500;color:var(--ink-2,#5c4638);text-decoration:none}.ds-nav a:hover{color:var(--ink,#2a1f1a)}"
     }
   ],
   "narrative": {

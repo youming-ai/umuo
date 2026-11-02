@@ -19,7 +19,7 @@ bun run verify       # lint + 类型检查 + 测试 + 官网与 Worker 构建
 ```
 
 本机默认 Node 较低时，使用 `mise exec node@24 -- bun run verify`。部署见 [`docs/DEPLOY.md`](docs/DEPLOY.md)；
-生产由 Wrangler 切换至 Void 前的顺序与限制见 [`docs/VOID-MIGRATION.md`](docs/VOID-MIGRATION.md)。
+生产由 Wrangler 切换至 Void 的接管记录与 Workers Builds 设置见 [`docs/VOID-MIGRATION.md`](docs/VOID-MIGRATION.md)。
 
 ## 许可
 

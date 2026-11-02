@@ -1,5 +1,7 @@
 # 现有官网迁至 Void
 
+> 2026-11-02 起 Worker 已由 `umuo-app` 改名为 `umuo`，仓库改名为 `youming-ai/umuo`；下文接管记录里的 `umuo-app` 指改名前的同一个 Worker。
+>
 > 2026-11-02 起 umuo 改为免费开源，收费与许可证代码、`LICENSES` 绑定与 `WAFFO_*` 变量已从仓库删除；
 > 下文中关于 Waffo secret 与结账的内容是当时的接管记录，之后的部署不再需要核对 `WAFFO_PRIVATE_KEY`。
 >

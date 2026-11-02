@@ -23,16 +23,6 @@ typography:
     fontWeight: 600
     lineHeight: 1.08
     letterSpacing: "-0.02em"
-  headline:
-    fontFamily: "Open Sans, -apple-system, PingFang SC, sans-serif"
-    fontSize: "clamp(1.75rem, 3vw, 2.5rem)"
-    fontWeight: 600
-    lineHeight: 1.2
-  title:
-    fontFamily: "Open Sans, -apple-system, PingFang SC, sans-serif"
-    fontSize: "1.3125rem"
-    fontWeight: 600
-    lineHeight: 1.4
   lead:
     fontFamily: "Open Sans, -apple-system, PingFang SC, sans-serif"
     fontSize: "1.1875rem"
@@ -50,7 +40,7 @@ typography:
     lineHeight: 1.4
   keycap:
     fontFamily: "-apple-system, BlinkMacSystemFont, Segoe UI, system-ui, sans-serif"
-    fontSize: "0.9375rem"
+    fontSize: "0.6875rem"
     fontWeight: 500
     lineHeight: 1
 rounded:
@@ -88,7 +78,7 @@ components:
     textColor: "{colors.ink-soft}"
     typography: "{typography.keycap}"
     rounded: "{rounded.keycap}"
-    height: "36px"
+    height: "22px"
   tag:
     textColor: "{colors.otter-coffee-deep}"
     rounded: "{rounded.tag}"
@@ -131,13 +121,13 @@ components:
 
 ### Primary
 - **水獭咖啡 Otter Coffee** (`otter-coffee`)：皮毛色。用于装饰性线条，例如演示面板顶部的书脊线、键帽底边、焦点框、截图模式的虚线框。
-- **耳朵深咖 Otter Coffee Deep** (`otter-coffee-deep`)：唯一的「行动色」。实心下载按钮的底色、当前页导航、当前演示模式的顶线、可点链接的文字。在纸面上对比约 6:1，可以直接承载文字。
+- **耳朵深咖 Otter Coffee Deep** (`otter-coffee-deep`)：唯一的「行动色」。实心下载按钮的底色、当前演示模式键帽的字与底边、「开发中」「预览版」标签的字。在纸面上对比约 6:1，可以直接承载文字。
 - **抬起深咖 Otter Coffee Lift** (`otter-coffee-lift`)：实心按钮悬停时的底色，比常态略亮，像按钮被抬起。
 - **厚边深咖 Otter Coffee Edge** (`otter-coffee-edge`)：实心按钮底部 4px 厚边，比底色深一档，表现按钮的厚度。
 
 ### Neutral
 - **暖纸 Paper** (`paper`)：全站底色。
-- **纸背 Paper Shade** (`paper-shade`)：演示切换条、提示条、许可证代码底色这类「次一级纸面」。
+- **纸背 Paper Shade** (`paper-shade`)：演示的选项卡底条、底部提示条这类「次一级纸面」，以及语言菜单的当前项。
 - **白页 Paper White** (`paper-white`)：浮起的内页：演示面板、浮窗、键帽、次按钮。
 - **咖啡墨 Ink** (`ink`)：正文与标题。取自水獭眼鼻。
 - **淡墨 Ink Soft** (`ink-soft`)：副文、导读段落、原文。
@@ -167,12 +157,10 @@ components:
 **Character:** 一款字体贯穿全站，靠字重与字号拉开层次；人文无衬线在中日韩系统字体旁边不抢戏。
 
 ### Hierarchy
-- **Display**（600，`clamp(2.25rem, min(4.4vw, 8svh), 4.25rem)`，1.08）：首屏主标题，随视口高度缩放，保证一屏放下。中日文在文案里用换行符指定断点。
-- **Headline**（600，`clamp(1.75rem, 3vw, 2.5rem)`，1.2）：页面标题、章首标题。
-- **Title**（600，1.3125rem）：长文页的二级标题。
+- **Display**（600，`clamp(2.25rem, min(4.4vw, 8svh), 4.25rem)`，1.08）：首屏主标题（页面上唯一的标题），随视口高度缩放，保证一屏放下。中日文在文案里用换行符指定断点。
 - **Lead**（400，1.1875rem，1.6，最宽 34em）：标题下的导读。
-- **Body**（400，1.0625rem，1.6）：正文；长文页限宽 44rem。
-- **Label**（500，0.875rem）：演示模式名、元信息。
+- **Body**（400，1.0625rem，1.6）：全站基准字号；首屏里的演示原文、译文与下载说明在它上下按视口收放。
+- **Label**（500，0.875rem）：演示模式名、系统要求这类元信息。
 
 ### Named Rules
 **The One Family Rule.** 只用自托管或系统字体，不引 Google Fonts 等外部字体服务。
@@ -182,7 +170,7 @@ components:
 
 页面网格居中，最宽 76rem，左右留白 24px（手机 20px）；文字一律左对齐。页眉高 4rem，透明地压在内容上。
 
-首页恰好一屏：主内容吃掉页脚以外的高度，首屏垂直居中。左栏标题与下载（5fr），右栏演示面板（6fr），间距 `clamp(2rem, 5vw, 5.5rem)`。
+首页恰好一屏：页面最小高度 `100svh`（iOS Safari 工具栏展开时的可见高度，桌面上等于 `100vh`），主内容吃掉页脚以外的高度，首屏垂直居中。左栏标题与下载（5fr），右栏演示面板（6fr），间距 `clamp(2rem, 5vw, 5.5rem)`。
 640–1023px（平板、Mac 半屏）仍是左右两栏；639px 以下改为单栏并收紧纵向节奏，演示按可用高度分档降级（见 Components › Demo Panel）。
 改动首页后要在 1280×720 与 390×844 下确认 `scrollHeight` 不超出一屏。
 
@@ -212,22 +200,21 @@ components:
 - **Shape:** 圆角 16px（`--radius-button`），高 3.5rem，左右 28px，字重 700，字距 0.025em；2px 边框，底边加厚到 4px。不转大写，因为五种语言里有四种是中日韩文字。
 - **Press tokens:** `--press-depth` 4px（厚边）、`--press-depth-active` 1px（按下后剩下的厚度）、`--press-lift-hover` -1px（悬停上抬）、`--press-lift-active` 3px（按下下沉）。只定义一次，与主题无关。
 - **Solid（主行动）:** 深咖底、白字、更深一档的咖啡厚边（`--button-edge`）；悬停时底色变亮并上抬，按下时下沉、厚边收窄。全站只用于下载。
-- **Primary（描边）:** 深咖字、深咖边框和厚边，配淡咖底。
-- **Secondary:** 白页底、浅咖边框和厚边；悬停时铺一层淡咖底。
+- **Secondary:** 白页底、浅咖边框和厚边；悬停时铺一层淡咖底。用于触屏上的「复制网址」。
 - **Ghost:** 没有厚边，用于页脚的语言 / 主题切换；悬停时铺淡咖底，按下时下沉 1px。
 - **Pending:** 安装包还没发布时，按钮不变灰、不响应按压，靠里面的状态标签说明。
 - **Reduced motion:** 去掉位移和厚边收窄，保留颜色反馈。
 - **Focus:** 2px 咖啡色描边，外扩 3px。
 
 ### Download Panel
-首页的下载区（`DownloadPanel`）：实心下载按钮、系统要求、未公证预览版的放行说明。按钮旁一句「免费、自带 Key」：`SOURCE_PUBLIC` 关闭时是不带链接的纯文字，打开后换成链到源码的「MIT 开源」。
+首页的下载区（`DownloadPanel`）：实心下载按钮（带「预览版」状态标签）、系统要求、未公证预览版的放行说明。按钮旁不放说明句，源码入口只在页眉右侧。
 触屏设备（`hover: none` 且 `pointer: coarse`）拿不到能用的 Mac 安装包，换成一句「请在 Mac 上打开 umuo.app」加「复制网址」次按钮。两套都预渲染，由 CSS 显示其中一套。
-点了下载之后，系统要求与放行说明就地换成「下载已开始，接下来」三步：拖进应用程序、被拦截时怎么放行、选供应商填 Key。
+点了下载之后，系统要求与放行说明就地换成「下载已开始，接下来」三步：拖进应用程序、被拦截时怎么放行、选供应商填 Key。≤639px 宽、≤820px 高的窄矮窗口里这时演示让位，三步收紧行距。
 触屏上复制网址失败时要说出来，并给出手动记下的网址。
 手机上日文、英文的按钮放不下一行时允许折行，不被容器裁掉。
 
 ### Keycap
-像真键盘：白页底、粗细线边框、2px 咖啡底边、5px 圆角，用系统字体写 ⌃ ⌥ ⌘。有 36px 和 28px 两档。
+像真键盘：白页底、粗细线边框、2px 咖啡底边、5px 圆角，用系统字体写 ⌃ ⌥ ⌘。首页只用在演示选项卡里，是 22px 的小号（`keycap-xs`）；≤1023px 宽时选项卡不显示键位。
 当前模式的键帽换成咖啡色边框加深咖字。
 
 ### Tag
@@ -239,7 +226,7 @@ components:
 - **书签式选项卡**在面板顶部一行排开，顺序是划词翻译、闪电替换、截图翻译、语音输入，默认第一项。每项两行：上面名称，下面小键帽（开发中的功能显示标签而不是键位）。当前项是白页、压住下边线和舞台连成一体，其余退到纸背色。标准 `tablist`：只有当前项可 Tab 进入，←/→ 循环、Home/End 到头尾，切换即选中。
 - **舞台**：四个场景叠在同一格里，只显示当前一个，舞台高度始终等于最高的场景，切换时页面不跳。闪电替换是同一个输入框里原文划掉、译文写在下面，下附一行安全边界；语音输入下附「开发中」说明。译文逐字流出，末尾跟一个咖啡色光标；再点一次当前项会重新流出；尊重 reduced-motion。
 - **底部提示**随当前模式变化，告诉访客怎样在这个页面上亲手试；触屏设备隐藏。
-- **响应式**：≤1023px 选项卡只留名称，「开发中」标签缩成名称后的小圆点。手机上只保留闪电替换的安全边界小字；≤820px 高收起选项卡、只留闪电替换（首屏标题讲的就是写回）；≤760px 高安全边界也让位；≤700px 高整个演示让位。
+- **响应式**：≤1023px 选项卡只留名称，「开发中」标签缩成名称后的小圆点。≤639px 宽时只保留闪电替换的安全边界小字；≤820px 高收起选项卡与底部提示、只留闪电替换（首屏标题讲的就是写回）；≤760px 高安全边界也让位；≤700px 高整个演示让位。
 - **光标**闪 6 下就停，不在流式结束后一直闪。
 
 ### Language Grid

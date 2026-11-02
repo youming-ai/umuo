@@ -7,13 +7,10 @@ dist/
 dist-ssr/
 *.tsbuildinfo
 
-# Tauri 生成物
-apps/desktop/src-tauri/gen/
-apps/desktop/src-tauri/
-# Cloudflare Vite 插件的本地状态（umuo.app 的 Worker 见 docs/DEPLOY.md）
+# Cloudflare 本地运行的状态目录（umuo.app 的 Worker 见 docs/DEPLOY.md）
 .wrangler/
 
-# 环境变量（Worker 的密钥存远端 secret，不进 git）
+# 环境变量（Worker 目前不需要任何 secret；本地若有 .env 也不进 git）
 .env
 .env.local
 .env.*.local
