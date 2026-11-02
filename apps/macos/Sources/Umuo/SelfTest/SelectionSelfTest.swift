@@ -85,16 +85,26 @@ enum SelectionSelfTest {
               "合成 ⌘C 失败：先恢复再报错")
 
         // 超时（400ms）之后、观察窗口（再 600ms）之内才写进来的复制结果：要再恢复一次。0.7s 两头都留了余量
+        // 慢机器（CI）上那条线程可能落在观察窗口之外：那时这项无从判断，如实跳过而不是报失败
         let wrote = OSAllocatedUnfairLock(initialState: false)
+        let landedAt = OSAllocatedUnfairLock<TimeInterval?>(initialState: nil)
+        let started = Date()
         let (late, restoredAfterLate) = attempt {
             Thread.detachNewThread {
                 Thread.sleep(forTimeInterval: 0.7)
                 appCopies("迟到的复制", into: NSPasteboard(name: name))
+                landedAt.withLock { $0 = Date().timeIntervalSince(started) }
                 wrote.withLock { $0 = true }
             }
         }
-        check("ClipboardFallback.lateCopy", late == .failure(.noSelection) && wrote.withLock { $0 } && restoredAfterLate,
-              "恢复之后才到的复制结果被再恢复一次")
+        let window = Double(ClipboardFallback.pollAttempts) * ClipboardFallback.pollInterval
+            + ClipboardFallback.lateCopyWindow
+        if let landed = landedAt.withLock({ $0 }), landed < window {
+            check("ClipboardFallback.lateCopy", late == .failure(.noSelection) && wrote.withLock { $0 } && restoredAfterLate,
+                  "恢复之后才到的复制结果被再恢复一次")
+        } else {
+            print("- ClipboardFallback.lateCopy: skipped: machine too slow, the late copy missed the observation window")
+        }
 
         // 连按两次：两次事务串行，各自取到自己的文本，最后剪贴板仍是原内容（不会被第一次清空后的空剪贴板盖掉）
         original.restore(pasteboard)
