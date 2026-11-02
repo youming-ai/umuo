@@ -66,11 +66,11 @@
 
 | 编号 | PRD | 要求 | 状态 | 实现证据与剩余验收 |
 | --- | --- | --- | --- | --- |
-| R1 | §12 | Sparkle 代码与签名清单链路 | 🟡 | `App/AppUpdater.swift`、`bundle.sh`、`scripts/sparkle-appcast.ts` 与 Worker 路由已改；本机签名冒烟通过，未发布 |
-| R2 | §12 | 正式密钥、线上路由、N → N+1 更新 | ⬜ | 真实下载、验签、替换、重启全流程，不能以本机清单生成替代 |
+| R1 | §12 | Sparkle 代码与签名清单链路 | 🟡 | `App/AppUpdater.swift`、`bundle.sh`、`scripts/sparkle-appcast.ts`、`release.yml`：SUFeedURL 为 GitHub `releases/latest/download/appcast.xml`，enclosure 指向同版本 Release 的 `umuo.app.tar.gz`；本机签名冒烟通过，N → N+1 未实测 |
+| R2 | §12 | 正式密钥、GitHub Releases 分发、N → N+1 更新 | 🟡 | 合入 main 自动发正式 Release（标 Latest，附件 `umuo.dmg` / `umuo.app.tar.gz` / `appcast.xml`），官网 `/download/macos` 302 到最新 `umuo.dmg`，R2 已下线；从 GitHub 真实下载、验签、替换、重启全流程待实测，不能以本机清单生成替代 |
 | R3 | §8、§12 | Developer ID、公证、Gatekeeper、DMG 与系统权限 | ⬜ | 实际正式产物及安装/升级记录 |
 | R4 | §8、§12 | Apple Silicon 真机、原生 release 性能 | ⬜ | 按 `RELEASE-GATES.md` 新测，旧 Tauri 数字不算通过 |
-| R5 | §12 | 旧用户桥接、官网直装与 Homebrew | ⬜ | 先解决旧系统版本门槛，再验证配置/历史/Key/登录项保留；Homebrew Cask 未建立 |
+| R5 | §12 | 官网直装与 Homebrew | 🟡 | 官网直装经 GitHub Releases 已打通（未公证）；Homebrew Cask 未建立。旧 Tauri 用户桥接不适用：没有旧 Tauri 用户，相关代码与脚本已删除 |
 
 ## 本轮精简的执行状态
 
@@ -169,3 +169,11 @@ Worker 一次性买断与官网购买入口（默认关闭）合入同一分支�
 2026-10-30 语音后处理接入与阶段 E（`feat/voice-delivery`，`03d8cb8`、`a7cc07b`）：`Engine.start_voice` FFI、双语音键与设置冲突检查、`EscapeRouter`、
 `voice` 历史场景、`VoiceDelivery` 目标核验与 AX/受控粘贴交付。根 `bun run verify` 全通过：Rust umuo-app 163、umuo-core 168、umuo-ffi 23、umuo-store 45、
 pipeline 15、event_wire 1，fmt/clippy 通过；341 项 Swift Testing（53 个 suite）；包内自检 75 项通过、9 项因 TCC 未授权跳过；签名打包冒烟通过。真机交付各路径未验证；未发布。
+
+2026-11-02 下载与自动更新改走 GitHub Releases（`feat/releases-via-github`）：Release 工作流发正式版并标 Latest，附件固定为 `umuo.dmg` / `umuo.app.tar.gz` / `appcast.xml`；
+SUFeedURL 改为 `releases/latest/download/appcast.xml`，enclosure 指向 `releases/download/v<版本>/umuo.app.tar.gz`；版本号主.次升到 0.2（避开旧 Tauri 版用过的 0.1.x）。
+官网 `/download/macos` 与 `/download/macos/appcast.xml` 改为 302 到 GitHub 最新版，其余旧下载地址与 `/api/release`、`/api/notify` 删除，
+Worker 去掉 `RELEASES`（R2）与 `NOTIFY_KV`（KV）绑定；旧 Tauri 桥接（minisign、`update.json`、`--updater-sign`、`--publish`、`cf-r2.sh`）删除——没有旧 Tauri 用户，R5 的桥接项不适用。
+根 verify 各步通过（lint 因工作树路径被 `biome.json` 忽略，临时去掉该忽略后单独跑：12 个文件无问题）：工具测试 10 项；Rust umuo-app 163、umuo-core 168、umuo-ffi 23、
+umuo-store 45、pipeline 15、event_wire 1，fmt/clippy 通过；314 项 Swift Testing（48 个 suite）；包内自检 75 项通过、9 项因 TCC 未授权跳过；签名打包冒烟通过。
+`site/` 的 verify 通过：Biome 59 个文件、8 个文件 85 项 Vitest、Void 构建核对；`cf-deploy.ts --dry-run` 绑定只剩 `ASSETS` 与 `VERSION_METADATA`。未部署、未发布。

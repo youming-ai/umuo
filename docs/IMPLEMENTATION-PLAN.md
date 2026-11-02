@@ -138,11 +138,11 @@
 
 ## 阶段 G 正式发布
 
-- [ ] 配置 Sparkle 正式密钥、部署 appcast 路由，实测 N → N+1 下载、验签、安装与重启。
+- [ ] 配置 Sparkle 正式密钥，从 GitHub Releases 实测 N → N+1 下载、验签、安装与重启（appcast 随 Release 发布，无需部署路由）。
 - [ ] Developer ID 签名、公证、Gatekeeper、DMG 拖装、TCC 与 Keychain 升级访问验收。
 - [ ] 原生 release 的性能、Apple Silicon 真机、VoiceOver、完整键盘操作、多显示器与权限走查。
-- [ ] 旧 Tauri 用户桥接单独验证最低 macOS 版本门槛、配置/历史/Key 与登录项保留。
-- [ ] 官网直装与后续 Homebrew Cask，按迁移文档发布。客户端改动合入 main 自动发 GitHub Releases 预发布包（2026-11-02 起），官网下载与 R2 仍手动更新。
+- [x] 官网直装：客户端改动合入 main 自动发 GitHub Releases 正式版（标 Latest，固定附件名），官网 `/download/macos` 302 到最新 `umuo.dmg`；R2 与旧 Tauri 桥接已删除（没有旧 Tauri 用户）。
+- [ ] Homebrew Cask，按迁移文档发布。
 
 完成条件：实际正式产物的发布证据齐全；代码接入、测试包和正式发布分别记录。
 

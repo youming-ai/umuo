@@ -60,10 +60,10 @@ Swift 视图模型与纯规则用 Swift Testing；不要在测试里碰真实 Ke
 
 ## 发布与兼容性
 
-发版手动进行，合进 main 不会发布。Actions → Release 目前只构建 SwiftUI 通用安装包并保留 artifact，不上传 R2。
-本机 `bun run bundle:macos -- --version X.Y.Z` 只产出文件；`bun run release:swift X.Y.Z` 默认也不上传。
-显式 `--publish` 会改线上下载与旧更新通道，操作前必须读迁移文档「阶段 5」，先解决应用内更新和最低系统版本门槛。
-旧 Tauri 发布命令已删除，不能再向线上发旧客户端。
+客户端改动合入 main 即由 `.github/workflows/release.yml` 发布到 GitHub Releases（`v0.2.<运行序号>`，正式版并标 Latest，尚未公证）。
+附件名固定为 `umuo.dmg` / `umuo.app.tar.gz` / `appcast.xml`：官网 `/download/macos` 与 Sparkle 的 SUFeedURL 都指向
+`releases/latest/download/<文件名>`，不要改附件名，也不要把 Release 标成预发布（预发布不算 latest）。
+本机 `bun run bundle:macos -- --version X.Y.Z` 与 `bun run release:swift X.Y.Z` 都只产出文件、不上传。官网不存安装包（没有 R2）。
 
 保留 Bundle ID `app.umuo.desktop`、`umuo.app` 与可执行文件名 `umuo-desktop`，不能破坏 Keychain、系统授权与旧 LaunchAgent。
 `settings.json` 只由 Rust 读写，Swift 只提交 patch；保留未知字段。历史沿用 `history.db` 与已发布迁移。

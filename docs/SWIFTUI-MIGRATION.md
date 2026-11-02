@@ -16,7 +16,7 @@
 | 2 Swift 平台层 | ✅ AX 取词与写回、Keychain、剪贴板降级、Carbon 组合键、CGEventTap 连按、系统框选、Vision OCR、朗读、LaunchAgent 均在 `Platform/`；真实系统权限与焦点仍需验收 |
 | 3 原生窗口 | ✅ 浮窗、设置、撰写、历史、首次引导、菜单栏快捷面板及 Swift Testing 已实现；对比窗已于阶段 A 精简移除；见 `Sources/Umuo/` 与 `Tests/UmuoTests/` |
 | 4 收费许可证 | ⬜ 2026-10-23 改为一次性买断、纯 BYOK；购买授权进入开发计划，商业参数与实现待完成，见 `IMPLEMENTATION-PLAN.md` 阶段 F |
-| 5 打包与分发 | 🟡 通用 `.app`、`.dmg`、`.app.tar.gz` 与本机打包冒烟已实现；Sparkle 已接入；Developer ID / 公证、更新闭环实测、Homebrew Cask 待完成 |
+| 5 打包与分发 | 🟡 通用 `.app`、`.dmg`、`.app.tar.gz` 与本机打包冒烟已实现；Sparkle 已接入；合入 main 自动发布到 GitHub Releases；Developer ID / 公证、更新闭环实测、Homebrew Cask 待完成 |
 | 6 清理与切换 | 🟡 已删除 `apps/desktop`、`umuo-platform*`、`packages/tokens`、旧发布脚本与 WebView CI；正式发布切换未完成 |
 
 ## 当前目录与开发
@@ -75,32 +75,25 @@ AppKit 提供非激活 NSPanel、NSStatusItem、NSPopover 和窗口管理。
 `bundle.sh --quick` 复用本机 debug 产物，只做 ad-hoc，不公证、不生成 DMG，供离线门禁使用。
 
 Release 工作流（`.github/workflows/release.yml`）：客户端改动（`apps/macos/`、`crates/`、`Cargo.*`）合入 main 后，先跑完整 CI，再构建通用安装包，
-以 `v0.1.<运行序号>` 发布到 GitHub Releases（预发布，未公证），附 `.dmg`、`.app.tar.gz` 与 appcast；也可在 Actions 手动运行并指定版本。
-只发 GitHub Releases，不上传 R2、不改官网下载（2026-11-02 起）。
-GitHub Actions 目前因账单问题不可用，先在本机跑 `bun run verify`。
+以 `v0.2.<运行序号>` 发布到 GitHub Releases：**正式版并标 Latest**（`--latest`，不是预发布），说明里写明尚未经 Apple 公证、
+首次打开需在「隐私与安全性」放行。也可在 Actions 手动运行并指定版本。版本号的主.次取自 `Cargo.toml` 的 `[workspace.package]`。
+
+附件名固定，不带版本号：
+
+| 附件 | 用途 |
+| --- | --- |
+| `umuo.dmg` | 通用安装包；官网 `/download/macos` 302 到 `releases/latest/download/umuo.dmg` |
+| `umuo.app.tar.gz` | Sparkle 更新包；appcast 的 enclosure 指向 `releases/download/v<版本>/umuo.app.tar.gz` |
+| `appcast.xml` | Sparkle 清单；包内 SUFeedURL 为 `https://github.com/youming-ai/umuo/releases/latest/download/appcast.xml` |
+
+`releases/latest/download/<固定名>` 永远指向最新的正式 Release，因此发布即上线，官网无需部署、也不存安装包（R2 已下线）。
+不要改附件名，也不要把 Release 标成预发布：预发布不算 latest，下载与更新都会停在上一版。
+官网 `/download/macos/appcast.xml` 也 302 到最新的 appcast.xml，早期构建的 SUFeedURL 指向官网这个地址，因此照样能收到更新。
+
+`bun run release:swift X.Y.Z` 是本机的「门禁 + 组装」：在干净、与 origin/main 一致的 main 上跑 `bun run verify`，
+构建通用包并生成 appcast，产物与 Release 附件同名，放在 `apps/macos/dist`，**不上传**。Actions 不可用时可据此手动
+`gh release create v<版本> --latest …` 上传。GitHub Actions 目前因账单问题不可用，先在本机跑 `bun run verify`。
 旧 `release:local` 和 Tauri 构建工作流已删除，不再产出旧客户端。
-
-### 旧用户更新桥接
-
-`bun run release:swift X.Y.Z` 在干净、与 origin/main 一致的 main 上跑门禁，构建 Swift 通用包与旧通道签名，
-在 `apps/macos/dist` 生成 `update.json` / `latest.json`，默认不上传。
-显式 `--publish` 才按「DMG、更新包、update.json、latest.json」顺序传 R2，避免清单指向未传完的文件。
-`appcast.xml` 由 Sparkle `sign_update` 签更新包，并用包内公钥再次验签后生成；上传包之后、旧清单之前上传。
-上传使用 `site/` 固定版本的 `cf` 与其登录态；清单的 `no-store` 由官网 Worker 响应设置。
-此处只记录现有发布脚本，不部署官网。
-
-旧用户的 Tauri Updater 验 minisign 签名、替换安装目录，再按新 Info.plist 重启，因此可以接收 Swift 包。
-仅 `--updater-sign` 显式请求时运行固定版本 `@tauri-apps/cli@2.12.1` 的 signer；它不再是项目依赖，也不构建旧客户端。
-私钥仍通过环境变量或本机私钥文件读取，不输出；环境变量名保留 `TAURI_SIGNING_PRIVATE_KEY` / `_PATH` 以兼容已有发版机。
-
-**桥接发布前必须满足：**
-
-1. 实测 Swift 自己的 Sparkle 更新 N → N+1（下载、验签、替换、重启），确认线上 appcast 路由已部署。代码接入不代替安装更新验收。
-2. 取得 Developer ID 并完成签名、公证与 Gatekeeper 验收。ad-hoc 每次更新会改变 cdhash，用户可能需要重新授权 TCC 与 Keychain。
-3. 明确最低系统版本变化：Swift 要 macOS 14+，旧 Tauri 版支持更早系统，旧更新器不看最低系统版本。
-   不接受让旧系统用户收到无法启动的更新时，保留线上旧 update.json，仅发布官网直装版。
-   当前发布脚本仍要求显式 `ACK_MIN_OS_14=1`；该变量不代替应用内更新与签名验收。
-4. 用测试密钥与本地更新清单走完一次旧版下载、验签、替换、重启到 Swift 的流程；保留旧用户的配置、历史、Key 与登录项。
 
 ### Sparkle 原生应用内更新（2026-10-23）
 
@@ -113,9 +106,8 @@ GitHub Actions 目前因账单问题不可用，先在本机跑 `bun run verify`
 - 打包嵌入完整 Sparkle 框架，按官方顺序签嵌套程序，再以 `codesign --verify --deep --strict` 检查。
   Developer ID 包保留库校验；无 Team ID 的 ad-hoc 包添加开发用关闭库校验权利。
 - `scripts/sparkle-appcast.ts` 用官方 `sign_update` 签名，再独立以包内公钥验签，生成含最低 macOS 14.0.0 的 appcast。
-- Worker `/download/macos/appcast.xml` 从 R2 流式返回且不缓存；未发布时回有效空 RSS，读取故障回 503。
-  这是代码改动，尚未部署线上。
-- 原生 Sparkle appcast 与旧 `update.json` 并存，共用 `.app.tar.gz`，使用两套不同签名密钥。
+- appcast 与更新包随每次 Release 一起发布在 GitHub Releases（见上表）；官网 Worker 只把旧的
+  `/download/macos/appcast.xml` 302 过去，不缓存。
 
 首次准备发版机（只需一次；私钥只进入本机 Keychain）：
 
@@ -144,13 +136,13 @@ rm -P ~/Desktop/umuo-sparkle-private.key
 默认 `sign_update --account app.umuo.desktop` 读专用 Keychain；自动化可用 `SPARKLE_PRIVATE_KEY_PATH` 指向官方导出的私钥文件，
 不把私钥放命令参数、日志或仓库。签名后脚本验证包内公钥，阻止误用另一把签名密钥。
 Release 工作流使用 repository variable `SPARKLE_PUBLIC_ED_KEY` 与 secret `SPARKLE_PRIVATE_KEY`，后者写入权限 600 的临时文件并在退出时删除。
-`release:swift` 会生成 appcast，显式 `--publish` 才上传；仍须满足上面的桥接发布条件。
+`release:swift` 会生成 appcast，但不上传。
 
 本机验证：根目录 `bun run verify` 通过（含 370 项 Swift Testing、FFI 自检与带 Sparkle 的签名打包冒烟），
 `site/` 的 `bun run verify` 通过（196 项 Vitest 与官网构建）。另用临时 Ed25519 测试密钥、官方 `sign_update` 和真实冒烟更新包
 跑通签名、独立公钥验签与 appcast 生成，不访问真实 Keychain；签名错误、篡改包与 XML 版本注入由工具测试拦截。
 
-尚待完成：正式密钥配置、Developer ID / 公证、部署 Worker 路由、真实 N → N+1 安装重启与旧用户桥接。
+尚待完成：Developer ID / 公证、真实 N → N+1 安装重启（从 GitHub Releases 下载、验签、替换、重启）。
 当前没有进行线上发布，不能将本机代码接入视为上述验收已通过。Homebrew Cask 仍未建立。
 
 官方依据：[程序化接入](https://sparkle-project.org/documentation/programmatic-setup/)、

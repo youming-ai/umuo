@@ -32,8 +32,9 @@ umuo 完全免费、以 MIT 许可证开源，纯 BYOK：用户自带模型 Key�
 
 ## 下载与安装
 
-从 [umuo.app/download/macos](https://umuo.app/download/macos) 下载预览版（macOS 14+，仅 Apple Silicon）；
-每次客户端改动合入 `main` 都会自动在 [GitHub Releases](https://github.com/youming-ai/umuo/releases) 发布一个预发布包。
+从 [umuo.app/download/macos](https://umuo.app/download/macos) 下载预览版（macOS 14+，仅 Apple Silicon），
+它会跳到 [GitHub Releases](https://github.com/youming-ai/umuo/releases) 最新版的 `umuo.dmg`；每次客户端改动合入 `main` 都会自动发布一个新版本，
+已安装的应用可在「设置 › 关于」里检查更新。
 预览版尚未经 Apple 公证：首次打开如被拦截，到**系统设置 → 隐私与安全性**点「仍要打开」。
 也可以按下方「从源码构建」自己编译。
 
@@ -46,7 +47,7 @@ umuo 完全免费、以 MIT 许可证开源，纯 BYOK：用户自带模型 Key�
 - [首版开发计划](docs/IMPLEMENTATION-PLAN.md)：精简、语音、开源与发布的次序和完成条件。
 - [实现与验收清单](docs/PRD-CONFORMANCE.md)：已有代码、新范围调整、未实现与真机验收。
 - [Handy 语音研究](docs/research/handy-voice-analysis.md)：源码证据和本地引擎实验方向。
-- [迁移与发布记录](docs/SWIFTUI-MIGRATION.md)：Developer ID、公证、Sparkle N → N+1 与旧用户桥接待办。
+- [迁移与发布记录](docs/SWIFTUI-MIGRATION.md)：GitHub Releases 发版、Developer ID、公证与 Sparkle N → N+1 待办。
 - [贡献指南](CONTRIBUTING.md)：许可、开发前须知与 PR 要求。
 
 官网 [umuo.app](https://umuo.app)（单页首页）与 Worker 在 [site/](site/)，合入 `main` 后由 Cloudflare Workers Builds 自动部署。
