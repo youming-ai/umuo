@@ -107,7 +107,9 @@ final class HotkeyCenter {
     /// 重注册完成（失败清单可以读了）、或补启动连按监听之后调用（设置窗据此刷新失败提示）。
     var onRegistered: (@MainActor () -> Void)?
     /// 语音快捷键的按下（带任务：整理键 / 翻译键）与松开（`VoiceController` 接上）。没接上就不注册语音键。
-    var voice: (press: @MainActor (VoiceTask) -> Void, release: @MainActor () -> Void)?
+    /// `interrupt`：组合键要被注销时调用——按住期间注销，松开事件就再也收不到了，由它取消还按着的那次录音。
+    var voice: (press: @MainActor (VoiceTask) -> Void, release: @MainActor () -> Void,
+                interrupt: @MainActor () -> Void)?
 
     init(perform: @escaping @MainActor (HotkeyAction) -> Void) {
         self.perform = perform
@@ -131,12 +133,18 @@ final class HotkeyCenter {
             self.values = values
             return
         }
-        for status in combos.unregisterAll() {
-            print("umuo: 清除旧快捷键失败：OSStatus \(status)")
-        }
+        unregisterCombos()
         register(values)
         // 通知设置窗：重注册已完成，可以读新的失败清单了（比猜一个延时可靠）。
         onRegistered?()
+    }
+
+    /// 注销全部组合键。语音键可能正被按住：注销后系统不再送来松开事件，先取消那次录音（不交付）。
+    private func unregisterCombos(_ context: String = "清除旧快捷键失败") {
+        voice?.interrupt()
+        for status in combos.unregisterAll() {
+            print("umuo: \(context)：OSStatus \(status)")
+        }
     }
 
     /// 注册全局快捷键。注册失败**不让启动失败**：一个被别的 App 占用的组合键不该把整个客户端拖垮（PRD §12.1）。
@@ -199,6 +207,7 @@ final class HotkeyCenter {
 
     /// 注销全部组合键（退出、或 selftest 收尾）。连按绑定一并清空，监听线程留着但不再触发任何功能。
     func unregisterAll() {
+        voice?.interrupt()
         combos.unregisterAll()
         doubleTaps.replaceBindings([])
     }
@@ -224,10 +233,8 @@ final class HotkeyCenter {
         let wasRecording = recordingUntil != nil
         recordingUntil = active ? Self.now() + Self.recordingLimit : nil
         if active {
-            for status in combos.unregisterAll() {
-                // 注销失败时，已占用的组合仍会被系统截走、录键器收不到——至少留下记录便于排查。
-                print("umuo: 录快捷键前注销全局快捷键失败：OSStatus \(status)")
-            }
+            // 注销失败时，已占用的组合仍会被系统截走、录键器收不到——至少留下记录便于排查。
+            unregisterCombos("录快捷键前注销全局快捷键失败")
             DispatchQueue.main.asyncAfter(deadline: .now() + Self.recordingLimit + 0.2) { [weak self] in
                 MainActor.assumeIsolated {
                     guard let self, let until = self.recordingUntil, Self.now() >= until else { return }

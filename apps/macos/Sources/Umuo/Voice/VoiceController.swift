@@ -139,6 +139,14 @@ final class VoiceController {
     func release() { feed(.release) }
     /// Esc 或浮层的关闭按钮。
     func cancel() { feed(.cancel) }
+    /// 语音键要被注销（录快捷键、改快捷键设置）：还按着的话松开事件再也收不到，录音会一直录到上限再自动交付。
+    /// 这时取消（不是松开）——这段录音什么都不交付。已经松开、在转写或后处理的会话不受影响。
+    func cancelIfHolding() {
+        switch overlay.phase {
+        case .starting, .recording: cancel()
+        default: break
+        }
+    }
     /// 浮层上的「重试」：后处理失败或结果被截断时，用同一段转写、同一个任务再做一次。
     func retry() { feed(.retry) }
 

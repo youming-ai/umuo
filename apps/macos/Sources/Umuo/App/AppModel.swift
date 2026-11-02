@@ -123,7 +123,8 @@ final class AppModel {
         controller.deliverer = FocusedFieldDelivery()
         controller.overlay.hotkeyLabels = HotkeyCenter.voiceLabels([:])
         controller.overlay.onOpenMicSettings = { NSWorkspace.shared.open(MicrophoneAccess.settingsURL) }
-        hotkeys.voice = (press: { controller.press($0) }, release: { controller.release() })
+        hotkeys.voice = (press: { controller.press($0) }, release: { controller.release() },
+                         interrupt: { controller.cancelIfHolding() })
         voice = controller
     }
 

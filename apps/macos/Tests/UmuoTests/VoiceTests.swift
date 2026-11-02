@@ -334,6 +334,32 @@ struct VoiceControllerTests {
         #expect(rig.phase == .cancelled)
     }
 
+    @Test func 按住期间快捷键被注销_取消录音什么都不交付() async {
+        // 录快捷键或改快捷键设置会注销组合键，松开事件再也收不到：不取消就会录到上限再自动交付
+        let rig = Rig()
+        rig.controller.press()
+        await until { rig.phase == .recording }
+        rig.controller.cancelIfHolding()
+        #expect(rig.phase == .cancelled)
+        #expect(rig.recorder.recording == nil)
+        #expect(rig.recorder.discarded == [1])
+        await settle()
+        #expect(rig.transcriber.audioSeen(1) == nil, "取消的录音不转写")
+    }
+
+    @Test func 已松开的会话不受快捷键注销影响() async {
+        let rig = Rig()
+        rig.transcriber.hold = true
+        await rig.speak()
+        #expect(rig.phase == .transcribing)
+        rig.controller.cancelIfHolding()
+        #expect(rig.phase == .transcribing)
+        #expect(rig.transcriber.cancelled.isEmpty)
+        rig.transcriber.finish(rig.session, with: "今天下午三点开会")
+        await until { !rig.busy }
+        #expect(rig.phase == .done(text: "今天下午三点开会", transcript: "今天下午三点开会", truncated: false))
+    }
+
     @Test func 转写中Esc_中止引擎_迟到的结果不显示() async {
         let rig = Rig()
         rig.transcriber.hold = true

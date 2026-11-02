@@ -23,3 +23,21 @@ enum PanelRules {
         return CGPoint(x: x, y: y)
     }
 }
+
+/// 快捷键触发的先后：取词是阻塞的（⌘C 降级最长约 1 秒），先按的键可能后取完。
+///
+/// 每次按键 `begin` 拿一个序号；取完时只有仍是最新的那次才显示浮窗、开始翻译。
+/// 更新的浮窗内容（截图翻译、引导翻译）或用户按 Esc 时 `invalidate`：还没取完的旧按键一律作废——
+/// 否则它会把浮窗挪走、把归属换成此刻的前台应用（「替换原文」就可能写进第三个应用），或把刚收起的浮窗又弹出来。
+struct TriggerGate {
+    private(set) var latest = 0
+
+    mutating func begin() -> Int {
+        latest += 1
+        return latest
+    }
+
+    mutating func invalidate() { latest += 1 }
+
+    func isCurrent(_ sequence: Int) -> Bool { sequence == latest }
+}

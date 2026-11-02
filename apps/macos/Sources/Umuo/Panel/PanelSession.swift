@@ -53,6 +53,10 @@ final class PanelSession {
     var owner: String?
     var locale: AppLocale = .source
     var t: Translate { Translate(locale: locale) }
+    /// 「替换原文」正在后台写回：期间不让再点（双击会把译文插两遍）。
+    private(set) var replacing = false
+    /// 已经替换成功的那次请求：同一份译文只写回一次，再点就是重复插入。
+    private(set) var replacedRequestId: UInt64?
 
     weak var backend: PanelBackend?
 
@@ -87,7 +91,13 @@ final class PanelSession {
 
     /// 流式中途的半截译文不能拿去复制或替换（审查 M18）；出错时的译文可能是上一段的残留（审查 M15）。
     var canCopy: Bool { !state.translation.isEmpty && state.status != .streaming }
-    var canReplace: Bool { !state.translation.isEmpty && state.status == .done }
+    /// 只写回一次：写回进行中、这次译文已替换过（包括静默替换已经自动写回的）都不再给。
+    /// OCR 结果窗没有源应用（归属是本应用自己），没有原文可替换，也不给。
+    var canReplace: Bool {
+        !state.translation.isEmpty && state.status == .done && state.mode != .ocr
+            && !(state.mode == .silentReplace && state.replaced)
+            && !replacing && replacedRequestId != state.requestId
+    }
     /// 只有 OCR 结果窗的原文可编辑：划词路径里改原文没有意义（那段文字还在用户自己的文档里）。
     var editableSource: Bool { state.mode == .ocr }
     var canRetranslateDraft: Bool {
@@ -136,14 +146,20 @@ final class PanelSession {
     func stopSpeaking() { backend?.stopSpeaking() }
 
     func replace() {
-        guard canReplace else { return }
+        guard canReplace, let backend else { return }
         let text = state.translation
         let owner = owner
+        let requestId = state.requestId
+        replacing = true
         Task {
-            guard let backend else { return }
-            if let reason = await backend.replace(text, owner: owner) {
+            let reason = await backend.replace(text, owner: owner)
+            replacing = false
+            // 写回期间浮窗已经换成了新的一次翻译：这条结果说的是旧译文，不能落在新译文上
+            guard state.requestId == requestId else { return }
+            if let reason {
                 actionNotice = t("panel.replaceFailed", ["reason": reason])
             } else {
+                replacedRequestId = requestId
                 actionNotice = t("panel.replaced")
             }
         }

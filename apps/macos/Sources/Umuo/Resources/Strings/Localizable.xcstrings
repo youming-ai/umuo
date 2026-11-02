@@ -4550,6 +4550,35 @@
         }
       }
     },
+    "panel.replaceUnknownSource": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "没能确认原文来自哪个应用，已放弃替换原文"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "無法確認原文來自哪個應用程式，已放棄取代原文"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Couldn't tell which app the text came from, so it wasn't replaced"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "原文の取得元アプリを確認できなかったため、置換を中止しました"
+          }
+        }
+      }
+    },
     "panel.replaced": {
       "extractionState": "manual",
       "localizations": {

@@ -59,9 +59,9 @@ enum PanelSelfTest {
         var detail = ""
         do { try ReplaceSelection.replace("译文") } catch { detail = error.text.key }
         check("ReplaceSelection.replace", detail == "error.accessibilityRequired", "没有辅助功能权限时拒绝：\(detail)")
-        // 没权限时 pid 也取不到：守卫按「之前就拿不到」放行，写入本身再被权限拦下
+        // 不知道源应用（没权限时 pid 也取不到）：直接拒绝，不碰写入
         let refused = PanelController.replaceSource("译文", owner: nil, t: Translate(locale: .zhCN))
-        check("PanelController.replaceSource", refused == "写回原文失败：需要系统权限：辅助功能",
+        check("PanelController.replaceSource", refused == Translate(locale: .zhCN)("panel.replaceUnknownSource"),
               refused ?? "nil")
     }
 
@@ -75,7 +75,8 @@ enum PanelSelfTest {
         let plan = planReplace(owner: own, current: "1", own: own) == .noSource
             && planReplace(owner: "1", current: own, own: own) == .refocus
             && planReplace(owner: "1", current: "1", own: own) == .write
+            && planReplace(owner: nil, current: "1", own: own) == .unknownSource
             && replaceTargetError(owner: "1", current: "2") == "目标应用已切换，已放弃替换原文"
-        check("planReplace", plan, "没有源应用 / 先切回源应用 / 交给守卫")
+        check("planReplace", plan, "没有源应用 / 不知道源应用 / 先切回源应用 / 交给守卫")
     }
 }

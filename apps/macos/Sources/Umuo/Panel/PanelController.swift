@@ -19,12 +19,14 @@ final class PanelController: PanelBackend {
     unowned let app: AppModel
     private lazy var window: PanelWindow = {
         let window = PanelWindow(rootView: PanelView(session: session))
-        window.onEscape = { [weak self] in self?.session.escape() }
+        window.onEscape = { [weak self] in self?.userEscape() }
         return window
     }()
 
     /// 每次显示加一：显示之后在后台取到的归属只认最新的那次显示。
     private var showGeneration = 0
+    /// 划词 / 原地替换按键的先后（见 `TriggerGate`）。只在 MainActor 上读写。
+    var triggers = TriggerGate()
     private var watchdog: Task<Void, Never>?
     /// 浮窗可见期间的 Esc（见 `armEscape`），与语音浮层共用一个注册者，按最近认领的一方路由。
     private var escape: EscapeRouter { app.escape }
@@ -63,6 +65,8 @@ final class PanelController: PanelBackend {
     /// 也不能沿用上一次划词的归属（「替换原文」会把 OCR 译文写进那个应用）。先写归属再显示。
     func ensureShown() {
         showGeneration += 1
+        // 浮窗换成了这次的内容：还没取完的划词按键不能再把它挪走、把归属改回某个应用
+        triggers.invalidate()
         session.owner = Self.ownToken
         refreshAppearance()
         if !window.isVisible {
@@ -101,8 +105,14 @@ final class PanelController: PanelBackend {
             guard let self else { return }
             // 系统级热键先于输入法拿到 Esc：OCR 原文框里正在组字（拼音、日文候选）时，这一下只取消组字
             if self.cancelComposition() { return }
-            self.session.escape()
+            self.userEscape()
         }
+    }
+
+    /// 用户按了 Esc（取消翻译或收起浮窗）：还没取完的按键一并作废，免得取完后又把浮窗弹出来。
+    private func userEscape() {
+        triggers.invalidate()
+        session.escape()
     }
 
     /// 浮窗是 key、第一响应者是正在组字的文本视图时，丢弃未上屏的组字（等同输入法自己处理 Esc），返回 true。
@@ -261,9 +271,12 @@ final class PanelController: PanelBackend {
     /// 守卫用**显示浮窗时记下的那个应用**：与静默翻译同一套保护，用户切走了就不写回。
     /// 浮窗是真·非激活面板，点按钮不会激活 umuo，所以通常直接走 `.write`；前台恰好是 umuo 自己的别的窗口时，
     /// 先把源应用切回前台、等焦点回来再写（`.refocus`）。
+    ///
+    /// 显示浮窗时没取到源应用（应用无响应、安全输入）就拒绝：没有可比对的标识，此刻的前台可能早已是别的应用。
     nonisolated static func replaceSource(_ text: String, owner: String?, t: Translate) -> String? {
         switch planReplace(owner: owner, current: FrontmostApp.liveToken(), own: ownToken) {
         case .noSource: return noSourceMessage()
+        case .unknownSource: return t("panel.replaceUnknownSource")
         case .refocus: if let owner { ReplaceSelection.refocus(owner) }
         case .write: break
         }

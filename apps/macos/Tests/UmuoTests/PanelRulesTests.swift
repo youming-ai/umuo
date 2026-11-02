@@ -3,6 +3,26 @@ import Testing
 import UmuoCore
 @testable import Umuo
 
+@Suite("快捷键触发的先后")
+struct TriggerGateTests {
+    @Test func 先按的键后取完_不再显示() {
+        var gate = TriggerGate()
+        let slow = gate.begin()
+        let fast = gate.begin()
+        #expect(gate.isCurrent(fast))
+        #expect(!gate.isCurrent(slow))
+    }
+
+    @Test func 按Esc或换成别的内容后_没取完的按键作废() {
+        var gate = TriggerGate()
+        let pending = gate.begin()
+        gate.invalidate()
+        #expect(!gate.isCurrent(pending))
+        let next = gate.begin()
+        #expect(gate.isCurrent(next))
+    }
+}
+
 @Suite("浮窗规则")
 struct PanelRulesTests {
     private let screen = CGRect(x: 0, y: 0, width: 1440, height: 900)
@@ -80,6 +100,12 @@ struct PanelRulesTests {
         #expect(planReplace(owner: own, current: "100", own: own) == .noSource)
         #expect(planReplace(owner: "100", current: own, own: own) == .refocus)
         #expect(planReplace(owner: "100", current: "100", own: own) == .write)
+        // 不知道源应用：不管此刻前台是谁都不写回
+        #expect(planReplace(owner: nil, current: "100", own: own) == .unknownSource)
+        #expect(planReplace(owner: nil, current: nil, own: own) == .unknownSource)
+        #expect(replaceTargetError(owner: nil, current: "100") != nil)
+        #expect(PanelController.replaceSource("译文", owner: nil, t: Translate(locale: .en))
+            == Translate(locale: .en)("panel.replaceUnknownSource"))
         #expect(noSourceMessage() == "这段文字不是从别的应用里取的，没有可替换的原文")
         #expect(replaceTargetError(owner: "100", current: "100") == nil)
         #expect(replaceTargetError(owner: "100", current: "200") == "目标应用已切换，已放弃替换原文")

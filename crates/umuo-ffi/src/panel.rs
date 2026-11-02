@@ -10,6 +10,8 @@ use crate::engine::Engine;
 pub enum ReplacePlan {
     /// 没有源应用（截图 OCR）：没有原文可替换。
     NoSource,
+    /// 不知道原文来自哪个应用：拒绝写回。
+    UnknownSource,
     /// 前台是本应用：先把源应用切回前台再写。
     Refocus,
     /// 直接交给写回守卫。
@@ -20,6 +22,7 @@ impl From<rules::ReplacePlan> for ReplacePlan {
     fn from(plan: rules::ReplacePlan) -> Self {
         match plan {
             rules::ReplacePlan::NoSource => Self::NoSource,
+            rules::ReplacePlan::UnknownSource => Self::UnknownSource,
             rules::ReplacePlan::Refocus => Self::Refocus,
             rules::ReplacePlan::Write => Self::Write,
         }

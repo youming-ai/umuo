@@ -39,6 +39,31 @@ private final class FakeBackend: PanelBackend {
     func openSystemSettings(_ permission: PermissionKind) { systemSettings.append(permission) }
 }
 
+/// 写回要等测试放行才返回：用来模拟「写回期间浮窗换成了新的一次翻译」。
+@MainActor
+private final class SlowReplaceBackend: PanelBackend {
+    private var pending: CheckedContinuation<String?, Never>?
+
+    func translate(_: TranslateRequest) {}
+    func cancelTranslation() {}
+    func hidePanel() {}
+    func copy(_: String) async -> String? { nil }
+    func speak(_: String) {}
+    func stopSpeaking() {}
+    func replace(_: String, owner _: String?) async -> String? {
+        await withCheckedContinuation { pending = $0 }
+    }
+
+    func finish(_ result: String?) {
+        pending?.resume(returning: result)
+        pending = nil
+    }
+
+    func openCompose(text _: String, translation _: String?, owner _: String?) {}
+    func openSettings() {}
+    func openSystemSettings(_: PermissionKind) {}
+}
+
 private func route(_ id: UInt64) -> Route { Route(surface: "panel", requestId: id) }
 
 private func start(_ id: UInt64, _ text: String = "Hello world", mode: String = "selection") -> TranslateEvent {
@@ -130,16 +155,73 @@ struct PanelSessionTests {
     @Test func 替换原文写回浮窗归属的应用并说明结果() async {
         let (session, backend) = translatedSession()
         session.owner = "4242"
-        session.replace()
-        await settle()
-        #expect(backend.replaced.map(\.0) == ["你好世界"])
-        #expect(backend.replaced.map(\.1) == ["4242"])
-        #expect(session.actionNotice == "已替换原文")
-
         backend.replaceResult = "目标应用已切换，已放弃替换原文"
         session.replace()
         await settle()
         #expect(session.actionNotice == "替换失败：目标应用已切换，已放弃替换原文")
+        // 失败了可以再试
+        #expect(session.canReplace)
+
+        backend.replaceResult = nil
+        session.replace()
+        await settle()
+        #expect(backend.replaced.map(\.0) == ["你好世界", "你好世界"])
+        #expect(backend.replaced.map(\.1) == ["4242", "4242"])
+        #expect(session.actionNotice == "已替换原文")
+    }
+
+    @Test func 替换原文只写回一次_连点与成功后再点都不重复插入() async {
+        let (session, backend) = translatedSession()
+        session.owner = "4242"
+        session.replace()
+        session.replace() // 双击：第一次还没回来
+        #expect(!session.canReplace)
+        await settle()
+        session.replace() // 成功之后再点
+        await settle()
+        #expect(backend.replaced.count == 1)
+        #expect(!session.canReplace)
+
+        // 新的一次翻译又可以替换
+        session.apply(route: route(2), event: start(2))
+        session.apply(route: route(2), event: .delta(text: "新的译文"))
+        session.apply(route: route(2), event: doneEvent)
+        #expect(session.canReplace)
+    }
+
+    @Test func 静默替换已写回与OCR结果不给替换原文() {
+        let replacedDone = TranslateEvent.done(warning: nil, model: "gpt-4o-mini", inputTokens: 1, outputTokens: 1,
+                                               estimated: false, firstTokenMs: nil, totalMs: 10, replaced: true)
+        let session = PanelSession(backend: FakeBackend())
+        session.apply(route: route(1), event: start(1, mode: "silentReplace"))
+        session.apply(route: route(1), event: .delta(text: "你好世界"))
+        session.apply(route: route(1), event: replacedDone)
+        #expect(!session.canReplace)
+
+        // 静默替换被守卫拦下、没有写回：仍可手动替换
+        let (refused, _) = translatedSession(mode: "silentReplace")
+        #expect(refused.canReplace)
+
+        let (ocr, _) = translatedSession(mode: "ocr", text: "截图里的字")
+        #expect(!ocr.canReplace)
+    }
+
+    @Test func 写回期间换了新翻译_旧结果的提示不落在新译文上() async {
+        let backend = SlowReplaceBackend()
+        let session = PanelSession(backend: backend)
+        session.apply(route: route(1), event: start(1))
+        session.apply(route: route(1), event: .delta(text: "你好世界"))
+        session.apply(route: route(1), event: doneEvent)
+        session.owner = "4242"
+        session.replace()
+        await settle()
+        session.apply(route: route(2), event: start(2, "Another"))
+        backend.finish(nil)
+        await settle()
+        #expect(session.actionNotice == nil)
+        session.apply(route: route(2), event: .delta(text: "另一句"))
+        session.apply(route: route(2), event: doneEvent)
+        #expect(session.canReplace)
     }
 
     @Test func 复制失败要说出来() async {

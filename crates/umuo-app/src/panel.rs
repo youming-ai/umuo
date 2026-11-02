@@ -40,6 +40,11 @@ pub fn should_auto_hide(
 pub enum ReplacePlan {
     /// 浮窗没有源应用（截图 OCR）：没有原文可替换。
     NoSource,
+    /// 不知道原文来自哪个应用（取前台标识失败：应用无响应、安全输入等）：拒绝写回。
+    ///
+    /// 与静默翻译的「之前就拿不到就放行」不同：静默翻译在按键的那一刻读取并写回同一个输入框，
+    /// 而浮窗的替换是用户过了一会儿才点的——此时前台是谁完全不确定，放行就可能写进别的应用。
+    UnknownSource,
     /// 前台是本应用：先把源应用切回前台，等焦点回来再写。
     Refocus,
     /// 直接交给写回守卫（[`crate::translate::target_still_matches`]）：前台仍是源应用就写，换了就拒绝。
@@ -51,6 +56,7 @@ pub const NO_SOURCE_MESSAGE: &str = "这段文字不是从别的应用里取的�
 
 pub fn plan_replace(owner: Option<&str>, current: Option<&str>, own: &str) -> ReplacePlan {
     match owner {
+        None => ReplacePlan::UnknownSource,
         Some(owner) if owner == own => ReplacePlan::NoSource,
         Some(_) if current == Some(own) => ReplacePlan::Refocus,
         _ => ReplacePlan::Write,
@@ -62,8 +68,12 @@ pub fn plan_replace(owner: Option<&str>, current: Option<&str>, own: &str) -> Re
 ///
 /// 翻译花了几秒，用户完全可能已经切到别的窗口。这时写回等于把译文打进另一个应用——
 /// 宁可不替换，也不能写错地方。`owner` 是显示浮窗时记下的源应用，`current` 是现查的前台。
+///
+/// 不知道源应用（`owner` 为空）时同样拒绝：静默翻译那条「之前就拿不到就放行」只适用于按键当场写回，
+/// 浮窗的替换隔了一段时间，没有可比对的标识就无从确认写到哪里（见 [`ReplacePlan::UnknownSource`]）。
 pub fn replace_target_error(owner: Option<&str>, current: Option<String>) -> Option<String> {
-    (!target_still_matches(owner, current)).then(|| CoreError::WriteTargetChanged.to_string())
+    let matches = owner.is_some() && target_still_matches(owner, current);
+    (!matches).then(|| CoreError::WriteTargetChanged.to_string())
 }
 
 /// 写入本身失败（AX 与 ⌘V 都没写进去）时给用户看的话，与静默翻译的 `WriteBackFailed` 同一句式。
@@ -176,7 +186,14 @@ mod replace_plan_tests {
             plan_replace(Some("app-A"), Some("app-B"), OWN),
             ReplacePlan::Write
         );
-        assert_eq!(plan_replace(None, Some(OWN), OWN), ReplacePlan::Write);
+    }
+
+    #[test]
+    fn an_unknown_source_app_never_writes_back() {
+        // 取不到源应用（无响应、安全输入）时，点「替换原文」不能把译文写进此刻的前台应用。
+        for current in [None, Some(OWN), Some("app-A")] {
+            assert_eq!(plan_replace(None, current, OWN), ReplacePlan::UnknownSource);
+        }
     }
 }
 
@@ -191,8 +208,9 @@ mod replace_guard_tests {
         assert_eq!(changed, "目标应用已切换，已放弃替换原文");
         // 之前拿得到、现在拿不到：按已切换处理。
         assert!(replace_target_error(Some("42"), None).is_some());
-        // 之前就拿不到：放行，交给写入本身。
-        assert_eq!(replace_target_error(None, None), None);
+        // 之前就拿不到：浮窗替换不放行（与静默翻译的取舍不同，见 `ReplacePlan::UnknownSource`）。
+        assert!(replace_target_error(None, None).is_some());
+        assert!(replace_target_error(None, Some("42".into())).is_some());
     }
 
     #[test]

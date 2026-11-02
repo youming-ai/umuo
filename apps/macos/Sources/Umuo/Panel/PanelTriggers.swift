@@ -14,6 +14,8 @@ extension PanelController {
     private func triggerTranslation(silent: Bool) {
         guard let engine = app.engine else { return showNotice(app.engineStatus, permission: nil) }
         let wakeStarted = ContinuousClock.now
+        // 取完时不再是最新的按键（之后又按了一次、按了 Esc、浮窗换成了截图翻译）：什么都不做
+        let sequence = triggers.begin()
         Task.detached {
             // 按下快捷键就顶掉浮窗上一次的请求：哪怕这次取词失败，旧译文也不该继续流进来。
             // 取词成功后也用这张凭据翻译（`startTranslation(ticketId:)`），先按的键不会因为取词慢而后来居上。
@@ -22,6 +24,7 @@ extension PanelController {
             // PRD §7.3 的取词黑名单：密码管理器等应用**在读取之前**就拦下，并用浮窗说清楚。
             if let notice = Self.blockNotice(engine) {
                 await MainActor.run {
+                    guard self.triggers.isCurrent(sequence) else { return }
                     self.showNearCursor()
                     self.report(requestId: id, message: notice, permission: nil, actions: [.openModelSettings])
                 }
@@ -37,6 +40,8 @@ extension PanelController {
             let readMs = (ContinuousClock.now - wakeStarted).milliseconds
 
             await MainActor.run {
+                // 旧按键取得慢、后取完：不挪浮窗、不重设归属、不把已收起的浮窗弹回来，也不报错
+                guard self.triggers.isCurrent(sequence) else { return }
                 self.showNearCursor()
                 print("umuo: 取词耗时 \(readMs)ms\(read.isSuccess ? "" : "（失败）")；唤起耗时 \((ContinuousClock.now - wakeStarted).milliseconds)ms")
                 switch read {
