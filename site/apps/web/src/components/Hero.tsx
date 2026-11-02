@@ -13,6 +13,7 @@ import { DownloadPanel } from './DownloadButton'
  * 演示有划词 / 闪电替换 / 截图 / 语音四种模式，点上面的选项卡切换，划词、替换与语音也能直接按快捷键；
  * 默认停在第一项「划词翻译」；顺序由文案数据决定。
  * 切换时译文重新逐字流出（由访客触发的动效），首次加载时流一次。
+ * 手机（触屏）上演示由 CSS 隐藏、只留文字与「复制网址」；照样渲染，桌面与手机共用一份预渲染 HTML。
  */
 export function Hero({ content }: { content: SiteContent }) {
   const { hero } = content

@@ -1,5 +1,7 @@
 // @vitest-environment happy-dom
 
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { act } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -200,6 +202,47 @@ describe('首页一屏', () => {
     expect(host.querySelector('#download a[href*="github.com"]')).toBeNull()
     expect(host.querySelector('footer a[href="https://github.com/youming-ai/umuo"]')).toBeNull()
     expect(host.querySelector('a[href*="pricing"]')).toBeNull()
+  })
+})
+
+describe('手机端只留文字与一个按钮', () => {
+  // happy-dom 不计算媒体查询：桌面与手机共用同一份 DOM，手机上的隐藏只能从样式表里断言
+  const css = readFileSync(join(import.meta.dirname, '../styles/app.css'), 'utf8')
+  const touch = '@media (hover: none) and (pointer: coarse) {'
+  const touchBlocks = css
+    .split(touch)
+    .slice(1)
+    .map((rest) => rest.slice(0, rest.indexOf('\n  }\n')))
+
+  it('触屏条件下隐藏演示与字符网格，且只在这一条件下隐藏', () => {
+    expect(
+      touchBlocks.some((block) =>
+        /\.hero-demo,\s*\.language-grid\s*\{\s*display: none;/.test(block),
+      ),
+    ).toBe(true)
+    // 按视口高度给手机分档的规则已经删掉
+    expect(css).not.toMatch(/max-height/)
+    expect(css).not.toContain(':has(.download-next)')
+  })
+
+  it('复制网址是普通描边按钮，不用厚底按压', () => {
+    const rule = css.match(/\n {2}\.btn-secondary \{[^}]*\}/)?.[0] ?? ''
+    expect(rule).toContain('border: 1.5px solid var(--accent-strong)')
+    expect(rule).not.toContain('--press-depth')
+    expect(css).not.toMatch(/\.btn-secondary[^{]*:active[^{]*\{[^}]*translateY/)
+  })
+
+  it('复制网址：成功显示「已复制」，失败说出来并给出网址', async () => {
+    const button = () => host.querySelector<HTMLButtonElement>('.download-touch button')
+    const writeText = vi.fn().mockResolvedValueOnce(undefined).mockRejectedValueOnce(new Error('x'))
+    vi.stubGlobal('navigator', { clipboard: { writeText } })
+    await act(async () => button()?.click())
+    expect(writeText).toHaveBeenCalledWith('https://umuo.app')
+    expect(button()?.textContent).toBe('已复制')
+    await act(async () => button()?.click())
+    expect(host.querySelector('.download-touch [role="status"]')?.textContent).toBe(
+      '没能复制，请手动记下 umuo.app',
+    )
   })
 })
 

@@ -197,7 +197,6 @@
   /* —— 按钮：「节拍」厚底可按压（多邻国式）——
      几何只写一次，变体只声明颜色；新增变体加进这个选择器列表，不要复制几何。
      按压 = 底部实心厚边 + 悬停微抬 + 按下下沉、厚边收窄。 —— */
-  .btn-secondary,
   .btn-solid {
     @apply inline-flex items-center justify-center gap-2 whitespace-nowrap;
     height: 3.5rem;
@@ -216,31 +215,36 @@
       border-bottom-width 100ms ease;
   }
 
-  .btn-secondary:hover:not(:disabled),
   .btn-solid:hover:not(:disabled, .is-pending) {
     transform: translateY(var(--press-lift-hover));
   }
 
-  .btn-secondary:active:not(:disabled),
   .btn-solid:active:not(:disabled, .is-pending) {
     transform: translateY(var(--press-lift-active));
     border-bottom-width: var(--press-depth-active);
   }
 
-  .btn-secondary:disabled,
   .btn-solid:disabled {
     opacity: 0.45;
     cursor: not-allowed;
   }
 
-  /* 次按钮：白页底、浅咖厚边 */
+  /* 次按钮（手机上的「复制网址」）：普通描边按钮，没有厚底与位移，按下只铺一层淡咖底 */
   .btn-secondary {
-    color: var(--ink);
-    border-color: var(--rule-strong);
-    background: var(--paper-elevated);
+    @apply inline-flex items-center justify-center gap-2 whitespace-nowrap;
+    height: 3rem;
+    padding: 0 1.5rem;
+    border: 1.5px solid var(--accent-strong);
+    border-radius: var(--radius-control);
+    background: transparent;
+    color: var(--accent-strong);
+    font-size: 1rem;
+    font-weight: 600;
+    transition: background-color 150ms ease;
   }
 
-  .btn-secondary:hover:not(:disabled) {
+  .btn-secondary:hover,
+  .btn-secondary:active {
     background: var(--coffee-soft);
   }
 
@@ -487,7 +491,7 @@
     font-size: 0.9375rem;
   }
 
-  /* 触屏设备拿不到能用的 Mac 安装包：换成「请在 Mac 上打开」与复制网址 */
+  /* 触屏设备拿不到能用的 Mac 安装包：换成「请在 Mac 上打开」与复制网址（手机端其余简化在本层末尾） */
   .download-touch {
     display: none;
   }
@@ -852,7 +856,7 @@
     .demo-scene {
       gap: 0.75rem;
     }
-    /* 手机上演示按正文尺寸显示：四个场景叠放、舞台按最长的一个撑高，字号收一档长译文也能留在首屏 */
+    /* 窄窗口里演示按正文尺寸显示：四个场景叠放、舞台按最长的一个撑高，字号收一档长译文也能留在首屏 */
     .hero-demo .source-text {
       font-size: 0.9375rem;
       line-height: 1.55;
@@ -868,7 +872,7 @@
     .demo-field {
       padding: 0.5rem 0.75rem;
     }
-    /* 手机上单栏 */
+    /* 窄窗口单栏 */
     .hero {
       grid-template-columns: minmax(0, 1fr);
     }
@@ -882,7 +886,7 @@
     .hero .lead {
       font-size: 1rem;
     }
-    /* 手机上纵向空间最紧：首屏上下留白与下载区间距按定值收紧，五种语言都要留在一屏里 */
+    /* 窄窗口纵向空间紧：首屏上下留白与下载区间距按定值收紧，五种语言都要留在一屏里 */
     .hero {
       gap: 1.25rem;
       padding-block: 0.75rem;
@@ -890,7 +894,7 @@
     .hero-gap-lg {
       margin-top: 1.25rem;
     }
-    /* 手机上页脚只有一行：版权在左，语言与主题切换在右 */
+    /* 窄窗口页脚只有一行：版权在左，语言与主题切换在右 */
     .site-footer {
       padding-block: 0.5rem;
     }
@@ -906,84 +910,40 @@
     }
   }
 
-  /* 极矮的手机（≤600px 高）：首屏上下留白再收一档，五种语言都留在一屏里 */
-  @media (max-width: 639px) and (max-height: 600px) {
+  /* —— 手机（触屏，与「复制网址」同一条件）：只留文字与一个按钮 ——
+     演示与字符网格照样预渲染（同一份 HTML 给桌面和手机，hydrate 才一致），这里只用 CSS 隐藏；
+     放在窄屏规则之后，覆盖它们的字号与间距。桌面（含窄而矮的窗口）不受影响。 */
+  @media (hover: none) and (pointer: coarse) {
+    .hero-demo,
+    .language-grid {
+      display: none;
+    }
+    .site-nav svg {
+      box-shadow: none;
+    }
     .hero {
-      gap: 0.75rem;
-      padding-block: 0.25rem;
+      grid-template-columns: minmax(0, 1fr);
+      gap: 0;
+      padding-block: 1.5rem;
+    }
+    .hero-title {
+      font-size: clamp(2rem, 9.5vw, 2.5rem);
+      line-height: 1.12;
+    }
+    .hero .lead {
+      font-size: 1.0625rem;
     }
     .hero-gap {
-      margin-top: 0.5rem;
-    }
-    .hero-gap-lg {
-      margin-top: 0.875rem;
-    }
-  }
-
-  /* —— 手机上演示按可用高度分档降级，五种语言都留在一屏里 ——
-     一档：说明小字只留闪电替换的安全边界（那是第一卖点的一部分），其余让位；
-     二档（≤820px 高）：收起选项卡与底部提示，只留闪电替换一个场景——首屏标题讲的就是「写回」；
-       点了下载之后演示整个让位给「接下来」三步；
-     三档（≤700px 高，如 iPhone SE）：演示整个让位，只留标题和下载。 */
-  @media (max-width: 639px) {
-    .hero-demo .demo-scene:not([data-mode="write"]) .demo-note {
-      display: none;
-    }
-  }
-
-  @media (max-width: 639px) and (max-height: 820px) {
-    /* 选项卡收起后只剩闪电替换，底部那句「怎样试」仍跟着默认的划词模式，对不上，一起收起 */
-    .hero-demo .demo-tabs,
-    .hero-demo .demo-hint {
-      display: none;
-    }
-    /* 点了下载之后「接下来」三步比系统要求高出一截：这一档演示让位，三步收紧行距 */
-    .hero:has(.download-next) .hero-demo {
-      display: none;
-    }
-    .download-next {
-      margin-top: 0.625rem;
-      font-size: 0.8125rem;
-      line-height: 1.45;
-    }
-    .download-next ol {
-      margin-top: 0.125rem;
-    }
-    .hero {
-      gap: 1rem;
-    }
-    .hero-gap-lg {
       margin-top: 1rem;
     }
-    .demo-stage {
-      padding-block: 0.75rem;
+    .hero-gap-lg {
+      margin-top: 2rem;
     }
-    .hero-demo .demo-scene {
-      display: none;
+    .download-mobile-note {
+      margin-bottom: 1rem;
     }
-    .hero-demo .demo-scene[data-mode="write"] {
-      display: flex;
-      visibility: visible;
-    }
-  }
-
-  /* 二档里再矮一点（≤760px 高）：安全边界那行让位，闪电替换的前后对照仍在 */
-  @media (max-width: 639px) and (max-height: 760px) {
-    .hero-demo .demo-note {
-      display: none;
-    }
-  }
-
-  @media (max-width: 639px) and (max-height: 700px) {
-    .hero-demo {
-      display: none;
-    }
-  }
-
-  /* 触屏设备没有快捷键可按 */
-  @media (hover: none) {
-    .demo-hint {
-      display: none;
+    .site-footer {
+      border-top: 0;
     }
   }
 }
@@ -1012,12 +972,10 @@
 
 @media (prefers-reduced-motion: reduce) {
   /* 按钮去掉位移与厚边收窄，保留颜色反馈；这里在 @layer 之外，优先于组件层，无需 !important */
-  .btn-secondary,
   .btn-solid,
   .btn-ghost {
     transform: none;
   }
-  .btn-secondary,
   .btn-solid {
     border-bottom-width: var(--press-depth);
   }
