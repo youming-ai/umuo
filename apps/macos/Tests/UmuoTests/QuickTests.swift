@@ -5,7 +5,7 @@ import UmuoCore
 @testable import Umuo
 
 // 菜单栏：快捷面板的视图模型（暂停 / 恢复、当前模型、复制最近一条）、菜单栏图标与左右键分流、
-// 菜单项与 Tauri 托盘逐条一致、首次引导要不要自动弹。假 backend 只记调用：不碰剪贴板、不发请求。
+// 菜单栏菜单的项、首次引导要不要自动弹。假 backend 只记调用：不碰剪贴板、不发请求。
 
 private struct Broken: Error, CustomStringConvertible {
     let message: String

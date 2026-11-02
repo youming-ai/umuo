@@ -42,7 +42,7 @@ enum EngineSelfTest {
     static func run(_ check: (String, Bool, String) -> Void) {
         let defaultDir = defaultConfigDir() ?? ""
         check("defaultConfigDir", defaultDir.hasSuffix("/Library/Application Support/app.umuo.desktop"),
-              "与 Tauri 版同一个目录：\(defaultDir)")
+              "沿用旧版客户端的配置目录：\(defaultDir)")
 
         // 两路桩：一路一次发完，一路段间隔远大于传输层 100 ms 的取消轮询
         guard let fast = selftestSseStub(deltas: ["你好", "世界"], delayMs: 0, gapMs: 0),
@@ -149,7 +149,7 @@ enum EngineSelfTest {
               "#\(session) → \(output.text)，历史场景 voice")
     }
 
-    /// 阶段 3 的窗口要的 ops 导出：历史（上面那次翻译记了一条）、
+    /// 各窗口要的 ops 导出：历史（上面那次翻译记了一条）、
     /// 宿主自己发提示时登记的请求 id。都在临时配置目录里，不碰用户的历史库。
     static func opsChecks(_ engine: Engine, _ check: (String, Bool, String) -> Void) {
         var records: [HistoryRecord] = []

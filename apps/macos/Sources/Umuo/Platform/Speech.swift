@@ -84,14 +84,14 @@ enum SpeechRules {
     }
 }
 
-/// macOS 发音朗读（Tauri 版用 `/usr/bin/say` 子进程）。
+/// macOS 发音朗读。
 ///
-/// Swift 版用进程内的 `AVSpeechSynthesizer`：Rust 不用它，是因为它要一个 run loop 才开口，而 Tauri 命令跑在哪个线程
-/// 不由我们决定。这里整个类钉在 MainActor 上，主线程的 run loop 由 SwiftUI 应用持有，那个顾虑不存在。
+/// 用进程内的 `AVSpeechSynthesizer`：它要一个 run loop 才开口，所以整个类钉在 MainActor 上，
+/// 主线程的 run loop 由应用持有。
 ///
-/// 「停上一段 → 起新的一段 → 存起来」在同一个 MainActor 方法里同步做完，相当于 Rust 那把锁（L16）：
-/// 两次朗读不会叠音，也不会留下停不掉的一段。每次朗读换一个新的合成器，旧的立即停掉——
-/// 与 Rust 每次起一个新的 `say` 进程同构，也避开「同一个合成器刚 stop 就 speak，新句子偶尔被吞」。
+/// 「停上一段 → 起新的一段 → 存起来」在同一个 MainActor 方法里同步做完：
+/// 两次朗读不会叠音，也不会留下停不掉的一段。每次朗读换一个新的合成器，旧的立即停掉，
+/// 也避开「同一个合成器刚 stop 就 speak，新句子偶尔被吞」。
 ///
 /// 用 AVSpeech 时 `speak` 没有失败路径（不起进程、不解析参数），所以不抛错；
 /// 挑不到发音人或 identifier 失效都落到系统默认发音人，与 Rust 的 `None` 一致。
@@ -130,7 +130,7 @@ final class Speech {
     /// 按系统**实际装了**的发音人来挑，而不是按一张硬编码的名字表——猜错的结果是「按了没反应」。
     ///
     /// 排除两类念不出来的：Siri 音（会列在表里，但 Apple 不保证第三方 App 能用，念不出来时用户无从得知）与个人声音（要另行授权）。
-    /// 再按名字排序：`speechVoices()` 的顺序不固定，而 `say -v '?'` 是字母序；排完以后「第一个匹配」与 Rust 版挑得一样。
+    /// 再按名字排序：`speechVoices()` 的顺序不固定，而 `say -v '?'` 是字母序；排完以后「第一个匹配」是稳定的。
     /// 同名的按质量从高到低（compact 先于 super-compact）。
     static func installedVoices() -> [Voice] {
         AVSpeechSynthesisVoice.speechVoices()

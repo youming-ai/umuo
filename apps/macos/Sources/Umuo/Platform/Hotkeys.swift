@@ -2,13 +2,12 @@ import Foundation
 import os
 import UmuoCore
 
-/// 四个快捷键对应的功能。处理函数在阶段 3 随窗口接上（`HotkeyCenter.perform`）。
+/// 四个快捷键对应的功能，按下后由 `AppModel.perform` 交给对应的窗口。
 enum HotkeyAction: String, CaseIterable, Sendable {
     case selection, silentReplace, compose, ocr
 }
 
-/// 全局快捷键的注册、重注册、暂停与录键，对应 Tauri 外壳 `main.rs` 的 `register_hotkeys` /
-/// `reregister_hotkeys` / `hotkeys_suspended` 与 `commands.rs` 的 `set_hotkey_recording`，连按部分对应 `double_tap.rs`。
+/// 全局快捷键的注册、重注册、暂停与录键；连按两下修饰键交给 `DoubleTapRouter`。
 ///
 /// 每条设置先经 Rust 的 `parseHotkey` 分流：连按两下修饰键（⌃⌃）**必须先分流出去**——交给组合键解析
 /// 会失败、然后悄悄回落到默认组合键，用户设了 ⌃⌃，实际生效的却是 ⌥D。
@@ -105,7 +104,7 @@ final class HotkeyCenter {
     var paused = false
     /// 录键截止时刻（单调时钟秒，同 Rust 的 Instant，不受改系统时间影响）。
     private var recordingUntil: TimeInterval?
-    /// 重注册完成（失败清单可以读了）、或补启动连按监听之后调用，对应 Tauri 的 `hotkeys://registered` 事件。
+    /// 重注册完成（失败清单可以读了）、或补启动连按监听之后调用（设置窗据此刷新失败提示）。
     var onRegistered: (@MainActor () -> Void)?
     /// 语音快捷键的按下（带任务：整理键 / 翻译键）与松开（`VoiceController` 接上）。没接上就不注册语音键。
     var voice: (press: @MainActor (VoiceTask) -> Void, release: @MainActor () -> Void)?
@@ -256,7 +255,7 @@ final class HotkeyCenter {
     }
 }
 
-/// 连按两下修饰键的接线，对应 Tauri 外壳的 `double_tap.rs`：
+/// 连按两下修饰键的接线：
 /// `ModifierTap` 报修饰键的按下 / 松开 → Rust 的 `DoubleTapDetector` 判定连按 → 找绑定、回主线程执行。
 ///
 /// 监听只在**真的有连按快捷键**时才启动：全用普通组合键的用户不需要多开一个键盘监听（也不用授「输入监控」）。

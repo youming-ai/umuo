@@ -78,7 +78,7 @@ enum HostSelfTest {
         }
     }
 
-    /// 写回的两道检查，与 `selection.rs` 的单测同一张表。
+    /// 写回的两道检查（可写性、原文没变）。
     static func pureChecks(_ check: (String, Bool, String) -> Void) {
         func passes(_ body: () throws -> Void) -> Bool { (try? body()) != nil }
         let writable = passes { try AXWriteBack.checkWritable(.selection, true) }

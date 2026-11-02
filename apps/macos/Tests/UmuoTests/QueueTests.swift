@@ -1,7 +1,7 @@
 import Testing
 @testable import Umuo
 
-// compose-queue.test.ts 与 settings-queue.test.ts 逐条改写。
+// 撰写窗的翻译调度与设置的保存队列。
 
 /// 守的是一个在真实界面里极难复现的失败形态：用户连续打字时，两次翻译的流式增量交错写进同一个译文区。
 @Suite("撰写窗的翻译调度")

@@ -40,7 +40,7 @@ enum ReplaceSelection {
         }
     }
 
-    /// 把源应用切回前台（`ax::activate_pid`：设应用的 `AXFrontmost`）。AX 调用，工作线程上调。
+    /// 把源应用切回前台（设应用的 `AXFrontmost`）。AX 调用，工作线程上调。
     static func activate(pid token: String) -> Bool {
         guard let pid = pid_t(token), pid > 0 else { return false }
         let application = AXUIElementCreateApplication(pid)
@@ -48,7 +48,7 @@ enum ReplaceSelection {
     }
 
     /// 把源应用切回前台，并等到前台确实是它（最多约 600 ms）；回来后再多等一拍，让它把输入框的焦点与选区恢复好
-    /// （Tauri 的 `refocus_source_app`）。浮窗「替换原文」与撰写窗 ⌘⇧↩ 共用。同步阻塞，工作线程上调。
+    /// 浮窗「替换原文」与撰写窗 ⌘⇧↩ 共用。同步阻塞，工作线程上调。
     ///
     /// 不保证回得来：调用方必须在写入 / 粘贴前用 `FrontmostApp.liveToken()` 再核对一次。
     static func refocus(_ owner: String) {

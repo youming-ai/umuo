@@ -2,7 +2,7 @@ import AppKit
 import Testing
 @testable import Umuo
 
-// hotkey-conflict / theme / onboarding 的 .test.ts 逐条改写。
+// 快捷键冲突、外观与首次引导的纯规则。
 
 private let t = Translate(locale: .zhCN)
 
@@ -20,7 +20,7 @@ struct HotkeyConflictTests {
     }
 
     @Test func Alt与Option写法不同也认作同一个修饰键() {
-        // Tauri 版的别名表漏了 `alt`，`Alt+Shift+T` 与 `Option+Shift+T` 归一化后不相等；这里补上了。
+        // 别名表要认 `alt`：否则 `Alt+Shift+T` 与 `Option+Shift+T` 归一化后不相等。
         #expect(HotkeyConflict.normalize("Alt+Shift+T") == HotkeyConflict.normalize("Option+Shift+T"))
     }
 

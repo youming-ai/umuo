@@ -23,7 +23,7 @@ protocol OnboardingBackend: AnyObject {
     func close()
 }
 
-/// 首次启动引导的视图模型，`onboarding.tsx` 的状态与规则，语义逐条一致（PRD §7.4，ARCHITECTURE §4.11）。
+/// 首次启动引导的视图模型（PRD §7.4，ARCHITECTURE §4.11）。
 ///
 /// 两条刻意的产品规则：**不阻止前进**（权限可以稍后授予、模型可以稍后再配），**但要说清后果**
 /// （一个引擎都没有时最后一页写明「现在结束的话翻不了任何东西」）。

@@ -30,7 +30,7 @@ enum CaptureError: UserFacingError, Equatable {
 /// 系统框选自带十字光标、放大镜与多显示器支持，并由系统自己完成「选区 → 像素」的映射；
 /// 自绘浮层要对齐窗口坐标与屏幕全局坐标（两套原点约定不同），弄错就截到别处，
 /// 而这类错误没有真人盯着屏幕几乎验证不了。ScreenCaptureKit 只负责取像素、不提供框选 UI，
-/// 换它就得连浮层一起自绘，与 Tauri 版的行为也不再一致。
+/// 换它就得连浮层一起自绘。
 enum ScreenCapture {
     /// 当前是否已授权。**不弹窗**。
     static func hasPermission() -> Bool { CGPreflightScreenCaptureAccess() }
@@ -60,7 +60,7 @@ enum ScreenCapture {
     /// 拆出「谁来写这个文件」，selftest 能不碰屏幕地验证取消、解码与清理。
     ///
     /// 临时文件放在一个**每次新建、仅本用户可读写**的目录里：
-    /// 固定文件名（Rust 版用 pid）既可能残留上一轮的旧图、把「取消」误判成「截到了旧图」，
+    /// 固定文件名既可能残留上一轮的旧图、把「取消」误判成「截到了旧图」，
     /// 又让别人能抢先放一个同名文件或链接。目录无论成败都整个删掉——里面是用户的屏幕内容。
     static func captureInteractively(
         _ shoot: (URL) throws(CaptureError) -> Void
@@ -89,8 +89,7 @@ enum ScreenCapture {
 
     /// 把截图文件解成 CGImage。
     ///
-    /// Rust 版要自己解 PNG、把 RGB 补成 RGBA、按紧密行距重排，才能交给 Vision；
-    /// 这里 ImageIO 直接给出 CGImage，Vision 自己认像素格式，那几个坑在这条路上不存在。
+    /// ImageIO 直接给出 CGImage，Vision 自己认像素格式：不用手动解 PNG、补 alpha 通道或重排行距。
     static func decode(_ data: Data) throws(CaptureError) -> CGImage {
         guard let source = CGImageSourceCreateWithData(data as CFData, nil),
               CGImageSourceGetCount(source) > 0,

@@ -2,7 +2,7 @@ import Foundation
 import UmuoCore
 
 /// 历史窗、快捷面板、首次引导从 Rust 拿到的东西，在 Swift 这边真的排得出来：
-/// 带筛选的历史查询（AND）、记录的元信息与按日柱状图（`day` 是 `YYYY-MM-DD`，标签取得出 `MM-DD`）、本月用量一行、
+/// 带筛选的历史查询、记录的元信息、
 /// 快捷面板的状态（暂停由宿主传入、最近一条就是刚才那次翻译）、引导写进去的 `providerId` + `model` 与 `onboardingDone`
 /// 过得了 `applySettingsPatch`、删除与清空。
 ///

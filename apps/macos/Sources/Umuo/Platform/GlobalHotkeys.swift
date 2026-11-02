@@ -1,10 +1,10 @@
 import Carbon
 
-/// 系统级组合键，用 Carbon 的 `RegisterEventHotKey`（与 Tauri 版背后的 `global-hotkey` 同一套 API）。
+/// 系统级组合键，用 Carbon 的 `RegisterEventHotKey`。
 ///
 /// 不需要任何 TCC 权限：系统只把这一个组合键的按下通知给我们，不是在监听键盘。
 /// 回调经应用的事件目标（`GetApplicationEventTarget`）在**主线程**上到达，所以整个类是 `@MainActor`。
-/// 默认只处理按下（`kEventHotKeyPressed`）：Tauri 版也只在 `ShortcutState::Pressed` 时触发。
+/// 默认只处理按下（`kEventHotKeyPressed`）。
 /// 按住说话（语音）另外要松开（`kEventHotKeyReleased`），注册时给 `onRelease` 才会转发。
 @MainActor
 final class GlobalHotkeys {

@@ -9,7 +9,7 @@ import UmuoCore
 /// 快捷键：解析与分流、Carbon 注册与失败上报（只用没人用的组合）、暂停与录键、修饰键对账与连按判定（见 `HotkeySelfTest`）。
 /// 截图 OCR：OcrResult 规则、PNG 解码、临时目录、编排文案，Vision 识别内存里画出的已知文字；框选本身不跑（见 `CaptureSelfTest`）。
 /// 浮窗：替换原文的 ⌘V 兜底（私有剪贴板、假的 ⌘V）与权限拒绝、看门狗与替换计划的 Rust 规则（见 `PanelSelfTest`）。
-/// 历史窗 / 快捷面板 / 首次引导：带筛选的查询、柱状图与用量一行、快捷面板状态、引导写的 patch、删除与清空（见 `DataSelfTest`）。
+/// 历史窗 / 快捷面板 / 首次引导：带筛选的查询与记录的元信息、快捷面板状态、引导写的 patch、删除与清空（见 `DataSelfTest`）。
 /// 设置窗：交给 Rust 的 patch 形状过得了校验，嵌套对象里的未知字段留得住（见 `SettingsSelfTest`）。
 /// 打包：资源包（文案表、菜单栏图标）从哪里读到；scripts/bundle.sh 在 .app 里跑这一项，断言读的是 Contents/Resources。
 /// 语音：引擎框架与版本、模型清单、会话状态机、临时音频；不开麦、不下载、不加载模型（见 `VoiceSelfTest`）。

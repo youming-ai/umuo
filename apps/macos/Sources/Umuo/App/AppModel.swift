@@ -219,11 +219,11 @@ final class AppModel {
     }
 }
 
-/// 从浮窗「在撰写窗打开」带过去的东西（Tauri 的 `open_compose_with` + `compose://prefill`）。
+/// 从浮窗「在撰写窗打开」、历史窗「再次编辑」带过去的东西。
 struct ComposePrefill: Equatable {
     let text: String
     let translation: String?
-    /// 浮窗归属的源应用（pid；本应用自己 = 没有源应用）。撰写窗按 `compose_owner_for_caller` 决定 ⌘⇧Enter 粘回哪里：
+    /// 浮窗归属的源应用（pid；本应用自己 = 没有源应用）。撰写窗按 `ComposeRules.ownerForCaller` 决定 ⌘⇧↩ 粘回哪里：
     /// 调用方是浮窗时优先粘回它，是本应用自己才退回当前前台。
     let sourceOwner: String?
 }

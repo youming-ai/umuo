@@ -4,8 +4,8 @@ import SwiftUI
 /// 设置窗的宿主：普通的可聚焦窗口（与浮窗不同，设置要打字、要成为 key），一个进程只有一个，关掉再开复用同一个窗口与模型。
 ///
 /// - 菜单栏应用（`.accessory`）开窗口前要先 `activate`，否则窗口开在当前前台应用的后面。
-/// - 关掉再打开时整份重新载入（`SettingsModel.reopen`：各页草稿清空、用量与花费等重读、初始分区重算），并换一个新的
-///   `NSHostingView`，视图里的残留（文本框草稿、滚动位置）也从头开始——Tauri 版每次新建 WebView，效果相同。
+/// - 关掉再打开时整份重新载入（`SettingsModel.reopen`：各页草稿清空、设置与 Key 状态重读、初始分区重算），并换一个新的
+///   `NSHostingView`，视图里的残留（文本框草稿、滚动位置）也从头开始。
 ///   窗口开着、只是重新成为 key 时，只重查权限与设置（`windowFocused`）。
 /// - 录快捷键：窗口上挂一个本地按键监听，录键时把按键交给 `HotkeyEditor` 并吞掉；窗口失去 key、关闭时结束录制，
 ///   全局快捷键随之恢复（`HotkeyCenter.setRecording`）。

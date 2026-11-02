@@ -22,7 +22,7 @@ final class SettingsModel {
     /// 开机启动以磁盘上的 LaunchAgent 为准；nil = 还没读出来。
     private(set) var autostart: Bool?
     private(set) var hotkeyFailures: [String] = []
-    /// 换分区就结束录键：Tauri 版换页会卸掉录键器、顺带停录；这里录键器不随页面消失，不停的话
+    /// 换分区就结束录键：录键器不随页面消失，不停的话
     /// 在别的页上按的键（比如在 Key 输入框里按 ⌘V）会被当成快捷键录进去，全局快捷键也一直停着。
     var tab: SettingsTab? {
         didSet {
@@ -56,7 +56,6 @@ final class SettingsModel {
     var isLoaded: Bool { queue != nil && tab != nil }
 
     var t: Translate { Translate(locale: AppLocale.resolve(setting: values.string("locale", "system"))) }
-    /// 系统此刻是不是深色外观（窗口在系统换外观时更新它）；主题选「跟随系统」时按它取。
 
     var providerId: String { values.string("providerId") }
     var provider: ProviderDetail? { providers.first { $0.id == providerId } }
@@ -108,7 +107,7 @@ final class SettingsModel {
         queue = SettingsQueue(initial: loaded) { [backend] patch in try await backend.applyPatch(patch) }
     }
 
-    /// 关掉后再打开：Tauri 版每次新建 WebView、全量重读，各页的草稿与行内状态都从头开始。
+    /// 关掉后再打开：全量重读，各页的草稿与行内状态都从头开始。
     /// 这里窗口与模型复用，所以先把各页的一次性状态清掉，再整份重新载入（开机启动、初始分区……）。
     func reopen() async {
         resetDrafts()
@@ -222,7 +221,7 @@ final class SettingsModel {
         _ = try? await commit(["launchAtLogin": .bool(actual)]).value
     }
 
-    /// 导入配置之后整页重读：设置、风格目录（导入可能带来新的自建风格）。
+    /// 导入配置之后整页重读：设置，以及首选供应商变了时它的 Key 状态。
     func imported(_ result: ImportResult) async {
         if let latest = JSONValue.object(json: result.settingsJson) {
             if let queue { queue.refresh(latest) } else { adopt(latest) }
@@ -233,7 +232,7 @@ final class SettingsModel {
 
 // MARK: - 引擎页：Key、模型、端点
 
-/// 引擎页的状态（`EnginePage.tsx`）。**Key 只出不进**：输入框永远不回填明文，只显示「已配置」；
+/// 引擎页的状态。**Key 只出不进**：输入框永远不回填明文，只显示「已配置」；
 /// Key 也不走改了就存——它是密钥，必须由用户明确按下「保存」才写进 Keychain。
 @MainActor @Observable
 final class EngineEditor {

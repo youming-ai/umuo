@@ -3,12 +3,12 @@ import Security
 
 /// API Key 的 Keychain 读写：service 是 Bundle ID（`app.umuo.desktop`），account = 供应商 id。
 ///
-/// **必须读到 Tauri 版写的同一个条目**。Tauri 用 `keyring` 3（apple-native），它走的是旧的文件 Keychain
+/// **必须读到旧版客户端写的同一个条目**。旧版（Tauri 外壳）用 `keyring` 3（apple-native），它走的是旧的文件 Keychain
 /// （`SecKeychainAddGenericPassword` / `find_generic_password`，用户的默认 Keychain）。这里用
 /// `SecItem*` 查 `kSecClassGenericPassword`，**不设 `kSecUseDataProtectionKeychain`**：设了就只查
 /// Data Protection Keychain，老用户的 Key 全部「消失」。也不设访问组，理由相同。
 ///
-/// 写入与删除留给以后的设置窗口；`SwiftHost.apiKey` 只读，且**不弹框**（见 `read`）。
+/// 写入与删除由设置窗（`EngineSettingsBackend`）在后台调；`SwiftHost.apiKey` 只读，且**不弹框**（见 `read`）。
 /// Key 不进日志：错误信息里只有状态码与系统的描述，没有 Key 本身。
 struct Keychain {
     enum Failure: UserFacingError {
@@ -45,7 +45,7 @@ struct Keychain {
 
     /// 读一条。「没存过」是正常状态（首次启动就是这样），返回 nil 而不是报错——与 Rust 的 `NoEntry → None` 一致。
     ///
-    /// **不弹框**：它在 tokio 工作线程上被同步调用（`HostBridge` 约定不许等用户操作）。Tauri 版写的条目
+    /// **不弹框**：它在 tokio 工作线程上被同步调用（`HostBridge` 约定不许等用户操作）。旧版客户端写的条目
     /// 默认 ACL 只信任写它的那个程序，签名对不上的构建（未签名 / ad-hoc 的 `swift build`、别的签名者）
     /// 去读会弹「想要使用机密信息」，默认 Keychain 锁着会弹解锁框，都会把这次请求卡到用户点完为止。
     /// 所以读的期间关掉 Keychain 的用户交互，要交互时直接返回 `errSecInteractionNotAllowed` /

@@ -3,8 +3,6 @@ import SwiftUI
 import UmuoCore
 
 /// 撰写窗的宿主：窗口的唤出、收起与快捷键，Engine 事件 → `ComposeSession`，以及 `ComposeBackend` 的正式实现。
-/// 对应 Tauri 的 `toggle_compose` / `show_compose` / `open_compose_with` / `compose_translate` /
-/// `compose_commit`。
 ///
 /// 线程（ARCHITECTURE §2.3）：这个类在 MainActor 上；Engine 的同步方法、AX（前台 pid、切回前台）、剪贴板与合成按键
 /// 一律在 `Task.detached` 里做，结果再回主线程。sink 只 `yield`（复用浮窗的 `PanelStreamSink`）。
@@ -30,20 +28,18 @@ final class ComposeController: ComposeBackend {
         session.backend = self
     }
 
-    var isVisible: Bool { window.isVisible }
-
     // MARK: - 唤出与收起
 
     /// ⌥⌘A 与菜单栏共用：可见就收起，不可见就居中唤出并聚焦。
     ///
-    /// 唤出**之前**记下前台应用：⌘⇧↩ 要粘回的是它（`remember_compose_owner`）。前台是 umuo 自己时没有目标。
+    /// 唤出**之前**记下前台应用：⌘⇧↩ 要粘回的是它。前台是 umuo 自己时没有目标。
     func toggle() {
         if window.isVisible { return hideCompose() }
         present { frontmost in ComposeRules.owner(frontmost, own: PanelController.ownToken) }
     }
 
     /// 浮窗的「在撰写窗打开」：要的是**显示**而不是切换（撰写窗已经开着时，切换会把它收起来——正好相反）。
-    /// 粘贴目标按这一次的来源重新算，不保留旧值（`open_compose_with`）。
+    /// 粘贴目标按这一次的来源重新算，不保留旧值。
     func open(_ prefill: ComposePrefill) {
         present { frontmost in
             ComposeRules.ownerForCaller(frontmost: frontmost, panelOwner: prefill.sourceOwner,
@@ -80,7 +76,7 @@ final class ComposeController: ComposeBackend {
         window.orderOut(nil)
     }
 
-    /// 主题、界面语言与界面缩放跟设置走，每次唤出时重读（与浮窗同一套规则）。
+    /// 界面语言跟设置走，每次唤出时重读（与浮窗同一个 `AppModel.locale`）。
     private func refreshAppearance() {
         session.locale = app.locale
     }
@@ -127,7 +123,7 @@ final class ComposeController: ComposeBackend {
         app.speech.speak(trimmed, language: detectLanguage(text: trimmed))
     }
 
-    /// `compose_commit`：⌘↩ 写剪贴板后收起；⌘⇧↩ 收起后切回原来的应用、确认它确实在前台再受控粘贴
+    /// 提交：⌘↩ 写剪贴板后收起；⌘⇧↩ 收起后切回原来的应用、确认它确实在前台再受控粘贴
     /// （粘完恢复用户原来的剪贴板）。确认不了（从 umuo 自己的窗口唤出、原应用已退出、没有辅助功能权限）
     /// 就只留在剪贴板里，并用浮窗说一声——撰写窗已经收起，它自己的提示没人看得见。
     func commit(_ text: String, paste: Bool, owner: String?) async -> String? {

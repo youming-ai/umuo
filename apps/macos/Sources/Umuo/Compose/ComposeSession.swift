@@ -70,7 +70,7 @@ final class ComposeSession {
     // MARK: - 防抖与调度
 
     /// 浮窗的「在撰写窗打开」：只把原文填进输入框，不直接翻译——交给防抖，避免同一次输入被翻两遍；
-    /// 关掉了自动翻译时也不该被这个入口绕过。带过来的译文与 Tauri 一样不用（输入框才是撰写窗的状态）。
+    /// 关掉了自动翻译时也不该被这个入口绕过。带过来的译文不用（输入框才是撰写窗的状态）。
     func prefill(_ text: String) { input = text }
 
     /// 停止输入 500 ms 后才把文本交给调度器。
@@ -152,13 +152,11 @@ final class ComposeSession {
         }
     }
 
-    /// 出错块的「重试」：当前输入再走一次调度器。
-    ///
-    /// 与 Tauri 不同的一处：那边直接 `send(input)`、绕过了队列，紧接着的一次输入可能与它并发。
+    /// 出错块的「重试」：当前输入再走一次调度器（不绕过队列，免得与紧接着的一次输入并发）。
     func retry() { flushInput() }
 
     func speak(_ text: String) { backend?.speak(text) }
 
-    /// Esc：收起（不取消：与 Tauri 一样，翻到一半的那次照常完成，下次唤出还在）。
+    /// Esc：收起（不取消：翻到一半的那次照常完成，下次唤出还在）。
     func escape() { backend?.hideCompose() }
 }

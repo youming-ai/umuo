@@ -18,7 +18,7 @@ enum SelectionSelfTest {
         live(check)
     }
 
-    /// 与 `selection.rs` 的 `a_copy_counts_only_after_someone_wrote_the_clipboard` 同一张表。
+    /// 「有人写过剪贴板才算复制到了」的判定表。
     static func pureChecks(_ check: (String, Bool, String) -> Void) {
         let copied = ClipboardFallback.copiedText(cleared: 5, now: 5, text: "旧内容") == nil
             && ClipboardFallback.copiedText(cleared: 5, now: 6, text: "选中") == "选中"

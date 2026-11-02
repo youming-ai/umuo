@@ -2,9 +2,9 @@ import Foundation
 
 /// 开机自启：在 `~/Library/LaunchAgents/app.umuo.desktop.plist` 放一个 LaunchAgent。
 ///
-/// **与 Tauri 版同一个文件、同一个 Label**：老用户升级后开关的状态照旧，关掉也删的是同一个文件，
+/// **与旧版客户端同一个文件、同一个 Label**：老用户升级后开关的状态照旧，关掉也删的是同一个文件，
 /// 不会留下一个指向旧程序、再也关不掉的登录项。没用 `SMAppService`：它只认打包好的 .app 自己的登录项，
-/// 读不到 Tauri 版写的这个 LaunchAgent，升级后开关会显示成「关」、而旧的那个照样在每次登录时把旧版拉起来。
+/// 读不到旧版写的这个 LaunchAgent，升级后开关会显示成「关」、而旧的那个照样在每次登录时把旧版拉起来。
 ///
 /// 「开着」以磁盘为准：plist 在、而且里面指向的程序还在——程序被删了（或换了位置）就算关，界面不会撒谎。
 /// `home` 由调用方给：测试指向临时目录，不碰真实的 LaunchAgents。
@@ -48,7 +48,7 @@ enum Autostart {
             .replacingOccurrences(of: "&quot;", with: "\"").replacingOccurrences(of: "&amp;", with: "&")
     }
 
-    /// plist 里登记的程序路径（与 Rust 版同样只认 `ProgramArguments` 的第一个 `<string>`）。
+    /// plist 里登记的程序路径（只认 `ProgramArguments` 的第一个 `<string>`）。
     static func program(inPlist plist: String) -> String? {
         guard let key = plist.range(of: "<key>ProgramArguments</key>") else { return nil }
         let after = plist[key.upperBound...]

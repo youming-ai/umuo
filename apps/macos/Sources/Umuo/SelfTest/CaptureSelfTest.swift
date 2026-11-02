@@ -41,7 +41,7 @@ enum CaptureSelfTest {
         check("CaptureError", messages, "缺权限有自己的文案键，界面按语言取")
     }
 
-    /// RGBA、RGB（没有 alpha 的 PNG，Rust 版要手动补通道的那种）都要解得开；不是 PNG 是带说明的错误。
+    /// RGBA、RGB（没有 alpha 的 PNG）都要解得开；不是 PNG 是带说明的错误。
     static func decoding(_ check: (String, Bool, String) -> Void) {
         do {
             let rgba = try ScreenCapture.decode(png(sample(alpha: true)))
@@ -83,7 +83,7 @@ enum CaptureSelfTest {
         check("captureInteractively.temp", ok, "取消 → nil、截到 → 解码、坏文件 → 报错；每次新目录（0700），结束即删")
     }
 
-    /// 编排的每个分支与文案，对照 `screenshot.rs`。
+    /// 编排的每个分支与文案键。
     static func orchestration(_ check: (String, Bool, String) -> Void) {
         let image = (try? ScreenCapture.decode(png(sample(alpha: true))))!
         var captured = false

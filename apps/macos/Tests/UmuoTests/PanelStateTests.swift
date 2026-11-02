@@ -2,7 +2,7 @@ import Testing
 import UmuoCore
 @testable import Umuo
 
-// panel-state.test.ts 逐条改写。TS 里用 `toBe(state)` 断言「事件被丢掉」，这里用值相等（状态是 Equatable）。
+// 浮窗状态机的验收用例。「事件被丢掉」用值相等断言（状态是 Equatable）。
 
 /// 断言的是简体中文文案，与源语言一致。
 private let t = Translate(locale: .zhCN)
@@ -142,12 +142,13 @@ struct StatusLineTests {
     }
 }
 
-@Suite("月度上限提醒")
+@Suite("译文可能不完整的提醒")
 struct WarningTests {
-    @Test func 提醒随done一起到达且不算错误() {
-        let state = run(.start(start), .done(with(done) { $0.warning = "openai 本月已花 $6.50（上限 $5.00），本次已改用 deepseek" }))
+    @Test func 截断提醒随done一起到达且不算错误() {
+        // 输出触到长度上限或连接中途断开时，Rust 在 Done 里带一句提醒（`done_warning`）
+        let state = run(.start(start), .done(with(done) { $0.warning = "译文可能不完整：输出触到了模型的长度上限，或连接中途断开" }))
         #expect(state.status == .done)
-        #expect(state.warning?.contains("deepseek") == true)
+        #expect(state.warning?.contains("不完整") == true)
     }
 
     @Test func 没有提醒时是nil() {

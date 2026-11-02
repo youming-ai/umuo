@@ -2,9 +2,8 @@ import Carbon
 
 /// 普通组合键（`Alt+D`）→ Carbon 的虚拟键码与修饰位。
 ///
-/// Tauri 版把组合键交给 `tauri-plugin-global-shortcut`，背后是 `global-hotkey` 0.8 的 `parse_hotkey` 与
-/// macOS 的 `key_to_scancode`。这里逐条照搬：设置窗录下来的、老用户 `settings.json` 里手写的字符串，
-/// 在两个客户端里必须解析成同一个键——否则升级后某个快捷键会静默回落到默认键位。
+/// 写法沿用旧版客户端（`global-hotkey` 0.8 的 `parse_hotkey` 与 macOS 的 `key_to_scancode`）：设置窗录下来的、
+/// 老用户 `settings.json` 里手写的字符串必须解析成同一个键——否则升级后某个快捷键会静默回落到默认键位。
 /// 只按修饰键的连按（`Ctrl Ctrl`）不经过这里，由 Rust 的 `parseHotkey` 先分流出去。
 struct HotkeyCombo: Equatable, Hashable, CustomStringConvertible {
     /// `kVK_*`
@@ -12,7 +11,7 @@ struct HotkeyCombo: Equatable, Hashable, CustomStringConvertible {
     /// Carbon 修饰位：`cmdKey` / `shiftKey` / `optionKey` / `controlKey`。
     let modifiers: UInt32
 
-    /// 解析不了返回 nil（调用方回落到这一行的默认组合键，与 Tauri 版 `combo.parse().unwrap_or(default)` 一致）。
+    /// 解析不了返回 nil（调用方回落到这一行的默认组合键）。
     ///
     /// 没有虚拟键码的键（Pause、ScrollLock、F21–F24、媒体键）与 `global-hotkey` 一样算解析成功、不回落，
     /// 返回 `.unsupported`，由调用方记成这一行注册失败。唯一的出入是媒体键：`global-hotkey` 另开一个

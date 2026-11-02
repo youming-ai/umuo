@@ -77,7 +77,7 @@ struct EnginePage: View {
                         description: provider?.id == "azure" ? t("prefs.engine.modelAzureHint") : t("prefs.engine.modelHint"),
                         note: engine.modelNotice,
                         error: model.rowErrors["model"]) {
-                    // 系统组合框：能手填，下拉里是拉到的模型列表，没拉过就是内置的推荐模型（Tauri 的 datalist）
+                    // 系统组合框：能手填，下拉里是拉到的模型列表，没拉过就是内置的推荐模型
                     DraftField(value: s.string("model"), placeholder: provider?.defaultModel ?? "",
                                suggestions: engine.models.isEmpty ? (provider?.suggestedModels ?? []) : engine.models,
                                label: t("prefs.engine.model")) {

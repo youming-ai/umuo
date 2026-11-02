@@ -6,7 +6,7 @@ import UmuoCore
 /// `--selftest` 的快捷键部分：解析与分流、Carbon 注册与失败上报、暂停 / 录键、修饰键对账与连按判定。
 ///
 /// **不按任何键、不碰默认键位**：真注册只用 ⌃⌥⇧⌘ + F13…F19 这类没人用的组合，测完全部注销——
-/// 默认键位可能正被另一个 umuo 实例（或 Tauri 版）占着，拿它测会得到假失败，还会抢走用户的快捷键。
+/// 默认键位可能正被另一个 umuo 实例（如正式安装版）占着，拿它测会得到假失败，还会抢走用户的快捷键。
 /// 修饰键监听要「输入监控」权限：没授权时打印跳过，**不调用** `tapCreate`（它本身可能弹授权提示）；
 /// 授权了也只建出来再立刻作废，不进 run loop、不收事件。连按判定直接往 Rust 的判定器里喂事件序列。
 enum HotkeySelfTest {
@@ -38,7 +38,7 @@ enum HotkeySelfTest {
         check("parseHotkey", taps && notTaps && sides, "⌃⌃ / 右⌘⌘ / ⌥⌥ 分流成连按，其余都是组合键；带侧的只认那一侧")
     }
 
-    /// 录键器能产出的每个键（`settings_hotkey_test.rs` 同一张表）都要解析得出键码；再对几条 `global-hotkey` 的边界。
+    /// 录键器能产出的每个键（`HotkeyFormat`）都要解析得出键码；再对几条 `global-hotkey` 的边界。
     static func combos(_ check: (String, Bool, String) -> Void) {
         var keys = (UnicodeScalar("A").value...UnicodeScalar("Z").value).map { String(UnicodeScalar($0)!) }
         keys += (0...9).map(String.init) + (1...12).map { "F\($0)" }
@@ -85,7 +85,7 @@ enum HotkeySelfTest {
         check("HotkeyCenter.plan", ok, "只读四个活跃字段；退役键位不注册；⌃⌃ / ⌥⌥ 分流，非法值回落到 ⌥⌘A")
     }
 
-    /// 与 `modifier_tap.rs` 的四条测试同一组输入。
+    /// 修饰键按下 / 松开的四组典型输入。
     static func reconcile(_ check: (String, Bool, String) -> Void) {
         let lctrl = ModKey(kind: .ctrl, side: .left), lcmd = ModKey(kind: .cmd, side: .left)
         let rcmd = ModKey(kind: .cmd, side: .right)

@@ -2,7 +2,7 @@ import Foundation
 import Testing
 @testable import Umuo
 
-// i18n.test.ts 的语言判定与取文案，外加 String Catalog 本身的一致性检查（key 集合、占位符）。
+// 界面语言判定与取文案，外加 String Catalog 本身的一致性检查（key 集合、占位符）。
 
 @Suite("界面语言判定（PRD §8）")
 struct ResolveLocaleTests {

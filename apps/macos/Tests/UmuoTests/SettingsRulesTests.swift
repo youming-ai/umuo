@@ -284,7 +284,7 @@ struct AutostartTests {
         #expect(Autostart.checkLaunchPath("/Applications/umuo.app/Contents/MacOS/Umuo") == nil)
     }
 
-    @Test func 与Tauri版同一个文件() {
+    @Test func 与旧版客户端同一个文件() {
         #expect(Autostart.plistURL(home: URL(fileURLWithPath: "/Users/someone")).path
             == "/Users/someone/Library/LaunchAgents/app.umuo.desktop.plist")
     }

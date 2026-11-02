@@ -2,11 +2,11 @@ import AppKit
 import SwiftUI
 import UmuoCore
 
-/// 快捷面板的宿主：从菜单栏图标下面弹出的 `NSPopover`（Tauri 的 `open_quick_panel`：340×420、置顶、无边框）。
+/// 快捷面板的宿主：从菜单栏图标下面弹出的 `NSPopover`（340×420）。
 ///
 /// - 弹出前先 `activate`，面板成为 key window，按钮可用键盘操作（与翻译浮窗相反）。
 /// - 同一个入口既开又关：已经开着时再点一下就收起，比「再点一次没反应」好。
-/// - 点到面板外面就收起（`.transient`）。Tauri 版不会自己收起、要再点一次图标——菜单栏应用的面板通常都是点外面就收，这里照系统习惯。
+/// - 点到面板外面就收起（`.transient`）：菜单栏应用的面板通常都是点外面就收，这里照系统习惯。
 /// - 每次弹出都重读状态与外观（`QuickModel.refresh`）。
 @MainActor
 final class QuickPanelController: NSObject, QuickBackend, NSPopoverDelegate {
@@ -27,8 +27,6 @@ final class QuickPanelController: NSObject, QuickBackend, NSPopoverDelegate {
     init(app: AppModel) {
         self.app = app
     }
-
-    var isShown: Bool { popover.isShown }
 
     /// 菜单栏图标左键、菜单里的「快捷面板…」共用。`anchor` 是菜单栏图标的按钮。
     func toggle(relativeTo anchor: NSView) {

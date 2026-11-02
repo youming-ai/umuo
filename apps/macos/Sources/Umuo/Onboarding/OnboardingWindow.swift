@@ -20,7 +20,7 @@ final class OnboardingWindowController: NSObject, NSWindowDelegate {
     }
 
     func show() {
-        // 只要窗口还在（含最小化）就复用，与 Tauri 的 `open_onboarding` 一致；不能看 `isVisible`——最小化时它是 false，
+        // 只要窗口还在（含最小化）就复用；不能看 `isVisible`——最小化时它是 false，
         // 会再开一个新窗，旧窗关闭时又把新窗的引用清掉。
         if let window {
             if window.isMiniaturized { window.deminiaturize(nil) }

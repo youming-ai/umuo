@@ -1,18 +1,18 @@
 import Foundation
 
-/// 设置窗的分区（左侧边栏），`settings-tabs.ts` 的移植。
+/// 设置窗的分区（左侧边栏）。
 ///
 /// 分区按「这件事在哪里发生」划分：通用偏好、翻译（各功能的快捷键与行为）、引擎（自带 Key 与模型）、
-/// 权限、高级（网络、用量、历史与隐私）、关于。没有功能撑着的空页面只会让人觉得「坏了」，所以没有听写、账号这类分区。
+/// 权限、高级（网络、历史与隐私）、关于。没有功能撑着的空页面只会让人觉得「坏了」，所以没有听写、账号这类分区。
 ///
 /// 权限没有单独的横幅：缺权限时「权限」分区点灯，并且打开设置窗时直接落在这一页。
 enum SettingsTab: String, CaseIterable, Sendable {
     case general, translate, engine, permissions, advanced, about
 
-    /// 侧边栏标题的文案键（Tauri 的 `TAB_TITLES`）。
+    /// 侧边栏标题的文案键。
     var titleKey: String { "prefs.tab.\(rawValue)" }
 
-    /// 侧边栏图标（SF Symbols；Tauri 版是手画的 SVG，形状对应）。
+    /// 侧边栏图标（SF Symbols）。
     var symbol: String {
         switch self {
         case .general: "gearshape"
