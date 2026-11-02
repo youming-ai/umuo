@@ -95,8 +95,9 @@ protocol VoiceFocusProbing: Sendable {
     func capture() -> VoiceTarget
     /// 交付前现查。
     func check(_ target: VoiceTarget) -> VoiceDeliveryCheck
-    /// 经 AX 把文本写进当前焦点的选区 / 光标处。返回是否成功。
-    func insert(_ text: String) -> Bool
+    /// 经 AX 把文本写进 `element` 的选区 / 光标处。返回是否成功。
+    /// 写的是核验过的那个元素，不重新取焦点：核验与写入之间焦点换了框的话，写的仍是用户录音时对着的那个。
+    func insert(_ text: String, into element: AXUIElement) -> Bool
     /// 前台应用（粘贴前最后核对一次）。
     func frontmostPid() -> pid_t?
 }
@@ -137,9 +138,8 @@ struct AXFocusProbe: VoiceFocusProbing {
         return check
     }
 
-    func insert(_ text: String) -> Bool {
-        guard let element = AX.focusedElement() else { return false }
-        return AXUIElementSetAttributeValue(element, kAXSelectedTextAttribute as CFString, text as CFString) == .success
+    func insert(_ text: String, into element: AXUIElement) -> Bool {
+        AXUIElementSetAttributeValue(element, kAXSelectedTextAttribute as CFString, text as CFString) == .success
     }
 
     func frontmostPid() -> pid_t? { FrontmostApp.liveToken().flatMap { pid_t($0) } }
@@ -262,7 +262,8 @@ final class FocusedFieldDelivery: VoiceDelivering {
             return reason
         case .accessibility:
             guard !isCancelled() else { return .failed }
-            if probe.insert(text) { return nil }
+            // 走到这里说明 check 已核验当前焦点就是录音开始时记下的元素：写它本身
+            if let element = target.element, probe.insert(text, into: element) { return nil }
             // 元素声称可写却拒绝了：目标已核验过，退回受控粘贴
             return paste(text, target: target, probe: probe, paster: paster, isCancelled: isCancelled)
         case .paste:
