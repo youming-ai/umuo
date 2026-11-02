@@ -37,9 +37,6 @@
     "vitest": "^4.1.12",
     "void": "1.2.1"
   },
-  "dependencies": {
-    "@waffo/pancake-ts": "0.26.0"
-  },
   "engines": {
     "node": ">=24.21.0"
   }

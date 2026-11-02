@@ -37,16 +37,4 @@ export interface Env {
   NOTIFY_KV: NotifyStore
   /** 客户端安装包（R2 桶 umuo-releases，由仓库的 Release 工作流写入，见 docs/DEPLOY.md） */
   RELEASES: ReleaseStore
-  /** 买断许可证（含已激活设备）、结账领取码与 webhook 去重（KV namespace: umuo-licenses，见 worker/src/billing.ts） */
-  LICENSES: NotifyStore
-  /**
-   * Waffo Pancake 收费配置。`WAFFO_PRIVATE_KEY` 是远端 secret，其余是 void.config.ts 的 vars。
-   * 缺任何一项，收费接口都回 503（见 `waffoConfig`）。
-   */
-  WAFFO_ENV?: string
-  WAFFO_MERCHANT_ID?: string
-  WAFFO_PRIVATE_KEY?: string
-  WAFFO_STORE_ID?: string
-  /** 一次性买断商品（US$9）的 ID；正式环境建好商品前留空，收费接口因此回 503 */
-  WAFFO_PRODUCT_LICENSE?: string
 }

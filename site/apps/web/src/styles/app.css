@@ -361,7 +361,7 @@
   }
 
   /* —— 导航 —— */
-  /* 页眉透明地压在字符网格上；用 absolute 而非 fixed，定价页滚动时正文不会从页眉底下穿过 */
+  /* 页眉透明地压在字符网格上；用 absolute 而非 fixed，长页滚动时正文不会从页眉底下穿过 */
   .site-nav {
     inset-inline: 0;
     top: 0;
@@ -397,7 +397,7 @@
     border-top: 1px solid color-mix(in srgb, var(--rule) 70%, transparent);
   }
 
-  /* —— 定价：两笔账排成对照本的左右两页，中间一道装订线；不做卡片 —— */
+  /* —— 免费与开源（/pricing）：两笔账排成对照本的左右两页，中间一道装订线；不做卡片 —— */
   .pricing {
     padding-top: 7rem;
     padding-bottom: 5rem;
@@ -447,12 +447,6 @@
     margin-top: 0.625rem;
     color: var(--ink-3);
     font-size: 0.875rem;
-  }
-  .pricing-free {
-    max-width: 26em;
-    margin-bottom: 1rem;
-    color: var(--ink);
-    font-weight: 600;
   }
   .pricing-body {
     max-width: 30em;
@@ -539,45 +533,6 @@
     }
   }
 
-  /* —— 激活页：付款后领取许可证密钥 —— */
-  .activate {
-    padding-top: 7rem;
-    padding-bottom: 4rem;
-  }
-  .activate-body > * + * {
-    margin-top: 1.25rem;
-  }
-  .activate-body {
-    max-width: 44rem;
-    margin-top: 1.5rem;
-  }
-  .license-key {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 0.75rem;
-  }
-  .license-key code {
-    padding: 0.5rem 0.875rem;
-    border: 1px solid var(--rule-strong);
-    border-inline-start: 3px solid var(--accent);
-    border-radius: var(--radius-control);
-    background: var(--paper-2);
-    color: var(--ink);
-    font-size: 1.125rem;
-    letter-spacing: 0.04em;
-    user-select: all;
-  }
-  .activate-actions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.75rem;
-  }
-  .activate-steps {
-    padding-inline-start: 1.25rem;
-    list-style: decimal;
-    color: var(--ink-2);
-  }
   /* —— 服务条款 / 隐私政策：长文页，正文限宽便于阅读 —— */
   .legal {
     padding-top: 7rem;
@@ -667,7 +622,7 @@
   }
 
   /* 字符网格只留在页面上下边缘，像对照本的页眉页脚；中间正文那一带留白，不和标题、演示抢 */
-  /* 页眉那一带（logo、定价）完全留白，往下才淡入，不让字符从水獭图标旁边露出来 */
+  /* 页眉那一带（logo、「免费与开源」）完全留白，往下才淡入，不让字符从水獭图标旁边露出来 */
   .language-grid-base {
     opacity: 0.13;
     mask-image: linear-gradient(
@@ -721,17 +676,12 @@
     white-space: pre-line;
   }
 
-  /* —— 下载区（首页与定价页共用）：按钮与旁边的定价说明放不下时，说明换到按钮下面 —— */
+  /* —— 下载区（首页与「免费与开源」页共用）：按钮与旁边的「免费」说明放不下时，说明换到按钮下面 —— */
   .download-actions {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
     gap: 0.5rem 1.25rem;
-  }
-
-  /* 购买按钮的出错说明夹在按钮行里：独占一行，不把定价链接挤开 */
-  .purchase-error {
-    flex-basis: 100%;
   }
 
   .download-requirement {

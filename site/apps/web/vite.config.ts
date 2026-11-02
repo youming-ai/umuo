@@ -22,10 +22,7 @@ function seoHead(locale: Locale, page: SitePage = 'home'): string {
 
   return `<!-- seo:start -->
     <title>${escapeHtml(seo.title)}</title>
-    <meta name="description" content="${escapeHtml(seo.description)}" />${
-      // 激活页地址里带领取码，不该进搜索引擎
-      page === 'activate' ? '\n    <meta name="robots" content="noindex" />' : ''
-    }
+    <meta name="description" content="${escapeHtml(seo.description)}" />
     <link rel="canonical" href="${url}" />
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="umuo" />

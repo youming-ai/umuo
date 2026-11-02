@@ -47,14 +47,8 @@ final class SettingsModel {
     private var keyCheck = 0
     private var keyCheckedProvider: String?
 
-    /// 许可证页的模型（应用级，设置窗关掉也在）。nil = 没接上（测试里的设置窗）。
-    @ObservationIgnored let license: LicenseManager?
-    /// 下次载入时直接落在这一页（试用到期弹窗的「输入许可证」），用过即清。
-    @ObservationIgnored var preferredTab: SettingsTab?
-
-    init(backend: SettingsBackend, license: LicenseManager? = nil) {
+    init(backend: SettingsBackend) {
         self.backend = backend
-        self.license = license
     }
 
     /// 界面上此刻的设置（含尚在保存中的改动）。
@@ -98,12 +92,10 @@ final class SettingsModel {
         let needsKey = providers.first { $0.id == current.string("providerId") }?.requiresKey ?? true
         keyConfigured = needsKey ? key : true
         keyCheckedProvider = current.string("providerId")
-        tab = preferredTab ?? SettingsTabs.initial(SettingsAttentionInput(
+        tab = SettingsTabs.initial(SettingsAttentionInput(
             keyConfigured: keyConfigured,
             permissionMissing: SettingsTabs.missingPermission(perms.accessibility, perms.screenRecording)
         ))
-        preferredTab = nil
-        license?.refresh()
 
         // 下面这些都是参考信息：读不到不该拖垮设置窗。
         hotkeyFailures = backend.hotkeyFailures()
@@ -127,7 +119,6 @@ final class SettingsModel {
     func windowClosed() {
         hotkeys.stop()
         engine.apiKey = ""
-        license?.keyDraft = ""
     }
 
     private func resetDrafts() {

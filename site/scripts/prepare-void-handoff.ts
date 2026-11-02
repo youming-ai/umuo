@@ -22,7 +22,6 @@ for (const key of [
   'CF_API_TOKEN',
   'CLOUDFLARE_API_KEY',
   'CF_API_KEY',
-  'WAFFO_PRIVATE_KEY',
   'VOID_TOKEN',
   'SPARKLE_PRIVATE_KEY',
   'TAURI_SIGNING_PRIVATE_KEY',
@@ -86,7 +85,7 @@ try {
   const expected = production.cloudflare as Record<string, unknown>
   const kv = expected.kv_namespaces as { binding: string; id: string }[]
   const buckets = expected.r2_buckets as { binding: string; bucket_name: string }[]
-  const vars = production.worker?.vars ?? {}
+  const vars = (production.worker as { vars?: Record<string, string> } | undefined)?.vars ?? {}
   const domains = (expected.routes as { pattern: string }[]).map((route) => route.pattern)
   const expectedBindings = [
     ...Object.keys(vars),

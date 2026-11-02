@@ -1,15 +1,14 @@
-import { PURCHASE_OPEN } from '../config'
+import { SOURCE_PUBLIC, SOURCE_URL } from '../config'
 import type { SiteContent } from '../content/types'
 import { DownloadPanel } from './DownloadButton'
-import { PurchaseButton } from './PurchaseButton'
 
 /**
- * 定价页：买断 + 自带 Key 本质上是两笔账，排成对照本的左右两页——左页付给 umuo（一次），
- * 右页付给模型供应商（按用量），中间一道装订线。只有左页是 umuo 收的钱，所以只有它用大字；
- * 右页同一位置退成小号灰墨。下面是「包含」清单配默认快捷键，左栏补一份「不包含」。
+ * 「免费与开源」页（地址沿用旧的 `/pricing`）：umuo 免费 + 自带 Key，排成对照本的左右两页——
+ * 左页是 umuo 本身（免费、MIT 开源），右页是付给模型供应商的用量费，中间一道装订线。
+ * 只有左页用大字；右页同一位置退成小号灰墨。下面是「包含」清单配默认快捷键，右页补一份「不包含」。
  *
- * 购买入口由 config.ts 的 `PURCHASE_OPEN` 控制：关闭时只放下载按钮和一句「尚未开放购买」；
- * 打开后下载按钮旁多一个「购买 US$9」，下面一句说明付款后怎么领取、激活许可证。
+ * 源码一行由 config.ts 的 `SOURCE_PUBLIC` 控制：关闭时只写「源码即将以 MIT 许可证公开」，
+ * 打开后换成指向 `SOURCE_URL` 的链接。
  */
 export function PricingPage({ content }: { content: SiteContent }) {
   const { pricing } = content
@@ -29,26 +28,17 @@ export function PricingPage({ content }: { content: SiteContent }) {
           <p className="pricing-cadence">{umuo.cadence}</p>
           {macos ? (
             <div className="pricing-action">
-              {/* 「现在免费试用」是好消息：写在按钮上方当正文，不当脚注 */}
-              <p className="pricing-free">
-                {PURCHASE_OPEN ? pricing.purchase.lead : pricing.unavailable}
-              </p>
-              <DownloadPanel
-                platform={macos}
-                purchase={
-                  PURCHASE_OPEN ? (
-                    <PurchaseButton purchase={pricing.purchase} locale={content.locale} />
-                  ) : undefined
-                }
-              />
-              {PURCHASE_OPEN ? (
-                <p className="pricing-fineprint purchase-activation">
-                  {pricing.purchase.activation}
-                </p>
-              ) : null}
+              <DownloadPanel platform={macos} />
             </div>
           ) : null}
           <p className="pricing-body">{umuo.body}</p>
+          <p className="pricing-source pricing-fineprint">
+            {SOURCE_PUBLIC ? (
+              <a href={SOURCE_URL}>{pricing.source.link}</a>
+            ) : (
+              pricing.source.pending
+            )}
+          </p>
         </section>
         <section className="pricing-page" aria-labelledby="bill-provider">
           <h2 id="bill-provider" className="pricing-payee">

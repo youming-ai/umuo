@@ -13,7 +13,6 @@
     bundle.sh 用文案表 voice.micUsage 的简体中文覆盖，其余三种语言写进 <语言>.lproj/InfoPlist.strings。
     其它能力（辅助功能、输入监控、屏幕录制经 screencapture 子进程、Vision、AVSpeechSynthesizer 朗读）
     都不读 Info.plist 的用途说明；不用的键不加。
-  - umuo://：深链接 umuo://activate?key=… 由 License/LicenseDeepLink.swift 处理（打开许可证页并填入密钥）。
 -->
 <plist version="1.0">
 <dict>
@@ -56,16 +55,5 @@
   <true/>
   <key>NSPrincipalClass</key>
   <string>NSApplication</string>
-  <key>CFBundleURLTypes</key>
-  <array>
-    <dict>
-      <key>CFBundleURLName</key>
-      <string>app.umuo.desktop</string>
-      <key>CFBundleURLSchemes</key>
-      <array>
-        <string>umuo</string>
-      </array>
-    </dict>
-  </array>
 </dict>
 </plist>

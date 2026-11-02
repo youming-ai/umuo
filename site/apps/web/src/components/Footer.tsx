@@ -1,4 +1,4 @@
-import { CONTACT_EMAIL } from '../config'
+import { CONTACT_EMAIL, SOURCE_PUBLIC, SOURCE_URL } from '../config'
 import type { Locale, SiteContent } from '../content/types'
 import { pagePath } from '../lib/pages'
 import type { Theme } from '../lib/theme'
@@ -28,6 +28,12 @@ export function Footer({
           <a href={pagePath(locale, 'privacy')}>{legal.privacy.title}</a>
         </div>
         <div className="footer-tools flex flex-wrap items-center gap-5">
+          {/* 仓库公开前（SOURCE_PUBLIC 为 false）不放链接；打开后这里多一个小字链接，首页高度需重新量 */}
+          {SOURCE_PUBLIC ? (
+            <a href={SOURCE_URL} className="text-xs text-text-tertiary hover:text-text-primary">
+              {footer.source}
+            </a>
+          ) : null}
           <a
             href={`mailto:${CONTACT_EMAIL}`}
             className="text-xs text-text-tertiary hover:text-text-primary"

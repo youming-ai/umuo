@@ -8,10 +8,7 @@ describe('Void', () => {
       workers_dev: false,
       preview_urls: false,
       version_metadata: { binding: 'VERSION_METADATA' },
-      kv_namespaces: [
-        { binding: 'NOTIFY_KV', id: 'dad4b460f4a14797adc1e9491e42f7f1' },
-        { binding: 'LICENSES', id: '9afc88feb77741739cbdb9929343e487' },
-      ],
+      kv_namespaces: [{ binding: 'NOTIFY_KV', id: 'dad4b460f4a14797adc1e9491e42f7f1' }],
       r2_buckets: [{ binding: 'RELEASES', bucket_name: 'umuo-releases' }],
     })
     expect(base.worker?.compatibility_date).toBe('2026-07-17')

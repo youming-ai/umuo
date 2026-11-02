@@ -76,8 +76,11 @@ export interface DemoMode {
 export interface HeroContent {
   title: string
   subtitle: string
-  /** 下载按钮旁的一句商业模式说明，链到定价页 */
-  pricingNote: string
+  /**
+   * 下载按钮旁的一句「免费、自带 Key」说明，链到 `/pricing`（免费与开源页）。
+   * 按 config.ts 的 `SOURCE_PUBLIC` 二选一：仓库公开前写「即将开源」，公开后写「MIT 开源」。
+   */
+  freeNote: { pending: string; public: string }
   demo: {
     label: string
     /** 第一项是默认展示的模式 */
@@ -91,6 +94,8 @@ export interface FooterContent {
   contact: string
   copyright: string
   languageLabel: string
+  /** 源码链接的文字；只在 `SOURCE_PUBLIC` 打开后显示 */
+  source: string
 }
 
 /** 法律文本的正文块：字符串是段落，字符串数组是列表，`{ heading }` 是小节标题 */
@@ -101,19 +106,19 @@ export interface LegalDoc {
   title: string
   /** meta description */
   description: string
-  /** 版本号与生效日期，显示在标题下（Waffo 要求两者一起存档） */
+  /** 版本号与生效日期，显示在标题下 */
   meta: string
   /** 第 1 节之前的引言段落 */
   intro?: string[]
   sections: Array<{ heading: string; body: LegalBlock[] }>
 }
 
-/** 定价页的一笔账：付给谁、多少、怎么付 */
+/** 「免费与开源」页的一笔账：付给谁、多少、怎么付 */
 export interface PricingBill {
   payee: string
-  /** 金额：付给 umuo 的写带币种的 US$9；付给供应商的写「按用量」 */
+  /** 金额：付给 umuo 的写「免费」；付给供应商的写「按用量」 */
   amount: string
-  /** 一次性 / 按用量 */
+  /** 金额下的一行小字 */
   cadence: string
   body: string
 }
@@ -125,61 +130,21 @@ export interface PricingFeature {
   tag?: string
 }
 
-/** 付款完成后的激活页 `/activate?claim=…`：轮询领取码，拿到许可证密钥 */
-export interface ActivateContent {
-  title: string
-  description: string
-  /** 等待 Waffo 的付款结果 */
-  pending: string
-  /** 等了很久还没结果 */
-  slow: string
-  ready: string
-  keyLabel: string
-  copy: string
-  copied: string
-  /** `umuo://activate?key=…` 深链接按钮 */
-  openApp: string
-  /** 拿到密钥之后怎么用：保存密钥、在 umuo 里激活、最多 3 台 Mac 与换机解绑 */
-  steps: string[]
-  /** 地址里没有领取码 */
-  missing: string
-  /** 领取码不存在或已过期 */
-  unknown: string
-  error: string
-  /** 非成功状态下的出口：回首页、发邮件、刷新重试 */
-  home: string
-  contact: string
-  retry: string
-}
-
-/** 购买入口（`PURCHASE_OPEN` 打开后才显示）：按钮、跳转中、出错，以及付款后怎么激活 */
-export interface PurchaseContent {
-  /** 按钮文字：购买 US$9 */
-  buy: string
-  /** 正在向 Worker 要收银台链接 */
-  opening: string
-  /** Worker 回 503：收费还没配好 */
-  unavailable: string
-  /** 网络错误或其他失败 */
-  error: string
-  /** 定价页按钮上方的一句（替代「尚未开放购买」）：先免费试用、再买 */
-  lead: string
-  /** 定价页按钮下方的激活说明：领取密钥、在 umuo 里激活、3 台 Mac */
-  activation: string
-}
-
+/** `/pricing`（地址沿用旧的定价页）：umuo 免费、MIT 开源，模型费用只在用户与供应商之间 */
 export interface PricingContent {
   /** 页面 h1，也是页眉链接文字 */
   title: string
   /** meta description */
   description: string
   lead: string
-  /** 两笔账，像对照本的左右两页：付给 umuo 的一次性买断，付给模型供应商的用量费 */
+  /** 两笔账，像对照本的左右两页：umuo 本身免费，模型用量付给供应商 */
   bills: [PricingBill, PricingBill]
-  /** 购买尚未开放（`PURCHASE_OPEN` 关闭）时，放在下载按钮上方的说明 */
-  unavailable: string
-  purchase: PurchaseContent
-  /** 不包含：用一份短清单把「买断 + 自带 Key」反过来说清楚 */
+  /**
+   * 源码一行，按 config.ts 的 `SOURCE_PUBLIC` 二选一：
+   * 关闭时只显示 `pending`（「源码即将以 MIT 许可证公开」），打开后显示指向 `SOURCE_URL` 的 `link`。
+   */
+  source: { pending: string; link: string }
+  /** 不包含：用一份短清单把「免费 + 自带 Key」反过来说清楚 */
   excluded: { title: string; items: string[] }
   /** 「包含」区块的标题 */
   included: string
@@ -194,9 +159,8 @@ export interface SiteContent {
   nav: NavContent
   hero: HeroContent
   footer: FooterContent
-  /** 定价页：买断 + 自带 Key；支付审核要求下单前就能在网站上看到价格 */
+  /** 免费与开源页（`/pricing`）：umuo 免费、MIT 开源、自带模型 Key */
   pricing: PricingContent
-  activate: ActivateContent
-  /** 服务条款与隐私政策（买断授权 + 请求直连） */
+  /** 服务条款与隐私政策（软件按 MIT 提供；条款只约束网站与官方发行版 + 请求直连） */
   legal: { terms: LegalDoc; privacy: LegalDoc }
 }

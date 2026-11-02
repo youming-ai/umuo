@@ -19,7 +19,7 @@ export const LOCALE_COOKIE = 'umuo-lang'
 const ONE_YEAR = 60 * 60 * 24 * 365
 
 /** 首页以外的页面，地址是 `/<page>`；与 apps/web/src/lib/pages.ts 的 SITE_PAGES 保持一致 */
-export const PAGES = ['pricing', 'terms', 'privacy', 'activate'] as const
+export const PAGES = ['pricing', 'terms', 'privacy'] as const
 export type Page = (typeof PAGES)[number]
 
 /** `/terms`、`/terms/` → 'terms'；其他路径 null */
@@ -115,11 +115,6 @@ export async function handlePage(
   response.headers.set('vary', 'Cookie, Accept-Language')
   response.headers.set('cache-control', 'no-cache')
   response.headers.set('content-language', locale)
-  if (page === 'activate') {
-    // 激活页的地址里带着领取码：不进搜索引擎，也不随 Referer 带去别的站
-    response.headers.set('x-robots-tag', 'noindex')
-    response.headers.set('referrer-policy', 'no-referrer')
-  }
   return response
 }
 

@@ -51,18 +51,16 @@
 | B6 | §8 | 无障碍、原生交互、四语言界面 | 🟡 | `Localizable.xcstrings` 与原生控件已有；`SettingsPaneController` 同步工具栏、窗口标题及图标辅助功能文案，`SettingsPaneLocalizationTests` 覆盖首次载入、四语言切换及保存失败回滚；菜单栏标题改用当前界面语言，提示/错误行、OCR 编辑器与暂停开关改用原生控件；新增文案、VoiceOver、键盘、输入法、对比度和减少动态效果需真机验收 |
 | B7 | §6.4、§8 | 老用户配置、历史、Key、登录项兼容 | 🟡 | 标识与存储路径保留；精简迁移及正式包升级仍需验收，旧迁移不改写 |
 
-## 买断授权与官网
+## 开源与官网
 
-订阅、官方额度与 AI 网关退出当前范围；官网 Worker 已改为一次性商品，客户端已有许可证与试用；购买入口由 `PURCHASE_OPEN` 控制，默认关闭。
-**发版约束**：客户端含试用门控，正式购买开放之前不得发布新客户端，否则用户 7 天后被拦且无处购买。
-商业参数 2026-10-30 定案：US$9 一次性买断；每个许可证最多激活 3 台 Mac，可自助解绑换机；7 天免费试用；购买 14 天内可退款，退款后许可证失效；永久免费更新；沿用 Waffo，先在 test 环境走通购买→激活→解绑→退款闭环，再由用户在 Waffo 后台建 prod 商品后切线上。
+2026-11-02 起完全免费、MIT 开源：取消买断与订阅，删除 10-30 实现的客户端许可证/试用门控、Worker Waffo 收费与官网购买/激活。
+原 C1–C4（买断授权）作废，实现证据见下方 10-30 验证记录与 git 历史。
 
-| 编号 | PRD | 要求 | 状态 | 完成证据要求 |
+| 编号 | PRD | 要求 | 状态 | 实现证据与剩余验收 |
 | --- | --- | --- | --- | --- |
-| C1 | §5.12、§10 | 商业参数与一次性商品/授权方案 | ✅ | 参数已定案（见上）；`site/worker/src/billing.ts` 订阅模型换为一次性商品（`WAFFO_PRODUCT_LICENSE`），`waffo-setup.ts` 建 US$9 一次性商品（税类 Software）；正式环境商品尚未创建 |
-| C2 | §5.12 | 购买、许可证发放、激活、状态、解绑/换机 | 🟡 | Worker：checkout、`order.completed` 签发、claim、activate（3 台，409 `device_limit`，同设备幂等）、verify、deactivate，`billing.test.ts` 全覆盖；客户端 `apps/macos/Sources/Umuo/License/`：Keychain 存密钥/设备/试用起点、7 天试用、`ActionRouter.gate` 拦四个翻译入口、设置「许可证」页激活/解绑、`umuo://activate` 深链接填入；`LicenseTests` 假网络覆盖。KV 最终一致，近同时激活可能超过 3 台。Waffo test 环境闭环与真机待验 |
-| C3 | §5.12、§6.4 | 退款、失效与离线状态、凭据分离 | 🟡 | `refund.succeeded` 吊销（含部分退款，按只做全额退款处理）；客户端 24 h 验证、离线宽限 14 天，revoked/invalid/not_activated 立即失效，400/429/503 按网络失败；许可证 Keychain service `<Bundle ID>.license` 与模型 Key 分开。test 环境退款闭环待验 |
-| C4 | §11 | 五语言首页、定价、条款、隐私、购买/激活 | 🟡 | 五语言改为买断：3 台、7 天试用、14 天退款、永久更新，订阅残留删除；条款/隐私升 v2.2（2026-10-30）点名 Waffo 与所存数据；`PURCHASE_OPEN`（`site/apps/web/src/config.ts`，默认 false）控制首页/定价页「购买 US$9」按钮与 `PurchaseButton`。#121 删除条款与隐私中「重大变更邮件通知购买者」的承诺（不做账户、不存邮箱），隐私补语音输入与 Hugging Face 模型下载，演示键位改为 ⌃⌘V / ⌥⌘V；打开前须量首页一屏 |
+| C5 | §5.12、§10 | MIT 许可与开源准备 | 🟡 | 根 `LICENSE` 改为 MIT，Cargo/npm 元数据、README、AGENTS 与 `CONTRIBUTING.md` 同步；`site/` 许可、第三方许可核查、历史审查与仓库公开另定 |
+| C6 | §5.12 | 客户端与服务端无收费路径 | ✅ | 客户端删除 `License/`（7 个文件）与 `LicenseTests`、`ActionRouter.gate`、设置许可证页、引导试用说明、46 个文案 key 与 `umuo://` URL scheme；Worker 删除 checkout/webhook/`/api/license/*`、`billing.ts`、`waffo-setup.ts`、`@waffo/pancake-ts` 与 `LICENSES` KV 绑定。远端 `umuo-licenses` KV、`WAFFO_PRIVATE_KEY` secret 与 Waffo 后台商品待手动清理 |
+| C7 | §11 | 五语言官网免费开源文案、条款与隐私 | 🟡 | 删除 `/activate` 与购买按钮，`/pricing` 改为「免费与开源」页；条款与隐私 v3.0（MIT、名称与商标、无支付数据）；`SOURCE_URL`/`SOURCE_PUBLIC`（默认 false）控制源码链接，内容测试禁止收费时代表述。首页一屏待人工测量 |
 
 ## 更新与发布
 

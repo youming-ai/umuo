@@ -1,12 +1,3 @@
-import {
-  handleActivate,
-  handleCheckout,
-  handleClaim,
-  handleDeactivate,
-  handlePortal,
-  handleVerify,
-  handleWebhook,
-} from './billing'
 import type { Env } from './env'
 import { json } from './http'
 import { handlePage, localeRedirect, pageFromPath } from './locale'
@@ -86,7 +77,7 @@ async function assetOrNotFound(request: Request, env: Env): Promise<Response> {
  * umuo.app 的全部路由。wrangler 的入口（`./index.ts`）与 Void 的中间件
  * （`middleware/01.legacy.ts`）都只是调它，两边的行为因此只有这一份。
  *
- * `/`、`/pricing`、`/terms`、`/privacy`、`/activate`（按语言挑预渲染页）、语言前缀的旧地址、
+ * `/`、`/pricing`、`/terms`、`/privacy`（按语言挑预渲染页）、语言前缀的旧地址、
  * `/api/*` 与 `/download/*` 由这里处理；其余路径交给静态资源层（见 assetOrNotFound）。
  */
 export async function dispatch(request: Request, env: Env): Promise<Response> {
@@ -102,13 +93,6 @@ export async function dispatch(request: Request, env: Env): Promise<Response> {
   if (pathname === '/download/macos') return handleMacosDownload(env)
   if (pathname.startsWith('/download/macos/'))
     return handleMacosUpdateFile(env, pathname.slice('/download/macos/'.length))
-  if (pathname === '/api/checkout') return handleCheckout(request, env)
-  if (pathname === '/api/waffo/webhook') return handleWebhook(request, env)
-  if (pathname === '/api/license/claim') return handleClaim(request, env)
-  if (pathname === '/api/license/activate') return handleActivate(request, env)
-  if (pathname === '/api/license/verify') return handleVerify(request, env)
-  if (pathname === '/api/license/deactivate') return handleDeactivate(request, env)
-  if (pathname === '/api/license/portal') return handlePortal(request, env)
   if (pathname.startsWith('/api/')) return json({ ok: false, error: 'not_found' }, 404)
   return assetOrNotFound(request, env)
 }

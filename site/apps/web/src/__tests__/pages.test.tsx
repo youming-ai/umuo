@@ -61,10 +61,10 @@ describe('首页一屏', () => {
     expect(hrefs).toContain('/privacy')
   })
 
-  it('页眉左边 logo、右边定价，没有下载按钮', () => {
+  it('页眉左边 logo、右边「免费与开源」，没有下载按钮', () => {
     const links = [...(host.querySelector('header')?.querySelectorAll('a') ?? [])]
     expect(links.map((link) => link.getAttribute('href'))).toEqual(['/', '/pricing'])
-    expect(links[1]?.textContent).toBe('定价')
+    expect(links[1]?.textContent).toBe('免费与开源')
     expect(host.querySelector('header button')).toBeNull()
   })
 
@@ -177,13 +177,13 @@ describe('首页一屏', () => {
     expect(host.querySelector('#download')?.textContent).toContain('仍要打开')
     expect(host.querySelector('form')).toBeNull()
     // 购买开关默认关闭：首页下载区不出现购买按钮
-    expect(host.querySelector('#download')?.textContent).not.toContain('购买 US$9')
+    // 下载按钮旁只有一句「免费、自带 Key」；仓库公开前（SOURCE_PUBLIC 关闭）没有源码链接
+    expect(host.querySelector('.hero-pricing-link')?.textContent).toBe('免费，自带 Key，即将开源')
+    expect(host.querySelector('a[href*="github.com"]')).toBeNull()
   })
 })
 
-describe('定价与激活', () => {
-  beforeEach(() => window.sessionStorage.clear())
-
+describe('免费与开源', () => {
   function renderAt(path: string) {
     act(() => root.unmount())
     window.history.replaceState(null, '', path)
@@ -191,96 +191,33 @@ describe('定价与激活', () => {
     act(() => root.render(<App />))
   }
 
-  /** 让轮询里的 fetch 与 setState 都跑完 */
-  const settle = () => act(async () => {})
-
-  it('定价页：两笔账（付给 umuo US$9 / 付给模型供应商），尚未开放购买时只放下载按钮与一句说明', () => {
+  it('/pricing：umuo 免费、模型费用付给供应商，没有购买入口与源码链接', () => {
     renderAt('/pricing')
+    expect(host.querySelector('h1')?.textContent).toBe('免费与开源')
     const pages = [...host.querySelectorAll('.pricing-page')]
     expect(pages.map((page) => page.querySelector('h2')?.textContent)).toEqual([
       '付给 umuo',
       '付给模型供应商',
     ])
+    expect(pages[0]?.querySelector('.pricing-amount')?.textContent).toBe('免费')
     expect(pages[0]?.querySelector('a[href="/download/macos"]')).not.toBeNull()
-    expect(pages[0]?.textContent).toContain('正式购买尚未开放')
     expect(host.querySelector('form')).toBeNull()
-    // 购买开关（config.ts 的 PURCHASE_OPEN）默认关闭：没有购买按钮，商业规则照常写明
-    expect(host.textContent).not.toContain('购买 US$9')
-    expect(pages[0]?.textContent).toContain('3 台 Mac')
-    expect(pages[0]?.textContent).toContain('14 天内可退款')
+    // SOURCE_PUBLIC 默认关闭：只写「即将公开」，整页（含页脚）不出现源码链接
+    expect(host.querySelector('.pricing-source')?.textContent).toContain('MIT')
+    expect(host.querySelector('.pricing-source a')).toBeNull()
+    expect(host.querySelector('a[href*="github.com"]')).toBeNull()
     // 包含清单配默认快捷键；没发布的功能只标状态、不给键位
-    expect(pages[0]?.querySelector('.pricing-amount')?.textContent).toBe('US$9')
     expect(host.querySelectorAll('.pricing-excluded li').length).toBeGreaterThan(0)
     const rows = [...host.querySelectorAll('.pricing-features li')]
     expect(rows[0]?.querySelectorAll('kbd')).toHaveLength(2)
     expect(rows.find((row) => row.querySelector('.tag'))?.querySelector('kbd')).toBeFalsy()
-    // 订阅时代的承诺不能留在页面上
+    // 收费时代的承诺不能留在页面上（「没有试用期、许可证或激活步骤」这句否定说明除外）
     const text = host.textContent ?? ''
-    for (const stale of ['Premium', '月付', '年付', '订阅费']) expect(text).not.toContain(stale)
+    for (const stale of ['US$9', '购买', '免费试用', '退款', '3 台', '许可证密钥'])
+      expect(text).not.toContain(stale)
   })
 
-  it('激活页：拿到密钥后显示密钥与 umuo:// 深链接', async () => {
-    const fetchMock = vi.fn(async () =>
-      Response.json({ licenseKey: 'UMUO-ABCDE-FGHJK-MNPQR-STVWX' }),
-    )
-    vi.stubGlobal('fetch', fetchMock)
-    renderAt('/activate?claim=c1')
-    await settle()
-    expect(fetchMock).toHaveBeenCalledWith('/api/license/claim?claim=c1')
-    expect(host.querySelector('main code')?.textContent).toBe('UMUO-ABCDE-FGHJK-MNPQR-STVWX')
-    expect(host.querySelector('a[href^="umuo://activate"]')?.getAttribute('href')).toBe(
-      'umuo://activate?key=UMUO-ABCDE-FGHJK-MNPQR-STVWX',
-    )
-    // 领取码是拿密钥的凭证：读到就从地址栏抹掉，不留在浏览器历史里
-    expect(window.location.search).toBe('')
-  })
-
-  it('激活页：刷新后（地址里已没有领取码）从本标签页存下的继续', async () => {
-    window.sessionStorage.setItem('umuo-claim', 'c2')
-    const fetchMock = vi.fn(async () => Response.json({ status: 'pending' }))
-    vi.stubGlobal('fetch', fetchMock)
-    renderAt('/activate')
-    await settle()
-    expect(fetchMock).toHaveBeenCalledWith('/api/license/claim?claim=c2')
-  })
-
-  it('激活页：一次网络抖动不会停止轮询，退避后重试拿到密钥', async () => {
-    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
-    try {
-      const fetchMock = vi
-        .fn()
-        .mockRejectedValueOnce(new TypeError('network'))
-        .mockResolvedValueOnce(Response.json({ licenseKey: 'UMUO-ABCDE-FGHJK-MNPQR-STVWX' }))
-      vi.stubGlobal('fetch', fetchMock)
-      renderAt('/activate?claim=c3')
-      await settle()
-      expect(host.querySelector('main code')).toBeNull()
-      await act(async () => vi.advanceTimersByTime(2000))
-      await settle()
-      expect(fetchMock).toHaveBeenCalledTimes(2)
-      expect(host.querySelector('main code')?.textContent).toBe('UMUO-ABCDE-FGHJK-MNPQR-STVWX')
-    } finally {
-      vi.useRealTimers()
-    }
-  })
-
-  it('激活页：地址里没有领取码时不请求，直接说明', async () => {
-    const fetchMock = vi.fn()
-    vi.stubGlobal('fetch', fetchMock)
-    renderAt('/activate')
-    await settle()
-    expect(fetchMock).not.toHaveBeenCalled()
-    expect(host.querySelector('main')?.textContent).toContain('地址不完整')
-  })
-
-  it('激活页：领取码不存在或过期时给出联系方式', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () => Response.json({ ok: false }, { status: 404 })),
-    )
-    renderAt('/activate?claim=gone')
-    await settle()
-    expect(host.querySelector('main')?.textContent).toContain('已过期')
-    expect(host.querySelector('main code')).toBeNull()
+  it('旧的激活页地址不再是站内页面，按首页渲染', () => {
+    expect(pageFromPath('/activate')).toBe('home')
   })
 })

@@ -36,7 +36,7 @@ export function applySeo(locale: Locale, page: SitePage = 'home') {
   document.title = seo.title
 
   upsertMeta('name', 'description', seo.description)
-  upsertMeta('name', 'robots', page === 'activate' ? 'noindex' : 'index, follow')
+  upsertMeta('name', 'robots', 'index, follow')
   upsertLink('canonical', url)
 
   upsertMeta('property', 'og:type', 'website')

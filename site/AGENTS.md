@@ -6,7 +6,7 @@
 
 这里是 umuo 仓库的 `site/`：**umuo.app 官网（`apps/web`）与它的 Worker（`worker`）**，下文路径都相对 `site/`。
 它是独立的 Bun 项目，命令都在 `site/` 里跑；客户端代码在仓库根目录（`apps/`、`crates/`），不要搬进来。
-客户端闭源，官网文案不要写「开源 / MIT / 自行编译」之类的宣称。
+umuo 完全免费、按 MIT 许可证开源（仓库尚未公开），纯 BYOK；没有购买、许可证、激活或试用，官网不要再写回这些。
 
 ## 常用命令
 
@@ -22,7 +22,7 @@ Node 需 ≥ 24.21；本机默认版本较低时用 `mise exec node@24 -- bun ru
 `void.config.ts` 是正式 Worker 配置的唯一来源：域名、资源 ID、访问开关和日志均显式声明，改它们会影响部署。
 Void 中间件与 `worker/src/index.ts` 共用 `worker/src/dispatch.ts`；正式配置由 `scripts/void-config.test.ts` 检查。
 `cf` 管理 Cloudflare 资源与预构建部署（`scripts/cf-deploy.ts` 转换 Void 构建产物后调 `cf deploy --prebuilt`）；
-Vite + Void 负责开发和构建。Waffo 变量每项独占一行，供 `scripts/waffo-setup.ts` 改写；私钥只放远端 secret。
+Vite + Void 负责开发和构建。Worker 没有任何 secret 或变量。
 生成的 `.void-wrangler.jsonc` 和 `.void/` 不提交。
 
 线上已由 Void 构建接管；调整 Workers Builds 或回滚前，先读 `docs/VOID-MIGRATION.md`。
@@ -34,10 +34,10 @@ Vite + Void 负责开发和构建。Waffo 变量每项独占一行，供 `script
   `content.test.ts` 会拦空串与漏翻。组件不写死句子。
 - **预渲染必须能 hydrate**：渲染期不读 `window`、不用随机数和计时器，副作用放进 effect（`hydration.test.tsx` 守着）。
 - **不放假下载链接**：`MACOS_DOWNLOAD_URL` 指向 Worker 的 `/download/macos`（读 R2 最新版）；设回 `null` 时下载按钮变为不可点。
-- 目前站点是首页一屏，外加 `/pricing`（定价，页眉右侧链接）、页脚链接的 `/terms`（服务条款）与 `/privacy`（隐私政策），以及 `/activate`（激活码领取页）。页眉左边 logo（蓝底、从水里探出头的小水獭，`LogoMark` 与 `public/favicon.svg` 是同一张图），右边定价（仓库是私有的，不放 GitHub 链接）。页面清单在 `apps/web/src/lib/pages.ts`，Worker 的 `PAGES`（`worker/src/locale.ts`）要同步。
-- **产品范围**：文字翻译、OCR 截图翻译、语音输入后润色/翻译，一次性购买、纯 BYOK。修改产品或收费页面前读根目录 `docs/PRD.md` 与 `docs/PRD-CONFORMANCE.md`；只宣称已发布能力，语音尚未实现。账号、订阅、官方额度与 AI 网关退出范围，不继续宣传为即将推出。
-- **收费文案**：已定案——US$9 一次性买断（不含税，Waffo 按地区计税）；每个许可证最多 3 台 Mac、可自助解绑换机；7 天免费试用（客户端本地计时）；购买 14 天内可退款、退款后许可证吊销；永久免费更新；无 umuo 账号。定价页、激活页与条款须一致；模型调用费用由用户另向供应商支付。购买入口由 `apps/web/src/config.ts` 的 `PURCHASE_OPEN` 控制，**默认关闭**（main 合入即部署正式站）：关闭时定价页写「尚未开放购买」；正式 Waffo 建好买断商品、Worker 收费接口可用后再改成 true。Worker 的收费与许可证接口见 `worker/src/billing.ts` 文件头（结账、webhook、领取、激活 / 校验 / 解绑、门户），客户端按其中的 JSON 契约实现。
-- **条款与隐私政策**：已按买断授权与请求直连边界改写，v2.2 补入上述购买规则，并写明支付处理方 Waffo 及购买、激活时我们保存的数据（买家随机标识、密钥哈希、设备标识与设备名）。经营者、国家与版本/生效日期仍集中在 `config.ts` 的 `LEGAL_*`；改条款时更新版本与日期，并履行已有通知承诺。
+- 目前站点是首页一屏，外加 `/pricing`（「免费与开源」页，沿用旧地址，页眉右侧链接）、页脚链接的 `/terms`（服务条款）与 `/privacy`（隐私政策）。页眉左边 logo（蓝底、从水里探出头的小水獭，`LogoMark` 与 `public/favicon.svg` 是同一张图），右边「免费与开源」。页面清单在 `apps/web/src/lib/pages.ts`，Worker 的 `PAGES`（`worker/src/locale.ts`）要同步。
+- **产品范围**：文字翻译、OCR 截图翻译、语音输入后润色/翻译，完全免费、纯 BYOK。修改产品页面前读根目录 `docs/PRD.md` 与 `docs/PRD-CONFORMANCE.md`；只宣称已发布能力，语音尚未实现。账号、订阅、付费版、官方额度与 AI 网关退出范围，不继续宣传为即将推出。
+- **免费与开源**：umuo 免费，没有付费版、内购、试用期、许可证或激活；模型调用费用只在用户与供应商之间。软件按 MIT 许可证开源，但仓库尚未公开：源码地址是 `apps/web/src/config.ts` 的 `SOURCE_URL`，所有源码链接由同文件的 `SOURCE_PUBLIC` 控制，**默认关闭**（main 合入即部署正式站，不能放打不开的链接）——关闭时只写「源码即将以 MIT 许可证公开」，首页下载旁的一句用 `hero.freeNote.pending`；仓库公开、地址确认后改成 true，「免费与开源」页与页脚出现源码链接、首页那句换成 `freeNote.public`，并重新量首页一屏（页脚多了一个链接）。「umuo」名称与水獭图标不随 MIT 授权。
+- **条款与隐私政策**：v3.0（2026-11-02）起软件本身按 MIT 许可证提供，条款只约束网站与官方发行版的使用、商标、第三方模型供应商等；隐私政策不再有支付、许可证与设备数据，写明下载、检查更新、上线通知订阅与语音（本机转写、Hugging Face 模型下载）。经营者、国家与版本/生效日期集中在 `config.ts` 的 `LEGAL_*`；改条款时更新版本与日期，并履行已有通知承诺。
 - **地址不带语言前缀**：只有 `umuo.app/`。Worker（`worker/src/locale.ts`）按 cookie `umuo-lang` → `Accept-Language` → 简体中文挑一份 `dist/<locale>/index.html` 返回；页面上切换语言只写 cookie、就地换内容；`/en/` 这类旧地址 301 回 `/`。
 
 ## 视觉方向：「对照本」

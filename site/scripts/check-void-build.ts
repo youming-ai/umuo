@@ -6,6 +6,8 @@ import { prepareCfBuildOutput } from 'void/deploy'
 import source from '../void.config'
 
 const site = join(import.meta.dirname, '..')
+/** 配置里的 Worker 变量；目前没有任何变量（收费配置已随免费开源删除），未声明时按空对象核对 */
+const workerVars = (source.worker as { vars?: Record<string, string> } | undefined)?.vars ?? {}
 
 export async function prepareVerifiedCfBuild() {
   const project = site
@@ -24,7 +26,7 @@ export async function prepareVerifiedCfBuild() {
     const routes = expected.routes as { pattern: string }[] | undefined
     const kv = expected.kv_namespaces as { binding: string; id: string }[]
     const r2 = expected.r2_buckets as { binding: string; bucket_name: string }[]
-    const vars = (config.worker?.vars ?? {}) as Record<string, string>
+    const vars = workerVars
 
     assert.equal(worker.name, expected.name, 'Worker 名称不一致')
     assert.deepEqual(
@@ -100,7 +102,7 @@ if (import.meta.main) {
   assert.deepEqual(built.version_metadata, version, '版本元数据绑定缺失')
   assert.equal(built.assets?.binding, 'ASSETS', '静态资源绑定缺失')
   assert.deepEqual(built.assets?.run_worker_first, ['/**'], '资源路由与 Void 不一致')
-  assert.deepEqual(built.vars, config.worker?.vars, 'Worker 变量不一致')
+  assert.deepEqual(built.vars ?? {}, workerVars, 'Worker 变量不一致')
   assert.ok(
     entry.includes(`versionMetadataBinding: ${JSON.stringify(version.binding)}`),
     'Void 就绪探针没有携带版本元数据',

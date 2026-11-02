@@ -12,8 +12,8 @@ private let zh = Translate(locale: .zhCN)
 struct SettingsTabsTests {
     private let ok = SettingsAttentionInput(keyConfigured: true, permissionMissing: false)
 
-    @Test func 七个分区顺序固定且不重复() {
-        #expect(SettingsTab.allCases.map(\.rawValue) == ["general", "translate", "engine", "permissions", "advanced", "license", "about"])
+    @Test func 六个分区顺序固定且不重复() {
+        #expect(SettingsTab.allCases.map(\.rawValue) == ["general", "translate", "engine", "permissions", "advanced", "about"])
         for tab in SettingsTab.allCases { #expect(zh(tab.titleKey) != tab.titleKey) }
     }
 

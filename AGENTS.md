@@ -4,15 +4,15 @@
 
 ## 项目与边界
 
-umuo 是 macOS 系统级 AI 翻译客户端，BYOK、闭源。客户端使用 Swift 6 + SwiftUI + AppKit（macOS 14+），
+umuo 是 macOS 系统级 AI 翻译客户端，BYOK、MIT 开源（`site/` 除外，许可待定）。客户端使用 Swift 6 + SwiftUI + AppKit（macOS 14+），
 Rust 内核经 UniFFI 调用。2026-10-22 已按用户要求删除旧 Tauri 客户端、React UI、CSS tokens 与 Rust 平台适配层。
 官网及 Worker 在 `site/`，是独立 Bun 项目；修改它时先读 `site/AGENTS.md`。
 
-开发功能、精简入口或调整收费前，先读 `docs/PRD.md`、`docs/PRD-CONFORMANCE.md` 与 `docs/IMPLEMENTATION-PLAN.md`；
+开发功能或精简入口前，先读 `docs/PRD.md`、`docs/PRD-CONFORMANCE.md` 与 `docs/IMPLEMENTATION-PLAN.md`；
 按开发计划推进，完成后更新验收清单的实现证据与状态。
 迁移、发布待办与兼容性见 `docs/SWIFTUI-MIGRATION.md`。只做 macOS，不为未来平台提前抽象。
-当前核心为文字翻译（含原地替换）、OCR 截图翻译、语音输入后润色/翻译。收费改为一次性购买、纯 BYOK；
-账号、订阅、官方额度与 AI 网关退出范围。买断许可证进入开发计划，已定参数见 `docs/IMPLEMENTATION-PLAN.md`；定价页暂无购买入口，支付链路验收后再单独接入。
+当前核心为文字翻译（含原地替换）、OCR 截图翻译、语音输入后润色/翻译。完全免费、纯 BYOK（2026-11-02 定案）；
+收费、许可证、试用、账号、订阅、官方额度与 AI 网关都不在范围内，不要重新引入。
 语音主要参考 Handy，本地转写引擎先验证再选定；不引入 Tauri 外壳。旧范围与实现记录已归档，不据此恢复退出功能。
 
 ## 开发与验证

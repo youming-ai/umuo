@@ -215,7 +215,6 @@ check CFBundleExecutable "$(plist_get CFBundleExecutable)" "$exe_name"
 check CFBundleShortVersionString "$(plist_get CFBundleShortVersionString)" "$VERSION"
 check CFBundleVersion "$(plist_get CFBundleVersion)" "$VERSION"
 check LSUIElement "$(plist_get LSUIElement)" true
-check "URL scheme" "$(plist_get CFBundleURLTypes.0.CFBundleURLSchemes.0)" umuo
 [ -x "$app/Contents/MacOS/$exe_name" ] || fail "可执行文件不在 Contents/MacOS/$exe_name"
 [ -n "$(plist_get NSMicrophoneUsageDescription | grep -v '<缺>')" ] || fail "Info.plist 缺麦克风用途说明"
 for lang in zh-Hans zh-Hant en ja; do

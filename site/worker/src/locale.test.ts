@@ -26,7 +26,6 @@ function fakeEnv(requested: string[] = []): Env {
     },
     NOTIFY_KV: { get: async () => null, put: async () => {} },
     RELEASES: { get: async () => null },
-    LICENSES: { get: async () => null, put: async () => {} },
   }
 }
 

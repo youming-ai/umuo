@@ -4,7 +4,7 @@ umuo 官网（[umuo.app](https://umuo.app)）与官网 API 的源码。
 
 umuo 是 macOS 系统级 AI 翻译客户端，客户端在仓库根目录；`site/` 是独立的 Bun 项目，命令都在这里跑，只有：
 
-- `apps/web` —— 官网（Vite + React 19 + Tailwind v4），构建期预渲染出简体中文 / 繁体中文 / English / 日本語 / 한국어 五种语言；页面有首页、`/pricing`、`/terms`、`/privacy`、`/activate`
+- `apps/web` —— 官网（Vite + React 19 + Tailwind v4），构建期预渲染出简体中文 / 繁体中文 / English / 日本語 / 한국어 五种语言；页面有首页、`/pricing`（免费与开源）、`/terms`、`/privacy`
 - `worker` —— Cloudflare Worker：按语言返回预渲染页，以及 `/api/release` 与 `/download/macos`（读 R2 里的最新客户端）、`/api/notify`（上线通知；首页目前没有表单在用）、`/api/health`
 
 ## 开发
@@ -23,4 +23,4 @@ bun run verify       # lint + 类型检查 + 测试 + 官网与 Worker 构建
 
 ## 许可
 
-专有软件，保留所有权利（与仓库根目录同一许可）。字体等第三方资源按各自的许可使用（如 `apps/web/public/fonts/*/OFL.txt`）。
+umuo 客户端将以 MIT 许可证开源；官网代码（`site/`）的许可待仓库公开时决定。字体等第三方资源按各自的许可使用（如 `apps/web/public/fonts/*/OFL.txt`）。

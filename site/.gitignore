@@ -34,9 +34,6 @@ package-lock.json
 yarn.lock
 pnpm-lock.yaml
 
-# 旧版 scripts/waffo-setup.ts 的进度文件（订阅时代的套餐组 ID），不提交
-scripts/.waffo-setup-state.json
-
 # Void 的生成物（根目录 vite build / void 命令产出，见 vite.config.ts）
 .void/
 .void-wrangler.jsonc

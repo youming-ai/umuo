@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "description": "umuo — macOS 系统级 AI 翻译客户端（闭源）",
-  "license": "UNLICENSED",
+  "license": "MIT",
   "packageManager": "bun@1.4.2",
   "scripts": {
     "dev": "bun run dev:macos",

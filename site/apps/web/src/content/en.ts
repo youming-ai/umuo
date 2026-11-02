@@ -10,14 +10,14 @@ import type { SiteContent } from './types'
 
 /**
  * English copy. Structure follows zh-cn.ts; facts come from docs/PRD.md (v0.5: text,
- * screenshot and voice; one-time purchase, BYOK only). Wording is written for English readers, not translated.
+ * screenshot and voice; free, BYOK only). Wording is written for English readers, not translated.
  */
 export const en: SiteContent = {
   locale: 'en',
   seo: {
     title: 'umuo: AI translator for Mac — read and write in any app',
     description:
-      'umuo translates in any app on your Mac: ⌃⌃ for selected text, ⌥⌘A for typed input, ⌥⌥ to replace what you typed in place, ⌥⌘O for screenshots. Use your own key (GPT, Claude, Gemini and more) or a local model. One-time purchase, no subscription, no account needed. Voice input is in development.',
+      'umuo translates in any app on your Mac: ⌃⌃ for selected text, ⌥⌘A for typed input, ⌥⌥ to replace what you typed in place, ⌥⌘O for screenshots. Use your own key (GPT, Claude, Gemini and more) or a local model. Completely free, no subscription, no account needed. Voice input is in development.',
     ogLocale: 'en_US',
   },
   nav: {
@@ -30,7 +30,10 @@ export const en: SiteContent = {
     title: 'Translate right\nwhere you write',
     subtitle:
       'Tap ⌥ twice and the text in your input box turns into another language, in place. Selections and screenshots translate too.',
-    pricingNote: 'One-time purchase, your own key, no subscription',
+    freeNote: {
+      pending: 'Free, your own key, open source soon',
+      public: 'Free and open source (MIT), your own key',
+    },
     demo: {
       label: 'Translation preview',
       modes: [
@@ -98,18 +101,19 @@ export const en: SiteContent = {
     contact: 'Contact email',
     copyright: '© 2026 umuo',
     languageLabel: 'Language',
+    source: 'Source code',
   },
   pricing: {
-    title: 'Pricing',
+    title: 'Free & open source',
     description:
-      'umuo pricing: a US$9 one-time purchase for the app, bring your own model key, no subscription and no account.',
-    lead: 'Buy umuo once and bring your own model. No subscription, no umuo account, and no resold model credits.',
+      'umuo is completely free and will be open source under the MIT License. Bring your own model key or a local model; any cost is between you and your model provider.',
+    lead: 'umuo costs nothing. Bring your own model, an API key or a local one, and any cost stays between you and your model provider. No subscription, no umuo account, and no resold model credits.',
     bills: [
       {
         payee: 'Paid to umuo',
-        amount: 'US$9',
-        cadence: 'One-time purchase',
-        body: 'Activate up to 3 Macs per license and move it to a new Mac whenever you like. Try it free for 7 days, get a refund within 14 days of purchase, and every future update is free. The price excludes tax, which is calculated for your region at checkout.',
+        amount: 'Free',
+        cadence: 'No paid edition',
+        body: 'Every feature works out of the box: no trial period, no license and no activation, and future updates are free too. umuo will be open source under the MIT License; once the code is published you can use, modify and redistribute it freely.',
       },
       {
         payee: 'Paid to your model provider',
@@ -118,20 +122,14 @@ export const en: SiteContent = {
         body: 'You settle usage directly with the provider; local models cost nothing to run. Requests go straight from your Mac to the address you set, not through umuo’s servers.',
       },
     ],
-    unavailable: 'The preview is free to download and try right now. Purchase opens later.',
-    purchase: {
-      buy: 'Buy for US$9',
-      opening: 'Opening checkout…',
-      unavailable: 'Purchasing is temporarily unavailable. Please try again later.',
-      error: 'Couldn’t open checkout. Please try again in a moment.',
-      lead: 'Try it free for 7 days, then buy once if it works for you.',
-      activation:
-        'After payment you’ll get a license key; paste it into umuo to activate. One key works on up to 3 Macs.',
+    source: {
+      pending: 'The source code will be published soon under the MIT License.',
+      link: 'View the source on GitHub (MIT License)',
     },
     excluded: {
       title: 'Not included',
       items: [
-        'Subscriptions or renewals',
+        'Paid editions, in-app purchases or subscriptions',
         'A umuo account',
         'Model credits or top-ups',
         'Requests relayed through umuo’s servers',
@@ -148,77 +146,51 @@ export const en: SiteContent = {
       { name: 'Your own key, a local model or a custom endpoint' },
     ],
   },
-  activate: {
-    title: 'Get your license',
-    description: 'Collect your umuo license key after payment.',
-    pending: 'Confirming your payment — this usually takes a few seconds…',
-    slow: `Your payment hasn’t come through yet. Refresh this page in a moment; if you were charged but never get a key, email ${CONTACT_EMAIL}.`,
-    ready: 'Payment received. Here is your license key:',
-    keyLabel: 'License key',
-    copy: 'Copy',
-    copied: 'Copied',
-    openApp: 'Activate in umuo',
-    steps: [
-      'Keep this key somewhere safe — we only store a hash of it and can’t recover it for you. You’ll need it again on a new Mac or after reinstalling.',
-      'Click “Activate in umuo”, or paste the key into umuo’s settings. The license only activates the app; it is not a model API key and can’t be used as one.',
-      'One key activates up to 3 Macs. When you switch Macs, deactivate the old one in umuo’s settings. You can request a refund within 14 days of purchase; the key stops working once refunded.',
-    ],
-    missing: 'This link is incomplete. Please open it from the redirect after payment.',
-    unknown: `We couldn’t find this payment, or the link has expired (after 7 days). If you were charged, email ${CONTACT_EMAIL}.`,
-    error: 'Can’t reach the server right now. Please refresh this page in a moment.',
-    home: 'Back to home',
-    contact: 'Email us',
-    retry: 'Refresh',
-  },
   legal: {
     terms: {
       title: 'Terms of Service',
       description:
-        'umuo Terms of Service: software license, using your own model key, purchase details and acceptable use.',
+        'umuo Terms of Service: the software is provided under the MIT License; these terms cover the website and official builds, trademarks, using your own model key and acceptable use.',
       meta: `Version ${LEGAL_VERSION}, effective ${LEGAL_EFFECTIVE}`,
       sections: [
         {
           heading: '1. Acceptance of Terms',
           body: [
-            `Welcome to umuo. umuo is provided by ${LEGAL_NAME} (“we” / “us” / “our”), an individual / sole trader operating under the laws of ${LEGAL_COUNTRY.en}. These Terms of Service (“Terms”) govern your use of the umuo macOS app (the “Software”) and the website ${SITE_URL} (together, the “Service”).`,
-            'By downloading, installing or using the Service, you confirm that you are at least 18 years old and that you have read, understood and agree to these Terms and our Privacy Policy. If you do not agree, please stop using the Service.',
+            `Welcome to umuo. umuo is published by ${LEGAL_NAME} (“we” / “us” / “our”), an individual / sole trader operating under the laws of ${LEGAL_COUNTRY.en}. These Terms of Service (“Terms”) govern your use of the website ${SITE_URL} and of the umuo macOS app installers we publish there (the “Official Builds”), together the “Service”. The umuo software itself is provided under the MIT License; see section 3.`,
+            `By downloading, installing or using the Service, you confirm that you are at least 18 years old and that you have read, understood and agree to these Terms and our Privacy Policy, published at ${SITE_URL}/privacy. If you do not agree, please stop using the Service.`,
           ],
         },
         {
           heading: '2. About the Software',
           body: [
             { heading: '2.1 Features' },
-            'umuo is a translation tool that lives in the macOS menu bar. It offers selection translation, typed-input translation, Lightning Replace (in-place replacement in text fields) and screenshot OCR translation. Voice input and voice translation are still in development and are not part of what these Terms promise until they are released.',
-            { heading: '2.2 Bring your own model' },
-            'The Software does not provide AI models, model credits or a proxy service. You configure your own API key, custom endpoint or local model with a third-party provider; requests go directly from your device to the address you set. Your agreement with the model provider, its fees and its data handling are between you and that provider, and we are not responsible for the availability, cost or output of third-party services.',
-            { heading: '2.3 Free trial and preview builds' },
-            'Builds released before purchase opens are preview builds: they are free to download and use, may contain defects, and their features may change. Once purchase opens, you can try the Software free for 7 days without a license (the trial is timed on your Mac); after that, you need a license to keep using it.',
+            'umuo is a translation tool that lives in the macOS menu bar. It offers selection translation, typed-input translation, Lightning Replace (in-place replacement in text fields) and screenshot OCR translation. Voice input and voice translation are still in development and are not part of what these Terms describe until they are released.',
+            { heading: '2.2 Free of charge' },
+            'umuo is free. There is no paid edition, in-app purchase, subscription, trial period or license activation, and we do not charge you anything.',
+            { heading: '2.3 Preview builds' },
+            'The Official Builds are currently previews. They are not notarized by Apple, may contain defects, and their features may change.',
           ],
         },
         {
-          heading: '3. Software License',
+          heading: '3. Software License (MIT)',
           body: [
-            'Subject to these Terms, we grant you a personal, non-exclusive, non-transferable license to install and use the Software on Macs that you own or control. The Software is provided in closed-source form, and the copyright and related rights belong to us. You may not:',
+            'The umuo software is provided under the MIT License, and the full license text will accompany the source code once it is published. The MIT License lets anyone use, copy, modify, merge, publish, distribute, sublicense and sell copies of the software free of charge, on the sole condition that the copyright notice and permission notice are kept in all copies or substantial portions of the software.',
             [
-              'Sell, rent, sublicense or distribute the Software, or distribute modified versions of it.',
-              'Reverse engineer, decompile or disassemble the Software, except to the extent applicable law allows.',
-              'Bypass or interfere with the Software’s license verification or security features.',
+              'The software is provided “as is”, without warranty of any kind, express or implied, including merchantability, fitness for a particular purpose and non-infringement.',
+              'In no event shall the authors or copyright holders be liable for any claim, damages or other liability arising from the software or its use.',
+              'For the software itself, the MIT License governs your rights and obligations. The rest of these Terms only covers your use of the website and the Official Builds, and does not restrict the rights the MIT License grants you.',
             ],
           ],
         },
         {
-          heading: '4. Purchases and Licenses',
+          heading: '4. Name and Trademarks',
           body: [
-            `umuo is sold as a one-time purchase. There is no subscription, no official model credits, no top-ups and no umuo account. Once purchase opens at ${SITE_URL}/pricing, the following applies:`,
+            'The MIT License covers the copyright in the software. It does not cover the “umuo” name or the otter icon. You may modify and redistribute the software, but without our written permission you may not:',
             [
-              'Price: US$9, paid once, with no renewals. The price excludes tax; any applicable tax is calculated for your region at checkout.',
-              'Payment: purchases are processed by our payment provider, Waffo. We never see your full card number.',
-              'Devices: each license can be active on up to 3 Macs that you own or control at the same time. You can deactivate any of them in the Software and activate a new Mac instead.',
-              'Updates: all later updates to the Software are included at no extra charge.',
-              `Refunds: you can request a full refund within 14 days of purchase by emailing ${CONTACT_EMAIL}. Once the refund is completed, the license is revoked and the Software returns to its unlicensed state.`,
-              'License key: the key is your only proof of purchase. We store only a hash of it and cannot recover a lost key, so please keep it safe.',
+              'Publish a modified version under the “umuo” name or with the otter icon, or make people believe it is an Official Build.',
+              'Suggest that we endorse your product or service, or that you are affiliated with us.',
             ],
-            'A license only activates the Software. It is kept separate from your model API keys and the two cannot substitute for each other.',
+            'Truthfully stating that your work is based on or derived from umuo is always allowed.',
           ],
         },
         {
@@ -242,22 +214,23 @@ export const en: SiteContent = {
           ],
         },
         {
-          heading: '7. Privacy',
+          heading: '7. Third-Party Model Providers',
           body: [
-            `Your use of the Service is governed by our Privacy Policy, published at ${SITE_URL}/privacy.`,
+            'The software does not provide AI models, model credits or a proxy service. You configure your own API key, custom endpoint or local model with a third-party provider; requests go directly from your device to the address you set.',
+            'Your account, fees, quotas, data handling and terms with the model provider are between you and that provider. Usage fees are settled only between you and the provider; we do not charge, collect or mark them up. We are not responsible for the availability, cost or output of third-party services.',
           ],
         },
         {
           heading: '8. Disclaimers and Limitation of Liability',
           body: [
-            'The Service is provided “as is” and “as available”, without warranties of any kind, express or implied, including merchantability, fitness for a particular purpose or the accuracy of AI output.',
-            `To the maximum extent permitted by law, ${LEGAL_NAME} is not liable for any indirect, incidental, consequential or punitive damages. Our total liability is limited to the amount you paid us for the Service in the 12 months before the event giving rise to the claim.`,
+            'The website and the Official Builds are provided free of charge, “as is” and “as available”, without warranties of any kind, express or implied, including merchantability, fitness for a particular purpose, non-infringement or the accuracy of AI output.',
+            `To the maximum extent permitted by law, ${LEGAL_NAME} is not liable for any direct, indirect, incidental, consequential or punitive damages arising from the use of, or inability to use, the Service. Liability that cannot be excluded or limited under applicable law is not affected.`,
           ],
         },
         {
           heading: '9. Termination',
           body: [
-            'You may stop using and uninstall the Software at any time. If you materially breach these Terms, the license granted here ends automatically and you must stop using and delete the Software.',
+            'You may stop using and uninstall the Software at any time. If you materially breach these Terms, we may stop providing the website and the Official Builds to you; the rights you hold in the software itself under the MIT License are not affected.',
           ],
         },
         {
@@ -288,7 +261,7 @@ export const en: SiteContent = {
       meta: `Version ${LEGAL_VERSION}, last updated ${LEGAL_EFFECTIVE}`,
       intro: [
         `${LEGAL_NAME} (“we” / “us” / “our”) respects and protects your privacy. This Privacy Policy explains, when you use the umuo macOS app (the “Software”) and the website ${SITE_URL} (together, the “Service”), which data is processed on your device, which data reaches us or third parties, and what rights you have.`,
-        'umuo needs no account. We do not run our own translation servers and we do not receive the content you translate.',
+        'umuo is free and needs no account. We do not run our own translation servers and we do not receive the content you translate.',
       ],
       sections: [
         {
@@ -323,12 +296,12 @@ export const en: SiteContent = {
           heading: '4. Data We Receive',
           body: [
             [
-              'Website visits and downloads: our website and download service run on Cloudflare. A visit produces operational logs containing your IP address, browser information and request time, which are deleted automatically under Cloudflare’s retention period.',
+              'Website visits and downloads: our website and download service run on Cloudflare. Visits and downloads produce operational logs containing your IP address, browser information and request time, which are deleted automatically under Cloudflare’s retention period.',
               'Update checks: when the Software checks for updates it requests version information from umuo.app, and the request includes your IP address and the app version.',
+              'Release notifications (if you sign up): when you leave your email address on the website to be notified of releases, we store that address, where you signed up, and when you first and last submitted it, and use it only to tell you about umuo releases. The IP address of the submission is used only briefly, for rate limiting.',
               'Communications: emails and feedback you send us.',
-              'Purchases and activation (once purchase opens): from our payment provider Waffo we receive the order number and the payment and refund status. We store a random buyer identifier created at checkout, a hash of your license key (the key itself is held only until the activation page shows it to you, for at most 7 days), and, for each Mac you activate, the device identifier and device name the Software sends (such as “Ada’s MacBook Air”). The IP address in activation and verification requests is used only briefly, for rate limiting. We do not store your email address or card details.',
             ],
-            'The email address, billing address and payment details you give Waffo at checkout are processed by Waffo under its own privacy policy.',
+            'umuo is free, so we do not process any payment information, and we do not store licenses, activation records or device identifiers.',
           ],
         },
         {
@@ -346,8 +319,7 @@ export const en: SiteContent = {
           body: [
             'We do not sell your personal information. We share it only in these cases:',
             [
-              'Service providers: website hosting and download distribution (Cloudflare), only as needed to provide the Service.',
-              'Payment processing: Waffo, which handles payment, tax, invoices and refunds for purchases.',
+              'Service providers: website hosting, download distribution and storage of the notification list (Cloudflare), only as needed to provide the Service.',
               'Legal and regulatory requirements: as required by law, court order or a lawful request from a competent authority.',
               'With your consent: where you have given explicit prior consent.',
             ],
@@ -358,7 +330,7 @@ export const en: SiteContent = {
           body: [
             [
               'Website operational logs: deleted automatically under Cloudflare’s retention period.',
-              'License and device records: kept while the license exists; after a refund we keep the revoked record so the key cannot be used again. Unfinished checkout records are deleted automatically after 7 days.',
+              'Release notification emails: kept until you ask us to delete them or we stop sending that notification.',
               'Support emails: kept for 2 years, then deleted.',
               'Data on your device: managed by you; uninstall the Software or delete it in the Software to remove it.',
             ],
@@ -373,7 +345,7 @@ export const en: SiteContent = {
         {
           heading: '9. International Data Transfers',
           body: [
-            'Cloudflare’s network spans the globe and Waffo processes payments in many countries, so data from your visits to the website or your purchase may be processed outside your country or region.',
+            'Cloudflare’s network spans the globe, so data from your visits to the website, your downloads or your notification sign-up may be processed outside your country or region.',
           ],
         },
         {

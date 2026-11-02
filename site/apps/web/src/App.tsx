@@ -1,5 +1,4 @@
 import { useEffect } from 'react'
-import { ActivatePage } from './components/ActivatePage'
 import { Footer } from './components/Footer'
 import { Hero } from './components/Hero'
 import { LanguageGrid } from './components/LanguageGrid'
@@ -39,8 +38,6 @@ export function App() {
           <Hero content={content} locale={locale} />
         ) : page === 'pricing' ? (
           <PricingPage content={content} />
-        ) : page === 'activate' ? (
-          <ActivatePage activate={content.activate} />
         ) : (
           <LegalPage doc={content.legal[page]} />
         )}

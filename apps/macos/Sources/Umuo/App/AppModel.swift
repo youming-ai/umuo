@@ -26,10 +26,6 @@ final class AppModel {
     /// 全局 Esc 的唯一注册者：翻译浮窗与语音浮层同时可见时按最近弹出的一方路由。没有认领者时不注册。
     let escape = EscapeRouter()
     let updater = AppUpdater()
-    /// 买断许可证与试用。构造时不做 I/O，`start()` 里才读 Keychain、开后台验证。
-    let license: LicenseManager
-    @ObservationIgnored private var presentingLicenseAlert = false
-    @ObservationIgnored private var deepLinks: DeepLinkReceiver?
     /// 划词浮窗。`start()` 里才建：`swift test` 会构造 AppModel，那里不该开窗口。
     @ObservationIgnored private(set) var panel: PanelController?
 
@@ -51,10 +47,7 @@ final class AppModel {
     /// 语音输入（按住录音、松开转写，再整理或翻译，交付到录音开始时的输入框）。`start()` 里才建，理由同 `panel`。
     @ObservationIgnored private(set) var voice: VoiceController?
 
-    init(arguments: [String] = CommandLine.arguments, bundleIdentifier: String? = Bundle.main.bundleIdentifier,
-         license: LicenseManager? = nil)
-    {
-        self.license = license ?? LicenseManager.live()
+    init(arguments: [String] = CommandLine.arguments, bundleIdentifier: String? = Bundle.main.bundleIdentifier) {
         registersHotkeys = HotkeyPolicy.shouldRegister(
             arguments: arguments, bundleIdentifier: bundleIdentifier, productionBundleId: bundleId()
         )
@@ -69,17 +62,6 @@ final class AppModel {
         NSApplication.shared.setActivationPolicy(.accessory)
         frontmost.start()
         updater.start()
-        license.bootstrap()
-        license.startBackgroundVerify()
-        deepLinks = DeepLinkReceiver { [weak self] key in
-            guard let self else { return }
-            self.license.keyDraft = key
-            self.openSettings(tab: .license)
-        }
-        actions.gate = LicenseGate.gate(license) { [weak self] state in
-            // 等快捷键 / 菜单的事件处理返回之后再弹模态框
-            DispatchQueue.main.async { self?.licenseBlocked(state) }
-        }
         let panel = PanelController(app: self)
         self.panel = panel
         actions.handle(.selection) { panel.triggerSelection() }
@@ -179,29 +161,6 @@ final class AppModel {
     func openSettings() {
         guard let settingsOpener else { return print("umuo: 设置窗还没接上（阶段 3 的设置组）") }
         settingsOpener()
-    }
-
-    /// 打开设置并直接落在某一页（试用到期弹窗的「输入许可证」）。
-    func openSettings(tab: SettingsTab) {
-        guard let settingsWindow else { return openSettings() }
-        settingsWindow.show(tab: tab)
-    }
-
-    /// 翻译入口被授权门控拦下：说明原因，让用户去购买或输入许可证。
-    private func licenseBlocked(_ state: LicenseState) {
-        // 警告框开着时再按快捷键：模态 run loop 里还会派发进来，不叠第二个
-        guard !presentingLicenseAlert else { return }
-        presentingLicenseAlert = true
-        defer { presentingLicenseAlert = false }
-        let t = Translate(locale: PanelRules.appearance(settingsJson: settingsJson).locale)
-        switch LicenseGate.ask(state, t: t) {
-        case .purchase:
-            if let url = URL(string: LicenseManager.purchaseURL) { NSWorkspace.shared.open(url) }
-        case .enterLicense:
-            openSettings(tab: .license)
-        case .cancel:
-            break
-        }
     }
 
     func openHistory() {

@@ -4,9 +4,6 @@
   "workspaces": {
     "": {
       "name": "umuo",
-      "dependencies": {
-        "@waffo/pancake-ts": "0.26.0",
-      },
       "devDependencies": {
         "@biomejs/biome": "^2.6.2",
         "@cloudflare/workers-types": "^5.20261023.1",
@@ -391,8 +388,6 @@
     "@void/isr": ["@void/isr@1.2.1", "", { "dependencies": { "@cloudflare/workers-types": "^5.20261019.1", "@void/edge": "1.2.1" } }, "sha512-kyCM3gw7xHuW9UlGgHQNHTWIGbNazIZibmzPa5H40YT6l/dJLAlnrGmJ3Z2XzpsYVgh2HqlOdT2gc3e7WgGVhQ=="],
 
     "@void/platform": ["@void/platform@1.2.1", "", { "dependencies": { "pathslash": "^0.1.0" } }, "sha512-oq61L6FCAgks6+HCn/DSC99SM4koTpJ8mtrARxh+MzAVtKFS93hwq61aX7m44d9PQ27AFfgZwgg9gZzOKtDj/g=="],
-
-    "@waffo/pancake-ts": ["@waffo/pancake-ts@0.26.0", "", {}, "sha512-3exK093SGBYmbhEF40jRF+BiCQZRLLThxsADZ3s3vJs/JPDqRSICAmUiIUhu0/gtDe1hB0VzrduLSYRS9YAMhg=="],
 
     "ansi-escapes": ["ansi-escapes@7.3.0", "", { "dependencies": { "environment": "^1.0.0" } }, "sha512-BvU8nYgGQBxcmMuEeUEmNTvrMVjJNSH7RgW24vXexN4Ven6qCvy4TntnvlnwnMLTVlcRQQdbRY8NKnaIoeWDNg=="],
 

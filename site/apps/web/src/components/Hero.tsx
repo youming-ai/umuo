@@ -5,11 +5,10 @@ import {
   useId,
   useState,
 } from 'react'
-import { PURCHASE_OPEN } from '../config'
+import { SOURCE_PUBLIC } from '../config'
 import type { DemoMode, DemoModeId, Locale, SiteContent } from '../content/types'
 import { pagePath } from '../lib/pages'
 import { DownloadPanel } from './DownloadButton'
-import { PurchaseButton } from './PurchaseButton'
 
 /**
  * 首页唯一的一屏：左边是标题与下载，右边是可以亲手试的演示。
@@ -34,15 +33,10 @@ export function Hero({ content, locale }: { content: SiteContent; locale: Locale
             <div className="hero-gap-lg">
               <DownloadPanel
                 platform={macos}
-                // 首页只有一屏：只放按钮，激活说明留给定价页
-                purchase={
-                  PURCHASE_OPEN ? (
-                    <PurchaseButton purchase={content.pricing.purchase} locale={locale} />
-                  ) : undefined
-                }
+                // 首页只有一屏：按钮旁只放一句「免费、自带 Key」，详情与源码链接留给 /pricing
                 aside={
                   <a href={pagePath(locale, 'pricing')} className="hero-pricing-link">
-                    {hero.pricingNote}
+                    {SOURCE_PUBLIC ? hero.freeNote.public : hero.freeNote.pending}
                   </a>
                 }
               />

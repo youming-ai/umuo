@@ -2,9 +2,9 @@
 
 <div align="center">
 
-**macOS 翻译与语音表达工具 · 一次性购买 · 自带模型 Key**
+**macOS 翻译与语音表达工具 · 免费开源 · 自带模型 Key**
 
-macOS 专用 · Swift + SwiftUI + AppKit· Rust 共享核心 · 纯 BYOK · 闭源
+macOS 专用 · Swift + SwiftUI + AppKit· Rust 共享核心 · 纯 BYOK · MIT 开源
 
 </div>
 
@@ -20,8 +20,7 @@ umuo 是 macOS 原生的翻译与语音表达工具，当前产品范围为：
 | OCR 截图翻译 | 系统框选、Apple Vision 本地识别、修正原文后翻译 | 已有实现，待入口收敛与真机验收 |
 | 语音表达 | 按键录音、本地转写、同语言润色或目标语言翻译、输入框输出 | 主要参考 Handy，研究完成，功能尚未实现 |
 
-商业模式为一次性购买客户端、纯 BYOK。用户自带模型 Key，模型调用直接向供应商付费；umuo 不提供订阅、官方额度或 AI 网关。
-买断方案为 US$9、最多 3 台 Mac、7 天试用、14 天退款、永久免费更新；购买激活尚未实现。
+umuo 完全免费、以 MIT 许可证开源，纯 BYOK：用户自带模型 Key，模型调用直接向供应商付费；umuo 不收费，没有许可证、试用、订阅、官方额度或 AI 网关。
 
 模型 Key 存系统 Keychain，供应商请求从本机直连用户配置的端点。本地转写方案若验证通过，无需额外语音 Key，
 润色/翻译复用文字模型；使用云端文字模型时，转写文本会发送给该供应商。
@@ -32,12 +31,12 @@ umuo 是 macOS 原生的翻译与语音表达工具，当前产品范围为：
 历史实现不代表首版继续承诺这些能力。
 
 - [产品需求](docs/PRD.md)：当前功能与商业边界。
-- [首版开发计划](docs/IMPLEMENTATION-PLAN.md)：精简、语音、购买授权与发布的次序和完成条件。
+- [首版开发计划](docs/IMPLEMENTATION-PLAN.md)：精简、语音、开源与发布的次序和完成条件。
 - [实现与验收清单](docs/PRD-CONFORMANCE.md)：已有代码、新范围调整、未实现与真机验收。
 - [Handy 语音研究](docs/research/handy-voice-analysis.md)：源码证据和本地引擎实验方向。
 - [迁移与发布记录](docs/SWIFTUI-MIGRATION.md)：Developer ID、公证、Sparkle N → N+1、旧用户桥接与双架构待办。
 
-官网及 Worker 在 [site/](site/)，现有订阅文案与支付流程待同步为买断模式。本次文档整理没有部署线上或打开结账。
+官网及 Worker 在 [site/](site/)，同步改为免费开源说明，不含购买或激活流程。
 
 ## 快速开始
 
@@ -105,4 +104,4 @@ docs/              PRD、架构、迁移与发布验收记录
 
 ## 许可
 
-专有软件，保留所有权利（见 [LICENSE](LICENSE)）。官网与官网 Worker 在 [`site/`](site/)。参考与复用的第三方实现记在 [THIRD_PARTY_NOTICES](THIRD_PARTY_NOTICES)。
+[MIT](LICENSE)。`site/`（官网与官网 Worker）不在 MIT 范围内，其许可待定。「umuo」名称与图标不随 MIT 授权，分发修改版请换名。贡献方式见 [CONTRIBUTING.md](CONTRIBUTING.md)。参考与复用的第三方实现记在 [THIRD_PARTY_NOTICES](THIRD_PARTY_NOTICES)。

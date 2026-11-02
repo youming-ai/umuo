@@ -140,8 +140,43 @@ describe('官网内容完整性', () => {
     }
   })
 
-  it('条款、隐私政策与定价里没有未替换的模板占位符', () => {
-    // Waffo 审核会因为 [LEGAL NAME] 这类方括号占位符直接打回
+  it('五种语言都不再有收费、许可证激活与试用的表述', () => {
+    // umuo 改为免费开源：买断价、设备数、试用、退款、许可证密钥、支付处理方都不能留在任何文案里。
+    // MIT「许可证」本身要保留，所以词表只列收费时代特有的说法。
+    const stale = [
+      'US$',
+      'Waffo',
+      '买断',
+      '一次性购买',
+      '3 台',
+      '退款',
+      '一次性購買',
+      '許可證',
+      '買い切り',
+      '返金',
+      'ライセンスキー',
+      '1회 구매',
+      '환불',
+      '라이선스 키',
+      'refund',
+      'one-time purchase',
+      'license key',
+      'free trial',
+      '/activate',
+    ]
+    for (const locale of LOCALES) {
+      const strings: Array<[string, string]> = []
+      collectStrings(getContent(locale), locale, strings)
+      const hits = strings
+        .filter(([, value]) =>
+          stale.some((word) => value.toLowerCase().includes(word.toLowerCase())),
+        )
+        .map(([path, value]) => `${path}: ${value.slice(0, 40)}`)
+      expect(hits, `${locale} 还有收费时代的文案`).toEqual([])
+    }
+  })
+
+  it('条款、隐私政策与「免费与开源」页里没有未替换的模板占位符', () => {
     for (const locale of LOCALES) {
       const { legal, pricing } = getContent(locale)
       const strings: Array<[string, string]> = []

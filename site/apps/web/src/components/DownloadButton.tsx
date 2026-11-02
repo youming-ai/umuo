@@ -53,22 +53,12 @@ export function DownloadButton({
 }
 
 /**
- * 首页与定价页共用的下载区：按钮 + 系统要求 + 未公证预览版的放行说明，两页说法一致。
+ * 首页与「免费与开源」页共用的下载区：按钮 + 系统要求 + 未公证预览版的放行说明，两页说法一致。
  * 点了下载之后，要求与放行说明就地换成「接下来」三步（拖进应用程序、放行、填 Key）：访客最容易放弃的那几步在站外，
  * 至少走之前把路标给全。
  * 触屏设备拿不到能用的安装包，换成「请在 Mac 上打开」与复制网址；两套都预渲染，由 CSS 按指针类型显示一套。
- * 购买开放后，桌面版在下载按钮旁多一个「购买」按钮：许可证要在 Mac 上激活，触屏版不放。
  */
-export function DownloadPanel({
-  platform,
-  purchase,
-  aside,
-}: {
-  platform: PlatformCard
-  /** 购买开放后放在下载按钮旁的「购买」按钮（见 config.ts 的 PURCHASE_OPEN）；触屏版不放 */
-  purchase?: ReactNode
-  aside?: ReactNode
-}) {
+export function DownloadPanel({ platform, aside }: { platform: PlatformCard; aside?: ReactNode }) {
   const noteId = useId()
   const [copy, setCopy] = useState<'idle' | 'copied' | 'failed'>('idle')
   const [started, setStarted] = useState(false)
@@ -84,7 +74,6 @@ export function DownloadPanel({
             className="btn-solid"
             onDownload={() => setStarted(true)}
           />
-          {purchase}
           {aside}
         </div>
         {started ? (

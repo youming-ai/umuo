@@ -22,7 +22,7 @@ import { legacyMiddleware } from './void-middleware'
 
 // ---------- 假的静态资源层：按 Cloudflare 的 html_handling = auto-trailing-slash 回 ----------
 
-const HTML_PAGES = ['', 'pricing/', 'terms/', 'privacy/', 'activate/']
+const HTML_PAGES = ['', 'pricing/', 'terms/', 'privacy/']
 const LOCALES = ['zh-cn', 'zh-tw', 'en', 'ja', 'ko']
 const FILES: Record<string, string> = {
   '/index.html': '<html data-locale="zh-cn">root',
@@ -101,7 +101,6 @@ function env(releases: Record<string, string>): Env {
   return {
     ASSETS: fakeAssets,
     NOTIFY_KV: store(),
-    LICENSES: store(),
     RELEASES: {
       async get(key): Promise<ReleaseObject | null> {
         const content = releases[key]
@@ -214,7 +213,7 @@ const CASES: Case[] = [
   ['首页（默认语言）', '/'],
   ['首页（Accept-Language）', '/', ja],
   ['首页（cookie）', '/', cookieKo],
-  ...['/pricing', '/pricing/', '/terms', '/privacy/', '/activate'].flatMap((path): Case[] => [
+  ...['/pricing', '/pricing/', '/terms', '/privacy/'].flatMap((path): Case[] => [
     [`页面 ${path}`, path],
     [`页面 ${path}（ja）`, path, ja],
   ]),
@@ -229,13 +228,12 @@ const CASES: Case[] = [
   ['/api/release（无版本）', '/api/release'],
   ['/api/notify POST', '/api/notify', post({ email: 'a@example.com' })],
   ['/api/notify GET', '/api/notify'],
-  ['/api/checkout（未配置）', '/api/checkout', post({ locale: 'en' })],
-  ['/api/waffo/webhook（未配置）', '/api/waffo/webhook', post({})],
-  ['/api/license/claim', '/api/license/claim', post({ token: 'x' })],
-  ['/api/license/activate', '/api/license/activate', post({ licenseKey: 'x', deviceId: 'd' })],
-  ['/api/license/verify', '/api/license/verify', post({ licenseKey: 'x', deviceId: 'd' })],
-  ['/api/license/deactivate', '/api/license/deactivate', post({ licenseKey: 'x', deviceId: 'd' })],
-  ['/api/license/portal', '/api/license/portal', post({ licenseKey: 'x' })],
+  // umuo 改为免费开源后收费与许可证接口已删除，旧路径落到 /api 的 404
+  ['已删除的 /api/checkout', '/api/checkout', post({ locale: 'en' })],
+  ['已删除的 /api/waffo/webhook', '/api/waffo/webhook', post({})],
+  ['已删除的 /api/license/verify', '/api/license/verify', post({ licenseKey: 'x' })],
+  // 已删除的激活页：旧快照里它在 run_worker_first 中，现在回 404 页
+  ['已删除的 /activate', '/activate', html],
   ['/api 未知路径', '/api/nope', html],
   ['/download/macos（有版本）', '/download/macos', undefined, WITH_RELEASE],
   ['/download/macos（无版本）', '/download/macos'],
@@ -280,6 +278,12 @@ describe('Void 中间件与现状逐字节一致', () => {
       WITH_RELEASE,
     )
     expect(tar.headers.get('cache-control')).toBe('public, max-age=31536000, immutable')
+    for (const path of ['/api/checkout', '/api/waffo/webhook', '/api/license/claim']) {
+      const gone = await call(path, post({}))
+      expect(gone.status).toBe(404)
+      expect(await gone.json()).toEqual({ ok: false, error: 'not_found' })
+    }
+    expect((await call('/activate', html)).status).toBe(404)
     const missing = await call('/no-such-page', html)
     expect(missing.status).toBe(404)
     expect(await missing.text()).toContain('页面不存在')

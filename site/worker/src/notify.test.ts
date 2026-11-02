@@ -39,7 +39,6 @@ function makeEnv(store: NotifyStore): Env {
   return {
     NOTIFY_KV: store,
     RELEASES: { get: async () => null },
-    LICENSES: { get: async () => null, put: async () => {} },
     ASSETS: { fetch: async () => new Response(null, { status: 404 }) },
   }
 }

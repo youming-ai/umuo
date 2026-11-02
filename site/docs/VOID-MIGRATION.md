@@ -1,5 +1,8 @@
 # 现有官网迁至 Void
 
+> 2026-11-02 起 umuo 改为免费开源，收费与许可证代码、`LICENSES` 绑定与 `WAFFO_*` 变量已从仓库删除；
+> 下文中关于 Waffo secret 与结账的内容是当时的接管记录，之后的部署不再需要核对 `WAFFO_PRIVATE_KEY`。
+
 目标：保留 `umuo-app`、`umuo.app`、现有 KV / R2 与 Waffo secret，用 Void + Vite 构建，
 由 `scripts/cf-deploy.ts` 以 `cf deploy --prebuilt` 部署、`cf` 管理 Cloudflare 资源。
 
@@ -106,8 +109,9 @@ cd site
 bun run deploy            # = bun run build && bun scripts/cf-deploy.ts；加 -- --dry-run 只核对
 ```
 
-`cf` 从**最新上传**（不是活动版本）继承 secret。部署前用 `bunx cf workers versions list --worker-id umuo-app`
-确认最新上传带有 `WAFFO_PRIVATE_KEY`；否则用 `--secrets-file <json>` 显式带上（文件权限 600，用后删除）。
+`cf` 从**最新上传**（不是活动版本）继承 secret。Worker 已不需要任何 secret（`WAFFO_PRIVATE_KEY` 可在远端手动删除）；
+将来若再加 secret，部署前用 `bunx cf workers versions list --worker-id umuo-app` 确认最新上传带有它，
+否则用 `--secrets-file <json>` 显式带上（文件权限 600，用后删除）。
 不要再用 `void deploy` 关联已有 Worker（void@1.2.1 会丢 secret 并被自身校验拦下）。
 
 ## Workers Builds

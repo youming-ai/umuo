@@ -8,7 +8,6 @@ function fakeReleases(files: Record<string, string>): Env {
   return {
     ASSETS: { fetch: async () => new Response(null, { status: 404 }) },
     NOTIFY_KV: { get: async () => null, put: async () => {} },
-    LICENSES: { get: async () => null, put: async () => {} },
     RELEASES: {
       async get(key): Promise<ReleaseObject | null> {
         const content = files[key]

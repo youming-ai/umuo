@@ -2,29 +2,20 @@ import { defineConfig } from 'void/config'
 
 /**
  * 官网与 Worker 的配置来源。显式保留线上资源、域名及访问开关，避免部署时创建新的资源或改变入口。
- * 配置不含密钥；WAFFO_PRIVATE_KEY 为远端 Worker secret（通过 Cloudflare Dashboard 或 cf --secrets-file 管理）。
+ * 配置不含密钥；umuo 免费开源、没有收费接口，Worker 不需要任何 secret 或变量。
  */
 export default defineConfig({
   inference: {
     // 既有 Vite 前端又有中间件，不写会停下来让人选；部署两者
     appType: 'void',
     build: 'bun run build',
-    // 绑定都是手写的自定义名（ASSETS / NOTIFY_KV / LICENSES / RELEASES），不要 Void 再推断出默认的 DB / KV / STORAGE / AI
+    // 绑定都是手写的自定义名（ASSETS / NOTIFY_KV / RELEASES），不要 Void 再推断出默认的 DB / KV / STORAGE / AI
     bindings: { db: false, kv: false, storage: false, ai: false },
   },
-  // nodejs_compat 是 Waffo SDK（node:crypto）要的
+  // nodejs_compat 不能去掉：Void 运行时用 node:async_hooks 的 AsyncLocalStorage（见构建产物 dist/ssr/index.js）
   worker: {
     compatibility_date: '2026-07-17',
     compatibility_flags: ['nodejs_compat'],
-    // 每项独占一行：scripts/waffo-setup.ts 按行改写商品 ID，保留注释。
-    vars: {
-      WAFFO_ENV: 'prod',
-      WAFFO_MERCHANT_ID: 'MER_REDACTED',
-      WAFFO_STORE_ID: 'STO_REDACTED',
-      // 一次性买断商品（US$9）。正式环境还没建：留着注释占位，收费接口回 503；
-      // 跑 scripts/waffo-setup.ts 建好后由它去掉注释、写入商品 ID。
-      // WAFFO_PRODUCT_LICENSE: '',
-    },
   },
   routing: {
     // 保留 Worker 自己的 404 页。不写时 Void 推断为 SPA 兜底：Worker 回 404 后再去取 /index.html 当 200 返回
@@ -45,10 +36,7 @@ export default defineConfig({
     preview_urls: false,
     // 首次接管前先为现有 Worker 添加同名绑定，供 Void 在不开放 Version URL 时验证候选版本。
     version_metadata: { binding: 'VERSION_METADATA' },
-    kv_namespaces: [
-      { binding: 'NOTIFY_KV', id: 'dad4b460f4a14797adc1e9491e42f7f1' },
-      { binding: 'LICENSES', id: '9afc88feb77741739cbdb9929343e487' },
-    ],
+    kv_namespaces: [{ binding: 'NOTIFY_KV', id: 'dad4b460f4a14797adc1e9491e42f7f1' }],
     r2_buckets: [{ binding: 'RELEASES', bucket_name: 'umuo-releases' }],
     observability: {
       enabled: true,

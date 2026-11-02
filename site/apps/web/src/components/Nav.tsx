@@ -4,7 +4,7 @@ import { pagePath, type SitePage } from '../lib/pages'
 import { localeHref } from '../lib/router'
 import { LogoMark } from './icons'
 
-/** 页眉：左边 logo（回首页），右边定价。条款与隐私政策从页脚进入。 */
+/** 页眉：左边 logo（回首页），右边「免费与开源」。条款与隐私政策从页脚进入。 */
 export function Nav({ locale, page }: { locale: Locale; page?: SitePage }) {
   return (
     <header className="site-nav absolute z-40">
