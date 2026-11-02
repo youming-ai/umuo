@@ -97,9 +97,9 @@ final class PanelSession {
     /// 有原文或译文时才有底部的朗读与操作两行。
     var hasContent: Bool { !state.source.isEmpty || !state.translation.isEmpty }
 
-    /// 出错块里要不要给「打开模型设置」：换模型、去设置、用本机模型三种建议都送去同一个地方。
+    /// 出错块里要不要给「打开模型设置」。
     var offersModelSettings: Bool {
-        state.errorActions.contains { [.switchModel, .openModelSettings, .useLocalModel].contains($0) }
+        state.errorActions.contains(.openModelSettings)
     }
 
     var errorText: String? {

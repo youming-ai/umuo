@@ -2,7 +2,7 @@ import Foundation
 import Sparkle
 import UmuoCore
 
-/// 第 0 阶段验证：四种绑定形态（字符串、布尔、列表、回调）都能从 Swift 调通 Rust 内核；
+/// 第 0 阶段验证：基本绑定形态（字符串、布尔、列表）都能从 Swift 调通 Rust 内核，回调由 Engine 的翻译事件覆盖；
 /// 阶段 1 起再加上 Engine：打开配置目录、设置往返、经本地 SSE 桩跑一次翻译与取消（见 `EngineSelfTest`）；
 /// 阶段 2 起加上正式宿主 `SwiftHost`：Keychain 往返（独立的测试服务名）、前台应用、写回的拒绝路径（见 `HostSelfTest`）。
 /// 取词：AX 取词的权限拒绝，⌘C 降级整段事务在私有剪贴板上跑（见 `SelectionSelfTest`）。
@@ -15,15 +15,6 @@ import UmuoCore
 /// 语音：引擎框架与版本、模型清单、会话状态机、临时音频；不开麦、不下载、不加载模型（见 `VoiceSelfTest`）。
 /// 朗读：挑发音人（四层优先级、避开趣味音）与文本清理同 Rust 的夹具，本机发音人按语言挑一遍；不出声（见 `SpeechSelfTest`）。
 enum SelfTest {
-    /// 收集 Rust 推回来的增量。回调可能来自任意线程，所以加锁。
-    final class Collector: DeltaSink, @unchecked Sendable {
-        private let lock = NSLock()
-        private(set) var deltas: [String] = []
-        private(set) var full = ""
-        func onDelta(text: String) { lock.withLock { deltas.append(text) } }
-        func onDone(fullText: String) { lock.withLock { full = fullText } }
-    }
-
     @MainActor
     static func run() -> Bool {
         var ok = true
@@ -54,11 +45,6 @@ enum SelfTest {
         let providers = providerCatalog()
         check("providerCatalog", providers.count == 12 && providers.first?.id == "openai",
               "\(providers.count) 家：\(providers.map(\.id).joined(separator: ", "))")
-
-        let collector = Collector()
-        demoStream(text: "你好 umuo", sink: collector)
-        check("demoStream", collector.deltas.count == 7 && collector.full == "你好 umuo",
-              "\(collector.deltas.count) 个增量 → \(collector.full)")
 
         EngineSelfTest.run(check)
         HostSelfTest.run(check)

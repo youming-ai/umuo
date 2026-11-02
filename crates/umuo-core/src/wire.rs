@@ -8,7 +8,6 @@
 //! [`WireRequest`] 发出去、把字节丢给 [`SseDecoder`]。这样「字节流 → 事件」这段
 //! 最容易出错的逻辑可以在单元测试里被彻底覆盖，而不需要 mock HTTP 服务器。
 
-use serde::{Deserialize, Serialize};
 use serde_json::json;
 
 use crate::error::{redact_secrets, CoreError};
@@ -92,18 +91,14 @@ pub enum StreamEvent {
     Error(CoreError),
 }
 
-/// 构造一次对话请求（流式）。
-///
-/// `stream` 决定是否要求服务端流式返回——PRD §8 把首字延迟写成了发布门槛，
-/// 所以正常路径永远走流式；非流式只用于「校验模型可用性」这类一次性探测。
+/// 构造一次对话请求，一律要求服务端流式返回：PRD §8 把首字延迟写成了发布门槛。
 pub fn build_chat_request(
     provider: &Provider,
     model: &str,
     api_key: &str,
     req: &ChatRequest,
-    stream: bool,
 ) -> Result<WireRequest, CoreError> {
-    build_chat_request_at(provider, provider.base_url, model, api_key, req, stream)
+    build_chat_request_at(provider, provider.base_url, model, api_key, req)
 }
 
 /// 同 [`build_chat_request`]，但显式指定 Base URL。
@@ -117,7 +112,6 @@ pub fn build_chat_request_at(
     model: &str,
     api_key: &str,
     req: &ChatRequest,
-    stream: bool,
 ) -> Result<WireRequest, CoreError> {
     require_base_url(provider, base_url)?;
     if provider.requires_key() && api_key.trim().is_empty() {
@@ -142,13 +136,11 @@ pub fn build_chat_request_at(
                     { "role": "user", "content": req.user },
                 ],
                 "temperature": req.temperature,
-                "stream": stream,
-            });
-            if stream {
+                "stream": true,
                 // 不开这个开关，OpenAI 兼容的流式响应里根本不会带 usage，
-                // 于是「用量与费用统计」只能全部标注为估算。
-                body["stream_options"] = json!({ "include_usage": true });
-            }
+                // 于是历史里的用量只能全部标注为估算。
+                "stream_options": { "include_usage": true },
+            });
             if req.json_mode {
                 body["response_format"] = json!({ "type": "json_object" });
             }
@@ -168,11 +160,9 @@ pub fn build_chat_request_at(
                     { "role": "user", "content": req.user },
                 ],
                 "temperature": req.temperature,
-                "stream": stream,
+                "stream": true,
+                "stream_options": { "include_usage": true },
             });
-            if stream {
-                body["stream_options"] = json!({ "include_usage": true });
-            }
             if req.json_mode {
                 body["response_format"] = json!({ "type": "json_object" });
             }
@@ -196,7 +186,7 @@ pub fn build_chat_request_at(
                 // Anthropic 只接受 0..=1，而我们的范围是 0..=2（OpenAI 的上限）。
                 // 按协议各夹一次，比为了迁就它把所有人的自由度都压到 1 更合适。
                 "temperature": req.temperature.min(1.0),
-                "stream": stream,
+                "stream": true,
             });
             Ok(WireRequest {
                 method: "POST",
@@ -206,11 +196,7 @@ pub fn build_chat_request_at(
             })
         }
         Protocol::Gemini => {
-            let verb = if stream {
-                "streamGenerateContent?alt=sse"
-            } else {
-                "generateContent"
-            };
+            let verb = "streamGenerateContent?alt=sse";
             let mut body = json!({
                 "systemInstruction": { "parts": [ { "text": req.system } ] },
                 "contents": [
@@ -332,51 +318,6 @@ fn apply_auth(headers: &mut Vec<(String, String)>, provider: &Provider, api_key:
 
 fn join_url(base: &str, path: &str) -> String {
     format!("{}/{}", base.trim_end_matches('/'), path)
-}
-
-/// 解析一次性（非流式）响应，返回文本与用量。
-pub fn parse_full_response(
-    protocol: Protocol,
-    body: &str,
-) -> Result<(String, TokenUsage), CoreError> {
-    let value: serde_json::Value =
-        serde_json::from_str(body).map_err(|e| CoreError::BadResponse {
-            detail: format!("响应不是合法 JSON：{e}"),
-        })?;
-
-    match protocol {
-        // Azure 的响应体与 OpenAI 完全一致，差异只在请求侧（路径与鉴权头）。
-        Protocol::OpenAi | Protocol::AzureOpenAi => {
-            let text = value
-                .pointer("/choices/0/message/content")
-                .and_then(|v| v.as_str())
-                .ok_or_else(|| CoreError::BadResponse {
-                    detail: "choices[0].message.content 缺失".to_string(),
-                })?
-                .to_string();
-            Ok((text, usage_from_openai(&value)))
-        }
-        Protocol::Anthropic => {
-            let text = value
-                .pointer("/content/0/text")
-                .and_then(|v| v.as_str())
-                .ok_or_else(|| CoreError::BadResponse {
-                    detail: "content[0].text 缺失".to_string(),
-                })?
-                .to_string();
-            Ok((text, usage_from_anthropic(&value)))
-        }
-        Protocol::Gemini => {
-            let text = value
-                .pointer("/candidates/0/content/parts/0/text")
-                .and_then(|v| v.as_str())
-                .ok_or_else(|| CoreError::BadResponse {
-                    detail: "candidates[0].content.parts[0].text 缺失".to_string(),
-                })?
-                .to_string();
-            Ok((text, usage_from_gemini(&value)))
-        }
-    }
 }
 
 /// 从流式事件里取出增量与用量。`data` 是 SSE 的 payload（已去掉 `data: ` 前缀）。
@@ -674,13 +615,6 @@ fn payload_of(block: &[u8]) -> Option<String> {
     }
 }
 
-/// 可序列化的模型标识（进配置与历史库）。
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct ModelRef {
-    pub provider_id: String,
-    pub model: String,
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -730,7 +664,6 @@ mod tests {
             "my-gpt4o-deployment",
             "0123456789abcdef0123456789abcdef",
             &request,
-            true,
         )
         .unwrap();
 
@@ -747,7 +680,6 @@ mod tests {
             "dep",
             "key",
             &request,
-            false,
         )
         .unwrap();
         assert!(
@@ -767,7 +699,6 @@ mod tests {
             "dep",
             "secret",
             &request,
-            false,
         )
         .unwrap();
 
@@ -795,27 +726,21 @@ mod tests {
     fn azure_without_an_endpoint_is_refused() {
         // 地址为空时构造请求必须失败，而不是产出一个相对 URL。
         let request = ChatRequest::new("system", "user");
-        let result = build_chat_request_at(azure(), "", "dep", "secret", &request, false);
+        let result = build_chat_request_at(azure(), "", "dep", "secret", &request);
         assert!(result.is_err());
     }
 
     #[test]
     fn missing_key_is_reported_before_any_request_is_built() {
-        let err = build_chat_request(
-            openai(),
-            "gpt-4o-mini",
-            "",
-            &ChatRequest::new("s", "u"),
-            true,
-        )
-        .unwrap_err();
+        let err = build_chat_request(openai(), "gpt-4o-mini", "", &ChatRequest::new("s", "u"))
+            .unwrap_err();
         assert!(matches!(err, CoreError::MissingKey));
     }
 
     #[test]
     fn local_model_needs_no_key_and_sends_no_auth_header() {
         let ollama = find_provider("ollama").unwrap();
-        let wire = build_chat_request(ollama, "llama3.2", "", &ChatRequest::new("s", "u"), true)
+        let wire = build_chat_request(ollama, "llama3.2", "", &ChatRequest::new("s", "u"))
             .expect("本机模型不该要求 Key");
         assert!(
             !wire.headers.iter().any(|(k, _)| k == "authorization"),
@@ -831,7 +756,6 @@ mod tests {
             "gpt-4o-mini",
             "sk-secret-value",
             &ChatRequest::new("sys", "user"),
-            true,
         )
         .unwrap();
         let body = wire.body.unwrap();
@@ -844,14 +768,8 @@ mod tests {
 
     #[test]
     fn openai_streaming_asks_for_usage_otherwise_accounting_is_blind() {
-        let wire = build_chat_request(
-            openai(),
-            "gpt-4o-mini",
-            "sk-x",
-            &ChatRequest::new("s", "u"),
-            true,
-        )
-        .unwrap();
+        let wire = build_chat_request(openai(), "gpt-4o-mini", "sk-x", &ChatRequest::new("s", "u"))
+            .unwrap();
         let body: serde_json::Value = serde_json::from_str(&wire.body.unwrap()).unwrap();
         assert_eq!(body["stream"], true);
         assert_eq!(body["stream_options"]["include_usage"], true);
@@ -866,7 +784,6 @@ mod tests {
             "claude-3-5-haiku-latest",
             "sk-ant-x",
             &ChatRequest::new("SYS", "USER"),
-            true,
         )
         .unwrap();
         let body: serde_json::Value = serde_json::from_str(&wire.body.unwrap()).unwrap();
@@ -887,7 +804,6 @@ mod tests {
             "gemini-2.0-flash",
             "AIza-x",
             &ChatRequest::new("s", "u").json(),
-            true,
         )
         .unwrap();
         assert!(wire
@@ -899,41 +815,6 @@ mod tests {
             "application/json"
         );
         assert!(wire.headers.iter().any(|(k, _)| k == "x-goog-api-key"));
-    }
-
-    #[test]
-    fn projector_helpers_pick_the_right_usage_shape() {
-        let (text, usage) = parse_full_response(
-            Protocol::OpenAi,
-            r#"{"choices":[{"message":{"content":"你好"}}],"usage":{"prompt_tokens":12,"completion_tokens":34}}"#,
-        )
-        .unwrap();
-        assert_eq!(text, "你好");
-        assert_eq!(usage.input_tokens, 12);
-        assert_eq!(usage.output_tokens, 34);
-        assert!(!usage.estimated);
-
-        let (text, usage) = parse_full_response(
-            Protocol::Anthropic,
-            r#"{"content":[{"type":"text","text":"hi"}],"usage":{"input_tokens":5,"output_tokens":6}}"#,
-        )
-        .unwrap();
-        assert_eq!(text, "hi");
-        assert_eq!((usage.input_tokens, usage.output_tokens), (5, 6));
-
-        let (text, usage) = parse_full_response(
-            Protocol::Gemini,
-            r#"{"candidates":[{"content":{"parts":[{"text":"ok"}]}}],"usageMetadata":{"promptTokenCount":7,"candidatesTokenCount":8}}"#,
-        )
-        .unwrap();
-        assert_eq!(text, "ok");
-        assert_eq!((usage.input_tokens, usage.output_tokens), (7, 8));
-    }
-
-    #[test]
-    fn malformed_body_becomes_a_typed_error_not_a_panic() {
-        let err = parse_full_response(Protocol::OpenAi, "not json").unwrap_err();
-        assert!(matches!(err, CoreError::BadResponse { .. }));
     }
 
     #[test]
@@ -1161,7 +1042,6 @@ mod tests {
             "gpt-4o-mini",
             "sk-x",
             &hot,
-            false,
         )
         .unwrap();
         let openai_body: serde_json::Value =
@@ -1178,7 +1058,6 @@ mod tests {
             "claude-sonnet-4-5",
             "sk-x",
             &hot,
-            false,
         )
         .unwrap();
         let anthropic_body: serde_json::Value =
@@ -1201,7 +1080,6 @@ mod tests {
             "gpt-4o-mini",
             "sk-x",
             &safe,
-            false,
         )
         .unwrap();
         let body: serde_json::Value = serde_json::from_str(wire.body.as_deref().unwrap()).unwrap();
@@ -1221,7 +1099,6 @@ mod tests {
             "my-model",
             "sk-x",
             &ChatRequest::new("s", "u"),
-            true,
         )
         .unwrap();
         assert_eq!(wire.url, "https://my-gateway.internal/v1/chat/completions");
@@ -1230,14 +1107,8 @@ mod tests {
     #[test]
     fn the_default_entry_point_still_uses_the_catalogue_url() {
         // 上面那个显式入口不该把默认行为改掉。
-        let wire = build_chat_request(
-            openai(),
-            "gpt-4o-mini",
-            "sk-x",
-            &ChatRequest::new("s", "u"),
-            true,
-        )
-        .unwrap();
+        let wire = build_chat_request(openai(), "gpt-4o-mini", "sk-x", &ChatRequest::new("s", "u"))
+            .unwrap();
         assert_eq!(wire.url, "https://api.openai.com/v1/chat/completions");
     }
 
@@ -1265,8 +1136,7 @@ mod tests {
     #[test]
     fn empty_model_selection_fails_early_instead_of_404ing_later() {
         let ollama = find_provider("ollama").unwrap();
-        let err =
-            build_chat_request(ollama, "", "", &ChatRequest::new("s", "u"), true).unwrap_err();
+        let err = build_chat_request(ollama, "", "", &ChatRequest::new("s", "u")).unwrap_err();
         assert!(matches!(err, CoreError::ModelUnavailable { .. }));
     }
 
@@ -1278,7 +1148,6 @@ mod tests {
             " models/gemini 2.0/exp?foo=1 ",
             "AIza-x",
             &ChatRequest::new("s", "u"),
-            true,
         )
         .unwrap();
         assert!(
@@ -1295,7 +1164,6 @@ mod tests {
             " my dep/v1?x=2 ",
             "secret",
             &ChatRequest::new("s", "u"),
-            false,
         )
         .unwrap();
         assert_eq!(

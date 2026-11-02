@@ -1,4 +1,7 @@
-//! umuo 的本机存储：翻译历史、收藏与用量统计（PRD §5.9、§5.10）。
+//! umuo 的本机存储：翻译历史（PRD §5.9）。
+//!
+//! 收藏与用量账本已退出界面：`favorites` / `usage` 两张表与已发布迁移原样保留、旧数据不删，
+//! 但这里不再提供它们的读写函数。
 //!
 //! 只用 SQLite，只用本机文件。**这里不存 API Key**，也不存任何用于识别的信息——
 //! 历史的用途是「我上次是怎么译的」，不是「这个人是谁」。
@@ -20,7 +23,6 @@
 //! 只会让新库与旧库的形状悄悄分叉。要改就加 `MIGRATIONS` 里的新一版。
 
 pub mod error;
-pub mod favorites;
 pub mod history;
 
 use std::path::{Path, PathBuf};
@@ -28,10 +30,7 @@ use std::path::{Path, PathBuf};
 use rusqlite::Connection;
 
 pub use error::StoreError;
-pub use favorites::{Favorite, FavoriteKind, NewFavorite};
-pub use history::{
-    DayUsage, Facets, HistoryFilter, NewRecord, NewUsage, ProviderUsage, Record, UsageSummary,
-};
+pub use history::{HistoryFilter, NewRecord, Record};
 
 /// 建表语句，按版本递进。
 ///
@@ -322,10 +321,18 @@ mod tests {
             .unwrap();
         }
         let store = Store::open(&path).unwrap();
-        let summary = store.usage_since(0).unwrap();
-        assert_eq!(summary.count, 1);
-        assert_eq!((summary.input_tokens, summary.output_tokens), (10, 20));
-        assert!((summary.cost_usd - 1.5).abs() < 1e-9);
+        // 账本已停写，但已发布的 v2 迁移照旧执行：回填的数据原样留在库里。
+        let (count, input, output, cost): (u32, u32, u32, f64) = store
+            .connection()
+            .query_row(
+                "SELECT COUNT(*), SUM(input_tokens), SUM(output_tokens), SUM(cost_usd) FROM usage",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
+            )
+            .unwrap();
+        assert_eq!(count, 1);
+        assert_eq!((input, output), (10, 20));
+        assert!((cost - 1.5).abs() < 1e-9);
         let _ = std::fs::remove_dir_all(&dir);
     }
 }

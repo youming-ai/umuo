@@ -210,14 +210,6 @@ impl Engine {
 
     // ------------------------------------------------ 供应商、Key
 
-    /// 浮窗「换个模型」要的：这次真能用的供应商（已配 Key 的，加上本地模型）。逐家读 Keychain。
-    pub fn configured_providers(&self) -> Vec<ProviderDetail> {
-        ops::configured_providers(&self.core)
-            .into_iter()
-            .map(Into::into)
-            .collect()
-    }
-
     /// 只回「配没配过」，不回明文。空白 Key 等于没配。
     pub fn key_status(&self, provider_id: String) -> Result<bool, EngineError> {
         ops::key_status(&self.core, &provider_id).map_err(failed)
@@ -386,17 +378,10 @@ mod tests {
     }
 
     #[test]
-    fn keys_and_providers_follow_the_host() {
+    fn keys_follow_the_host_and_providers_follow_the_catalog() {
         let engine = open();
         assert!(engine.key_status("deepseek".into()).unwrap());
         assert!(!engine.key_status("openai".into()).unwrap());
-        let ids: Vec<String> = engine
-            .configured_providers()
-            .into_iter()
-            .map(|p| p.id)
-            .collect();
-        assert!(ids.contains(&"deepseek".to_string()) && ids.contains(&"ollama".to_string()));
-        assert!(!ids.contains(&"openai".to_string()));
         assert_eq!(
             provider_details().len(),
             umuo_core::provider::PROVIDERS.len()

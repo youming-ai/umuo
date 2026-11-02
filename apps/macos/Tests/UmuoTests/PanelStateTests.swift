@@ -13,7 +13,7 @@ private let start = PanelStart(requestId: 1, text: "Hello world", provider: "Ope
 private let done = PanelDone(requestId: 1, model: "gpt-4o-mini", inputTokens: 120, outputTokens: 40, estimated: false,
                              firstTokenMs: 420, totalMs: 900, replaced: false, warning: nil)
 
-private let failure = PanelError(requestId: 1, message: "请求过于频繁", actions: [.retry, .switchModel],
+private let failure = PanelError(requestId: 1, message: "请求过于频繁", actions: [.retry, .openModelSettings],
                                  needsPermission: false, permission: nil, source: nil)
 
 private let card = WordCard(word: "hello", phonetic: "/həˈloʊ/", senses: [.init(partOfSpeech: "int.", definition: "你好")])
@@ -80,7 +80,7 @@ struct PanelReducerTests {
     @Test func surfacesActionableErrorsInsteadOfABareMessage() {
         let state = run(.start(start), .error(failure))
         #expect(state.status == .error)
-        #expect(state.errorActions == [.retry, .switchModel])
+        #expect(state.errorActions == [.retry, .openModelSettings])
     }
 
     private let screenRecording = PanelError(requestId: 1, message: "需要屏幕录制权限", actions: [],

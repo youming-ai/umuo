@@ -51,26 +51,6 @@ pub fn to_dto(p: &provider::Provider) -> ProviderDto {
     }
 }
 
-/// 浮窗的「换个模型」下拉要用的：**这次真能用**的供应商。
-///
-/// 只列已配 Key 的（本地模型不需要 Key，也算）。把没配 Key 的也列出来，
-/// 用户选中后只会得到 401——那不是「切换模型」，是踩坑。
-pub fn configured_providers(core: &AppCore) -> Vec<ProviderDto> {
-    provider::PROVIDERS
-        .iter()
-        .filter(|p| {
-            !p.requires_key()
-                || core
-                    .host
-                    .api_key(p.id)
-                    .ok()
-                    .flatten()
-                    .is_some_and(|key| !key.trim().is_empty())
-        })
-        .map(to_dto)
-        .collect()
-}
-
 /// 只回「配没配过」，不回明文——见模块文档。
 pub fn key_status(core: &AppCore, provider_id: &str) -> Result<bool, String> {
     let secret = core.host.api_key(provider_id)?;
@@ -133,7 +113,6 @@ pub fn history_query(
         store.query(
             &umuo_store::HistoryFilter {
                 query: filter.query,
-                ..Default::default()
             },
             limit.min(HISTORY_PAGE_MAX),
             offset,
@@ -375,18 +354,6 @@ mod tests {
             prepare_api_key("nope", "sk-1").unwrap_err(),
             "未知供应商：nope"
         );
-    }
-
-    #[test]
-    fn configured_providers_are_the_ones_with_a_key_plus_local_models() {
-        let core = open_in("configured");
-        let ids: Vec<String> = configured_providers(&core)
-            .into_iter()
-            .map(|p| p.id)
-            .collect();
-        assert!(ids.contains(&"deepseek".to_string()));
-        assert!(!ids.contains(&"openai".to_string()));
-        assert!(ids.contains(&"ollama".to_string()), "本地模型不要 Key");
     }
 
     #[test]

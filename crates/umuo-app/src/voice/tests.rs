@@ -519,7 +519,7 @@ async fn the_owned_entry_point_is_send_and_runs_to_the_same_result() {
     let core = Arc::new(env.core);
     let cancel = Arc::new(AtomicBool::new(false));
 
-    let future = core.start_voice(VoiceRequest::tidy("嗯，周四开会"), cancel.clone());
+    let future = core.post_process_voice(VoiceRequest::tidy("嗯，周四开会"), cancel.clone());
     assert_send_static(&future);
     let output = tokio::spawn(future).await.unwrap().unwrap();
 

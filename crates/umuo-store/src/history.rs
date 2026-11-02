@@ -1,4 +1,6 @@
-//! 翻译历史与用量统计。
+//! 翻译历史。
+//!
+//! 用量账本（`usage` 表）已停写：表与 v2 迁移原样保留、旧数据不删，这里不再提供它的读写函数。
 
 use serde::{Deserialize, Serialize};
 
@@ -33,25 +35,6 @@ pub struct NewRecord {
     pub cost_usd: Option<f64>,
 }
 
-/// 用量账本里的一行（PRD §5.10）。
-///
-/// 与 [`NewRecord`] 分开存：历史可以关、可以清、会按保留期删，账本不会——
-/// 月度上限要的是「这个月真花了多少」，不能跟着历史一起消失。
-/// 只有计费需要的字段，**没有原文与译文**，所以隐私模式下照记也不违背「别留记录」。
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct NewUsage {
-    /// Unix 秒。
-    pub created_at: i64,
-    pub provider_id: String,
-    pub model: String,
-    pub input_tokens: u32,
-    pub output_tokens: u32,
-    pub estimated: bool,
-    /// 价格表里查不到该模型时为 `None`。
-    pub cost_usd: Option<f64>,
-}
-
 /// 一条历史记录。
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -59,19 +42,6 @@ pub struct Record {
     pub id: i64,
     #[serde(flatten)]
     pub entry: NewRecord,
-}
-
-/// 一段时间的用量汇总（PRD §5.10）。
-#[derive(Debug, Clone, Copy, Default, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct UsageSummary {
-    pub count: u32,
-    pub input_tokens: u32,
-    pub output_tokens: u32,
-    /// 价格未知的那些记录不计入，但它们的条数在 `unpriced` 里如实给出——
-    /// 否则用户会以为「这个月只花了这么点」，而实际有一部分根本没算进去。
-    pub cost_usd: f64,
-    pub unpriced: u32,
 }
 
 const COLUMNS: &str = "id, created_at, source_text, translated_text, source_lang, target_lang, \
@@ -127,35 +97,15 @@ impl Store {
         Ok(self.connection().last_insert_rowid())
     }
 
-    /// 往用量账本记一笔。与历史开关、隐私模式无关，调用方每次成功翻译都该记。
-    pub fn record_usage(&self, usage: &NewUsage) -> Result<(), StoreError> {
-        self.connection().execute(
-            "INSERT INTO usage (created_at, provider_id, model, input_tokens, output_tokens,
-             estimated, cost_usd) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
-            rusqlite::params![
-                usage.created_at,
-                usage.provider_id,
-                usage.model,
-                usage.input_tokens,
-                usage.output_tokens,
-                usage.estimated as i64,
-                usage.cost_usd,
-            ],
-        )?;
-        Ok(())
-    }
-
     /// 最近的记录，最新的在前。
     pub fn recent(&self, limit: u32, offset: u32) -> Result<Vec<Record>, StoreError> {
         self.query(&HistoryFilter::default(), limit, offset)
     }
 
-    /// 按条件检索历史（PRD §5.9：全文检索 + 按来源 App / 模型筛选）。
+    /// 按关键词检索历史（PRD §5.9），新的在前；空条件等于 [`Self::recent`]。
     ///
-    /// 三个条件是 **AND** 关系，可以任意叠加——「在 Slack 里、用 gpt-4o 翻过、
-    /// 且包含这个词的记录」是一个真实会有的问题。
-    ///
-    /// 动态拼 WHERE 而不是写六个分支：分支数会随条件数指数增长。
+    /// 原文与译文任一命中即可。通配符要转义——用户搜 `100%` 时，`%` 是 SQL 的通配符，
+    /// 不转义会变成「匹配任何内容」，结果看起来像「搜索失效」。
     /// 每个值都走占位符，**不做字符串插值**。
     pub fn query(
         &self,
@@ -177,14 +127,6 @@ impl Store {
             params.push(Box::new(pattern.clone()));
             params.push(Box::new(pattern));
         }
-        if let Some(app) = filter.source_app.as_deref().filter(|v| !v.is_empty()) {
-            clauses.push("source_app = ?");
-            params.push(Box::new(app.to_string()));
-        }
-        if let Some(model) = filter.model.as_deref().filter(|v| !v.is_empty()) {
-            clauses.push("model = ?");
-            params.push(Box::new(model.to_string()));
-        }
 
         let mut sql = format!("SELECT {COLUMNS} FROM history");
         if !clauses.is_empty() {
@@ -199,41 +141,6 @@ impl Store {
         let mut stmt = self.connection().prepare(&sql)?;
         let rows = stmt.query_map(refs.as_slice(), row_to_record)?;
         Ok(rows.collect::<rusqlite::Result<Vec<_>>>()?)
-    }
-
-    /// 供筛选下拉用的取值集合（历史里真正出现过的来源 App 与模型）。
-    ///
-    /// 从数据里取而不是从供应商目录取：目录里有十几家，但这个用户可能只用过两家——
-    /// 给他一堆选了没结果的选项，比不给筛选更烦。
-    pub fn facets(&self) -> Result<Facets, StoreError> {
-        let collect = |sql: &str| -> Result<Vec<String>, StoreError> {
-            let mut stmt = self.connection().prepare(sql)?;
-            let rows = stmt.query_map([], |row| row.get::<_, String>(0))?;
-            Ok(rows.collect::<rusqlite::Result<Vec<_>>>()?)
-        };
-        Ok(Facets {
-            apps: collect(
-                "SELECT DISTINCT source_app FROM history
-                 WHERE source_app IS NOT NULL AND source_app <> '' ORDER BY source_app",
-            )?,
-            models: collect("SELECT DISTINCT model FROM history WHERE model <> '' ORDER BY model")?,
-        })
-    }
-
-    /// 子串检索：原文与译文任一命中即可。
-    ///
-    /// 通配符要转义——用户搜 `100%` 时，`%` 是 SQL 的通配符，
-    /// 不转义会变成「匹配任何内容」，结果看起来像「搜索失效」。
-    pub fn search(&self, query: &str, limit: u32) -> Result<Vec<Record>, StoreError> {
-        // 与 `query` 走同一条实现：两套 SQL 迟早会在转义或排序上分叉。
-        self.query(
-            &HistoryFilter {
-                query: Some(query.to_string()),
-                ..HistoryFilter::default()
-            },
-            limit,
-            0,
-        )
     }
 
     pub fn delete(&self, id: i64) -> Result<bool, StoreError> {
@@ -264,170 +171,13 @@ impl Store {
             .connection()
             .execute("DELETE FROM history WHERE created_at < ?1", [before])?)
     }
-
-    /// 统计 `since`（含）之后的用量与费用。下面几个统计都读用量账本，不读历史表。
-    pub fn usage_since(&self, since: i64) -> Result<UsageSummary, StoreError> {
-        let summary = self.connection().query_row(
-            "SELECT COUNT(*),
-                    COALESCE(SUM(input_tokens), 0),
-                    COALESCE(SUM(output_tokens), 0),
-                    COALESCE(SUM(cost_usd), 0.0),
-                    COALESCE(SUM(CASE WHEN cost_usd IS NULL THEN 1 ELSE 0 END), 0)
-             FROM usage WHERE created_at >= ?1",
-            [since],
-            |row| {
-                Ok(UsageSummary {
-                    count: row.get(0)?,
-                    input_tokens: row.get(1)?,
-                    output_tokens: row.get(2)?,
-                    cost_usd: row.get(3)?,
-                    unpriced: row.get(4)?,
-                })
-            },
-        )?;
-        Ok(summary)
-    }
-
-    /// 本地时区下「本月」的起点（Unix 秒）。
-    ///
-    /// 交给 SQLite 算而不是自己算：`localtime` 与 `start of month` 都是它自带的修饰符，
-    /// 手写这套日期算术需要引一个日期库，而且要自己处理时区——为了一个展示用的月份
-    /// 边界不值得，还容易在月末出错。
-    ///
-    /// **末尾那个 `'utc'` 不能省。** `datetime('now','localtime','start of month')`
-    /// 产出的是「本地日历上的一个字符串」，而 `strftime('%s', …)` 会把它按 **UTC** 解释，
-    /// 结果整整偏掉一个时区偏移（东九区就是 9 小时，实测出来是 09:00 而不是 00:00）。
-    /// 再补一个 `'utc'` 才是「把这个本地时刻换算回真正的瞬时」。
-    /// 少写它，每月头几个小时会被算成上个月。
-    pub fn month_start_unix(&self) -> Result<i64, StoreError> {
-        Ok(self.connection().query_row(
-            "SELECT CAST(strftime('%s', datetime('now', 'localtime', 'start of month', 'utc')) AS INTEGER)",
-            [],
-            |row| row.get(0),
-        )?)
-    }
-
-    /// 按供应商汇总某段时间的用量。
-    ///
-    /// 月度上限是**按供应商**算的（PRD §5.10），所以这个聚合是那条规则的数据来源。
-    pub fn usage_by_provider(&self, since: i64) -> Result<Vec<ProviderUsage>, StoreError> {
-        let mut stmt = self.connection().prepare(
-            "SELECT provider_id,
-                    COUNT(*),
-                    COALESCE(SUM(input_tokens), 0),
-                    COALESCE(SUM(output_tokens), 0),
-                    COALESCE(SUM(cost_usd), 0.0),
-                    COALESCE(SUM(CASE WHEN cost_usd IS NULL THEN 1 ELSE 0 END), 0)
-             FROM usage WHERE created_at >= ?1
-             GROUP BY provider_id ORDER BY provider_id",
-        )?;
-        let rows = stmt.query_map([since], |row| {
-            Ok(ProviderUsage {
-                provider_id: row.get(0)?,
-                count: row.get(1)?,
-                input_tokens: row.get(2)?,
-                output_tokens: row.get(3)?,
-                cost_usd: row.get(4)?,
-                unpriced: row.get(5)?,
-            })
-        })?;
-        Ok(rows.collect::<rusqlite::Result<Vec<_>>>()?)
-    }
-
-    /// 某个供应商在本月的花费。没记录时是 0。
-    pub fn provider_spend_this_month(&self, provider_id: &str) -> Result<f64, StoreError> {
-        let since = self.month_start_unix()?;
-        Ok(self.connection().query_row(
-            "SELECT COALESCE(SUM(cost_usd), 0.0) FROM usage
-             WHERE created_at >= ?1 AND provider_id = ?2",
-            rusqlite::params![since, provider_id],
-            |row| row.get(0),
-        )?)
-    }
-
-    /// 本月的用量与费用（PRD §5.10「按日 / 月展示费用」）。
-    pub fn usage_this_month(&self) -> Result<UsageSummary, StoreError> {
-        let since = self.month_start_unix()?;
-        self.usage_since(since)
-    }
-
-    /// 按天分组的用量（PRD §5.10 的「按日展示」）。
-    ///
-    /// 日期用 SQLite 的 `date(created_at,'unixepoch','localtime')` 算，
-    /// 与应用层的本地日历口径一致——否则「按日」的桶边界会和「本月」对不上。
-    ///
-    /// **只返回有记录的那些天**，不补齐空白天：补零本该由展示层决定
-    /// （要不要显示 0 的那一天是 UI 的事），而这里返回一个「真实有哪些天」的列表，
-    /// 语义更诚实。
-    pub fn usage_by_day(&self, since: i64) -> Result<Vec<DayUsage>, StoreError> {
-        let mut stmt = self.connection().prepare(
-            "SELECT date(created_at, 'unixepoch', 'localtime') AS day,
-                    COUNT(*),
-                    COALESCE(SUM(input_tokens), 0),
-                    COALESCE(SUM(output_tokens), 0),
-                    COALESCE(SUM(cost_usd), 0.0),
-                    COALESCE(SUM(CASE WHEN cost_usd IS NULL THEN 1 ELSE 0 END), 0)
-             FROM usage WHERE created_at >= ?1
-             GROUP BY day ORDER BY day DESC",
-        )?;
-        let rows = stmt.query_map([since], |row| {
-            Ok(DayUsage {
-                day: row.get(0)?,
-                count: row.get(1)?,
-                input_tokens: row.get(2)?,
-                output_tokens: row.get(3)?,
-                cost_usd: row.get(4)?,
-                unpriced: row.get(5)?,
-            })
-        })?;
-        Ok(rows.collect::<rusqlite::Result<Vec<_>>>()?)
-    }
 }
 
-/// 历史检索条件（PRD §5.9）。三者可叠加，都是 AND。
+/// 历史检索条件（PRD §5.9）：只有关键词。来源 App / 模型筛选已退出，`source_app` 与 `model` 列照常写入。
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct HistoryFilter {
     /// 子串检索，命中原文或译文任一即可。
     pub query: Option<String>,
-    /// 来源 App 精确匹配。
-    pub source_app: Option<String>,
-    /// 模型精确匹配。
-    pub model: Option<String>,
-}
-
-/// 筛选下拉的取值集合。
-#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct Facets {
-    pub apps: Vec<String>,
-    pub models: Vec<String>,
-}
-
-/// 某个供应商在某段时间内的用量（PRD §5.10 的月度上限按它判断）。
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct ProviderUsage {
-    pub provider_id: String,
-    pub count: u32,
-    pub input_tokens: u32,
-    pub output_tokens: u32,
-    pub cost_usd: f64,
-    /// 价格未知、未计入总额的条数。
-    pub unpriced: u32,
-}
-
-/// 某一天的用量。
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct DayUsage {
-    /// 本地日期，`YYYY-MM-DD`。
-    pub day: String,
-    pub count: u32,
-    pub input_tokens: u32,
-    pub output_tokens: u32,
-    pub cost_usd: f64,
-    /// 价格未知、未计入总额的条数。
-    pub unpriced: u32,
 }
 
 /// 转义 LIKE 的通配符。
@@ -461,42 +211,16 @@ mod tests {
         }
     }
 
-    /// 按一条历史的计费字段往账本记一笔（统计类测试用）。
-    fn charge(store: &Store, record: &NewRecord) {
+    fn search(store: &Store, query: &str) -> Vec<Record> {
         store
-            .record_usage(&NewUsage {
-                created_at: record.created_at,
-                provider_id: record.provider_id.clone(),
-                model: record.model.clone(),
-                input_tokens: record.input_tokens,
-                output_tokens: record.output_tokens,
-                estimated: record.estimated,
-                cost_usd: record.cost_usd,
-            })
-            .unwrap();
-    }
-
-    #[test]
-    fn usage_survives_clearing_and_pruning_history() {
-        // 清空历史、保留期清理都只动历史表；上限依赖的账本必须原样留着。
-        let store = Store::open_in_memory().unwrap();
-        for at in [100, 200] {
-            let record = sample("a", "甲", at);
-            store.insert(&record).unwrap();
-            charge(&store, &record);
-        }
-        store.prune_before(150).unwrap();
-        store.clear().unwrap();
-        assert_eq!(store.count().unwrap(), 0);
-        assert_eq!(store.usage_since(0).unwrap().count, 2);
-    }
-
-    #[test]
-    fn history_rows_alone_do_not_count_as_usage() {
-        // 统计只读账本：历史表里的记录不会被重复计入。
-        let store = Store::open_in_memory().unwrap();
-        store.insert(&sample("a", "甲", 100)).unwrap();
-        assert_eq!(store.usage_since(0).unwrap().count, 0);
+            .query(
+                &HistoryFilter {
+                    query: Some(query.to_string()),
+                },
+                10,
+                0,
+            )
+            .unwrap()
     }
 
     #[test]
@@ -533,9 +257,9 @@ mod tests {
             .unwrap();
         store.insert(&sample("hello world", "你好世界", 2)).unwrap();
 
-        assert_eq!(store.search("transformer", 10).unwrap().len(), 1);
-        assert_eq!(store.search("你好", 10).unwrap().len(), 1);
-        assert!(store.search("不存在的内容", 10).unwrap().is_empty());
+        assert_eq!(search(&store, "transformer").len(), 1);
+        assert_eq!(search(&store, "你好").len(), 1);
+        assert!(search(&store, "不存在的内容").is_empty());
     }
 
     #[test]
@@ -549,9 +273,8 @@ mod tests {
             .insert(&sample("完全无关的一句", "unrelated", 2))
             .unwrap();
 
-        let hits = store.search("100%", 10).unwrap();
-        assert_eq!(hits.len(), 1, "`%` 应被当作字面量");
-        assert_eq!(store.search("_", 10).unwrap().len(), 0, "`_` 同理");
+        assert_eq!(search(&store, "100%").len(), 1, "`%` 应被当作字面量");
+        assert_eq!(search(&store, "_").len(), 0, "`_` 同理");
     }
 
     #[test]
@@ -595,211 +318,12 @@ mod tests {
     }
 
     #[test]
-    fn usage_aggregation_sums_tokens_and_cost_and_counts_unpriced_rows() {
-        let store = Store::open_in_memory().unwrap();
-        charge(&store, &sample("a", "b", 100));
-        let mut second = sample("c", "d", 200);
-        second.input_tokens = 50;
-        second.output_tokens = 10;
-        second.cost_usd = Some(0.0002);
-        charge(&store, &second);
-
-        let mut unpriced = sample("e", "f", 300);
-        unpriced.cost_usd = None;
-        charge(&store, &unpriced);
-
-        let summary = store.usage_since(0).unwrap();
-        assert_eq!(summary.count, 3);
-        assert_eq!(summary.input_tokens, 250);
-        assert_eq!(summary.output_tokens, 90);
-        assert!((summary.cost_usd - 0.0003).abs() < 1e-9);
-        // 价格未知的条数要单独给出，否则用户会以为「这个月只花了这么点」。
-        assert_eq!(summary.unpriced, 1);
-    }
-
-    #[test]
-    fn usage_since_excludes_older_records() {
-        let store = Store::open_in_memory().unwrap();
-        charge(&store, &sample("old", "旧", 100));
-        charge(&store, &sample("new", "新", 500));
-        let summary = store.usage_since(400).unwrap();
-        assert_eq!(summary.count, 1);
-        assert_eq!(summary.input_tokens, 100);
-    }
-
-    #[test]
-    fn an_empty_database_yields_a_zeroed_summary_rather_than_an_error() {
-        // SUM() 在空表上返回 NULL；没兜住的话这里会直接报错，
-        // 而「还没翻译过任何东西」是完全正常的状态。
-        let store = Store::open_in_memory().unwrap();
-        assert_eq!(store.usage_since(0).unwrap(), UsageSummary::default());
-    }
-
-    #[test]
-    fn month_start_is_the_first_day_of_the_current_month_at_midnight() {
-        let store = Store::open_in_memory().unwrap();
-        let start = store.month_start_unix().unwrap();
-        let now = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_secs() as i64;
-
-        assert!(start <= now, "月初不可能在未来");
-        assert!(now - start < 31 * 86_400, "月初一定在最近 31 天内");
-        // 起点应当是当地时间的 0 点。
-        let hour: String = store
-            .connection()
-            .query_row(
-                "SELECT strftime('%H', datetime(?1, 'unixepoch', 'localtime'))",
-                [start],
-                |row| row.get(0),
-            )
-            .unwrap();
-        assert_eq!(hour, "00");
-    }
-
-    #[test]
-    fn usage_this_month_ignores_records_from_before_the_month_started() {
-        let store = Store::open_in_memory().unwrap();
-        let month_start = store.month_start_unix().unwrap();
-
-        // 上个月的最后一条：不该被算进本月。
-        charge(&store, &sample("old", "旧", month_start - 86_400));
-        charge(&store, &sample("new", "新", month_start));
-
-        let summary = store.usage_this_month().unwrap();
-        assert_eq!(summary.count, 1, "月初之前的不该计入本月");
-        assert_eq!(summary.input_tokens, 100);
-    }
-
-    #[test]
-    fn usage_by_day_groups_records_onto_their_local_date() {
-        let store = Store::open_in_memory().unwrap();
-        // 取一个已知的当天正午，确保同一本地日期下有两条。
-        let noon = store
-            .connection()
-            .query_row(
-                "SELECT CAST(strftime('%s', datetime('now','localtime','start of day','utc')) AS INTEGER) + 43200",
-                [],
-                |row| row.get::<_, i64>(0),
-            )
-            .unwrap();
-
-        charge(&store, &sample("a", "甲", noon));
-        charge(&store, &sample("b", "乙", noon + 60));
-        charge(&store, &sample("c", "丙", noon - 86_400));
-
-        let days = store.usage_by_day(0).unwrap();
-        assert_eq!(days.len(), 2, "应该分成两天");
-        assert_eq!(days[0].count, 2, "今天两条；最新的一天排在前面");
-        assert_eq!(days[0].input_tokens, 200);
-        assert_eq!(days[1].count, 1);
-    }
-
-    #[test]
-    fn usage_by_day_reports_unpriced_rows_per_day() {
-        // 某一天有未计价的记录时，那一天的总额同样是「不完整」的，必须能看出来。
-        let store = Store::open_in_memory().unwrap();
-        let mut unpriced = sample("e", "f", 1_700_000_000);
-        unpriced.cost_usd = None;
-        charge(&store, &unpriced);
-
-        let days = store.usage_by_day(0).unwrap();
-        assert_eq!(days[0].unpriced, 1);
-        assert_eq!(days[0].day.len(), 10, "日期应为 YYYY-MM-DD");
-    }
-
-    fn record_with(app: &str, model: &str, source: &str, translated: &str) -> NewRecord {
-        let mut record = sample(source, translated, 1_700_000_000);
-        record.source_app = Some(app.to_string());
-        record.model = model.to_string();
-        record
-    }
-
-    #[test]
-    fn filtering_by_source_app_narrows_the_list() {
-        let store = Store::open_in_memory().unwrap();
-        store
-            .insert(&record_with("Slack", "gpt-4o", "a", "甲"))
-            .unwrap();
-        store
-            .insert(&record_with("Safari", "gpt-4o", "b", "乙"))
-            .unwrap();
-
-        let rows = store
-            .query(
-                &HistoryFilter {
-                    source_app: Some("Slack".to_string()),
-                    ..HistoryFilter::default()
-                },
-                50,
-                0,
-            )
-            .unwrap();
-        assert_eq!(rows.len(), 1);
-        assert_eq!(rows[0].entry.source_text, "a");
-    }
-
-    #[test]
-    fn filtering_by_model_narrows_the_list() {
-        let store = Store::open_in_memory().unwrap();
-        store
-            .insert(&record_with("Slack", "gpt-4o", "a", "甲"))
-            .unwrap();
-        store
-            .insert(&record_with("Slack", "deepseek-chat", "b", "乙"))
-            .unwrap();
-
-        let rows = store
-            .query(
-                &HistoryFilter {
-                    model: Some("deepseek-chat".to_string()),
-                    ..HistoryFilter::default()
-                },
-                50,
-                0,
-            )
-            .unwrap();
-        assert_eq!(rows.len(), 1);
-        assert_eq!(rows[0].entry.model, "deepseek-chat");
-    }
-
-    #[test]
-    fn filters_combine_with_search_as_and_not_or() {
-        // 「在 Slack 里、用 gpt-4o、且包含 token」是一个真实会有的问题；
-        // 三个条件必须是 AND，否则结果会多到没法看。
-        let store = Store::open_in_memory().unwrap();
-        store
-            .insert(&record_with("Slack", "gpt-4o", "token limit", "词元上限"))
-            .unwrap();
-        store
-            .insert(&record_with("Safari", "gpt-4o", "token limit", "词元上限"))
-            .unwrap();
-        store
-            .insert(&record_with("Slack", "gpt-4o", "other", "别的"))
-            .unwrap();
-
-        let rows = store
-            .query(
-                &HistoryFilter {
-                    query: Some("token".to_string()),
-                    source_app: Some("Slack".to_string()),
-                    model: Some("gpt-4o".to_string()),
-                },
-                50,
-                0,
-            )
-            .unwrap();
-        assert_eq!(rows.len(), 1, "三个条件应当同时满足：{rows:?}");
-    }
-
-    #[test]
     fn an_empty_filter_behaves_exactly_like_recent() {
         // 回归保护：筛选引入之后，「不加条件」的语义不能变。
         let store = Store::open_in_memory().unwrap();
         for i in 0..3 {
             store
-                .insert(&record_with("Slack", "gpt-4o", &format!("s{i}"), "译"))
+                .insert(&sample(&format!("s{i}"), "译", 1_700_000_000))
                 .unwrap();
         }
         assert_eq!(
@@ -809,145 +333,40 @@ mod tests {
     }
 
     #[test]
-    fn blank_filter_values_are_treated_as_absent() {
-        // 界面上的下拉未选中时可能传空串，不该被当成「匹配空字符串」而筛掉一切。
+    fn a_blank_query_is_treated_as_absent() {
+        // 搜索框清空后可能传空白，不该被当成「匹配空白」而筛掉一切。
         let store = Store::open_in_memory().unwrap();
-        store
-            .insert(&record_with("Slack", "gpt-4o", "a", "甲"))
-            .unwrap();
-
-        let rows = store
-            .query(
-                &HistoryFilter {
-                    query: Some("   ".to_string()),
-                    source_app: Some(String::new()),
-                    model: Some(String::new()),
-                },
-                50,
-                0,
-            )
-            .unwrap();
-        assert_eq!(rows.len(), 1);
+        store.insert(&sample("a", "甲", 1)).unwrap();
+        assert_eq!(search(&store, "   ").len(), 1);
     }
 
     #[test]
-    fn facets_list_only_values_that_actually_appear() {
-        // 给他一堆选了没结果的选项，比不给筛选更烦。
+    fn clearing_and_pruning_history_never_touch_old_favorites_or_usage_rows() {
+        // 收藏与用量账本都已退出界面，但旧数据原样留在库里，不随历史清理一起消失。
         let store = Store::open_in_memory().unwrap();
-        store
-            .insert(&record_with("Slack", "gpt-4o", "a", "甲"))
-            .unwrap();
-        store
-            .insert(&record_with("Safari", "gpt-4o", "b", "乙"))
-            .unwrap();
-        store
-            .insert(&record_with("Slack", "deepseek-chat", "c", "丙"))
-            .unwrap();
+        let conn = store.connection();
+        conn.execute(
+            "INSERT INTO favorites (created_at, kind, text) VALUES (1, 'word', 'hello')",
+            [],
+        )
+        .unwrap();
+        conn.execute(
+            "INSERT INTO usage (created_at, provider_id, model, input_tokens, output_tokens,
+             estimated, cost_usd) VALUES (1, 'openai', 'm', 1, 1, 0, NULL)",
+            [],
+        )
+        .unwrap();
+        store.insert(&sample("a", "甲", 1)).unwrap();
 
-        let facets = store.facets().unwrap();
-        assert_eq!(facets.apps, vec!["Safari", "Slack"], "去重并按名排序");
-        assert_eq!(facets.models, vec!["deepseek-chat", "gpt-4o"]);
-    }
-
-    #[test]
-    fn facets_skip_missing_apps_and_blank_models() {
-        let store = Store::open_in_memory().unwrap();
-        let mut no_app = sample("a", "甲", 1_700_000_000);
-        no_app.source_app = None;
-        store.insert(&no_app).unwrap();
-
-        let facets = store.facets().unwrap();
-        assert!(
-            facets.apps.is_empty(),
-            "拿不到来源 App 时不该出现空字符串项"
-        );
-        assert_eq!(facets.models, vec![no_app.model.clone()]);
-    }
-
-    #[test]
-    fn facets_on_an_empty_database_are_empty_lists() {
-        let store = Store::open_in_memory().unwrap();
-        let facets = store.facets().unwrap();
-        assert!(facets.apps.is_empty() && facets.models.is_empty());
-    }
-
-    #[test]
-    fn usage_is_grouped_per_provider() {
-        // 月度上限是按供应商算的，所以这个聚合必须分得开。
-        let store = Store::open_in_memory().unwrap();
-        let mut first = sample("a", "甲", 1_700_000_000);
-        first.provider_id = "openai".into();
-        let mut second = sample("b", "乙", 1_700_000_100);
-        second.provider_id = "openai".into();
-        let mut third = sample("c", "丙", 1_700_000_200);
-        third.provider_id = "deepseek".into();
-        for record in [&first, &second, &third] {
-            charge(&store, record);
-        }
-
-        let rows = store.usage_by_provider(0).unwrap();
-        assert_eq!(rows.len(), 2);
-        assert_eq!(rows[0].provider_id, "deepseek");
-        assert_eq!(rows[1].provider_id, "openai");
-        assert_eq!(rows[1].count, 2);
-        assert_eq!(rows[1].input_tokens, 200);
-    }
-
-    #[test]
-    fn a_provider_without_records_this_month_costs_zero() {
-        let store = Store::open_in_memory().unwrap();
-        assert_eq!(store.provider_spend_this_month("openai").unwrap(), 0.0);
-    }
-
-    #[test]
-    fn provider_spend_this_month_ignores_other_providers_and_last_month() {
-        let store = Store::open_in_memory().unwrap();
-        let month_start = store.month_start_unix().unwrap();
-
-        let mut this_month = sample("a", "甲", month_start);
-        this_month.provider_id = "openai".into();
-        this_month.cost_usd = Some(1.5);
-        charge(&store, &this_month);
-
-        let mut other = sample("b", "乙", month_start);
-        other.provider_id = "deepseek".into();
-        other.cost_usd = Some(99.0);
-        charge(&store, &other);
-
-        let mut last_month = sample("c", "丙", month_start - 86_400);
-        last_month.provider_id = "openai".into();
-        last_month.cost_usd = Some(50.0);
-        charge(&store, &last_month);
-
-        let spend = store.provider_spend_this_month("openai").unwrap();
-        assert!(
-            (spend - 1.5).abs() < 1e-9,
-            "只该算本月本供应商，实际 {spend}"
-        );
-    }
-
-    #[test]
-    fn unpriced_requests_do_not_inflate_the_spend() {
-        // 价格未知时 cost_usd 是 NULL，SUM 会跳过它。
-        // 这正是我们要的：不能把未知当成 0，也不能让它变成某个数字。
-        let store = Store::open_in_memory().unwrap();
-        let mut record = sample("a", "甲", 1_700_000_000);
-        record.cost_usd = None;
-        charge(&store, &record);
-
-        assert_eq!(
-            store
-                .provider_spend_this_month(&record.provider_id)
-                .unwrap(),
-            0.0
-        );
-        let rows = store.usage_by_provider(0).unwrap();
-        assert_eq!(rows[0].unpriced, 1, "未计价的条数要能看出来");
-    }
-
-    #[test]
-    fn usage_by_day_on_an_empty_database_is_an_empty_list_not_an_error() {
-        let store = Store::open_in_memory().unwrap();
-        assert!(store.usage_by_day(0).unwrap().is_empty());
+        store.prune_before(i64::MAX).unwrap();
+        store.clear().unwrap();
+        let rows = |table: &str| -> u32 {
+            conn.query_row(&format!("SELECT COUNT(*) FROM {table}"), [], |row| {
+                row.get(0)
+            })
+            .unwrap()
+        };
+        assert_eq!(rows("favorites"), 1);
+        assert_eq!(rows("usage"), 1);
     }
 }

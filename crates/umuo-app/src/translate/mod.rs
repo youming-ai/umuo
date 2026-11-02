@@ -11,9 +11,6 @@ mod plan;
 
 pub use plan::*;
 
-use std::future::Future;
-use std::sync::Arc;
-
 use umuo_core::error::CoreError;
 use umuo_core::transport::{self, ChatTarget, ChunkTarget, StreamOptions};
 use umuo_core::{chunk, lang, prompt, provider};
@@ -30,25 +27,6 @@ use crate::AppCore;
 /// 流水线里用的发送：只认 [`TranslateSink`]，不碰窗口系统。
 fn send(sink: &dyn TranslateSink, route: Route, event: impl Into<TranslateEvent>) {
     sink.send(route, event.into());
-}
-
-impl AppCore {
-    /// 从别处传入文本时用这个：浮窗的「重译」按钮、撰写窗的翻译命令、截图 OCR 的结果。
-    ///
-    /// `guard` 只有静默翻译才需要——它是写回前的目标校验凭据。
-    ///
-    /// 登记在调用时**同步**完成：新请求立刻顶掉同一窗口的旧请求，不必等异步任务排上队。
-    /// 返回的 future 由宿主放到自己的运行时上跑。
-    pub fn start_translation(
-        self: &Arc<Self>,
-        request: Request,
-        guard: Option<String>,
-        sink: Arc<dyn TranslateSink>,
-    ) -> impl Future<Output = ()> + Send + 'static {
-        let ticket = self.requests.begin(request.mode.surface());
-        let core = self.clone();
-        async move { run(&core, &*sink, request, guard, ticket).await }
-    }
 }
 
 /// 用一张已经登记好的凭据跑一次翻译。
@@ -404,62 +382,16 @@ fn emit_core_error(sink: &dyn TranslateSink, route: Route, source: &str, error: 
 
 #[cfg(test)]
 mod tests {
-    use std::sync::atomic::Ordering;
-
     use super::*;
-
-    struct NoHost;
-
-    impl Host for NoHost {
-        fn api_key(&self, _: &str) -> Result<Option<String>, String> {
-            Ok(None)
-        }
-        fn frontmost_app_name(&self) -> Option<String> {
-            None
-        }
-        fn frontmost_app_token(&self) -> Option<String> {
-            None
-        }
-        fn write_back(&self, _: FocusSource, _: &str, _: &str) -> Result<(), String> {
-            unreachable!("这些测试不跑流水线")
-        }
-    }
-
-    struct NoSink;
-
-    impl TranslateSink for NoSink {
-        fn send(&self, _: Route, _: TranslateEvent) {}
-    }
-
-    fn core() -> Arc<AppCore> {
-        let dir = std::env::temp_dir().join(format!("umuo-app-translate-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&dir);
-        std::fs::create_dir_all(&dir).unwrap();
-        Arc::new(AppCore::open(dir, Arc::new(NoHost)).unwrap())
-    }
 
     #[test]
     fn events_go_to_the_window_the_mode_belongs_to() {
-        // 窗口标签是外壳与前端共用的契约：外壳的 PANEL_LABEL / COMPOSE_LABEL 就是它们的别名。
+        // 窗口标签是宿主与流水线共用的契约：Swift 按它把事件分给浮窗或撰写窗。
         assert_eq!(PANEL_SURFACE, "panel");
         assert_eq!(COMPOSE_SURFACE, "compose");
         for mode in [Mode::Selection, Mode::SilentReplace, Mode::Ocr] {
             assert_eq!(mode.surface(), PANEL_SURFACE);
         }
         assert_eq!(Mode::Compose.surface(), COMPOSE_SURFACE);
-    }
-
-    #[test]
-    fn starting_a_translation_supersedes_the_previous_one_on_the_same_window_right_away() {
-        // 登记是同步的：返回的 future 还没被运行时排上，旧请求就已经被顶掉。
-        let core = core();
-        let old = core.requests.begin(PANEL_SURFACE);
-        let compose = core.requests.begin(COMPOSE_SURFACE);
-
-        let run = core.start_translation(Request::selection("hello"), None, Arc::new(NoSink));
-
-        assert!(old.cancel.load(Ordering::Relaxed), "同一窗口的旧请求被取消");
-        assert!(!compose.cancel.load(Ordering::Relaxed), "别的窗口不受影响");
-        drop(run);
     }
 }

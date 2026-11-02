@@ -1,7 +1,7 @@
 //! 错误分类：把「一次失败的翻译」变成「用户能做的下一步」。
 //!
 //! PRD §7.5 要求错误不弹系统级警告框，只在结果卡片里给一条提示 + 可操作按钮
-//! （重试 / 切换模型 / 打开设置）。所以这里的核心不是错误文案，而是
+//! （重试 / 打开模型设置 / 检查网络）。所以这里的核心不是错误文案，而是
 //! [`SuggestedAction`]：UI 直接照它渲染按钮，不需要自己判断「这个错误该不该给重试」。
 //!
 //! 分类的全部难点在 [`classify_http_error`]：各家 HTTP 状态码相同但语义不同
@@ -12,19 +12,16 @@ use std::time::Duration;
 /// 结果卡片上可以给出的下一步动作。
 ///
 /// 保持这个枚举很小是刻意的：每多一个动作，就要在 UI 上多一次取舍。
+/// 只有一个当前模型（PRD §6.3），「换个模型」与「打开模型设置」是同一个去处，不再分开。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum SuggestedAction {
     /// 再发一次同样的请求（限流、超时、5xx）。
     Retry,
-    /// 换成备用模型（模型不可用、上下文超长）。
-    SwitchModel,
-    /// 打开「模型」设置页（Key 无效、余额不足、配置缺失）。
+    /// 打开「模型」设置页：Key 无效、余额不足、配置缺失，或该换个模型（模型不可用、上下文超长、截断）。
     OpenModelSettings,
     /// 检查网络或代理（不可达、DNS、TLS）。
     CheckNetwork,
-    /// 切换到本地模型（离线时的降级路径，PRD §7.5）。
-    UseLocalModel,
 }
 
 /// 内核错误分类。
@@ -113,26 +110,21 @@ impl CoreError {
     pub fn actions(&self) -> Vec<SuggestedAction> {
         match self {
             CoreError::RateLimited { .. } | CoreError::Timeout { .. } => {
-                vec![SuggestedAction::Retry, SuggestedAction::SwitchModel]
+                vec![SuggestedAction::Retry, SuggestedAction::OpenModelSettings]
             }
             // 5xx 与限流一样是「供应商侧的临时问题」：等一下或换一家都可能成功。
             CoreError::ServerError { .. } => {
-                vec![SuggestedAction::Retry, SuggestedAction::SwitchModel]
+                vec![SuggestedAction::Retry, SuggestedAction::OpenModelSettings]
             }
-            CoreError::Network { .. } => vec![
-                SuggestedAction::Retry,
-                SuggestedAction::CheckNetwork,
-                SuggestedAction::UseLocalModel,
-            ],
+            CoreError::Network { .. } => {
+                vec![SuggestedAction::Retry, SuggestedAction::CheckNetwork]
+            }
             CoreError::InvalidKey | CoreError::MissingKey | CoreError::InsufficientBalance => {
                 vec![SuggestedAction::OpenModelSettings]
             }
-            CoreError::ModelUnavailable { .. } => vec![
-                SuggestedAction::SwitchModel,
-                SuggestedAction::OpenModelSettings,
-            ],
+            CoreError::ModelUnavailable { .. } => vec![SuggestedAction::OpenModelSettings],
             CoreError::ContextTooLong => {
-                vec![SuggestedAction::SwitchModel, SuggestedAction::Retry]
+                vec![SuggestedAction::OpenModelSettings, SuggestedAction::Retry]
             }
             CoreError::RegionBlocked => vec![
                 SuggestedAction::OpenModelSettings,
@@ -144,7 +136,9 @@ impl CoreError {
             // 而在「目标已变」的情况下那正是我们要避免的行为。
             CoreError::WriteTargetChanged | CoreError::WriteBackFailed { .. } => vec![],
             // 截断多半是输出上限太小：换个模型最可能管用；连接中断的话重试也行。
-            CoreError::Truncated => vec![SuggestedAction::SwitchModel, SuggestedAction::Retry],
+            CoreError::Truncated => {
+                vec![SuggestedAction::OpenModelSettings, SuggestedAction::Retry]
+            }
             CoreError::CustomEndpointMissing
             | CoreError::AzureEndpointMissing
             | CoreError::NoEngine => {
@@ -376,7 +370,7 @@ mod tests {
         }
         assert_eq!(
             err.actions(),
-            vec![SuggestedAction::Retry, SuggestedAction::SwitchModel]
+            vec![SuggestedAction::Retry, SuggestedAction::OpenModelSettings]
         );
     }
 
@@ -432,11 +426,23 @@ mod tests {
     }
 
     #[test]
-    fn a_truncated_translation_suggests_switching_model() {
+    fn a_truncated_translation_points_at_the_model_settings() {
         // 截断是在「成功」之后才判的：文本已经显示了，由用户决定要不要换模型再来。
         assert!(CoreError::Truncated
             .actions()
-            .contains(&SuggestedAction::SwitchModel));
+            .contains(&SuggestedAction::OpenModelSettings));
+    }
+
+    #[test]
+    fn a_network_failure_offers_retry_and_a_network_check_but_no_local_fallback() {
+        // 本机模型自动回落已退出（PRD §6.3）：断网时只给重试与检查网络。
+        let error = CoreError::Network {
+            message: "dns".to_string(),
+        };
+        assert_eq!(
+            error.actions(),
+            vec![SuggestedAction::Retry, SuggestedAction::CheckNetwork]
+        );
     }
 
     #[test]
@@ -471,7 +477,7 @@ mod tests {
         let err = classify_http_error(503, "", None);
         assert_eq!(
             err.actions(),
-            vec![SuggestedAction::Retry, SuggestedAction::SwitchModel]
+            vec![SuggestedAction::Retry, SuggestedAction::OpenModelSettings]
         );
     }
 

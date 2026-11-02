@@ -172,19 +172,10 @@ impl fmt::Display for VoiceFailure {
 impl std::error::Error for VoiceFailure {}
 
 impl AppCore {
-    /// [`run`] 的自有参数版本：返回的 future 是 `Send + 'static`，宿主可直接放到自己的运行时上跑。
+    /// 宿主（语音会话）用的入口：[`run`] + 成功后按 [`record_history`] 记一条历史。
     ///
+    /// 返回的 future 是 `Send + 'static`，宿主可直接放到自己的运行时上跑。
     /// `cancel` 由调用方持有（会话层按 Esc 或新会话顶掉旧会话时置位），语义同 [`run`]。
-    pub fn start_voice(
-        self: &Arc<Self>,
-        request: VoiceRequest,
-        cancel: Arc<AtomicBool>,
-    ) -> impl Future<Output = Result<VoiceOutput, VoiceFailure>> + Send + 'static {
-        let core = self.clone();
-        async move { run(&core, &request, &cancel).await }
-    }
-
-    /// 宿主（语音会话）用的入口：[`Self::start_voice`] + 成功后按 [`record_history`] 记一条历史。
     ///
     /// 历史在返回结果之前写：与文字翻译「显示与落库是同一次成功的两个后果」一致，落库失败只打日志。
     pub fn post_process_voice(

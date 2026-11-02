@@ -42,15 +42,10 @@ pub const MAX_CONCURRENT_CHUNKS: usize = 4;
 /// 重定向最多跟几跳。自定义策略会顶掉 reqwest 默认的 10 跳上限，这里补回来。
 const MAX_REDIRECTS: usize = 10;
 
-/// 构造 HTTP 客户端。
+/// 按代理意图构建 HTTP 客户端（PRD §8）。
 ///
 /// 刻意不带任何遥测 / 追踪头：BYOK 模式下请求是用户与供应商之间的事，
 /// 我们连自己的标识都不该加进去。
-pub fn build_client() -> Result<reqwest::Client, CoreError> {
-    build_client_with(&crate::proxy::ProxyChoice::System)
-}
-
-/// 按代理意图构建客户端（PRD §8）。
 ///
 /// 三种意图的来源不同，所以必须**显式**落下去：
 /// - [`ProxyChoice::System`]：什么都不设，交给 reqwest 读系统代理（macOS 上由
@@ -288,7 +283,6 @@ pub async fn stream_chat(
         model,
         api_key,
         chat,
-        true,
     )?;
     let started = Instant::now();
 

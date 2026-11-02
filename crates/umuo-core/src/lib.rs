@@ -15,7 +15,6 @@
 //! | 模块 | 职责 | PRD |
 //! | --- | --- | --- |
 //! | [`provider`] | 供应商目录、协议与鉴权描述 | §6.1 |
-//! | [`key_detect`] | 按 Key 前缀推测供应商 | §6.2 |
 //! | [`wire`] | 请求构造、流式事件解析、错误分类 | §6.5、§7.5 |
 //! | [`prompt`] | 内部翻译指令与语言信息 | §5.7、§6.5 |
 //! | [`chunk`] | 长文本按上下文切分 | §6.3 |
@@ -35,7 +34,6 @@ pub type UnknownFields = serde_json::Map<String, serde_json::Value>;
 pub mod chunk;
 pub mod error;
 pub mod hotkey;
-pub mod key_detect;
 pub mod lang;
 pub mod prompt;
 pub mod provider;

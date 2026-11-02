@@ -200,13 +200,11 @@ struct PanelSessionTests {
         #expect(backend.systemSettings == [.screenRecording, .accessibility])
     }
 
-    @Test func 换模型类的建议都给打开模型设置() {
+    @Test func 只有打开模型设置的建议才给模型设置按钮() {
         let session = PanelSession()
-        for action in [SuggestedAction.switchModel, .openModelSettings, .useLocalModel] {
-            session.apply(.error(PanelError(requestId: nil, message: "x", actions: [action], needsPermission: false,
-                                            permission: nil, source: nil)))
-            #expect(session.offersModelSettings)
-        }
+        session.apply(.error(PanelError(requestId: nil, message: "x", actions: [.openModelSettings],
+                                        needsPermission: false, permission: nil, source: nil)))
+        #expect(session.offersModelSettings)
         session.apply(.error(PanelError(requestId: nil, message: "x", actions: [.retry, .checkNetwork],
                                         needsPermission: false, permission: nil, source: nil)))
         #expect(!session.offersModelSettings)

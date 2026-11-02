@@ -47,13 +47,6 @@ pub fn parse_selection_blacklist(text: &str) -> Vec<String> {
     out
 }
 
-/// 界面缩放的合法档位。任意值会让排版在各种窗口里各自坏掉，
-/// 所以只给四档——覆盖"小一点/正常/大一点/很大"。
-pub const UI_SCALES: [f64; 4] = [0.85, 1.0, 1.25, 1.5];
-
-/// 归一化时找最近档位用的有序副本（UI_SCALES 本身已按升序书写）。
-const UI_SCALES_BY_VALUE: [f64; 4] = UI_SCALES;
-
 /// 默认界面缩放：1.0（跟随系统）。
 fn default_ui_scale() -> f64 {
     1.0
@@ -334,27 +327,6 @@ impl Settings {
         self.selection_blacklist = parse_selection_blacklist(&self.selection_blacklist.join("\n"));
     }
 
-    /// 归一化后的界面缩放：不在档位里的值取最接近的一档。
-    ///
-    /// 手改配置写进来的 1.1 不该被原样接受——四个窗口各自按它缩放，
-    /// 排版问题会以最难归因的方式出现。
-    pub fn normalized_ui_scale(&self) -> f64 {
-        // 非有限值（NaN / ±inf）**显式**回默认，而不是靠数值比较碰运气——
-        // inf 到四档的距离全是无穷大，min_by 会随实现返回任意一档（这条测试抓到过）。
-        if !self.ui_scale.is_finite() {
-            return 1.0;
-        }
-        UI_SCALES_BY_VALUE
-            .iter()
-            .copied()
-            .min_by(|a, b| {
-                (a - self.ui_scale)
-                    .abs()
-                    .total_cmp(&(b - self.ui_scale).abs())
-            })
-            .unwrap_or(1.0)
-    }
-
     /// 当前会注册的快捷键（四个翻译入口 + 两个语音键），按固定顺序；退役字段仅为旧配置兼容保留。
     /// 保存设置时用它判断「快捷键是否变了、要不要重注册」。
     pub fn hotkeys(&self) -> [&str; 6] {
@@ -623,33 +595,6 @@ mod tests {
 
         let loaded = Settings::load(&dir);
         assert_eq!(loaded, settings);
-    }
-
-    #[test]
-    fn an_off_scale_value_snaps_to_the_nearest_step() {
-        // 四个窗口各自按缩放值排版，任意值会让排版问题以最难归因的方式出现。
-        let mut settings = Settings {
-            ui_scale: 1.1,
-            ..Settings::default()
-        };
-        assert_eq!(settings.normalized_ui_scale(), 1.0, "1.1 离 1.0 更近");
-        settings.ui_scale = 1.4;
-        assert_eq!(settings.normalized_ui_scale(), 1.5, "1.4 离 1.5 更近");
-        settings.ui_scale = 0.85;
-        assert_eq!(settings.normalized_ui_scale(), 0.85);
-    }
-
-    #[test]
-    fn a_broken_scale_value_falls_back_to_normal() {
-        // 手改配置写进来的 NaN / inf 不该让窗口缩放跟着坏掉。
-        let mut settings = Settings {
-            ui_scale: f64::NAN,
-            ..Settings::default()
-        };
-        assert_eq!(settings.normalized_ui_scale(), 1.0);
-        settings.ui_scale = f64::INFINITY;
-        // 到四档的距离全是无穷大，数值比较没有意义——所以显式回默认。
-        assert_eq!(settings.normalized_ui_scale(), 1.0);
     }
 
     #[test]
