@@ -2,7 +2,7 @@ import Testing
 import UmuoCore
 @testable import Umuo
 
-// 撰写窗：纯规则（`main.rs` 的 compose_owner 测试逐条改写、`commands.rs` 的请求构造）与视图模型的调度、回译、提交。
+// 撰写窗：纯规则（粘贴目标、请求构造）与视图模型的调度、回译、提交。
 // backend 换成只记调用的假实现：不开窗口、不碰 Engine、剪贴板、AX，也不投递按键。
 
 @MainActor

@@ -18,7 +18,7 @@ final class VoicePanelController: VoiceOverlayPresenting {
     private let escape: EscapeRouter
     private var hosting: NSView?
     private var observation: Task<Void, Never>?
-    var settingsJson: () -> String? = { nil }
+    var locale: () -> AppLocale = { .source }
 
     private lazy var panel: NSPanel = {
         let panel = NSPanel(contentRect: NSRect(x: 0, y: 0, width: Self.width, height: 120),
@@ -41,8 +41,8 @@ final class VoicePanelController: VoiceOverlayPresenting {
     }
 
     func show() {
-        let appearance = PanelRules.appearance(settingsJson: settingsJson())
-        if model.t.locale != appearance.locale { model.t = Translate(locale: appearance.locale) }
+        let locale = locale()
+        if model.t.locale != locale { model.t = Translate(locale: locale) }
         let wasVisible = panel.isVisible
         fit(reposition: !wasVisible)
         if !wasVisible { panel.orderFrontRegardless() }
@@ -164,7 +164,6 @@ struct VoiceOverlayView: View {
             ResultText(text: text)
             HStack {
                 Button(model.copied ? t("voice.copied") : t("voice.copy")) { model.onCopy?(text) }
-                    .keyboardShortcut("c", modifiers: .command)
                 Spacer()
                 Text(t("voice.escHint")).font(.callout).foregroundStyle(.secondary)
             }
@@ -176,7 +175,6 @@ struct VoiceOverlayView: View {
             ResultText(text: text)
             HStack {
                 Button(model.copied ? t("voice.copied") : t("voice.copy")) { model.onCopy?(text) }
-                    .keyboardShortcut("c", modifiers: .command)
                 if truncated {
                     Button(t("voice.retry")) { model.onRetry?() }
                 }

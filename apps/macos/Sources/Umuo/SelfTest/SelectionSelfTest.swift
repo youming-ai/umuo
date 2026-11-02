@@ -18,16 +18,16 @@ enum SelectionSelfTest {
         live(check)
     }
 
-    /// 与 `selection.rs` 的 `a_copy_counts_only_after_someone_wrote_the_clipboard` 同一张表。
+    /// 「有人写过剪贴板才算复制到了」的判定表。
     static func pureChecks(_ check: (String, Bool, String) -> Void) {
         let copied = ClipboardFallback.copiedText(cleared: 5, now: 5, text: "旧内容") == nil
             && ClipboardFallback.copiedText(cleared: 5, now: 6, text: "选中") == "选中"
             && ClipboardFallback.copiedText(cleared: 5, now: 6, text: nil) == nil
             && ClipboardFallback.copiedText(cleared: 5, now: 6, text: "") == nil
         check("ClipboardFallback.copiedText", copied, "计数没变不算、非文本与空串不算")
-        let messages = SelectionError.permissionDenied.description == "需要系统权限：辅助功能"
-            && SelectionError.noSelection.description == "没有检测到选中的文本"
-        check("SelectionError", messages, "文案与 PlatformError 逐字一致")
+        let messages = SelectionError.permissionDenied.text.key == "error.accessibilityRequired"
+            && SelectionError.noSelection.text.key == "error.noSelection"
+        check("SelectionError", messages, "缺权限与没选中各有文案键，界面按语言取")
     }
 
     /// 只造事件、不投递：验键码与 ⌘ 修饰。
@@ -80,8 +80,9 @@ enum SelectionSelfTest {
         check("ClipboardFallback.noCopy", missed == .failure(.noSelection) && restoredAfterMiss,
               "超时报「没有检测到选中的文本」，剪贴板原样还回")
 
-        let (failed, restoredAfterFailure) = attempt { () throws(SelectionError) in throw .other("无法创建键盘事件源") }
-        check("ClipboardFallback.synthesisFails", failed == .failure(.other("无法创建键盘事件源")) && restoredAfterFailure,
+        let keyFailed = SelectionError.other(UserText("error.keyEventFailed"))
+        let (failed, restoredAfterFailure) = attempt { () throws(SelectionError) in throw keyFailed }
+        check("ClipboardFallback.synthesisFails", failed == .failure(keyFailed) && restoredAfterFailure,
               "合成 ⌘C 失败：先恢复再报错")
 
         // 超时（400ms）之后、观察窗口（再 600ms）之内才写进来的复制结果：要再恢复一次。0.7s 两头都留了余量

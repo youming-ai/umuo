@@ -10,7 +10,7 @@ enum TrayIcon {
     }
 }
 
-/// 点菜单栏图标要做什么（Tauri：`show_menu_on_left_click(false)`，左键开快捷面板，右键出菜单）。
+/// 点菜单栏图标要做什么：左键开快捷面板，右键（或按住 ⌃ 点）出菜单。
 enum StatusClick: Equatable {
     case quickPanel
     case menu
@@ -21,7 +21,7 @@ enum StatusClick: Equatable {
     }
 }
 
-/// 菜单栏图标与菜单（Tauri 的 `build_tray`）。用 `NSStatusItem` 而不是 SwiftUI 的 `MenuBarExtra`：
+/// 菜单栏图标与菜单。用 `NSStatusItem` 而不是 SwiftUI 的 `MenuBarExtra`：
 /// 后者分不出左右键，做不到「左键开快捷面板、右键出菜单」。
 ///
 /// 菜单只列保留的翻译入口与应用操作；标题走字符串表，每次弹出时按当前界面语言重建。
@@ -31,7 +31,7 @@ final class StatusBarController: NSObject, NSMenuItemValidation {
     unowned let app: AppModel
     private let item: NSStatusItem
 
-    /// Tauri 托盘菜单的项：字符串键、对应的动作。nil 是分隔线。
+    /// 菜单的项：文案键、对应的动作。nil 是分隔线。
     enum Entry: Equatable {
         case action(HotkeyAction)
         case quick, history, settings, checkUpdates, quit
@@ -78,7 +78,7 @@ final class StatusBarController: NSObject, NSMenuItemValidation {
             app.toggleQuickPanel()
         case .menu:
             app.hideQuickPanel()
-            item.menu = makeMenu(t: Translate(locale: PanelRules.appearance(settingsJson: app.settingsJson).locale))
+            item.menu = makeMenu(t: app.t)
             sender.performClick(nil)
             item.menu = nil
         }
@@ -116,7 +116,7 @@ final class StatusBarController: NSObject, NSMenuItemValidation {
     @objc private func choose(_ sender: NSMenuItem) {
         guard let index = sender.representedObject as? Int, let entry = Self.entries[index]?.entry else { return }
         switch entry {
-        case let .action(action): app.actions.perform(action)
+        case let .action(action): app.perform(action)
         // 菜单收起之后再弹：菜单还在跟踪鼠标时弹出的面板会被当成「点到外面」立刻收起
         case .quick: DispatchQueue.main.async { self.app.toggleQuickPanel() }
         case .history: app.openHistory()

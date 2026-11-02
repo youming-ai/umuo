@@ -20,7 +20,7 @@ final class OnboardingWindowController: NSObject, NSWindowDelegate {
     }
 
     func show() {
-        // 只要窗口还在（含最小化）就复用，与 Tauri 的 `open_onboarding` 一致；不能看 `isVisible`——最小化时它是 false，
+        // 只要窗口还在（含最小化）就复用；不能看 `isVisible`——最小化时它是 false，
         // 会再开一个新窗，旧窗关闭时又把新窗的引用清掉。
         if let window {
             if window.isMiniaturized { window.deminiaturize(nil) }
@@ -48,8 +48,7 @@ final class OnboardingWindowController: NSObject, NSWindowDelegate {
     func close() { window?.close() }
 
     private func refreshAppearance(_ model: OnboardingModel) {
-        let appearance = PanelRules.appearance(settingsJson: app.settingsJson)
-        model.t = Translate(locale: appearance.locale)
+        model.t = Translate(locale: app.locale)
         window?.title = model.t("onboarding.title")
     }
 
@@ -93,7 +92,7 @@ final class EngineOnboardingBackend: OnboardingBackend {
 
     func translateSample(_ text: String) throws {
         guard let panel = app.panel else { throw EngineError.Failed(message: app.engineStatus) }
-        try panel.translateText(text, empty: "没有可翻译的文本")
+        try panel.translateText(text, empty: app.t("common.nothingToTranslate"))
     }
 
     func close() { onClose() }

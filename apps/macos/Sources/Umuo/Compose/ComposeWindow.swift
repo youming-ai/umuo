@@ -1,11 +1,11 @@
 import AppKit
 import SwiftUI
 
-/// 撰写窗本体（PRD §7.1「居中浮窗，类 Spotlight」）：系统外壳（`FloatingPanelChrome`）、置顶、可缩放，与 Tauri 的 `build_compose` 同尺寸。
+/// 撰写窗本体（PRD §7.1「居中浮窗，类 Spotlight」）：系统外壳（`FloatingPanelChrome`）、置顶、可缩放。
 ///
 /// 与浮窗相反，它**要**成为 key——用户按 ⌥⌘A 就是为了打字。但它仍是 `.nonactivatingPanel`：成为 key、收键盘输入，
 /// 却**不激活** umuo，唤出它之前的应用一直是前台应用。这样：
-/// - ⌘↩ 收起后焦点直接回到原来的应用，用户接着 ⌘V 即可（Tauri 会激活自己，收起后 umuo 留在前台、没有窗口）；
+/// - ⌘↩ 收起后焦点直接回到原来的应用，用户接着 ⌘V 即可（撰写窗不激活 umuo）；
 /// - ⌘⇧↩ 粘贴前的「目标应用确实在前台」核对通常一次就通过；核对本身照做（`ComposeController.pasteBack`）。
 final class ComposeWindow: NSPanel {
     static let initialSize = CGSize(width: 660, height: 440)
@@ -17,7 +17,7 @@ final class ComposeWindow: NSPanel {
         isFloatingPanel = true
         level = .floating
         collectionBehavior = [.moveToActiveSpace, .fullScreenAuxiliary]
-        // 置顶、失焦不收起（与 Tauri 一样）：收起只靠 Esc、「收起」按钮、⌥⌘A 与提交
+        // 置顶、失焦不收起：收起只靠 Esc、「收起」按钮、⌥⌘A 与提交
         hidesOnDeactivate = false
         isReleasedWhenClosed = false
         minSize = Self.minSize
@@ -61,7 +61,7 @@ enum ComposeKey: Equatable {
         if composing { return nil }
         switch keyCode {
         case 53: return .escape
-        // 与 Tauri 一样 ⌃↩ 也算（`metaKey || ctrlKey`）由调用方把 control 并进 command 传进来
+        // ⌃↩ 也算：由调用方把 control 并进 command 传进来
         case 36, 76: return command ? .commit(paste: shift) : nil
         default: return nil
         }

@@ -202,6 +202,16 @@ struct SettingsRulesTests {
         #expect(notice.contains("azure → https://x"))
         #expect(notice.contains("Slack"))
         #expect(!notice.contains(zh("prefs.general.importedBlacklistRemoved", ["list": ""])))
+        #expect(notice.contains(zh("prefs.general.importedStyles", ["count": "1"])))
+        #expect(notice.contains(zh("prefs.general.importedGlossaries", ["count": "2"])))
+    }
+
+    @Test func 导入说明里旧风格与术语表为零时不提() {
+        let result = ImportResult(
+            providerId: "openai", targetLang: "en", customStyleCount: 0, glossaryCount: 0, bundleVersion: 2,
+            endpointChanges: [], blacklistAdded: [], blacklistRemoved: [], settingsJson: "{}", hotkeysChanged: false
+        )
+        #expect(SettingsRules.importNotice(result, zh) == zh("prefs.general.imported", ["version": "2"]))
     }
 
     @Test func 错误只显示信息不带枚举名() {
@@ -274,7 +284,7 @@ struct AutostartTests {
         #expect(Autostart.checkLaunchPath("/Applications/umuo.app/Contents/MacOS/Umuo") == nil)
     }
 
-    @Test func 与Tauri版同一个文件() {
+    @Test func 与旧版客户端同一个文件() {
         #expect(Autostart.plistURL(home: URL(fileURLWithPath: "/Users/someone")).path
             == "/Users/someone/Library/LaunchAgents/app.umuo.desktop.plist")
     }

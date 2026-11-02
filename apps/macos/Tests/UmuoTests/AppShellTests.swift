@@ -7,7 +7,7 @@ import UmuoCore
 struct AppShellTests {
     @Test func 只有正式客户端才注册全局快捷键() {
         let production = bundleId()
-        // `.build/debug/Umuo` 没有 Info.plist：开发期与 Tauri 版同开时不抢快捷键
+        // `.build/debug/Umuo` 没有 Info.plist：开发构建与正式安装版同开时不抢快捷键
         #expect(!HotkeyPolicy.shouldRegister(arguments: [], bundleIdentifier: nil, productionBundleId: production))
         #expect(!HotkeyPolicy.shouldRegister(arguments: [], bundleIdentifier: "com.example.other", productionBundleId: production))
         #expect(HotkeyPolicy.shouldRegister(arguments: [], bundleIdentifier: production, productionBundleId: production))
@@ -18,17 +18,21 @@ struct AppShellTests {
                                              productionBundleId: production))
     }
 
-    @Test func 核心功能各自分发到接上的处理函数() {
-        let router = ActionRouter()
-        var hits: [HotkeyAction] = []
-        for action in HotkeyAction.allCases where action != .ocr {
-            router.handle(action) { hits.append(action) }
-        }
-        for action in HotkeyAction.allCases { router.perform(action) }
-        #expect(hits == HotkeyAction.allCases.filter { $0 != .ocr })
-        // 还没接上的功能不崩，只报告没人接
-        #expect(!router.perform(.ocr))
-        #expect(router.handled.count == 3)
+    @Test func 窗口还没建时核心功能与打开窗口都不崩() {
+        // swift test 里的 AppModel 不调 start()：浮窗、撰写窗等都没建，快捷键与菜单进来只是什么都不做
+        let model = AppModel(arguments: [], bundleIdentifier: nil)
+        for action in HotkeyAction.allCases { model.perform(action) }
+        model.openSettings()
+        model.openHistory()
+        model.openOnboarding()
+        model.openCompose(ComposePrefill(text: "x", translation: nil, sourceOwner: nil))
+        #expect(model.panel == nil && model.compose == nil)
+    }
+
+    @Test func 内核未就绪的提示按界面语言取() {
+        let model = AppModel(arguments: [], bundleIdentifier: nil)
+        #expect(model.engineStatus == model.t("app.engineStarting"))
+        #expect(StringCatalog.main.entries["app.engineStarting"]?.values.count == 4)
     }
 
     @Test func 测试进程里的AppModel不注册快捷键() {

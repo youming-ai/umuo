@@ -231,8 +231,8 @@ struct DraftField: NSViewRepresentable {
     }
 }
 
-/// 多行编辑框（术语表的条目、预设的风格指令）：边打边写回视图模型，不是「失焦提交」的设置项。
-/// 用 NSTextView 而不是 SwiftUI 的 TextEditor：要关掉智能引号——粘贴进来的 CSV 里的 `"` 被换成 `”` 就解析错了。
+/// 多行编辑框（OCR 结果窗里可改的原文）：边打边写回视图模型，不是「失焦提交」的设置项。
+/// 用 NSTextView 而不是 SwiftUI 的 TextEditor：要关掉智能引号与自动替换——原文里的 `"` 被换成 `”` 就不是用户识别出的那段文字了。
 struct PlainTextEditor: NSViewRepresentable {
     let text: String
     var height: CGFloat = 120
@@ -283,7 +283,7 @@ struct PlainTextEditor: NSViewRepresentable {
     }
 }
 
-/// 破坏性操作前的确认（Tauri 的 `window.confirm`）：系统警告框，以表单附在当前窗口上（没有窗口时才是独立对话框）。
+/// 破坏性操作前的确认：系统警告框，以表单附在当前窗口上（没有窗口时才是独立对话框）。
 /// 确认按钮标成破坏性；回车落在「取消」上，免得顺手一按就删了。
 @MainActor
 enum PrefConfirm {

@@ -12,7 +12,7 @@ protocol HistoryBackend: AnyObject {
     func delete(id: Int64) async throws
     /// 返回删掉了几条。
     func clear() async throws -> UInt32
-    /// 清空前的确认（Tauri 的 `window.confirm`）。
+    /// 清空前的确认。
     func confirmClear(_ message: String, confirm: String, cancel: String) async -> Bool
     /// 复制到剪贴板。失败返回原因。
     func copy(_ text: String) async -> String?
@@ -20,7 +20,7 @@ protocol HistoryBackend: AnyObject {
     func openCompose(text: String, translation: String) throws
 }
 
-/// 历史窗的视图模型，`history.tsx` 的状态与规则（PRD §5.9）。
+/// 历史窗的视图模型（PRD §5.9）。
 ///
 /// 最近记录：列表 + 关键词搜索 + 删除 / 清空 + 复制 / 再次编辑。收藏与来源 / 模型筛选已退出（第四批精简），
 /// 已有的收藏数据原样留在库里；费用与用量统计已退出（PRD §5.10）。

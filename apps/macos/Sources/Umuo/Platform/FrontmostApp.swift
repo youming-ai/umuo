@@ -7,7 +7,7 @@ import os
 /// - 名字只用来标注历史的「来源应用」与按 App 记忆，每记一条历史都要取一次，所以读
 ///   NSWorkspace 激活通知维护的加锁缓存，晚一拍无害。
 /// - 标识是写回守卫的唯一依据，**每次调用现查** AX 系统级 `AXFocusedApplication` 的 pid
-///   （与 Tauri 的 `ax::frontmost_pid` 同一来源）。激活通知经主线程 run loop 晚到，用户刚切走时
+///   。激活通知经主线程 run loop 晚到，用户刚切走时
 ///   缓存还是旧应用，读缓存的话守卫会放行、把译文写进刚切过去的应用。
 final class FrontmostApp: Sendable {
     private let name = OSAllocatedUnfairLock<String?>(initialState: nil)
@@ -31,7 +31,7 @@ final class FrontmostApp: Sendable {
     /// 缓存里的前台应用名。只取锁，可以在任何线程上调。
     func currentName() -> String? { name.withLock { $0 } }
 
-    /// 现查前台应用的 pid（十进制字符串，与 Tauri 的 `frontmost_app_token` / `own_app_token` 同一口径）。
+    /// 现查前台应用的 pid（十进制字符串，与 `PanelController.ownToken` 同一口径）。
     /// 拿不到（没有辅助功能权限、没有前台应用）时为 nil。AX 是线程安全的 C API，工作线程上直接调。
     static func liveToken() -> String? {
         let system = AXUIElementCreateSystemWide()

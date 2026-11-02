@@ -1,13 +1,13 @@
 import Foundation
 import UmuoCore
 
-/// 快捷键字符串与按键之间的转换（录键器用），`hotkey-format.ts` 的移植。
+/// 快捷键字符串与按键之间的转换（录键器用）。
 ///
 /// 存储格式沿用全局快捷键认的写法：`Ctrl+Alt+Shift+Cmd+P`，修饰键在前、主键在最后。
 /// 主键一律按**物理键位**（W3C `KeyboardEvent.code` 的名字，由虚拟键码换算）而不是按出来的字符：
 /// 按住 ⌥ 时字符会变成组合出来的符号（⌥P 是「π」），用它只会录出一串解析不了的东西。
 enum HotkeyFormat {
-    /// 录键器能产出的主键名（与 Tauri 版 `RECORDABLE_KEYS` 一致；Rust 侧有测试确认它们都能解析）。
+    /// 录键器能产出的主键名（Rust 侧有测试确认它们都能解析）。
     static let recordableKeys: [String] = Array("ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789").map(String.init)
         + (1 ... 12).map { "F\($0)" }
         + ["Space", "Enter", "Tab", "Comma", "Period", "Slash", "Semicolon", "Quote", "BracketLeft", "BracketRight",

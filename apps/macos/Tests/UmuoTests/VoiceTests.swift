@@ -829,6 +829,26 @@ struct VoiceRulesTests {
         }
     }
 
+    @Test @MainActor func 后处理在登记句柄之前被取消_不再发请求() async {
+        // 状态机发 cancelPostProcess 时，run 可能还排在 Task 里没开始：那时没有句柄可取消。
+        // 取消要先记下，run 一开始就认出来，不去调 Engine.startVoice（否则请求照发、照计费）。
+        var asked = 0
+        let processor = EngineVoicePostProcessor(engine: {
+            asked += 1
+            return nil
+        }, unavailable: { "内核还没有启动" })
+        processor.cancel(session: 3)
+        await #expect(throws: VoiceFault.self) {
+            _ = try await processor.run(session: 3, text: "你好", task: .tidy)
+        }
+        #expect(asked == 0, "已取消的会话不该再去拿 Engine 发请求")
+        // 别的会话不受影响
+        await #expect(throws: VoiceFault(kind: .postProcess, detail: "内核还没有启动")) {
+            _ = try await processor.run(session: 4, text: "你好", task: .tidy)
+        }
+        #expect(asked == 1)
+    }
+
     @Test func 每种错误与下载失败都有四语言文案() {
         let catalog = StringCatalog.main
         let kinds: [VoiceErrorKind] = [.micPermissionDenied, .noInputDevice, .recording, .tooShort, .noSpeech,
@@ -843,5 +863,52 @@ struct VoiceRulesTests {
         }
         #expect(VoiceOverlayView.elapsed(from: Date(timeIntervalSince1970: 0), to: Date(timeIntervalSince1970: 75))
             == "1:15")
+    }
+}
+
+/// 停在系统麦克风授权框上的「授权」：测试决定什么时候、以什么结果放行。
+@MainActor
+private final class AuthorizationGate {
+    private var waiting: [CheckedContinuation<Bool, Never>] = []
+    var pending: Int { waiting.count }
+
+    func ask() async -> Bool { await withCheckedContinuation { waiting.append($0) } }
+
+    func answer(_ granted: Bool) { waiting.removeFirst().resume(returning: granted) }
+}
+
+// 真正的录音器：只测授权回来之后的会话核对。授权一律答「拒绝」，走不到 AVAudioEngine，不碰真实麦克风。
+@MainActor
+struct SystemVoiceRecorderTests {
+    private func output() throws -> FileHandle {
+        let url = scratch("recorder").appendingPathComponent("a.f32")
+        try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+        FileManager.default.createFile(atPath: url.path, contents: nil)
+        return try FileHandle(forWritingTo: url)
+    }
+
+    @Test func 授权框期间会话被丢弃_回来后什么都不做() async throws {
+        let gate = AuthorizationGate()
+        let recorder = SystemVoiceRecorder(authorize: { await gate.ask() })
+        let handle = try output()
+        let started = Task { try await recorder.start(session: 1, output: handle) }
+        await until { gate.pending == 1 }
+        recorder.discard(session: 1)
+        gate.answer(false)
+        // 过期的会话直接返回：既不报「没有麦克风权限」，也不去动（可能已属于新会话的）音频引擎
+        await #expect(throws: Never.self) { try await started.value }
+    }
+
+    @Test func 授权框期间新会话开始_旧会话回来后不拆新会话() async throws {
+        let gate = AuthorizationGate()
+        let recorder = SystemVoiceRecorder(authorize: { await gate.ask() })
+        let first = Task { try await recorder.start(session: 1, output: try output()) }
+        await until { gate.pending == 1 }
+        let second = Task { try await recorder.start(session: 2, output: try output()) }
+        await until { gate.pending == 2 }
+        gate.answer(false)
+        await #expect(throws: Never.self) { try await first.value }
+        gate.answer(false)
+        await #expect(throws: VoiceFault.self, "当前会话照常报缺权限") { try await second.value }
     }
 }

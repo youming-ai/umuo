@@ -16,7 +16,7 @@ enum ReplaceSelection {
     }
 
     static func replace(_ text: String) throws(AXWriteBack.Refused) {
-        guard AXIsProcessTrusted() else { throw AXWriteBack.Refused(detail: "需要系统权限：辅助功能") }
+        guard AXIsProcessTrusted() else { throw AXWriteBack.Refused("error.accessibilityRequired") }
         let element = AX.focusedElement()
         let name = kAXSelectedTextAttribute as CFString
         try checkPanelWritable(settable: element.flatMap { AX.isSettable($0, name) },
@@ -28,26 +28,20 @@ enum ReplaceSelection {
         try pasteFallback(text)
     }
 
-    /// 兜底：写剪贴板 + ⌘V。只留给 AX 通道不通的 App（Electron 等）。
+    /// 兜底：受控粘贴（`ControlledPaste`，与语音交付同一套）。只留给 AX 通道不通的 App（Electron 等）。
     ///
-    /// 写入与粘贴在同一次 `Pasteboard.exclusive` 里做完：中间插进一次 ⌘C 取词降级的话，粘出去的是它清空或恢复后的内容。
-    /// **不恢复剪贴板**：恢复了反而会让紧接着的粘贴拿到旧内容（目标应用处理 ⌘V 是异步的）。
-    /// 剪贴板与按键可注入：selftest 换成私有剪贴板与假的粘贴，不碰用户剪贴板、不往别的应用里按键。
-    static func pasteFallback(
-        _ text: String,
-        pasteboard: NSPasteboard = .general,
-        paste: () throws(SelectionError) -> Void = { () throws(SelectionError) in try KeyEvent.paste() }
-    ) throws(AXWriteBack.Refused) {
-        Pasteboard.exclusive.lock()
-        defer { Pasteboard.exclusive.unlock() }
-        pasteboard.clearContents()
-        guard pasteboard.setString(text, forType: .string) else {
-            throw AXWriteBack.Refused(detail: "剪贴板不可用：写入失败")
+    /// 快照用户剪贴板 → 写译文 → ⌘V → 等目标应用读完 → 剪贴板没被别人动过才恢复；整个事务拿着 `Pasteboard.exclusive`，
+    /// 中间插不进 ⌘C 取词降级。剪贴板与按键可注入：测试换成私有剪贴板与假的粘贴。
+    static func pasteFallback(_ text: String, paster: ControlledPaste = ControlledPaste()) throws(AXWriteBack.Refused) {
+        switch paster.run(text, proceed: { true }) {
+        case .pasted: return
+        // proceed 恒为 true（前台核对在调用方做过），走不到这里；万一走到了按「没写成」报
+        case .skipped: throw AXWriteBack.Refused("error.clipboardUnavailable")
+        case let .failed(text): throw AXWriteBack.Refused(text)
         }
-        do { try paste() } catch { throw AXWriteBack.Refused(detail: error.description) }
     }
 
-    /// 把源应用切回前台（`ax::activate_pid`：设应用的 `AXFrontmost`）。AX 调用，工作线程上调。
+    /// 把源应用切回前台（设应用的 `AXFrontmost`）。AX 调用，工作线程上调。
     static func activate(pid token: String) -> Bool {
         guard let pid = pid_t(token), pid > 0 else { return false }
         let application = AXUIElementCreateApplication(pid)
@@ -55,7 +49,7 @@ enum ReplaceSelection {
     }
 
     /// 把源应用切回前台，并等到前台确实是它（最多约 600 ms）；回来后再多等一拍，让它把输入框的焦点与选区恢复好
-    /// （Tauri 的 `refocus_source_app`）。浮窗「替换原文」与撰写窗 ⌘⇧↩ 共用。同步阻塞，工作线程上调。
+    /// 浮窗「替换原文」与撰写窗 ⌘⇧↩ 共用。同步阻塞，工作线程上调。
     ///
     /// 不保证回得来：调用方必须在写入 / 粘贴前用 `FrontmostApp.liveToken()` 再核对一次。
     static func refocus(_ owner: String) {

@@ -44,7 +44,7 @@ let package = Package(
             // String Catalog 整个目录原样拷贝、运行时自己读（Models/L10n.swift）：SwiftPM 见到目标里的 .xcstrings
             // 就要调 Xcode 的 xcstringstool（`.process` 编译、连 `.copy` 单个文件也要生成字符串符号），
             // 只装 Command Line Tools 时编不过；拷整个目录不会被扫描，两种工具链下行为也完全一致。
-            // 菜单栏图标的三份 PNG 由 scripts/make-icons.ts 直接生成并原样拷贝
+            // 菜单栏图标只有一份 tray.png（模板图），由 scripts/make-icons.ts 生成、原样拷贝
             resources: [.copy("Resources/Strings"), .copy("Resources/Tray")],
             // 全局组合键用 Carbon 的 RegisterEventHotKey（不需要 TCC 权限）
             linkerSettings: [

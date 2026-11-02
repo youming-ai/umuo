@@ -64,7 +64,7 @@ struct HotkeyRow: View {
     }
 }
 
-/// 录快捷键：点一下进入录制，按下新的组合就保存（`HotkeyRecorder.tsx`）。按键事件由设置窗的本地监听交给
+/// 录快捷键：点一下进入录制，按下新的组合就保存。按键事件由设置窗的本地监听交给
 /// `HotkeyEditor`（`SettingsWindowController`），这里只画状态。
 struct HotkeyRecorderButton: View {
     let model: SettingsModel

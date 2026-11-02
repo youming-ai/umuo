@@ -16,13 +16,13 @@ enum KeyEvent {
     static func paste() throws(SelectionError) { try sendCommandKey(keyV) }
 
     /// 造一个带 ⌘ 的按键事件但不投递。拆出来是为了 selftest 能验事件本身，又不往用户的应用里按键。
-    /// 每个事件各用一个 source，与 Rust 版一致。
+    /// 每个事件各用一个 source。
     static func make(_ key: CGKeyCode, down: Bool) throws(SelectionError) -> CGEvent {
         guard let source = CGEventSource(stateID: .combinedSessionState) else {
-            throw .other("无法创建键盘事件源")
+            throw .other(UserText("error.keyEventFailed"))
         }
         guard let event = CGEvent(keyboardEventSource: source, virtualKey: key, keyDown: down) else {
-            throw .other("无法创建键盘事件")
+            throw .other(UserText("error.keyEventFailed"))
         }
         event.flags = .maskCommand
         return event

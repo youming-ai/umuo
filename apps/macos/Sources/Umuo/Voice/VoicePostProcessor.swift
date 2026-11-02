@@ -11,16 +11,26 @@ import UmuoCore
 @MainActor
 final class EngineVoicePostProcessor: VoicePostProcessing {
     private let engine: @MainActor () -> Engine?
+    /// 内核还没打开时给用户看的那句话（`AppModel.engineStatus`，已按界面语言取好）。
+    private let unavailable: @MainActor () -> String
     /// 每个会话正在跑的请求（取消用）。
     private var handles: [UInt64: RequestHandle] = [:]
+    /// 已被取消的会话。状态机发 `cancelPostProcess` 时 `run` 可能还排在 Task 里、句柄还没登记，
+    /// 取消先记在这里，`run` 一开始就认出来，不再调 `startVoice`（否则请求照发、照计费）。与交付的做法相同。
+    private var cancelled: Set<UInt64> = []
 
-    init(engine: @escaping @MainActor () -> Engine?) {
+    init(engine: @escaping @MainActor () -> Engine?, unavailable: @escaping @MainActor () -> String) {
         self.engine = engine
+        self.unavailable = unavailable
     }
 
     func run(session: UInt64, text: String, task: VoiceTask) async throws -> VoicePostOutcome {
+        // 会话号单调递增：比这一次旧的取消记录不会再用到
+        cancelled = cancelled.filter { $0 >= session }
+        // 详情不显示：被取消的结果状态机按迟到忽略
+        guard !cancelled.contains(session) else { throw VoiceFault(kind: .postProcess, detail: "") }
         guard let engine = engine() else {
-            throw VoiceFault(kind: .postProcess, detail: "内核还没有启动")
+            throw VoiceFault(kind: .postProcess, detail: unavailable())
         }
         let request = VoicePostRequest(transcript: text, task: task, sourceLang: nil, targetLang: nil)
         let result = await withCheckedContinuation { (continuation: CheckedContinuation<VoicePostResult, Never>) in
@@ -32,6 +42,7 @@ final class EngineVoicePostProcessor: VoicePostProcessing {
     }
 
     func cancel(session: UInt64) {
+        cancelled.insert(session)
         handles[session]?.cancel()
     }
 

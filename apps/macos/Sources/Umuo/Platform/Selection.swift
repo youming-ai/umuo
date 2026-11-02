@@ -9,21 +9,21 @@ struct FocusText: Equatable {
     let source: FocusSource
 }
 
-/// 取词失败。`description` 与 Rust 的 `PlatformError` Display 逐字一致，两个客户端的提示不分叉。
+/// 取词失败。给用户看的话是文案键（`text`），由浮窗按界面语言取成句子。
 /// 黑名单不在这里查：那是 Rust 的 `Engine.selectionBlockNotice`，取词之前由调用方（`PanelTriggers`）问过。
-enum SelectionError: Error, Equatable, CustomStringConvertible {
+enum SelectionError: UserFacingError, Equatable {
     /// 没有辅助功能权限。单独一个分支：UI 要据此把用户引到系统设置（PRD §7.4）。
     case permissionDenied
     case noSelection
-    /// 可写性检查拒绝（文案来自 `AXWriteBack.checkWritable`，已带「当前位置不可写入：」前缀）。
-    case notWritable(String)
-    case other(String)
+    /// 可写性检查拒绝（文案来自 `AXWriteBack.checkWritable`）。
+    case notWritable(UserText)
+    case other(UserText)
 
-    var description: String {
+    var text: UserText {
         switch self {
-        case .permissionDenied: "需要系统权限：辅助功能"
-        case .noSelection: "没有检测到选中的文本"
-        case let .notWritable(message), let .other(message): message
+        case .permissionDenied: UserText("error.accessibilityRequired")
+        case .noSelection: UserText("error.noSelection")
+        case let .notWritable(text), let .other(text): text
         }
     }
 }
@@ -70,14 +70,10 @@ enum Selection {
         return FocusText(text: text, source: .wholeField)
     }
 
-    /// 向前台应用发送一次「粘贴」（合成 ⌘V）。调用方负责先写剪贴板——这里只负责按键。
-    /// 与 Rust 的 `paste_clipboard` 一样不查权限、不拿剪贴板锁。
-    static func pasteClipboard() throws(SelectionError) { try KeyEvent.paste() }
-
     private static func checkWritable(_ source: FocusSource, _ element: AXUIElement?) throws(SelectionError) {
         let name = AXWriteBack.attribute(source) as CFString
         do { try AXWriteBack.checkWritable(source, element.flatMap { AX.isSettable($0, name) }) } catch {
-            throw .notWritable(error.detail)
+            throw .notWritable(error.text)
         }
     }
 }

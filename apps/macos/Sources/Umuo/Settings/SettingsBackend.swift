@@ -8,7 +8,7 @@ struct PermissionStatus: Equatable, Sendable {
     var screenRecording: Bool?
 }
 
-/// 设置窗往外要做的事：Engine（设置、Key 状态、模型列表、导入导出、用量）、Keychain、权限、
+/// 设置窗往外要做的事：Engine（设置、Key 状态、模型列表、导入导出）、Keychain、权限、
 /// 开机自启、快捷键、别的窗口。正式实现是 `EngineSettingsBackend`（同步的 Engine / Keychain / 文件调用一律在后台），
 /// 测试换成只记调用的假实现——设置窗的交互规则因此不碰真实 Keychain、剪贴板、TCC 就能测。
 @MainActor
@@ -61,7 +61,9 @@ final class EngineSettingsBackend: SettingsBackend {
     func loadSettings() async throws -> SettingsValues {
         let engine = try engine()
         let json = await Task.detached { engine.settingsJson() }.value
-        guard let values = JSONValue.object(json: json) else { throw EngineError.Failed(message: "设置不是 JSON 对象") }
+        guard let values = JSONValue.object(json: json) else {
+            throw EngineError.Failed(message: app.t("prefs.settingsInvalid"))
+        }
         return values
     }
 
@@ -84,19 +86,21 @@ final class EngineSettingsBackend: SettingsBackend {
     }
 
     /// 存 Key：先过 Rust 的规则（供应商必须存在、去掉首尾空白），再写 Keychain。写入可能弹系统的授权框
-    /// （覆盖 Tauri 版写的条目、签名不同时），所以在后台做，不卡住设置窗。
+    /// （覆盖旧版客户端或别的签名写的条目时），所以在后台做，不卡住设置窗。
     func saveApiKey(_ providerId: String, _ key: String) async throws {
-        let keychain = keychain
+        let keychain = keychain, t = app.t
         try await Task.detached {
             let value = try prepareApiKey(providerId: providerId, apiKey: key)
-            do { try keychain.write(account: providerId, secret: value) } catch { throw EngineError.Failed(message: "\(error)") }
+            do { try keychain.write(account: providerId, secret: value) } catch {
+                throw EngineError.Failed(message: t.message(error))
+            }
         }.value
     }
 
     func deleteApiKey(_ providerId: String) async throws {
-        let keychain = keychain
+        let keychain = keychain, t = app.t
         try await Task.detached {
-            do { try keychain.delete(account: providerId) } catch { throw EngineError.Failed(message: "\(error)") }
+            do { try keychain.delete(account: providerId) } catch { throw EngineError.Failed(message: t.message(error)) }
         }.value
     }
 
@@ -110,7 +114,7 @@ final class EngineSettingsBackend: SettingsBackend {
         let status = await Task.detached {
             PermissionStatus(accessibility: AXIsProcessTrusted(), screenRecording: ScreenCapture.hasPermission())
         }.value
-        // 刚授完权：之前因缺权限没起来的连按快捷键（新装默认的 ⌃⌃）现在补上（Tauri 的 `accessibility_trusted`）
+        // 刚授完权：之前因缺权限没起来的连按快捷键（新装默认的 ⌃⌃）现在补上
         if status.accessibility == true, app.registersHotkeys { app.hotkeys.retryStart() }
         return status
     }
@@ -139,12 +143,16 @@ final class EngineSettingsBackend: SettingsBackend {
 
     func setAutostart(_ enabled: Bool) async throws -> Bool {
         // 开发构建（`swift build` 的裸二进制，没有 Bundle ID）不许打开：登录项会指向 .build 里的临时二进制，
-        // 还会顶掉 Tauri 版写的同一个 LaunchAgent。关掉不拦——那是在帮用户收拾。
+        // 还会顶掉正式安装版写的同一个 LaunchAgent。关掉不拦——那是在帮用户收拾。
         if enabled, Bundle.main.bundleIdentifier != bundleId() {
-            throw Autostart.Failure(message: "开发构建（不是打包好的 umuo.app）不能开启开机启动：登录项会指向这个临时程序")
+            throw EngineError.Failed(message: app.t("autostart.devBuild"))
         }
         let program = Bundle.main.executablePath ?? CommandLine.arguments[0]
-        return try await Task.detached { try Autostart.setEnabled(enabled, home: Self.home, program: program) }.value
+        do {
+            return try await Task.detached { try Autostart.setEnabled(enabled, home: Self.home, program: program) }.value
+        } catch let failure as Autostart.Failure {
+            throw EngineError.Failed(message: app.t(failure.text))
+        }
     }
 
     func hotkeyFailures() -> [String] { app.hotkeys.failures }

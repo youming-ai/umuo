@@ -2,11 +2,11 @@ import Foundation
 import Observation
 import UmuoCore
 
-// 浮窗（以及撰写窗的译文区）的状态机，语义逐条一致。
+// 浮窗（以及撰写窗的译文区）的状态机。
 //
 // 抽成纯函数是为了能测：浮窗最烦人的 bug 都是「流结束之后还在追加增量」或者「上一次翻译的增量污染了下一次」
 // 这类时序问题，在真实界面里很难复现，在纯 reducer 里是一行断言的事。
-// 验收用例在 Tests/UmuoTests/PanelStateTests.swift（由 panel-state.test.ts 逐条改写）。
+// 验收用例在 Tests/UmuoTests/PanelStateTests.swift。
 
 enum PanelStatus: Equatable, Sendable { case idle, streaming, done, error }
 
@@ -225,25 +225,19 @@ struct PanelState: Equatable {
     var retranslateMode: PanelMode? { mode == .ocr ? .ocr : nil }
 }
 
-/// 计量文案的几段（浮窗与对比窗共用同一组文案，审查 L24：两处说的是同一组指标，措辞不该分叉）。
-enum MetricsText {
-    static func tokens(_ input: UInt32, _ output: UInt32, estimated: Bool, _ t: Translate) -> String {
-        t("panel.tokens", ["input": "\(input)", "output": "\(output)", "estimated": estimated ? t("panel.estimated") : ""])
-    }
-
-    static func latency(firstTokenMs: UInt64?, totalMs: UInt64, _ t: Translate) -> String {
-        guard let first = firstTokenMs else { return t("panel.latencyTotal", ["total": "\(totalMs)"]) }
-        return t("panel.latency", ["first": "\(first)", "total": "\(totalMs)"])
-    }
-}
-
 /// 计量行：`tokens · latency`。请求完成之前没有。费用估算已退出（PRD §5.10）。
 func metricsLine(_ metrics: PanelDone?, _ t: Translate) -> String? {
     guard let metrics else { return nil }
-    return [
-        MetricsText.tokens(metrics.inputTokens, metrics.outputTokens, estimated: metrics.estimated, t),
-        MetricsText.latency(firstTokenMs: metrics.firstTokenMs, totalMs: metrics.totalMs, t),
-    ].joined(separator: " · ")
+    let tokens = t("panel.tokens", [
+        "input": "\(metrics.inputTokens)", "output": "\(metrics.outputTokens)",
+        "estimated": metrics.estimated ? t("panel.estimated") : "",
+    ])
+    let latency = if let first = metrics.firstTokenMs {
+        t("panel.latency", ["first": "\(first)", "total": "\(metrics.totalMs)"])
+    } else {
+        t("panel.latencyTotal", ["total": "\(metrics.totalMs)"])
+    }
+    return "\(tokens) · \(latency)"
 }
 
 /// 浮窗的视图模型：持有状态，按 `requestId` 丢弃旧事件。

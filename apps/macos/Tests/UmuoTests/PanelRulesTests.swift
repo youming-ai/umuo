@@ -34,10 +34,8 @@ struct PanelRulesTests {
     }
 
     @Test func 界面语言跟设置走_读不到设置按系统() {
-        let chosen = PanelRules.appearance(settingsJson: #"{"theme":"light","locale":"ja"}"#, systemLanguages: ["en-US"])
-        #expect(chosen.locale == .ja)
-        let followed = PanelRules.appearance(settingsJson: nil, systemLanguages: ["zh-Hant-TW"])
-        #expect(followed.locale == .zhTW)
+        #expect(AppLocale.resolve(settingsJson: #"{"theme":"light","locale":"ja"}"#, systemLanguages: ["en-US"]) == .ja)
+        #expect(AppLocale.resolve(settingsJson: nil, systemLanguages: ["zh-Hant-TW"]) == .zhTW)
     }
 
     // 「替换原文」的 ⌘V 兜底前的那道检查（`check_panel_writable`，Rust 的同名测试逐条改写）。
@@ -56,12 +54,13 @@ struct PanelRulesTests {
         }
     }
 
-    @Test func 只读拒绝的文案与Rust一致() {
+    @Test func 只读拒绝按界面语言给出原因() {
         do {
             try ReplaceSelection.checkPanelWritable(settable: false, selectionReadable: true)
             Issue.record("应当拒绝")
         } catch {
-            #expect(error.detail == "当前位置不可写入：选中的内容是只读的")
+            #expect(Translate(locale: .zhCN)(error.text) == "当前位置不可写入：选中的内容是只读的")
+            #expect(Translate(locale: .en)(error.text) == "Can't write here: the selected text is read-only")
         }
     }
 

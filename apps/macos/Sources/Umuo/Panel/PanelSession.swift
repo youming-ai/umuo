@@ -83,7 +83,7 @@ final class PanelSession {
         sourceExpanded = false
     }
 
-    // MARK: - 能做什么（按钮的显示条件，与 panel.tsx 一致）
+    // MARK: - 能做什么（按钮的显示条件）
 
     /// 流式中途的半截译文不能拿去复制或替换（审查 M18）；出错时的译文可能是上一段的残留（审查 M15）。
     var canCopy: Bool { !state.translation.isEmpty && state.status != .streaming }
@@ -167,7 +167,7 @@ final class PanelSession {
         } else {
             // `translate_text`：只查空白，原文原样交给流水线
             guard !state.source.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-                actionNotice = "没有可翻译的文本"
+                actionNotice = t("common.nothingToTranslate")
                 return
             }
             if let request = Self.request(state.source, mode: nil, trim: false) { backend?.translate(request) }
@@ -182,17 +182,14 @@ final class PanelSession {
 
     private func retranslate(_ text: String, mode: PanelMode?) {
         guard let request = Self.request(text, mode: mode) else {
-            actionNotice = Self.emptyText
+            actionNotice = t("common.nothingToTranslate")
             return
         }
         backend?.translate(request)
     }
 
-    /// 与 Tauri 的 `retranslate` 命令同一句（空原文时）。
-    static let emptyText = "没有可翻译的内容"
-
-    /// 浮窗发起的翻译请求（`Request::retranslate` 交 trim 过的原文，`Request::selection` 原样）。
-    /// 原文只有空白返回 nil。模式只放行 ocr 与划词（`retranslate_mode`）：静默替换与撰写有自己的入口，不该从浮窗重放。
+    /// 浮窗发起的翻译请求：改过原文后重译（OCR 结果窗）交 trim 过的原文，重试划词时原样交出。
+    /// 原文只有空白返回 nil。模式只放行 ocr 与划词（`PanelState.retranslateMode`）：静默替换与撰写有自己的入口，不该从浮窗重放。
     static func request(_ text: String, mode: PanelMode?, trim: Bool = true) -> TranslateRequest? {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         if trimmed.isEmpty { return nil }

@@ -2,7 +2,7 @@ import Foundation
 import Testing
 @testable import Umuo
 
-// i18n.test.ts 的语言判定与取文案，外加 String Catalog 本身的一致性检查（key 集合、占位符）。
+// 界面语言判定与取文案，外加 String Catalog 本身的一致性检查（key 集合、占位符）。
 
 @Suite("界面语言判定（PRD §8）")
 struct ResolveLocaleTests {
@@ -68,6 +68,45 @@ struct CatalogTests {
                 #expect(StringCatalog.placeholderIndexes(value) == source, "\(code) 的 \(key) 占位符不一致")
                 #expect(!value.contains("{"), "\(code) 的 \(key) 还有没换算的 {name}")
             }
+        }
+    }
+
+    @Test func 原生层抛给用户的每句话都有四语言文案() {
+        // 平台层（取词、截图、写回、剪贴板、Keychain、开机启动）只带文案键往外抛，边界处按界面语言取。
+        // 新增一种错误却忘了补文案的话，界面上会直接露出 key。
+        let texts: [UserText] = [
+            SelectionError.permissionDenied.text, SelectionError.noSelection.text,
+            CaptureError.permissionDenied.text, ScreenOCR.permissionNotice, ScreenOCR.emptyNotice,
+            ComposeRules.emptyText, ComposeRules.pasteNotBack,
+            Keychain.Failure.status(-25300, .read).text, Keychain.Failure.status(-25300, .write).text,
+            Keychain.Failure.status(-25300, .delete).text, Keychain.Failure.notUtf8.text,
+            Autostart.checkLaunchPath("/Volumes/umuo/umuo.app/Contents/MacOS/umuo-desktop")!,
+        ]
+        let keys = texts.map(\.key) + HotkeyConflict.systemKeys + [
+            "error.keyEventFailed", "error.selectionReadOnly", "error.fieldNotReplaceable", "error.selectionChanged",
+            "error.fieldChanged", "error.writeRejected", "error.clipboardUnavailable", "error.copyFailed",
+            "ocr.captureFailed", "ocr.recognizeFailed", "ocr.launchFailed", "ocr.tempDirFailed", "ocr.fileUnreadable",
+            "ocr.invalidImage", "ocr.emptyImage", "ocr.visionFailed", "keychain.unavailable", "keychain.resaveKey",
+            "autostart.writeFailed", "autostart.devBuild", "app.engineStarting", "app.engineFailed", "app.noHome",
+            "prefs.settingsInvalid", "onboarding.modelWithProvider", "common.nothingToTranslate",
+        ]
+        for key in keys {
+            #expect(catalog.entries[key]?.values.count == 4, "缺文案：\(key)")
+        }
+        #expect(HotkeyConflict.systemKeys.count == 13)
+    }
+
+    @Test func 截图失败的提示整句按界面语言取_不夹源语言() {
+        let outcome = ScreenOCR.run(hasPermission: { true }, capture: { () throws(CaptureError) in throw .permissionDenied })
+        #expect(outcome.message(Translate(locale: .en)) == "Screenshot failed: Requires system permission: Screen Recording")
+        #expect(outcome.message(Translate(locale: .zhCN)) == "截图失败：需要系统权限：屏幕录制")
+        #expect(ScreenOCR.run(hasPermission: { true }, capture: { nil }).message(Translate(locale: .en)) == nil)
+    }
+
+    @Test func 读不到Key时提示去设置里重新保存() {
+        #expect(Translate(locale: .zhCN)("keychain.resaveKey") == "凭据存储不可用：请在设置里重新保存 Key")
+        for locale in AppLocale.allCases {
+            #expect(!Translate(locale: locale)("keychain.resaveKey").contains("授权"), "没有授权入口，不该让用户去授权")
         }
     }
 

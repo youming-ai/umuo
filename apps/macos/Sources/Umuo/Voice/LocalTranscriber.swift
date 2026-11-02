@@ -46,8 +46,6 @@ final class LocalTranscriber: VoiceTranscribing, @unchecked Sendable {
         "\(String(cString: transcribe_status_string(Int32(status.rawValue))))(\(status.rawValue))"
     }
 
-    var isLoaded: Bool { queue.sync { model != nil } }
-
     var isEngineReady: Bool { ready.withLock { $0 } }
 
     func prepare() {
@@ -66,9 +64,6 @@ final class LocalTranscriber: VoiceTranscribing, @unchecked Sendable {
     }
 
     func cancel(session: UInt64) { abort.cancel(session) }
-
-    /// 立刻卸载（selftest 与测试用；正式路径靠空闲计时）。
-    func unload() { queue.sync { unloadNow() } }
 
     // MARK: - 只在 queue 上
 

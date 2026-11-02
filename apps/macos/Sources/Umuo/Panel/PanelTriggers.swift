@@ -2,7 +2,6 @@ import AppKit
 import UmuoCore
 
 /// 快捷键 / 菜单栏触发的浮窗功能：划词翻译、原地替换、截图翻译。
-/// 对应 Tauri 的 `translator::trigger*` 与 `screenshot::trigger*`，分支与文案逐条一致。
 ///
 /// 取词、框选、识别都是阻塞的（⌘C 降级最长约 1 秒，框选一直等到用户松手），全部在 `Task.detached` 里做；
 /// 只有显示浮窗、改 session、朗读回到 MainActor。
@@ -43,7 +42,7 @@ extension PanelController {
                 switch read {
                 case let .failure(error):
                     let permission: PermissionKind? = error == .permissionDenied ? .accessibility : nil
-                    self.report(requestId: id, message: error.description, permission: permission)
+                    self.report(requestId: id, message: self.session.t(error.text), permission: permission)
                 case let .success(focus):
                     self.startTranslation(
                         TranslateRequest(text: focus.text, mode: silent ? .silentReplace : .selection,
@@ -56,7 +55,7 @@ extension PanelController {
         }
     }
 
-    /// 不经取词的文本入口：首次引导的「翻一句看看」（Tauri 的 `translate_text`）。
+    /// 不经取词的文本入口：首次引导的「翻一句看看」。
     /// 与划词同一条流水线（只显示、不写回）；这条入口不取词，浮窗要自己弹出来，成功时也看得到结果（审查 H3）。
     /// 只有空白时抛出 `empty`。
     func translateText(_ text: String, empty: String) throws {
@@ -75,8 +74,11 @@ extension PanelController {
                 switch outcome {
                 case .cancelled:
                     return
-                case let .notice(message, permission):
-                    self.showNotice(message, permission: permission.flatMap(PermissionKind.init(rawValue:)))
+                case let .notice(_, permission):
+                    self.showNotice(outcome.message(self.session.t) ?? "",
+                                    permission: permission.flatMap(PermissionKind.init(rawValue:)))
+                case .failed:
+                    self.showNotice(outcome.message(self.session.t) ?? "", permission: nil)
                 case let .recognized(text):
                     self.ensureShown()
                     self.startTranslation(TranslateRequest(

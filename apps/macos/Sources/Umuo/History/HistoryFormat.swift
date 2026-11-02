@@ -1,7 +1,7 @@
 import Foundation
 import UmuoCore
 
-/// 历史窗的展示逻辑，`history-format.ts` 的移植；验收用例在 Tests/UmuoTests/HistoryTests.swift（由 `history-format.test.ts` 逐条改写）。
+/// 历史窗的展示逻辑；验收用例在 Tests/UmuoTests/HistoryTests.swift。
 ///
 /// 抽出来是为了能测：来源应用拿不到时必须留空而不是编一个。
 enum HistoryFormat {

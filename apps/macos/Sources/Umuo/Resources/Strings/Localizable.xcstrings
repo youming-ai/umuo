@@ -1,6 +1,182 @@
 {
   "sourceLanguage": "zh-Hans",
   "strings": {
+    "app.engineFailed": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "内核启动失败：%1$@"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "核心啟動失敗：%1$@"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The engine failed to start: %1$@"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "エンジンを起動できませんでした：%1$@"
+          }
+        }
+      },
+      "comment": "placeholders: reason"
+    },
+    "app.engineStarting": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "内核启动中…"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "核心啟動中…"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Starting the engine…"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "エンジンを起動しています…"
+          }
+        }
+      }
+    },
+    "app.noHome": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "找不到用户主目录"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "找不到使用者主目錄"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The home folder could not be found"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ホームフォルダが見つかりません"
+          }
+        }
+      }
+    },
+    "autostart.devBuild": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "开发构建（不是打包好的 umuo.app）不能开启开机启动：登录项会指向这个临时程序"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "開發版本（不是封裝好的 umuo.app）不能開啟開機啟動：登入項目會指向這個暫時的程式"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Development builds (not a packaged umuo.app) can't launch at login: the login item would point at this temporary binary."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "開発ビルド（パッケージ済みの umuo.app ではない）ではログイン時に起動をオンにできません：ログイン項目がこの一時的なプログラムを指してしまいます"
+          }
+        }
+      }
+    },
+    "autostart.temporaryLocation": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "umuo 正从临时位置运行（磁盘映像或系统隔离目录）。请先把它拖进「应用程序」文件夹、从那里打开，再开启开机启动"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "umuo 正從暫時位置執行（磁碟映像檔或系統隔離目錄）。請先把它拖進「應用程式」檔案夾、從那裡打開，再開啟開機啟動"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "umuo is running from a temporary location (a disk image or a translocated folder). Move it to the Applications folder and open it from there, then turn on Launch at login."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "umuo が一時的な場所（ディスクイメージやシステムの隔離フォルダ）から実行されています。「アプリケーション」フォルダに移動してそこから開いてから、ログイン時に起動をオンにしてください"
+          }
+        }
+      }
+    },
+    "autostart.writeFailed": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "写入失败：%1$@"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "寫入失敗：%1$@"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Could not save the login item: %1$@"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ログイン項目を保存できませんでした：%1$@"
+          }
+        }
+      },
+      "comment": "placeholders: reason"
+    },
     "common.cancel": {
       "extractionState": "manual",
       "localizations": {
@@ -26,6 +202,35 @@
           "stringUnit": {
             "state": "translated",
             "value": "キャンセル"
+          }
+        }
+      }
+    },
+    "common.nothingToTranslate": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "没有可翻译的内容"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "沒有可翻譯的內容"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nothing to translate"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "翻訳する内容がありません"
           }
         }
       }
@@ -262,6 +467,35 @@
         }
       }
     },
+    "compose.pasteNotBack": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "译文已复制到剪贴板，但原来的应用没能回到前台，没有自动粘贴。可以手动 ⌘V。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "譯文已複製到剪貼簿，但原本的應用程式沒能回到前景，沒有自動貼上。可以手動按 ⌘V。"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The translation is on the clipboard, but the original app didn't come back to the front, so it wasn't pasted. Press ⌘V to paste it yourself."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "訳文をクリップボードにコピーしましたが、元のアプリが前面に戻らなかったため貼り付けていません。⌘V で貼り付けてください。"
+          }
+        }
+      }
+    },
     "compose.placeholder": {
       "extractionState": "manual",
       "localizations": {
@@ -462,6 +696,325 @@
           "stringUnit": {
             "state": "translated",
             "value": "翻訳中…"
+          }
+        }
+      }
+    },
+    "error.accessibilityRequired": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "需要系统权限：辅助功能"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "需要系統權限：輔助使用"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Requires system permission: Accessibility"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "システムの権限が必要です：アクセシビリティ"
+          }
+        }
+      }
+    },
+    "error.clipboardUnavailable": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "剪贴板不可用：写入失败"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "剪貼簿無法使用：寫入失敗"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Clipboard unavailable: could not write to it"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "クリップボードを使用できません：書き込みに失敗しました"
+          }
+        }
+      }
+    },
+    "error.copyFailed": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "复制失败：剪贴板不可用"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "複製失敗：剪貼簿無法使用"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Could not copy: the clipboard is unavailable"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "コピーできませんでした：クリップボードを使用できません"
+          }
+        }
+      }
+    },
+    "error.fieldChanged": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "输入框内容在翻译期间变了，已放弃替换"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "輸入框內容在翻譯期間變了，已放棄取代"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The field changed during translation, so nothing was replaced"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "翻訳中に入力欄の内容が変わったため、置き換えを中止しました"
+          }
+        }
+      }
+    },
+    "error.fieldNotReplaceable": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "当前位置不可写入：当前输入框不支持整体改写"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "目前位置無法寫入：這個輸入框不支援整體改寫"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Can't write here: this field can't be replaced as a whole"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ここには書き込めません：この入力欄は全体の置き換えに対応していません"
+          }
+        }
+      }
+    },
+    "error.keyEventFailed": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无法创建键盘事件"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "無法建立鍵盤事件"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Could not create a keyboard event"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "キーボードイベントを作成できません"
+          }
+        }
+      }
+    },
+    "error.noSelection": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "没有检测到选中的文本"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "沒有偵測到選取的文字"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No selected text was detected"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "選択されたテキストが見つかりません"
+          }
+        }
+      }
+    },
+    "error.screenRecordingRequired": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "需要系统权限：屏幕录制"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "需要系統權限：螢幕錄製"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Requires system permission: Screen Recording"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "システムの権限が必要です：画面収録"
+          }
+        }
+      }
+    },
+    "error.selectionChanged": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "选区在翻译期间变了，已放弃替换"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "選取範圍在翻譯期間變了，已放棄取代"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The selection changed during translation, so nothing was replaced"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "翻訳中に選択範囲が変わったため、置き換えを中止しました"
+          }
+        }
+      }
+    },
+    "error.selectionReadOnly": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "当前位置不可写入：选中的内容是只读的"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "目前位置無法寫入：選取的內容是唯讀的"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Can't write here: the selected text is read-only"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ここには書き込めません：選択した内容は読み取り専用です"
+          }
+        }
+      }
+    },
+    "error.writeRejected": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "当前位置不可写入：应用拒绝了写入"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "目前位置無法寫入：應用程式拒絕了寫入"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Can't write here: the app rejected the change"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ここには書き込めません：アプリが書き込みを拒否しました"
           }
         }
       }
@@ -1078,6 +1631,184 @@
       },
       "comment": "placeholders: reason"
     },
+    "keychain.deleteFailed": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "从钥匙串删除失败（%1$@）：%2$@"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "從鑰匙圈刪除失敗（%1$@）：%2$@"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Could not delete from the Keychain (%1$@): %2$@"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "キーチェーンから削除できませんでした（%1$@）：%2$@"
+          }
+        }
+      },
+      "comment": "placeholders: code, reason"
+    },
+    "keychain.notUtf8": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "钥匙串里的 Key 不是 UTF-8 文本"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "鑰匙圈裡的 Key 不是 UTF-8 文字"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The key stored in the Keychain is not UTF-8 text"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "キーチェーンに保存されたキーが UTF-8 のテキストではありません"
+          }
+        }
+      }
+    },
+    "keychain.readFailed": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "读取钥匙串失败（%1$@）：%2$@"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "讀取鑰匙圈失敗（%1$@）：%2$@"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Could not read from the Keychain (%1$@): %2$@"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "キーチェーンから読み込めませんでした（%1$@）：%2$@"
+          }
+        }
+      },
+      "comment": "placeholders: code, reason"
+    },
+    "keychain.resaveKey": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "凭据存储不可用：请在设置里重新保存 Key"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "憑證儲存無法使用：請在設定裡重新儲存 Key"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Credential storage unavailable: please save the API key again in Settings"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "資格情報ストアを使用できません：設定で API キーをもう一度保存してください"
+          }
+        }
+      }
+    },
+    "keychain.unavailable": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "凭据存储不可用：%1$@"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "憑證儲存無法使用：%1$@"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Credential storage unavailable: %1$@"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "資格情報ストアを使用できません：%1$@"
+          }
+        }
+      },
+      "comment": "placeholders: reason"
+    },
+    "keychain.writeFailed": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "写入钥匙串失败（%1$@）：%2$@"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "寫入鑰匙圈失敗（%1$@）：%2$@"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Could not save to the Keychain (%1$@): %2$@"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "キーチェーンに保存できませんでした（%1$@）：%2$@"
+          }
+        }
+      },
+      "comment": "placeholders: code, reason"
+    },
     "menu.checkUpdates": {
       "extractionState": "manual",
       "localizations": {
@@ -1339,6 +2070,301 @@
         }
       }
     },
+    "ocr.captureFailed": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "截图失败：%1$@"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "截圖失敗：%1$@"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Screenshot failed: %1$@"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "スクリーンショットに失敗しました：%1$@"
+          }
+        }
+      },
+      "comment": "placeholders: reason"
+    },
+    "ocr.empty": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "没有识别到文字，换一块区域再试"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "沒有辨識到文字，換一塊區域再試"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No text was recognized. Try another area."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "文字が認識されませんでした。別の範囲で試してください"
+          }
+        }
+      }
+    },
+    "ocr.emptyImage": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "截图尺寸为 0"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "截圖尺寸為 0"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The screenshot is empty (zero size)"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "スクリーンショットのサイズが 0 です"
+          }
+        }
+      }
+    },
+    "ocr.fileUnreadable": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "读不到截图文件"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "讀不到截圖檔案"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Could not read the screenshot file"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "スクリーンショットのファイルを読み込めません"
+          }
+        }
+      }
+    },
+    "ocr.invalidImage": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "截图不是合法 PNG"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "截圖不是有效的 PNG"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The screenshot is not a valid PNG"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "スクリーンショットが有効な PNG ではありません"
+          }
+        }
+      }
+    },
+    "ocr.launchFailed": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无法启动 screencapture：%1$@"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "無法啟動 screencapture：%1$@"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Could not start screencapture: %1$@"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "screencapture を起動できません：%1$@"
+          }
+        }
+      },
+      "comment": "placeholders: reason"
+    },
+    "ocr.permissionNotice": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "需要「屏幕录制」权限才能截图翻译：系统设置 → 隐私与安全性 → 屏幕录制"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "需要「螢幕錄製」權限才能截圖翻譯：系統設定 → 隱私權與安全性 → 螢幕錄製"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Screenshot translation needs the Screen Recording permission: System Settings → Privacy & Security → Screen Recording"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "スクリーンショット翻訳には「画面収録」の権限が必要です：システム設定 → プライバシーとセキュリティ → 画面収録"
+          }
+        }
+      }
+    },
+    "ocr.recognizeFailed": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "文字识别失败：%1$@"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "文字辨識失敗：%1$@"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Text recognition failed: %1$@"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "文字認識に失敗しました：%1$@"
+          }
+        }
+      },
+      "comment": "placeholders: reason"
+    },
+    "ocr.tempDirFailed": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无法创建截图临时目录：%1$@"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "無法建立截圖暫存目錄：%1$@"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Could not create a temporary folder for the screenshot: %1$@"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "スクリーンショット用の一時フォルダを作成できません：%1$@"
+          }
+        }
+      },
+      "comment": "placeholders: reason"
+    },
+    "ocr.visionFailed": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vision 识别失败：%1$@"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vision 辨識失敗：%1$@"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vision could not recognize the image: %1$@"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vision で認識できませんでした：%1$@"
+          }
+        }
+      },
+      "comment": "placeholders: reason"
+    },
     "onboarding.accessibility": {
       "extractionState": "manual",
       "localizations": {
@@ -1451,35 +2477,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "ローカルモデルを検出（Ollama / LM Studio）"
-          }
-        }
-      }
-    },
-    "onboarding.detectOllama": {
-      "extractionState": "manual",
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "检测本机 Ollama"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "偵測本機 Ollama"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Detect local Ollama"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "ローカルの Ollama を検出"
           }
         }
       }
@@ -1835,6 +2832,36 @@
         }
       }
     },
+    "onboarding.modelWithProvider": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@（%2$@）"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@（%2$@）"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ (%2$@)"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@（%2$@）"
+          }
+        }
+      },
+      "comment": "placeholders: model, provider"
+    },
     "onboarding.next": {
       "extractionState": "manual",
       "localizations": {
@@ -1918,64 +2945,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "キーが無い場合でも、Ollama / LM Studio があれば完全オフラインで翻訳できます（無料、外部に出ません）。"
-          }
-        }
-      }
-    },
-    "onboarding.ollamaMissing": {
-      "extractionState": "manual",
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "没检测到 Ollama。确认它已启动（ollama serve）再试一次"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "沒偵測到 Ollama。確認它已啟動（ollama serve）再試一次"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Could not find Ollama. Make sure it is running (ollama serve) and try again"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Ollama が見つかりません。起動しているか（ollama serve）確認して再試行してください"
-          }
-        }
-      }
-    },
-    "onboarding.ollamaNoModels": {
-      "extractionState": "manual",
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Ollama 在运行，但还没有下载任何模型"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Ollama 在執行，但還沒下載任何模型"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Ollama is running but has no models downloaded yet"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Ollama は動いていますが、モデルが未ダウンロードです"
           }
         }
       }
@@ -3056,35 +4025,6 @@
         }
       }
     },
-    "panel.collapse": {
-      "extractionState": "manual",
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "收起"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "收合"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Hide"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "閉じる"
-          }
-        }
-      }
-    },
     "panel.collapseAria": {
       "extractionState": "manual",
       "localizations": {
@@ -3755,36 +4695,6 @@
         }
       }
     },
-    "panel.speakFailed": {
-      "extractionState": "manual",
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%1$@（失败）"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%1$@（失敗）"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%1$@ (failed)"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%1$@（失敗）"
-          }
-        }
-      },
-      "comment": "placeholders: label"
-    },
     "panel.speakSource": {
       "extractionState": "manual",
       "localizations": {
@@ -4082,25 +4992,25 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "设置、历史、术语表和收藏存在本机；API Key 只在系统钥匙串里。翻译请求从你的电脑直接发给你配置的厂商。"
+            "value": "设置与历史存在本机；API Key 只在系统钥匙串里。翻译请求从你的电脑直接发给你配置的厂商。"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "設定、歷史、詞彙表與收藏存在本機；API Key 只在系統鑰匙圈裡。翻譯請求從你的電腦直接送到你設定的廠商。"
+            "value": "設定與歷史存在本機；API Key 只在系統鑰匙圈裡。翻譯請求從你的電腦直接送到你設定的廠商。"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Settings, history, glossaries and favorites stay on this Mac, and API keys live only in the Keychain. Translation requests go straight from your computer to the provider you chose."
+            "value": "Settings and history stay on this Mac, and API keys live only in the Keychain. Translation requests go straight from your computer to the provider you chose."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "設定・履歴・用語集・お気に入りはこの Mac に保存され、API キーはキーチェーンにだけあります。翻訳のリクエストはあなたの Mac から設定した提供元へ直接送られます。"
+            "value": "設定と履歴はこの Mac に保存され、API キーはキーチェーンにだけあります。翻訳のリクエストはあなたの Mac から設定した提供元へ直接送られます。"
           }
         }
       }
@@ -4715,35 +5625,6 @@
         }
       }
     },
-    "prefs.attention": {
-      "extractionState": "manual",
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "这里需要处理"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "這裡需要處理"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Needs attention"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "対応が必要です"
-          }
-        }
-      }
-    },
     "prefs.engine.apiKey": {
       "extractionState": "manual",
       "localizations": {
@@ -5036,35 +5917,6 @@
         }
       },
       "comment": "placeholders: count"
-    },
-    "prefs.engine.intro": {
-      "extractionState": "manual",
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "umuo 用你自己的 API Key 直接请求模型厂商。Key 只存在系统钥匙串里。"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "umuo 用你自己的 API Key 直接請求模型廠商。Key 只存在系統鑰匙圈裡。"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "umuo calls model providers directly with your own API key. Keys are stored only in the macOS Keychain."
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "umuo はあなた自身の API キーでモデル提供元に直接リクエストします。キーは macOS のキーチェーンにだけ保存されます。"
-          }
-        }
-      }
     },
     "prefs.engine.keyClear": {
       "extractionState": "manual",
@@ -5624,25 +6476,25 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "导出设置与术语表，不含 API Key。"
+            "value": "导出设置，不含 API Key。"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "匯出設定與詞彙表，不含 API Key。"
+            "value": "匯出設定，不含 API Key。"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Exports settings and glossaries. API keys are never included."
+            "value": "Exports your settings. API keys are never included."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "設定と用語集を書き出します。API キーは含まれません。"
+            "value": "設定を書き出します。API キーは含まれません。"
           }
         }
       }
@@ -5770,29 +6622,29 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "已导入（格式 v%1$@）。旧风格 %2$@ 条、术语表 %3$@ 个仅保留数据，不参与翻译。"
+            "value": "已导入（格式 v%1$@）。"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "已匯入（格式 v%1$@）。舊風格 %2$@ 條、詞彙表 %3$@ 個僅保留資料，不參與翻譯。"
+            "value": "已匯入（格式 v%1$@）。"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Imported (format v%1$@). %2$@ legacy styles and %3$@ glossaries are preserved as data and do not affect translation."
+            "value": "Imported (format v%1$@)."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "読み込みました（形式 v%1$@）。旧スタイル %2$@ 件、用語集 %3$@ 件はデータのみ保持し、翻訳には使用しません。"
+            "value": "読み込みました（形式 v%1$@）。"
           }
         }
       },
-      "comment": "placeholders: version, styles, glossaries"
+      "comment": "placeholders: version"
     },
     "prefs.general.importedBlacklistAdded": {
       "extractionState": "manual",
@@ -5912,6 +6764,66 @@
         }
       },
       "comment": "placeholders: list"
+    },
+    "prefs.general.importedGlossaries": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "术语表 %1$@ 个仅保留数据，不参与翻译。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "詞彙表 %1$@ 個僅保留資料，不參與翻譯。"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ glossaries are kept as data only and do not affect translation."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "用語集 %1$@ 件はデータのみ保持し、翻訳には使用しません。"
+          }
+        }
+      },
+      "comment": "placeholders: count"
+    },
+    "prefs.general.importedStyles": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "旧风格 %1$@ 条仅保留数据，不参与翻译。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "舊風格 %1$@ 條僅保留資料，不參與翻譯。"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ legacy styles are kept as data only and do not affect translation."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "旧スタイル %1$@ 件はデータのみ保持し、翻訳には使用しません。"
+          }
+        }
+      },
+      "comment": "placeholders: count"
     },
     "prefs.general.nativeLang": {
       "extractionState": "manual",
@@ -6465,6 +7377,383 @@
         }
       }
     },
+    "prefs.hotkey.sys.appWindows": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "应用窗口"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "應用程式視窗"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "App Exposé"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "アプリケーションウインドウ"
+          }
+        }
+      }
+    },
+    "prefs.hotkey.sys.forceQuit": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "强制退出"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "強制結束"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Force Quit"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "強制終了"
+          }
+        }
+      }
+    },
+    "prefs.hotkey.sys.lockScreen": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "锁定屏幕"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "鎖定螢幕"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "locking the screen"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "画面をロック"
+          }
+        }
+      }
+    },
+    "prefs.hotkey.sys.logOut": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "退出登录"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "登出"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "logging out"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ログアウト"
+          }
+        }
+      }
+    },
+    "prefs.hotkey.sys.missionControl": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "调度中心"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "指揮中心"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mission Control"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mission Control"
+          }
+        }
+      }
+    },
+    "prefs.hotkey.sys.quitApp": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "退出当前应用"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "結束目前的應用程式"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "quitting the current app"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "使用中のアプリを終了"
+          }
+        }
+      }
+    },
+    "prefs.hotkey.sys.screenRecording": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "屏幕录制"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "螢幕錄製"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "screen recording"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "画面収録"
+          }
+        }
+      }
+    },
+    "prefs.hotkey.sys.screenshotArea": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "截取屏幕区域"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "擷取螢幕區域"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "a screenshot of an area"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "選択部分のスクリーンショット"
+          }
+        }
+      }
+    },
+    "prefs.hotkey.sys.screenshotScreen": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "截取整个屏幕"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "擷取整個螢幕"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "a screenshot of the whole screen"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "画面全体のスクリーンショット"
+          }
+        }
+      }
+    },
+    "prefs.hotkey.sys.spaceLeft": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "移到左边的空间"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "移到左邊的空間"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "moving left a space"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "左の操作スペースへ移動"
+          }
+        }
+      }
+    },
+    "prefs.hotkey.sys.spaceRight": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "移到右边的空间"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "移到右邊的空間"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "moving right a space"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "右の操作スペースへ移動"
+          }
+        }
+      }
+    },
+    "prefs.hotkey.sys.spotlight": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Spotlight 搜索"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Spotlight 搜尋"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Spotlight search"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Spotlight 検索"
+          }
+        }
+      }
+    },
+    "prefs.hotkey.sys.switchApps": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "切换应用"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "切換應用程式"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "switching apps"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "アプリの切り替え"
+          }
+        }
+      }
+    },
     "prefs.hotkey.system": {
       "extractionState": "manual",
       "localizations": {
@@ -6607,35 +7896,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "有効な数値ではないため、保存していません。"
-          }
-        }
-      }
-    },
-    "prefs.listSeparator": {
-      "extractionState": "manual",
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": " · "
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": " · "
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": " · "
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": " · "
           }
         }
       }
@@ -6960,31 +8220,31 @@
       },
       "comment": "placeholders: reason"
     },
-    "prefs.sidebar": {
+    "prefs.settingsInvalid": {
       "extractionState": "manual",
       "localizations": {
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "设置分区"
+            "value": "读到的设置不是 JSON 对象"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "設定分區"
+            "value": "讀到的設定不是 JSON 物件"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Settings sections"
+            "value": "The settings could not be read: not a JSON object"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "設定のカテゴリ"
+            "value": "設定を読み込めませんでした：JSON オブジェクトではありません"
           }
         }
       }
@@ -7507,35 +8767,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "ショートカット"
-          }
-        }
-      }
-    },
-    "prefs.translate.intro": {
-      "extractionState": "manual",
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "在任何应用里选中文字，按一下快捷键就能翻译。点一下键位就能重新录，改完立刻生效。"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "在任何應用程式裡選取文字，按一下快捷鍵就能翻譯。點一下鍵位就能重新錄製，改完立刻生效。"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Select text in any app and press a shortcut to translate it. Click a shortcut to record a new one; changes apply right away."
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "どのアプリでも、文字を選んでショートカットを押せば翻訳できます。キーをクリックすると新しいショートカットを設定でき、変更はすぐ反映されます。"
           }
         }
       }

@@ -167,7 +167,7 @@ struct OnboardingModelTests {
         await model.detectLocal()
         await settle()
         #expect(model.localModel == EngineChoice(providerId: "ollama", model: "qwen2.5:7b"))
-        #expect(model.notice == "检测到本机模型：qwen2.5:7b")
+        #expect(model.notice == "检测到本机模型：qwen2.5:7b（Ollama）", "与别家一样统一显示「模型（供应商）」")
         #expect(backend.patches == [["providerId": .string("ollama"), "model": .string("qwen2.5:7b")]])
         #expect(model.state.hasUsableEngine)
     }

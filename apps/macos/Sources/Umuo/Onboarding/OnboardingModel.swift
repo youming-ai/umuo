@@ -23,7 +23,7 @@ protocol OnboardingBackend: AnyObject {
     func close()
 }
 
-/// 首次启动引导的视图模型，`onboarding.tsx` 的状态与规则，语义逐条一致（PRD §7.4，ARCHITECTURE §4.11）。
+/// 首次启动引导的视图模型（PRD §7.4，ARCHITECTURE §4.11）。
 ///
 /// 两条刻意的产品规则：**不阻止前进**（权限可以稍后授予、模型可以稍后再配），**但要说清后果**
 /// （一个引擎都没有时最后一页写明「现在结束的话翻不了任何东西」）。
@@ -146,11 +146,10 @@ final class OnboardingModel {
         }
     }
 
-    /// 探测结果的显示：Ollama 只写模型名（与 Tauri 版一致），别家带上供应商名，免得以为是 Ollama 的模型。
+    /// 探测结果的显示：一律「模型（供应商）」，看得出是哪一家本机服务上的模型。
     func detectedLabel(_ found: EngineChoice) -> String {
-        if found.providerId == "ollama" { return found.model }
         let label = providers.first { $0.id == found.providerId }?.label ?? found.providerId
-        return "\(found.model)（\(label)）"
+        return t("onboarding.modelWithProvider", ["model": found.model, "provider": label])
     }
 
     // MARK: - 权限

@@ -34,8 +34,6 @@ final class PanelController: PanelBackend {
         session.backend = self
     }
 
-    var isVisible: Bool { window.isVisible }
-
     // MARK: - 显示与收起
 
     /// 把浮窗放到鼠标旁边显示，并在后台记下「这次翻译属于哪个应用」（看门狗、替换原文用）。
@@ -94,7 +92,7 @@ final class PanelController: PanelBackend {
     /// 浮窗可见期间把 Esc 注册成系统级热键（Carbon，无需 TCC 权限），收起时注销。
     ///
     /// 为什么不靠窗口的 keyDown：浮窗是非激活面板且 `becomesKeyOnlyIfNeeded`，弹出后、点按钮后都不是 key，
-    /// Esc 根本到不了它——而 Esc 是取消流式翻译的唯一途径（Tauri 版 `panel.show()` 会聚焦 WebView，弹出即可按 Esc）。
+    /// Esc 根本到不了它——而 Esc 是取消流式翻译的唯一途径。
     /// 也不让浮窗在显示 / 点击时成为 key：「替换原文」的 ⌘V 兜底发往 HID，落在 key 窗口上，浮窗是 key 就粘进了自己。
     /// 代价：浮窗开着时 Esc 被它独占，不再送到源应用；收起即恢复。OCR 原文框是 key 时也先走这里，不会处理两次。
     /// 语音浮层同时可见时，Esc 给最近弹出的那一个（`EscapeRouter`）；注册不上时退回窗口自己的 keyDown。
@@ -128,11 +126,10 @@ final class PanelController: PanelBackend {
         window.setFrameTopLeftPoint(PanelRules.topLeft(mouse: mouse, size: window.frame.size, visible: visible))
     }
 
-    /// 主题、界面语言与界面缩放跟设置走（所有窗口同一套），「跟随系统」时按当前系统外观。
-    /// 每次显示时重读：设置改了之后下一次弹出浮窗生效（Tauri 是广播 `settings://*` 即时生效）。
+    /// 界面语言跟设置走（`AppModel.locale`，所有窗口同一个）；主题由 `ThemeChoice.apply` 设到整个应用上。
+    /// 每次显示时重读：设置改了之后下一次弹出浮窗生效。
     private func refreshAppearance() {
-        let appearance = PanelRules.appearance(settingsJson: app.settingsJson)
-        session.locale = appearance.locale
+        session.locale = app.locale
     }
 
     /// 「切走就收起」看门狗（PRD §7.1：失焦关闭，可钉住）。
@@ -145,7 +142,9 @@ final class PanelController: PanelBackend {
         watchdog = Task { [weak self] in
             while !Task.isCancelled {
                 try? await Task.sleep(for: .milliseconds(500))
-                guard let self, self.window.isVisible else { continue }
+                // 控制器没了就结束循环，不再空转
+                guard let self else { return }
+                guard self.window.isVisible else { continue }
                 let owner = self.session.owner
                 let pinned = self.session.pinned
                 let current = await Task.detached { FrontmostApp.liveToken() }.value
@@ -190,7 +189,7 @@ final class PanelController: PanelBackend {
     }
 
     /// 不经流水线的提示（取词失败、黑名单、缺权限、截图识别不到文字）：登记一次新请求（顶掉浮窗上还在流的旧翻译），
-    /// 以这个 id 发一条错误，并把浮窗弹出来——用户按了快捷键就该在同一个地方看到结果（Tauri 的 `emit_notice`）。
+    /// 以这个 id 发一条错误，并把浮窗弹出来——用户按了快捷键就该在同一个地方看到结果。
     func showNotice(_ message: String, permission: PermissionKind?, actions: [SuggestedAction] = []) {
         guard let engine = app.engine else {
             session.apply(.error(PanelError(requestId: nil, message: message, actions: actions,
@@ -224,7 +223,8 @@ final class PanelController: PanelBackend {
 
     func copy(_ text: String) async -> String? {
         // 拿剪贴板互斥锁：⌘C 取词降级的事务可能正在另一个线程上跑（最长约 1 秒），不在主线程上等
-        await Task.detached { ScreenOCR.copy(text) }.value
+        let t = session.t
+        return await Task.detached { Pasteboard.copy(text) }.value.map { t($0) }
     }
 
     /// 语言由 Rust 从文本推断，不由界面传：同一段文本在浮窗与撰写窗必须用同一个发音人。
@@ -237,7 +237,8 @@ final class PanelController: PanelBackend {
     func stopSpeaking() { app.speech.stop() }
 
     func replace(_ text: String, owner: String?) async -> String? {
-        await Task.detached { Self.replaceSource(text, owner: owner) }.value
+        let t = session.t
+        return await Task.detached { Self.replaceSource(text, owner: owner, t: t) }.value
     }
 
     func openCompose(text: String, translation: String?, owner: String?) {
@@ -253,14 +254,14 @@ final class PanelController: PanelBackend {
         }
     }
 
-    // MARK: - 替换原文（Tauri 的 `replace_source` + `write_back`）
+    // MARK: - 替换原文
 
     /// 把译文写回源应用的选区（PRD §5.2「替换原文（若源 App 可写）」）。同步阻塞，后台调。
     ///
     /// 守卫用**显示浮窗时记下的那个应用**：与静默翻译同一套保护，用户切走了就不写回。
     /// 浮窗是真·非激活面板，点按钮不会激活 umuo，所以通常直接走 `.write`；前台恰好是 umuo 自己的别的窗口时，
     /// 先把源应用切回前台、等焦点回来再写（`.refocus`）。
-    nonisolated static func replaceSource(_ text: String, owner: String?) -> String? {
+    nonisolated static func replaceSource(_ text: String, owner: String?, t: Translate) -> String? {
         switch planReplace(owner: owner, current: FrontmostApp.liveToken(), own: ownToken) {
         case .noSource: return noSourceMessage()
         case .refocus: if let owner { ReplaceSelection.refocus(owner) }
@@ -268,7 +269,7 @@ final class PanelController: PanelBackend {
         }
         // 焦点没回来时守卫会如实拒绝（目标已改变），不会写到别处
         if let refusal = replaceTargetError(owner: owner, current: FrontmostApp.liveToken()) { return refusal }
-        do { try ReplaceSelection.replace(text) } catch { return writeBackFailedMessage(detail: error.detail) }
+        do { try ReplaceSelection.replace(text) } catch { return writeBackFailedMessage(detail: t(error.text)) }
         return nil
     }
 }
