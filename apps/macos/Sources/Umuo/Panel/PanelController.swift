@@ -226,6 +226,8 @@ final class PanelController: PanelBackend {
 
     func translate(_ request: TranslateRequest) { startTranslation(request) }
 
+    func abandonPendingTrigger() { triggers.invalidate() }
+
     func cancelTranslation() {
         guard let engine = app.engine else { return }
         Task.detached { engine.cancelSurface(surface: Self.surface) }

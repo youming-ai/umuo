@@ -132,13 +132,19 @@ final class PanelSession {
     /// 已钉住且不在流式请求中时不抢全局 Esc，避免吞掉其他前台应用的 Esc 或误关已钉住的浮窗。
     var capturesGlobalEscape: Bool { !pinned || state.status == .streaming }
 
+    /// 还有没出结果的请求：流式中，或已开始翻译、Start 还没到（这时状态仍是上一次的）。
+    private var inFlight: Bool { state.status == .streaming || pendingStart != nil }
+
     /// 翻译中按 Esc = 取消请求；空闲时按 Esc = 收起浮窗。
     func escape() {
-        if state.status == .streaming { backend?.cancelTranslation() } else { backend?.hidePanel() }
+        if inFlight { backend?.cancelTranslation() } else { backend?.hidePanel() }
     }
 
-    /// ✕：收起浮窗。
+    /// ✕：收起浮窗，并放弃还没出结果的这一次（取词中、等 Start、流式中）：用户关掉了，原地替换就不该再写回。
+    /// 看门狗的收起不走这里：切走后按的新快捷键还要照常弹出。
     func close() {
+        backend?.abandonPendingTrigger()
+        if inFlight { backend?.cancelTranslation() }
         backend?.hidePanel()
     }
 
