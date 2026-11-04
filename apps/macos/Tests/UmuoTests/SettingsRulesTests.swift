@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 import Testing
 import UmuoCore
@@ -108,6 +109,16 @@ struct HotkeyFormatTests {
     @Test func 连按显示成两个键帽右侧带前缀() {
         #expect(HotkeyFormat.parts("Ctrl Ctrl") == ["⌃", "⌃"])
         #expect(HotkeyFormat.parts("RightCmd RightCmd", rightLabel: "右") == ["右⌘", "右⌘"])
+    }
+
+    @Test @MainActor func 录键时焦点在可编辑文字里_按键让给文字() {
+        // 录着键点进文本框按 ⌘V：不能被录成全局快捷键（会劫持系统粘贴）
+        #expect(SettingsWindowController.yieldsToText(NSTextView()))
+        let readOnly = NSTextView()
+        readOnly.isEditable = false
+        #expect(!SettingsWindowController.yieldsToText(readOnly))
+        #expect(!SettingsWindowController.yieldsToText(NSView()))
+        #expect(!SettingsWindowController.yieldsToText(nil))
     }
 }
 

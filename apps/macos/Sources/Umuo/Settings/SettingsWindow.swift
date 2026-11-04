@@ -97,6 +97,9 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
         }
     }
 
+    /// 第一响应者是可编辑的文字（文本框的字段编辑器、多行文本）：按键属于用户正在输入的地方。
+    static func yieldsToText(_ responder: NSResponder?) -> Bool { false }
+
     /// 交给录键器。返回 true = 吞掉这个事件。没有一行在录时什么都不做。
     private func route(_ input: RecorderInput) -> Bool {
         guard let editor = model?.hotkeys, editor.recording != nil else { return false }
