@@ -74,6 +74,20 @@ struct PanelRulesTests {
         }
     }
 
+    @Test func 读得出选区时必须仍是原文_读不出时不核对() {
+        #expect(throws: Never.self) { try ReplaceSelection.checkSelectionUnchanged(current: "Hello", original: "Hello") }
+        // Electron / 网页视图（原文是 ⌘C 取到的）：没有可比对的，照旧交给 ⌘V
+        #expect(throws: Never.self) { try ReplaceSelection.checkSelectionUnchanged(current: nil, original: "Hello") }
+        for current in ["", "Hel", "Hello world"] {
+            do {
+                try ReplaceSelection.checkSelectionUnchanged(current: current, original: "Hello")
+                Issue.record("选区塌成光标或换了内容，应当拒绝：\(current)")
+            } catch {
+                #expect(error.text.key == "error.selectionChanged")
+            }
+        }
+    }
+
     @Test func 只读拒绝按界面语言给出原因() {
         do {
             try ReplaceSelection.checkPanelWritable(settable: false, selectionReadable: true)
@@ -104,7 +118,7 @@ struct PanelRulesTests {
         #expect(planReplace(owner: nil, current: "100", own: own) == .unknownSource)
         #expect(planReplace(owner: nil, current: nil, own: own) == .unknownSource)
         #expect(replaceTargetError(owner: nil, current: "100") != nil)
-        #expect(PanelController.replaceSource("译文", owner: nil, t: Translate(locale: .en))
+        #expect(PanelController.replaceSource("译文", original: "原文", owner: nil, t: Translate(locale: .en))
             == Translate(locale: .en)("panel.replaceUnknownSource"))
         #expect(noSourceMessage() == "这段文字不是从别的应用里取的，没有可替换的原文")
         #expect(replaceTargetError(owner: "100", current: "100") == nil)

@@ -15,7 +15,10 @@ enum ReplaceSelection {
         if selectionReadable { try AXWriteBack.checkWritable(.selection, settable) }
     }
 
-    static func replace(_ text: String) throws(AXWriteBack.Refused) {
+    /// 选区还是不是翻译的那段原文。
+    static func checkSelectionUnchanged(current: String?, original: String) throws(AXWriteBack.Refused) {}
+
+    static func replace(_ text: String, original: String, owner: String) throws(AXWriteBack.Refused) {
         guard AXIsProcessTrusted() else { throw AXWriteBack.Refused("error.accessibilityRequired") }
         let element = AX.focusedElement()
         let name = kAXSelectedTextAttribute as CFString
@@ -25,14 +28,16 @@ enum ReplaceSelection {
         // 首选仍是 AX：直接改写选区，不碰剪贴板。
         if let element, AXUIElementSetAttributeValue(element, name, text as CFString) == .success { return }
 
-        try pasteFallback(text)
+        try pasteFallback(text, owner: owner)
     }
 
     /// 兜底：受控粘贴（`ControlledPaste`，与语音交付同一套）。只留给 AX 通道不通的 App（Electron 等）。
     ///
     /// 快照用户剪贴板 → 写译文 → ⌘V → 等目标应用读完 → 剪贴板没被别人动过才恢复；整个事务拿着 `Pasteboard.exclusive`，
     /// 中间插不进 ⌘C 取词降级。剪贴板与按键可注入：测试换成私有剪贴板与假的粘贴。
-    static func pasteFallback(_ text: String, paster: ControlledPaste = ControlledPaste()) throws(AXWriteBack.Refused) {
+    static func pasteFallback(_ text: String, owner: String, paster: ControlledPaste = ControlledPaste(),
+                              frontmost: () -> String? = FrontmostApp.liveToken) throws(AXWriteBack.Refused)
+    {
         switch paster.run(text, proceed: { true }) {
         case .pasted: return
         // proceed 恒为 true（前台核对在调用方做过），走不到这里；万一走到了按「没写成」报

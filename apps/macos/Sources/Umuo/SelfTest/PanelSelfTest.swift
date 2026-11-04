@@ -26,11 +26,11 @@ enum PanelSelfTest {
         var seen: String?
         var lockedDuringPaste = false
         do {
-            try ReplaceSelection.pasteFallback("译文", paster: ControlledPaste(pasteboard: pasteboard, paste: {
+            try ReplaceSelection.pasteFallback("译文", owner: "1", paster: ControlledPaste(pasteboard: pasteboard, paste: {
                 seen = Pasteboard.string(pasteboard)
                 lockedDuringPaste = !Pasteboard.exclusive.try()
                 if !lockedDuringPaste { Pasteboard.exclusive.unlock() }
-            }, restoreDelay: 0))
+            }, restoreDelay: 0), frontmost: { "1" })
         } catch {
             check("ReplaceSelection.pasteFallback", false, error.description)
             return
@@ -44,9 +44,9 @@ enum PanelSelfTest {
 
         var failure = ""
         do {
-            try ReplaceSelection.pasteFallback("译文", paster: ControlledPaste(pasteboard: pasteboard, paste: {
+            try ReplaceSelection.pasteFallback("译文", owner: "1", paster: ControlledPaste(pasteboard: pasteboard, paste: {
                 () throws(SelectionError) in throw .other(UserText("error.keyEventFailed"))
-            }, restoreDelay: 0))
+            }, restoreDelay: 0), frontmost: { "1" })
         } catch { failure = error.text.key }
         check("ReplaceSelection.pasteFallback.error", failure == "error.keyEventFailed", "合成按键失败如实上报：\(failure)")
     }
@@ -57,10 +57,10 @@ enum PanelSelfTest {
             return
         }
         var detail = ""
-        do { try ReplaceSelection.replace("译文") } catch { detail = error.text.key }
+        do { try ReplaceSelection.replace("译文", original: "原文", owner: "1") } catch { detail = error.text.key }
         check("ReplaceSelection.replace", detail == "error.accessibilityRequired", "没有辅助功能权限时拒绝：\(detail)")
         // 不知道源应用（没权限时 pid 也取不到）：直接拒绝，不碰写入
-        let refused = PanelController.replaceSource("译文", owner: nil, t: Translate(locale: .zhCN))
+        let refused = PanelController.replaceSource("译文", original: "原文", owner: nil, t: Translate(locale: .zhCN))
         check("PanelController.replaceSource", refused == Translate(locale: .zhCN)("panel.replaceUnknownSource"),
               refused ?? "nil")
     }

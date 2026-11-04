@@ -14,7 +14,7 @@ private final class FakeBackend: PanelBackend {
     var copyFailure: String?
     var spoken: [String] = []
     var replaceResult: String?
-    var replaced: [(String, String?)] = []
+    var replaced: [(String, String, String?)] = []
     var composed: [(String, String?, String?)] = []
     var settingsOpened = 0
     var systemSettings: [PermissionKind] = []
@@ -29,8 +29,8 @@ private final class FakeBackend: PanelBackend {
 
     func speak(_ text: String) { spoken.append(text) }
     func stopSpeaking() {}
-    func replace(_ text: String, owner: String?) async -> String? {
-        replaced.append((text, owner))
+    func replace(_ text: String, original: String, owner: String?) async -> String? {
+        replaced.append((text, original, owner))
         return replaceResult
     }
 
@@ -50,7 +50,7 @@ private final class SlowReplaceBackend: PanelBackend {
     func copy(_: String) async -> String? { nil }
     func speak(_: String) {}
     func stopSpeaking() {}
-    func replace(_: String, owner _: String?) async -> String? {
+    func replace(_: String, original _: String, owner _: String?) async -> String? {
         await withCheckedContinuation { pending = $0 }
     }
 
@@ -166,7 +166,8 @@ struct PanelSessionTests {
         session.replace()
         await settle()
         #expect(backend.replaced.map(\.0) == ["你好世界", "你好世界"])
-        #expect(backend.replaced.map(\.1) == ["4242", "4242"])
+        #expect(backend.replaced.map(\.1) == ["Hello world", "Hello world"], "写入前要按原文核对选区")
+        #expect(backend.replaced.map(\.2) == ["4242", "4242"])
         #expect(session.actionNotice == "已替换原文")
     }
 

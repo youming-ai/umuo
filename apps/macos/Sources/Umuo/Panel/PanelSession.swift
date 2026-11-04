@@ -18,7 +18,8 @@ protocol PanelBackend: AnyObject {
     func speak(_ text: String)
     func stopSpeaking()
     /// 替换原文。成功为 nil，失败返回原因（已是完整的一句，例如「写回原文失败：…」）。
-    func replace(_ text: String, owner: String?) async -> String?
+    /// `original`：这次翻译的原文，写入前核对选区还是它。
+    func replace(_ text: String, original: String, owner: String?) async -> String?
     /// 「在撰写窗打开」。`owner` 是浮窗归属的源应用：撰写窗 ⌘⇧Enter 要优先粘回那里（`compose_owner_for_caller`）。
     func openCompose(text: String, translation: String?, owner: String?)
     func openSettings()
@@ -148,11 +149,12 @@ final class PanelSession {
     func replace() {
         guard canReplace, let backend else { return }
         let text = state.translation
+        let original = state.source
         let owner = owner
         let requestId = state.requestId
         replacing = true
         Task {
-            let reason = await backend.replace(text, owner: owner)
+            let reason = await backend.replace(text, original: original, owner: owner)
             replacing = false
             // 写回期间浮窗已经换成了新的一次翻译：这条结果说的是旧译文，不能落在新译文上
             guard state.requestId == requestId else { return }
