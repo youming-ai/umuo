@@ -180,6 +180,14 @@ struct SettingsRulesTests {
         #expect(SettingsRules.retentionDays("7.9") == 7)
     }
 
+    @Test func 保留天数与数字框同一口径_指数不被截成开头的整数() {
+        #expect(SettingsRules.retentionDays("1e3") == 1000, "取开头的 1 会把历史清到只剩一天")
+        #expect(SettingsRules.retentionDays("+30") == 30)
+        #expect(SettingsRules.retentionDays("7.") == 7)
+        #expect(SettingsRules.retentionDays(".5") == 0)
+        #expect(SettingsRules.retentionDays("1e300") == 36500, "超出 Int 的范围不能崩")
+    }
+
     @Test func 黑名单去空白与空行() {
         #expect(SettingsRules.blacklist(" 1Password \n\n  Keychain Access\n ") == ["1Password", "Keychain Access"])
     }
