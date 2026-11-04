@@ -49,6 +49,7 @@ extension PanelController {
                     let permission: PermissionKind? = error == .permissionDenied ? .accessibility : nil
                     self.report(requestId: id, message: self.session.t(error.text), permission: permission)
                 case let .success(focus):
+                    self.session.pendingStart = id
                     self.startTranslation(
                         TranslateRequest(text: focus.text, mode: silent ? .silentReplace : .selection,
                                          targetOverride: nil, sourceOverride: nil,

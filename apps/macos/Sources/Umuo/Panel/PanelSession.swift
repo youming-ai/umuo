@@ -59,6 +59,7 @@ final class PanelSession {
     /// 已经替换成功的那次请求：同一份译文只写回一次，再点就是重复插入。
     private(set) var replacedRequestId: UInt64?
     /// 划词 / 原地替换取完词、已开始翻译，还没等到它的 Start 的那次请求（按键时登记的 id）。
+    /// 这期间浮窗挂着上一次的结果，归属却已换成这次的应用：不能拿旧译文去替换。
     var pendingStart: UInt64?
 
     weak var backend: PanelBackend?
@@ -78,6 +79,7 @@ final class PanelSession {
     @discardableResult
     func apply(_ action: PanelAction) -> Bool {
         guard model.apply(action) else { return false }
+        if let pending = pendingStart, state.requestId >= pending { pendingStart = nil }
         if case let .start(start) = action { started(start) }
         backend?.syncEscape()
         return true
@@ -97,7 +99,7 @@ final class PanelSession {
     /// 只写回一次：写回进行中、这次译文已替换过（包括静默替换已经自动写回的）都不再给。
     /// OCR 结果窗没有源应用（归属是本应用自己），没有原文可替换，也不给。
     var canReplace: Bool {
-        !state.translation.isEmpty && state.status == .done && state.mode != .ocr
+        pendingStart == nil && !state.translation.isEmpty && state.status == .done && state.mode != .ocr
             && !(state.mode == .silentReplace && state.replaced)
             && !replacing && replacedRequestId != state.requestId
     }
