@@ -12,7 +12,10 @@ on:
     paths:
       - 'apps/macos/**'
       - '!apps/macos/Tests/**'
-      - 'crates/**'
+      # 只认进二进制的部分：crates/*/tests 与文档只跑 CI，不给全体用户推一次零改动的更新
+      - 'crates/*/src/**'
+      - 'crates/*/Cargo.toml'
+      - 'crates/umuo-ffi/uniffi-bindgen.rs'
       - 'Cargo.toml'
       - 'Cargo.lock'
       - 'rust-toolchain.toml'
@@ -21,6 +24,7 @@ on:
       - 'scripts/sparkle-appcast.ts'
       - '.github/scripts/**'
       - '.github/workflows/release.yml'
+      - '!**.md'
   workflow_dispatch:
     inputs:
       version:
@@ -46,6 +50,8 @@ jobs:
   macos:
     name: Build macOS artifacts (arm64)
     needs: ci
+    # 只从 main 发：手动运行选了别的分支时不出包，免得没合入的代码被标成 Latest 经 Sparkle 推给所有人
+    if: github.ref == 'refs/heads/main'
     runs-on: macos-15  # Apple Silicon runner：宿主即 aarch64-apple-darwin
     timeout-minutes: 60
     # 只有这个 job 需要写：创建 tag 与 Release、上传附件
@@ -55,6 +61,10 @@ jobs:
       VERSION_INPUT: ${{ inputs.version }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          # 本 job 有 contents: write；不把 token 留在 .git/config 里给后面的依赖构建脚本读到。
+          # 发布用的 gh 单独传 GH_TOKEN，git ls-remote 查的是公开仓库，都不需要它
+          persist-credentials: false
 
       - name: Select Xcode 26
         run: sh .github/scripts/select-xcode.sh
@@ -85,6 +95,11 @@ jobs:
           # Release（含草稿）与 tag 任一已存在都不发：上次失败可能只留下其中之一，清理步骤见 docs/SWIFTUI-MIGRATION.md
           if gh release view "v$version" >/dev/null 2>&1; then echo "Release v$version 已存在" >&2; exit 1; fi
           if git ls-remote --exit-code --tags origin "refs/tags/v$version" >/dev/null; then echo "tag v$version 已存在" >&2; exit 1; fi
+          # 新版本必须高于当前 Latest：手动填了更低的版本号会被标成 Latest，官网下载与 Sparkle 跟着回退
+          latest=$(gh release view --json tagName --jq '.tagName' 2>/dev/null | sed 's/^v//' || true)
+          if [ -n "$latest" ] && [ "$(printf '%s\n%s\n' "$latest" "$version" | sort -V | tail -1)" != "$version" ]; then
+            echo "版本 $version 不高于当前 Latest $latest" >&2; exit 1
+          fi
           sed -i '' -E '/^\[workspace.package\]/,/^\[/ s/^version = ".*"/version = "'"$version"'"/' Cargo.toml
           echo "VERSION=$version" >> "$GITHUB_ENV"
         env:
@@ -126,10 +141,11 @@ jobs:
           # 正式版并标 Latest：releases/latest/download/<文件名> 才会指向这一版（预发布不算 latest）
           previous=$(gh release list --limit 1 --json tagName --jq '.[0].tagName // empty')
           notes=$(mktemp)
-          cat >"$notes" <<'EOF'
+          # 不加引号的 EOF：$VERSION 要展开；反引号转义，免得被当成命令替换
+          cat >"$notes" <<EOF
           > 本版本尚未经 Apple 公证。首次打开时 macOS 会拦下：请到「系统设置 › 隐私与安全性」底部点「仍要打开」放行，之后正常启动。
           >
-          > 下载 `umuo-v$VERSION.dmg`（Apple Silicon（arm64），macOS 14+），拖进「应用程序」即可；已安装的版本可在「设置 › 关于」里检查更新并升级。
+          > 下载 \`umuo-v$VERSION.dmg\`（Apple Silicon（arm64），macOS 14+），拖进「应用程序」即可；已安装的版本可在「设置 › 关于」里检查更新并升级。
           EOF
           set -- --target "$GITHUB_SHA" --latest --generate-notes --notes-file "$notes" --title "umuo $VERSION"
           [ -n "$previous" ] && set -- "$@" --notes-start-tag "$previous"

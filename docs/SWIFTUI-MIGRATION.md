@@ -8,8 +8,9 @@
 
 ## 自动发布（`.github/workflows/release.yml`）
 
-- **触发**：客户端相关改动（`apps/macos/` 除 `Tests/`、`crates/`、`Cargo.*`、`rust-toolchain.toml`、`package.json`、`bun.lock`、
-  `scripts/sparkle-appcast.ts`、`.github/scripts/`、release.yml 本身）合入 main；或在 Actions 里手动运行（workflow_dispatch，可填版本号）。
+- **触发**：客户端相关改动（`apps/macos/` 除 `Tests/`、`crates/*/src/` 与 `crates/*/Cargo.toml`（`crates/*/tests/` 只跑 CI）、`Cargo.*`、
+  `rust-toolchain.toml`、`package.json`、`bun.lock`、`scripts/sparkle-appcast.ts`、`.github/scripts/`、release.yml 本身；`.md` 一律不算）合入 main；
+  或在 Actions 里手动运行（workflow_dispatch，可填版本号）。手动运行只在选 `main` 时出包，填的版本号必须高于当前 Latest。
 - **门禁**：先以 workflow_call 跑完整的 `ci.yml`，全部通过才构建。为免同一次合入跑两遍，`ci.yml` 的 push 排除了上面这组路径；
   只改文档时两个工作流都不跑。
 - **版本**：`Cargo.toml` `[workspace.package]` 的主.次版本 + 本工作流的运行序号（如 `v0.2.12`）；手动运行可指定 `X.Y.Z`。
