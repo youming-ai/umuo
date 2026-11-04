@@ -990,6 +990,35 @@
         }
       }
     },
+    "error.targetChanged": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "目标应用已切换，已放弃替换"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "目標應用程式已切換，已放棄取代"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You switched to another app, so nothing was replaced"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "別のアプリに切り替わったため、置き換えを中止しました"
+          }
+        }
+      }
+    },
     "error.writeRejected": {
       "extractionState": "manual",
       "localizations": {

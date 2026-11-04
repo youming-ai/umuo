@@ -226,6 +226,8 @@ final class PanelController: PanelBackend {
 
     func translate(_ request: TranslateRequest) { startTranslation(request) }
 
+    func abandonPendingTrigger() { triggers.invalidate() }
+
     func cancelTranslation() {
         guard let engine = app.engine else { return }
         Task.detached { engine.cancelSurface(surface: Self.surface) }
@@ -246,9 +248,9 @@ final class PanelController: PanelBackend {
 
     func stopSpeaking() { app.speech.stop() }
 
-    func replace(_ text: String, owner: String?) async -> String? {
+    func replace(_ text: String, original: String, owner: String?) async -> String? {
         let t = session.t
-        return await Task.detached { Self.replaceSource(text, owner: owner, t: t) }.value
+        return await Task.detached { Self.replaceSource(text, original: original, owner: owner, t: t) }.value
     }
 
     func openCompose(text: String, translation: String?, owner: String?) {
@@ -273,7 +275,7 @@ final class PanelController: PanelBackend {
     /// 先把源应用切回前台、等焦点回来再写（`.refocus`）。
     ///
     /// 显示浮窗时没取到源应用（应用无响应、安全输入）就拒绝：没有可比对的标识，此刻的前台可能早已是别的应用。
-    nonisolated static func replaceSource(_ text: String, owner: String?, t: Translate) -> String? {
+    nonisolated static func replaceSource(_ text: String, original: String, owner: String?, t: Translate) -> String? {
         switch planReplace(owner: owner, current: FrontmostApp.liveToken(), own: ownToken) {
         case .noSource: return noSourceMessage()
         case .unknownSource: return t("panel.replaceUnknownSource")
@@ -282,7 +284,10 @@ final class PanelController: PanelBackend {
         }
         // 焦点没回来时守卫会如实拒绝（目标已改变），不会写到别处
         if let refusal = replaceTargetError(owner: owner, current: FrontmostApp.liveToken()) { return refusal }
-        do { try ReplaceSelection.replace(text) } catch { return writeBackFailedMessage(detail: t(error.text)) }
+        guard let owner else { return t("panel.replaceUnknownSource") }
+        do { try ReplaceSelection.replace(text, original: original, owner: owner) } catch {
+            return writeBackFailedMessage(detail: t(error.text))
+        }
         return nil
     }
 }

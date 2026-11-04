@@ -13,12 +13,15 @@ protocol PanelBackend: AnyObject {
     /// 按当前钉住与请求状态同步全局 Esc 热键（钉住且空闲时释放全局 Esc，免得吞掉别的应用的按键）。
     func syncEscape()
     func hidePanel()
+    /// 作废还在取词的按键：取完后不再弹出浮窗、不再开始翻译。
+    func abandonPendingTrigger()
     /// 复制到剪贴板。失败返回给用户看的话。
     func copy(_ text: String) async -> String?
     func speak(_ text: String)
     func stopSpeaking()
     /// 替换原文。成功为 nil，失败返回原因（已是完整的一句，例如「写回原文失败：…」）。
-    func replace(_ text: String, owner: String?) async -> String?
+    /// `original`：这次翻译的原文，写入前核对选区还是它。
+    func replace(_ text: String, original: String, owner: String?) async -> String?
     /// 「在撰写窗打开」。`owner` 是浮窗归属的源应用：撰写窗 ⌘⇧Enter 要优先粘回那里（`compose_owner_for_caller`）。
     func openCompose(text: String, translation: String?, owner: String?)
     func openSettings()
@@ -27,6 +30,7 @@ protocol PanelBackend: AnyObject {
 
 extension PanelBackend {
     func syncEscape() {}
+    func abandonPendingTrigger() {}
 }
 
 /// 浮窗的视图模型：翻译状态（`PanelModel`）之外，窗口自己的那些一次性状态——钉住、提示、OCR 的可改原文、
@@ -57,6 +61,9 @@ final class PanelSession {
     private(set) var replacing = false
     /// 已经替换成功的那次请求：同一份译文只写回一次，再点就是重复插入。
     private(set) var replacedRequestId: UInt64?
+    /// 划词 / 原地替换取完词、已开始翻译，还没等到它的 Start 的那次请求（按键时登记的 id）。
+    /// 这期间浮窗挂着上一次的结果，归属却已换成这次的应用：不能拿旧译文去替换。
+    var pendingStart: UInt64?
 
     weak var backend: PanelBackend?
 
@@ -75,6 +82,7 @@ final class PanelSession {
     @discardableResult
     func apply(_ action: PanelAction) -> Bool {
         guard model.apply(action) else { return false }
+        if let pending = pendingStart, state.requestId >= pending { pendingStart = nil }
         if case let .start(start) = action { started(start) }
         backend?.syncEscape()
         return true
@@ -94,7 +102,7 @@ final class PanelSession {
     /// 只写回一次：写回进行中、这次译文已替换过（包括静默替换已经自动写回的）都不再给。
     /// OCR 结果窗没有源应用（归属是本应用自己），没有原文可替换，也不给。
     var canReplace: Bool {
-        !state.translation.isEmpty && state.status == .done && state.mode != .ocr
+        pendingStart == nil && !state.translation.isEmpty && state.status == .done && state.mode != .ocr
             && !(state.mode == .silentReplace && state.replaced)
             && !replacing && replacedRequestId != state.requestId
     }
@@ -124,9 +132,20 @@ final class PanelSession {
     /// 已钉住且不在流式请求中时不抢全局 Esc，避免吞掉其他前台应用的 Esc 或误关已钉住的浮窗。
     var capturesGlobalEscape: Bool { !pinned || state.status == .streaming }
 
+    /// 还有没出结果的请求：流式中，或已开始翻译、Start 还没到（这时状态仍是上一次的）。
+    private var inFlight: Bool { state.status == .streaming || pendingStart != nil }
+
     /// 翻译中按 Esc = 取消请求；空闲时按 Esc = 收起浮窗。
     func escape() {
-        if state.status == .streaming { backend?.cancelTranslation() } else { backend?.hidePanel() }
+        if inFlight { backend?.cancelTranslation() } else { backend?.hidePanel() }
+    }
+
+    /// ✕：收起浮窗，并放弃还没出结果的这一次（取词中、等 Start、流式中）：用户关掉了，原地替换就不该再写回。
+    /// 看门狗的收起不走这里：切走后按的新快捷键还要照常弹出。
+    func close() {
+        backend?.abandonPendingTrigger()
+        if inFlight { backend?.cancelTranslation() }
+        backend?.hidePanel()
     }
 
     func togglePin() {
@@ -148,11 +167,12 @@ final class PanelSession {
     func replace() {
         guard canReplace, let backend else { return }
         let text = state.translation
+        let original = state.source
         let owner = owner
         let requestId = state.requestId
         replacing = true
         Task {
-            let reason = await backend.replace(text, owner: owner)
+            let reason = await backend.replace(text, original: original, owner: owner)
             replacing = false
             // 写回期间浮窗已经换成了新的一次翻译：这条结果说的是旧译文，不能落在新译文上
             guard state.requestId == requestId else { return }

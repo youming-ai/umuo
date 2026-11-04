@@ -27,7 +27,7 @@ private final class Board: @unchecked Sendable {
 struct ReplaceSelectionPasteTests {
     @Test func 替换原文的粘贴兜底_粘完恢复用户剪贴板() throws {
         let board = Board("用户原来复制的")
-        try ReplaceSelection.pasteFallback("译文", paster: board.paster())
+        try ReplaceSelection.pasteFallback("译文", owner: "7", paster: board.paster(), frontmost: { "7" })
         #expect(board.pasted == ["译文"])
         #expect(board.current == "用户原来复制的", "用户剪贴板不该被译文盖掉")
     }
@@ -35,9 +35,20 @@ struct ReplaceSelectionPasteTests {
     @Test func 按键失败如实上报_剪贴板还原() {
         let board = Board("用户原来复制的")
         #expect(throws: AXWriteBack.Refused.self) {
-            try ReplaceSelection.pasteFallback("译文", paster: board.paster(fails: true))
+            try ReplaceSelection.pasteFallback("译文", owner: "7", paster: board.paster(fails: true), frontmost: { "7" })
         }
         #expect(board.current == "用户原来复制的")
+    }
+
+    @Test func 等剪贴板锁时前台换了_不按键_报目标已切换() {
+        let board = Board("用户原来复制的")
+        var refusal: String?
+        do {
+            try ReplaceSelection.pasteFallback("译文", owner: "7", paster: board.paster(), frontmost: { "9" })
+        } catch { refusal = error.text.key }
+        #expect(board.pasted.isEmpty, "不往别的应用里 ⌘V")
+        #expect(board.current == "用户原来复制的")
+        #expect(refusal == "error.targetChanged")
     }
 }
 

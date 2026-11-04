@@ -35,11 +35,13 @@ enum SettingsRules {
         return text.wholeMatch(of: /[+-]?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?/) == nil
     }
 
-    /// 历史保留天数（`Number.parseInt` 的口径：取开头的整数）。负数与认不出的都归 0（不清理）——
-    /// 传下去只会让清理逻辑算出未来的时间点。
+    /// 历史保留天数：与 `isBadNumber` 同一口径读成数，再截去小数。负数与认不出的都归 0（不清理）——
+    /// 传下去只会让清理逻辑算出未来的时间点。不能只取开头的整数：「1e3」会变成 1 天，保存即清掉几乎全部历史。
+    /// 上限 100 年：`1e300` 也认得出，直接转 Int 会崩。
     static func retentionDays(_ input: String) -> Int {
-        guard let match = input.firstMatch(of: /^\s*([+-]?\d+)/), let parsed = Int(match.1) else { return 0 }
-        return max(0, parsed)
+        let text = input.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !text.isEmpty, !isBadNumber(text), let value = Double(text), value.isFinite else { return 0 }
+        return Int(min(max(value, 0), 36500))
     }
 
     /// 取词黑名单：每行一个应用名，去掉首尾空白与空行。

@@ -10,11 +10,12 @@ private final class FakeBackend: PanelBackend {
     var translated: [TranslateRequest] = []
     var cancelled = 0
     var hidden = 0
+    var abandonedTriggers = 0
     var copied: [String] = []
     var copyFailure: String?
     var spoken: [String] = []
     var replaceResult: String?
-    var replaced: [(String, String?)] = []
+    var replaced: [(String, String, String?)] = []
     var composed: [(String, String?, String?)] = []
     var settingsOpened = 0
     var systemSettings: [PermissionKind] = []
@@ -22,6 +23,7 @@ private final class FakeBackend: PanelBackend {
     func translate(_ request: TranslateRequest) { translated.append(request) }
     func cancelTranslation() { cancelled += 1 }
     func hidePanel() { hidden += 1 }
+    func abandonPendingTrigger() { abandonedTriggers += 1 }
     func copy(_ text: String) async -> String? {
         copied.append(text)
         return copyFailure
@@ -29,8 +31,8 @@ private final class FakeBackend: PanelBackend {
 
     func speak(_ text: String) { spoken.append(text) }
     func stopSpeaking() {}
-    func replace(_ text: String, owner: String?) async -> String? {
-        replaced.append((text, owner))
+    func replace(_ text: String, original: String, owner: String?) async -> String? {
+        replaced.append((text, original, owner))
         return replaceResult
     }
 
@@ -50,7 +52,7 @@ private final class SlowReplaceBackend: PanelBackend {
     func copy(_: String) async -> String? { nil }
     func speak(_: String) {}
     func stopSpeaking() {}
-    func replace(_: String, owner _: String?) async -> String? {
+    func replace(_: String, original _: String, owner _: String?) async -> String? {
         await withCheckedContinuation { pending = $0 }
     }
 
@@ -130,6 +132,51 @@ struct PanelSessionTests {
         #expect(backend.cancelled == 1 && backend.hidden == 1)
     }
 
+    @Test func 新按键已开始翻译_Start之前不能拿上一次的译文替换() {
+        let (session, _) = translatedSession()
+        #expect(session.canReplace)
+        // 浮窗带着上一次的结果重新弹出，这次的 Start 还没到：此刻的归属已是新的应用
+        session.pendingStart = 2
+        #expect(!session.canReplace)
+        // 被顶掉的旧请求迟到的事件不算这次的开始
+        session.apply(route: route(1), event: doneEvent)
+        #expect(!session.canReplace)
+        session.apply(route: route(2), event: start(2, "下一段"))
+        session.apply(route: route(2), event: .delta(text: "下一段的译文"))
+        session.apply(route: route(2), event: doneEvent)
+        #expect(session.canReplace)
+    }
+
+    @Test func 新按键在Start之前就出错_不再等待() {
+        let (session, _) = translatedSession()
+        session.pendingStart = 2
+        session.apply(.error(PanelError(requestId: 2, message: "没有检测到选中的文本", actions: [],
+                                        needsPermission: false, permission: nil, source: nil)))
+        #expect(session.pendingStart == nil)
+    }
+
+    @Test func 新按键已开始翻译_Start之前按Esc也取消请求() {
+        let (session, backend) = translatedSession()
+        session.pendingStart = 2
+        session.escape()
+        #expect(backend.cancelled == 1, "静默替换否则会在浮窗收起后照样写回")
+        #expect(backend.hidden == 0)
+    }
+
+    @Test func 点叉收起时放弃还没出结果的请求() {
+        let (session, backend) = translatedSession()
+        session.close()
+        #expect(backend.hidden == 1 && backend.cancelled == 0, "已完成的不用取消")
+        #expect(backend.abandonedTriggers == 1, "取词中的按键取完后不能再把浮窗弹回来")
+
+        session.pendingStart = 2
+        session.close()
+        #expect(backend.cancelled == 1)
+        session.apply(route: route(3), event: start(3))
+        session.close()
+        #expect(backend.cancelled == 2 && backend.hidden == 3, "流式中点叉同样取消，不只是藏起来")
+    }
+
     @Test func 半截译文不能复制替换() {
         let backend = FakeBackend()
         let session = PanelSession(backend: backend)
@@ -166,7 +213,8 @@ struct PanelSessionTests {
         session.replace()
         await settle()
         #expect(backend.replaced.map(\.0) == ["你好世界", "你好世界"])
-        #expect(backend.replaced.map(\.1) == ["4242", "4242"])
+        #expect(backend.replaced.map(\.1) == ["Hello world", "Hello world"], "写入前要按原文核对选区")
+        #expect(backend.replaced.map(\.2) == ["4242", "4242"])
         #expect(session.actionNotice == "已替换原文")
     }
 

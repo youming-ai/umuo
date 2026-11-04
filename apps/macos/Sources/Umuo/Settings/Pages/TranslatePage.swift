@@ -77,7 +77,11 @@ struct HotkeyRecorderButton: View {
         let parts = HotkeyFormat.parts(model.values.string(field), rightLabel: t("prefs.hotkey.right"))
         let label = recording ? t("prefs.hotkey.recording") : parts.isEmpty ? t("prefs.hotkey.unset") : parts.joined(separator: " ")
         VStack(alignment: .trailing, spacing: 4) {
-            let button = Button { editor.toggle(field) } label: {
+            let button = Button {
+                editor.toggle(field)
+                // 开始录制时收走文字焦点：否则停在文本框里的焦点会让第一个按键就结束录制（`yieldsToText`）
+                if editor.recording == field { NSApp.keyWindow?.makeFirstResponder(nil) }
+            } label: {
                 Text(label).monospacedDigit().lineLimit(1).frame(width: 120)
             }
             // 固定宽度的录键框；录制中用强调样式，与系统录键控件一致

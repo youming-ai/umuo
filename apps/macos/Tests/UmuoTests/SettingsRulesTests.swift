@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 import Testing
 import UmuoCore
@@ -109,6 +110,16 @@ struct HotkeyFormatTests {
         #expect(HotkeyFormat.parts("Ctrl Ctrl") == ["⌃", "⌃"])
         #expect(HotkeyFormat.parts("RightCmd RightCmd", rightLabel: "右") == ["右⌘", "右⌘"])
     }
+
+    @Test @MainActor func 录键时焦点在可编辑文字里_按键让给文字() {
+        // 录着键点进文本框按 ⌘V：不能被录成全局快捷键（会劫持系统粘贴）
+        #expect(SettingsWindowController.yieldsToText(NSTextView()))
+        let readOnly = NSTextView()
+        readOnly.isEditable = false
+        #expect(!SettingsWindowController.yieldsToText(readOnly))
+        #expect(!SettingsWindowController.yieldsToText(NSView()))
+        #expect(!SettingsWindowController.yieldsToText(nil))
+    }
 }
 
 @Suite("录键：连按两下修饰键")
@@ -178,6 +189,14 @@ struct SettingsRulesTests {
         #expect(SettingsRules.retentionDays("-5") == 0)
         #expect(SettingsRules.retentionDays("") == 0)
         #expect(SettingsRules.retentionDays("7.9") == 7)
+    }
+
+    @Test func 保留天数与数字框同一口径_指数不被截成开头的整数() {
+        #expect(SettingsRules.retentionDays("1e3") == 1000, "取开头的 1 会把历史清到只剩一天")
+        #expect(SettingsRules.retentionDays("+30") == 30)
+        #expect(SettingsRules.retentionDays("7.") == 7)
+        #expect(SettingsRules.retentionDays(".5") == 0)
+        #expect(SettingsRules.retentionDays("1e300") == 36500, "超出 Int 的范围不能崩")
     }
 
     @Test func 黑名单去空白与空行() {

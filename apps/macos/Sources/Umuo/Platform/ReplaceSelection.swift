@@ -15,28 +15,40 @@ enum ReplaceSelection {
         if selectionReadable { try AXWriteBack.checkWritable(.selection, settable) }
     }
 
-    static func replace(_ text: String) throws(AXWriteBack.Refused) {
+    /// 读得出选区时，它必须还是翻译的那段原文：塌成光标、换了一段都不写（否则译文插在光标处或盖掉新选区）。
+    /// 读不出（Electron / 网页视图，原文是 ⌘C 取到的）没有可比对的，照旧交给 ⌘V。
+    /// 读得出却是空串的一律当作选区已变：分不清是塌成了光标，还是 AX 回空串、原文靠 ⌘C 取到的应用；宁可拒绝。
+    static func checkSelectionUnchanged(current: String?, original: String) throws(AXWriteBack.Refused) {
+        guard let current else { return }
+        try AXWriteBack.checkUnchanged(.selection, current, original)
+    }
+
+    /// `original` 必须与取词时读到的逐字相同（浮窗的原文来自 Start 事件，Rust 原样回传请求里的文本）。
+    static func replace(_ text: String, original: String, owner: String) throws(AXWriteBack.Refused) {
         guard AXIsProcessTrusted() else { throw AXWriteBack.Refused("error.accessibilityRequired") }
         let element = AX.focusedElement()
         let name = kAXSelectedTextAttribute as CFString
-        try checkPanelWritable(settable: element.flatMap { AX.isSettable($0, name) },
-                               selectionReadable: element.flatMap { AX.string($0, name) } != nil)
+        let current = element.flatMap { AX.string($0, name) }
+        try checkPanelWritable(settable: element.flatMap { AX.isSettable($0, name) }, selectionReadable: current != nil)
+        try checkSelectionUnchanged(current: current, original: original)
 
         // 首选仍是 AX：直接改写选区，不碰剪贴板。
         if let element, AXUIElementSetAttributeValue(element, name, text as CFString) == .success { return }
 
-        try pasteFallback(text)
+        try pasteFallback(text, owner: owner)
     }
 
     /// 兜底：受控粘贴（`ControlledPaste`，与语音交付同一套）。只留给 AX 通道不通的 App（Electron 等）。
     ///
     /// 快照用户剪贴板 → 写译文 → ⌘V → 等目标应用读完 → 剪贴板没被别人动过才恢复；整个事务拿着 `Pasteboard.exclusive`，
     /// 中间插不进 ⌘C 取词降级。剪贴板与按键可注入：测试换成私有剪贴板与假的粘贴。
-    static func pasteFallback(_ text: String, paster: ControlledPaste = ControlledPaste()) throws(AXWriteBack.Refused) {
-        switch paster.run(text, proceed: { true }) {
+    static func pasteFallback(_ text: String, owner: String, paster: ControlledPaste = ControlledPaste(),
+                              frontmost: () -> String? = FrontmostApp.liveToken) throws(AXWriteBack.Refused)
+    {
+        // 等剪贴板锁（最长约 1 秒）期间用户可能切走了：⌘V 发往前台，按下前最后核对一次
+        switch paster.run(text, proceed: { frontmost() == owner }) {
         case .pasted: return
-        // proceed 恒为 true（前台核对在调用方做过），走不到这里；万一走到了按「没写成」报
-        case .skipped: throw AXWriteBack.Refused("error.clipboardUnavailable")
+        case .skipped: throw AXWriteBack.Refused("error.targetChanged")
         case let .failed(text): throw AXWriteBack.Refused(text)
         }
     }
