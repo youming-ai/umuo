@@ -130,6 +130,29 @@ struct PanelSessionTests {
         #expect(backend.cancelled == 1 && backend.hidden == 1)
     }
 
+    @Test func 新按键已开始翻译_Start之前不能拿上一次的译文替换() {
+        let (session, _) = translatedSession()
+        #expect(session.canReplace)
+        // 浮窗带着上一次的结果重新弹出，这次的 Start 还没到：此刻的归属已是新的应用
+        session.pendingStart = 2
+        #expect(!session.canReplace)
+        // 被顶掉的旧请求迟到的事件不算这次的开始
+        session.apply(route: route(1), event: doneEvent)
+        #expect(!session.canReplace)
+        session.apply(route: route(2), event: start(2, "下一段"))
+        session.apply(route: route(2), event: .delta(text: "下一段的译文"))
+        session.apply(route: route(2), event: doneEvent)
+        #expect(session.canReplace)
+    }
+
+    @Test func 新按键在Start之前就出错_不再等待() {
+        let (session, _) = translatedSession()
+        session.pendingStart = 2
+        session.apply(.error(PanelError(requestId: 2, message: "没有检测到选中的文本", actions: [],
+                                        needsPermission: false, permission: nil, source: nil)))
+        #expect(session.pendingStart == nil)
+    }
+
     @Test func 半截译文不能复制替换() {
         let backend = FakeBackend()
         let session = PanelSession(backend: backend)

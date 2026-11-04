@@ -58,6 +58,8 @@ final class PanelSession {
     private(set) var replacing = false
     /// 已经替换成功的那次请求：同一份译文只写回一次，再点就是重复插入。
     private(set) var replacedRequestId: UInt64?
+    /// 划词 / 原地替换取完词、已开始翻译，还没等到它的 Start 的那次请求（按键时登记的 id）。
+    var pendingStart: UInt64?
 
     weak var backend: PanelBackend?
 
