@@ -180,8 +180,8 @@ final class FocusedFieldDelivery: VoiceDelivering {
     func capture(session: UInt64) {
         let probe = probe
         targets = [session: Task.detached(priority: .userInitiated) { probe.capture() }]
-        // 会话号单调递增：比新会话旧的取消记录不会再用到
-        cancelled.withLock { $0 = $0.filter { $0 >= session } }
+        // 取消记录不随新会话清掉：旧会话的交付可能已取走目标、还在等，它最后一道检查仍要看得到自己被取消了。
+        // 每段录音至多一条，集合很小。
     }
 
     func deliver(session: UInt64, text: String) async -> VoiceDeliveryRefusal? {
