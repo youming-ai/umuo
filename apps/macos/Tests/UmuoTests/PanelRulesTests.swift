@@ -58,7 +58,7 @@ struct PanelRulesTests {
         #expect(AppLocale.resolve(settingsJson: nil, systemLanguages: ["zh-Hant-TW"]) == .zhTW)
     }
 
-    // 「替换原文」的 ⌘V 兜底前的那道检查（`check_panel_writable`，Rust 的同名测试逐条改写）。
+    // 「替换原文」的 ⌘V 兜底前的那道检查（规则在 Swift 的 `ReplaceSelection.checkPanelWritable`）。
     @Test func 只拒绝明确只读的文本控件() {
         // 终端 / 只读文本：能读选区，明确不可写 → 拒绝，免得 ⌘V 打进 shell
         #expect(throws: AXWriteBack.Refused.self) {
