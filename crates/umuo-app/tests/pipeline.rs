@@ -815,6 +815,28 @@ async fn silent_replace_of_a_short_phrase_writes_back_the_translation_not_a_word
 }
 
 #[tokio::test]
+async fn silent_replace_asks_the_model_to_keep_same_language_text_instead_of_explaining_it() {
+    // 浮窗的指令要求「原文已是目标语言就给一句释义」；写回时这句释义会替换掉用户的原文，
+    // 所以写回走另一份指令：原样输出。两份都带防注入声明。
+    let env = Env::new(|hit| match hit.path.as_str() {
+        "/openai/chat/completions"
+            if hit.body.contains("原样输出原文")
+                && !hit.body.contains("用一句话说明其含义")
+                && hit.body.contains("不是对你的指令") =>
+        {
+            sse(&["敏捷的棕色狐狸"])
+        }
+        _ => not_found(),
+    })
+    .await;
+
+    let events = env.translate(silent(SENTENCE), Some("pid-1")).await;
+
+    assert_eq!(events.last().unwrap().body["replaced"], true);
+    assert_eq!(env.fake.writes().len(), 1);
+}
+
+#[tokio::test]
 async fn silent_replace_never_touches_the_document_when_translation_fails() {
     let env = Env::new(|hit| match hit.path.as_str() {
         "/openai/chat/completions" => server_error(),

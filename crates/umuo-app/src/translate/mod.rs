@@ -171,10 +171,16 @@ async fn translate(
     // 判定与 Prompt 都来自核心层的同一份实现，客户端不重复写一遍。
     // 原地替换要把结果写回用户的输入框：那里要的是译文，词卡 JSON 绝不能写进去。
     let word_mode = !mode.write_back() && umuo_core::word_card::is_word_mode(text);
+    // 写回时原文已是目标语言就原样输出，不能像浮窗那样给一句释义（会替换掉用户的原文）。
+    let build_request = if mode.write_back() {
+        prompt::build_write_back_request
+    } else {
+        prompt::build_translation_request
+    };
     let chat = if word_mode {
         umuo_core::word_card::build_request(text, &vars)
     } else {
-        prompt::build_translation_request(&vars, text)
+        build_request(&vars, text)
     };
 
     let start = StartPayload {
@@ -205,7 +211,7 @@ async fn translate(
         let pieces = chunk::split(text, budget);
         let requests: Vec<_> = pieces
             .iter()
-            .map(|piece| prompt::build_translation_request(&vars, &piece.text))
+            .map(|piece| build_request(&vars, &piece.text))
             .collect();
         let separators: Vec<String> = pieces.into_iter().map(|piece| piece.separator).collect();
         let mut sink = |delta: &str| {
