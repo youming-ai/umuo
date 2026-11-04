@@ -77,7 +77,7 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
             guard let window, event.window === window else { return event }
             // 本地监听在主线程上回调；NSEvent 不是 Sendable，只把要用的几个值带进 MainActor
             let input = RecorderInput(event)
-            let consumed = MainActor.assumeIsolated { self?.route(input) ?? false }
+            let consumed = MainActor.assumeIsolated { self?.route(input, in: window) ?? false }
             return consumed ? nil : event
         }
     }
@@ -98,13 +98,21 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
     }
 
     /// 第一响应者是可编辑的文字（文本框的字段编辑器、多行文本）：按键属于用户正在输入的地方。
-    static func yieldsToText(_ responder: NSResponder?) -> Bool { false }
+    /// 录制开始时键帽会把焦点从文字上收走（`HotkeyRecorderButton`），所以这里只会是录着键又点进了文字。
+    static func yieldsToText(_ responder: NSResponder?) -> Bool {
+        (responder as? NSTextView)?.isEditable == true
+    }
 
     /// 交给录键器。返回 true = 吞掉这个事件。没有一行在录时什么都不做。
-    private func route(_ input: RecorderInput) -> Bool {
+    private func route(_ input: RecorderInput, in window: NSWindow) -> Bool {
         guard let editor = model?.hotkeys, editor.recording != nil else { return false }
         switch input.type {
         case .keyDown:
+            // 录着键点进了文本框：按键是给文本框的，结束录制并放行（否则 ⌘V 会被录成全局快捷键）
+            if Self.yieldsToText(window.firstResponder) {
+                editor.stop()
+                return false
+            }
             // 认不出的键交给录键器说「录不了」
             let code = HotkeyFormat.code(keyCode: input.keyCode) ?? "Unidentified"
             let flags = NSEvent.ModifierFlags(rawValue: input.flags)
