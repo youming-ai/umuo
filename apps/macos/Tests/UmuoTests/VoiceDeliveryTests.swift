@@ -46,6 +46,23 @@ private final class FakeProbe: VoiceFocusProbing, @unchecked Sendable {
     func frontmostPid() -> pid_t? { lock.withLock { frontmost } }
 }
 
+/// 第一次 capture 卡住，直到测试放行：模拟「交付已取走目标、还在等它」时用户取消并开始下一段录音。
+private final class GatedProbe: VoiceFocusProbing, @unchecked Sendable {
+    let inner = FakeProbe()
+    private let gate = DispatchSemaphore(value: 0)
+    private let first = OSAllocatedUnfairLock(initialState: true)
+
+    func capture() -> VoiceTarget {
+        if first.withLock({ let was = $0; $0 = false; return was }) { gate.wait() }
+        return inner.capture()
+    }
+
+    func release() { gate.signal() }
+    func check(_ target: VoiceTarget) -> VoiceDeliveryCheck { inner.check(target) }
+    func insert(_ text: String, into element: AXUIElement) -> Bool { inner.insert(text, into: element) }
+    func frontmostPid() -> pid_t? { inner.frontmostPid() }
+}
+
 /// 假剪贴板 + 记下 ⌘V 次数的假粘贴。
 private final class PasteRig: @unchecked Sendable {
     let pasteboard = FakePasteboard()
@@ -284,5 +301,21 @@ struct FocusedFieldDeliveryTests {
         #expect(await delivery.deliver(session: 3, text: "迟到") == .unverifiable)
         #expect(await delivery.deliver(session: 4, text: "这一句") == nil)
         #expect(probe.inserted == ["这一句"])
+    }
+
+    @Test @MainActor func 交付途中取消_随即开始新会话_旧会话仍不交付() async {
+        let probe = GatedProbe()
+        probe.inner.checkResult.settable = true
+        let rig = PasteRig()
+        let delivery = FocusedFieldDelivery(probe: probe, paster: rig.paster())
+        delivery.capture(session: 1)
+        let pending = Task { await delivery.deliver(session: 1, text: "已取消的一句") }
+        for _ in 0 ..< 20 { await Task.yield() }
+        delivery.cancel(session: 1)
+        delivery.capture(session: 2)
+        probe.release()
+        #expect(await pending.value != nil)
+        #expect(probe.inner.inserted.isEmpty)
+        #expect(rig.pastes == 0)
     }
 }
