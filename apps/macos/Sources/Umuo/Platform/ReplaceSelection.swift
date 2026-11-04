@@ -24,18 +24,23 @@ enum ReplaceSelection {
     }
 
     /// `original` 必须与取词时读到的逐字相同（浮窗的原文来自 Start 事件，Rust 原样回传请求里的文本）。
-    static func replace(_ text: String, original: String, owner: String) throws(AXWriteBack.Refused) {
-        guard AXIsProcessTrusted() else { throw AXWriteBack.Refused("error.accessibilityRequired") }
-        let element = AX.focusedElement()
-        let name = kAXSelectedTextAttribute as CFString
-        let current = element.flatMap { AX.string($0, name) }
-        try checkPanelWritable(settable: element.flatMap { AX.isSettable($0, name) }, selectionReadable: current != nil)
+    /// AX、剪贴板、按键与前台查询可注入：测试换成假的，不碰真实系统。
+    static func replace(_ text: String, original: String, owner: String,
+                        probe: FocusedTextProbing = AXTextProbe(), paster: ControlledPaste = ControlledPaste(),
+                        frontmost: () -> String? = FrontmostApp.liveToken) throws(AXWriteBack.Refused)
+    {
+        guard probe.trusted() else { throw AXWriteBack.Refused("error.accessibilityRequired") }
+        let element = probe.focusedElement()
+        let name = kAXSelectedTextAttribute
+        let current = element.flatMap { probe.string($0, name) }
+        try checkPanelWritable(settable: element.flatMap { probe.isSettable($0, name) },
+                               selectionReadable: current != nil)
         try checkSelectionUnchanged(current: current, original: original)
 
         // 首选仍是 AX：直接改写选区，不碰剪贴板。
-        if let element, AXUIElementSetAttributeValue(element, name, text as CFString) == .success { return }
+        if let element, probe.write(text, to: element, name) { return }
 
-        try pasteFallback(text, owner: owner)
+        try pasteFallback(text, owner: owner, paster: paster, frontmost: frontmost)
     }
 
     /// 兜底：受控粘贴（`ControlledPaste`，与语音交付同一套）。只留给 AX 通道不通的 App（Electron 等）。

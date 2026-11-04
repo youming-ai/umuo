@@ -45,15 +45,18 @@ enum AXWriteBack {
         }
     }
 
-    static func replace(_ source: FocusSource, original: String, text: String) throws(Refused) {
-        guard AXIsProcessTrusted() else { throw Refused("error.accessibilityRequired") }
+    /// `probe` 可注入：测试换成假的，不碰真实 AX。
+    static func replace(_ source: FocusSource, original: String, text: String,
+                        probe: FocusedTextProbing = AXTextProbe()) throws(Refused)
+    {
+        guard probe.trusted() else { throw Refused("error.accessibilityRequired") }
         // 写回时再查一次：同一应用里焦点可能已经换到别的控件，前台 pid 守卫拦不住。
         // 没有聚焦元素时落到「问不出来 / 读不到」：两道检查会给出对应的拒绝理由。
-        let element = AX.focusedElement()
-        let name = attribute(source) as CFString
-        try checkWritable(source, element.flatMap { AX.isSettable($0, name) })
-        try checkUnchanged(source, element.flatMap { AX.string($0, name) }, original)
-        guard let element, AXUIElementSetAttributeValue(element, name, text as CFString) == .success else {
+        let element = probe.focusedElement()
+        let name = attribute(source)
+        try checkWritable(source, element.flatMap { probe.isSettable($0, name) })
+        try checkUnchanged(source, element.flatMap { probe.string($0, name) }, original)
+        guard let element, probe.write(text, to: element, name) else {
             throw Refused("error.writeRejected")
         }
     }

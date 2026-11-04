@@ -28,3 +28,32 @@ enum AX {
         return (value as! CFString) as String
     }
 }
+
+/// 写回守卫眼里「此刻聚焦的文本目标」：权限、聚焦元素、属性的可写性与内容、写入。
+/// 浮窗「替换原文」（`ReplaceSelection`）与静默翻译写回（`AXWriteBack`）共用；正式实现 `AXTextProbe`，
+/// 测试换成假的（不碰真实 AX）。都在工作线程上调，不切主线程。
+protocol FocusedTextProbing: Sendable {
+    /// 有辅助功能权限。
+    func trusted() -> Bool
+    /// 现查聚焦元素；之后的读写都对着这一个，不再重新取焦点。
+    func focusedElement() -> AXUIElement?
+    /// nil = 问不出来（见 `AX.isSettable`）。
+    func isSettable(_ element: AXUIElement, _ attribute: String) -> Bool?
+    func string(_ element: AXUIElement, _ attribute: String) -> String?
+    /// 写入属性。返回是否成功。
+    func write(_ text: String, to element: AXUIElement, _ attribute: String) -> Bool
+}
+
+/// 正式实现：线程安全的 AX C API。
+struct AXTextProbe: FocusedTextProbing {
+    func trusted() -> Bool { AXIsProcessTrusted() }
+    func focusedElement() -> AXUIElement? { AX.focusedElement() }
+    func isSettable(_ element: AXUIElement, _ attribute: String) -> Bool? {
+        AX.isSettable(element, attribute as CFString)
+    }
+
+    func string(_ element: AXUIElement, _ attribute: String) -> String? { AX.string(element, attribute as CFString) }
+    func write(_ text: String, to element: AXUIElement, _ attribute: String) -> Bool {
+        AXUIElementSetAttributeValue(element, attribute as CFString, text as CFString) == .success
+    }
+}

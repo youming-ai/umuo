@@ -275,17 +275,27 @@ final class PanelController: PanelBackend {
     /// 先把源应用切回前台、等焦点回来再写（`.refocus`）。
     ///
     /// 显示浮窗时没取到源应用（应用无响应、安全输入）就拒绝：没有可比对的标识，此刻的前台可能早已是别的应用。
-    nonisolated static func replaceSource(_ text: String, original: String, owner: String?, t: Translate) -> String? {
-        switch planReplace(owner: owner, current: FrontmostApp.liveToken(), own: ownToken) {
+    ///
+    /// 前台查询、切前台、AX 与受控粘贴可注入：测试换成假的，不碰真实系统。
+    nonisolated static func replaceSource(
+        _ text: String, original: String, owner: String?, t: Translate,
+        frontmost: () -> String? = FrontmostApp.liveToken,
+        refocus: (String) -> Void = ReplaceSelection.refocus,
+        probe: FocusedTextProbing = AXTextProbe(), paster: ControlledPaste = ControlledPaste()
+    ) -> String? {
+        switch planReplace(owner: owner, current: frontmost(), own: ownToken) {
         case .noSource: return noSourceMessage()
         case .unknownSource: return t("panel.replaceUnknownSource")
-        case .refocus: if let owner { ReplaceSelection.refocus(owner) }
+        case .refocus: if let owner { refocus(owner) }
         case .write: break
         }
         // 焦点没回来时守卫会如实拒绝（目标已改变），不会写到别处
-        if let refusal = replaceTargetError(owner: owner, current: FrontmostApp.liveToken()) { return refusal }
+        if let refusal = replaceTargetError(owner: owner, current: frontmost()) { return refusal }
         guard let owner else { return t("panel.replaceUnknownSource") }
-        do { try ReplaceSelection.replace(text, original: original, owner: owner) } catch {
+        do {
+            try ReplaceSelection.replace(text, original: original, owner: owner, probe: probe, paster: paster,
+                                         frontmost: frontmost)
+        } catch {
             return writeBackFailedMessage(detail: t(error.text))
         }
         return nil
