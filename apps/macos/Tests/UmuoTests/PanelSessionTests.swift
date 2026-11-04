@@ -10,6 +10,7 @@ private final class FakeBackend: PanelBackend {
     var translated: [TranslateRequest] = []
     var cancelled = 0
     var hidden = 0
+    var abandonedTriggers = 0
     var copied: [String] = []
     var copyFailure: String?
     var spoken: [String] = []
@@ -22,6 +23,7 @@ private final class FakeBackend: PanelBackend {
     func translate(_ request: TranslateRequest) { translated.append(request) }
     func cancelTranslation() { cancelled += 1 }
     func hidePanel() { hidden += 1 }
+    func abandonPendingTrigger() { abandonedTriggers += 1 }
     func copy(_ text: String) async -> String? {
         copied.append(text)
         return copyFailure
@@ -151,6 +153,28 @@ struct PanelSessionTests {
         session.apply(.error(PanelError(requestId: 2, message: "没有检测到选中的文本", actions: [],
                                         needsPermission: false, permission: nil, source: nil)))
         #expect(session.pendingStart == nil)
+    }
+
+    @Test func 新按键已开始翻译_Start之前按Esc也取消请求() {
+        let (session, backend) = translatedSession()
+        session.pendingStart = 2
+        session.escape()
+        #expect(backend.cancelled == 1, "静默替换否则会在浮窗收起后照样写回")
+        #expect(backend.hidden == 0)
+    }
+
+    @Test func 点叉收起时放弃还没出结果的请求() {
+        let (session, backend) = translatedSession()
+        session.close()
+        #expect(backend.hidden == 1 && backend.cancelled == 0, "已完成的不用取消")
+        #expect(backend.abandonedTriggers == 1, "取词中的按键取完后不能再把浮窗弹回来")
+
+        session.pendingStart = 2
+        session.close()
+        #expect(backend.cancelled == 1)
+        session.apply(route: route(3), event: start(3))
+        session.close()
+        #expect(backend.cancelled == 2 && backend.hidden == 3, "流式中点叉同样取消，不只是藏起来")
     }
 
     @Test func 半截译文不能复制替换() {

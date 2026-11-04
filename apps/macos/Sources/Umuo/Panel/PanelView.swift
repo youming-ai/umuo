@@ -65,7 +65,7 @@ struct PanelView: View {
                         tint: session.pinned ? .accentColor : nil) { session.togglePin() }
                 .help(t("panel.pinHint"))
             PanelButton(t("panel.settings"), systemImage: "gearshape") { session.openSettings() }
-            PanelButton(t("panel.collapseAria"), systemImage: "xmark") { session.backend?.hidePanel() }
+            PanelButton(t("panel.collapseAria"), systemImage: "xmark") { session.close() }
         }
         .padding(.horizontal, 12).padding(.top, 10).padding(.bottom, 4)
         // 拖动区垫在底下：只有直接按在空白处才拖窗口，按钮照常可点

@@ -13,6 +13,8 @@ protocol PanelBackend: AnyObject {
     /// 按当前钉住与请求状态同步全局 Esc 热键（钉住且空闲时释放全局 Esc，免得吞掉别的应用的按键）。
     func syncEscape()
     func hidePanel()
+    /// 作废还在取词的按键：取完后不再弹出浮窗、不再开始翻译。
+    func abandonPendingTrigger()
     /// 复制到剪贴板。失败返回给用户看的话。
     func copy(_ text: String) async -> String?
     func speak(_ text: String)
@@ -28,6 +30,7 @@ protocol PanelBackend: AnyObject {
 
 extension PanelBackend {
     func syncEscape() {}
+    func abandonPendingTrigger() {}
 }
 
 /// 浮窗的视图模型：翻译状态（`PanelModel`）之外，窗口自己的那些一次性状态——钉住、提示、OCR 的可改原文、
@@ -132,6 +135,11 @@ final class PanelSession {
     /// 翻译中按 Esc = 取消请求；空闲时按 Esc = 收起浮窗。
     func escape() {
         if state.status == .streaming { backend?.cancelTranslation() } else { backend?.hidePanel() }
+    }
+
+    /// ✕：收起浮窗。
+    func close() {
+        backend?.hidePanel()
     }
 
     func togglePin() {
