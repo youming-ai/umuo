@@ -297,13 +297,21 @@ export function scoreTranscript(
   }
 }
 
-/** 按 `--models=a,b` 筛选候选模型；不带该参数时评测全部。 */
+/** 按 `--models=a,b` 筛选候选模型；不带该参数时评测全部，有不认识的 id 就报错（免得写出空结果）。 */
 export function selectModels(args: string[]): CandidateModel[] {
   const modelFilterArg = args.find((a) => a.startsWith('--models='))?.slice('--models='.length)
   const selectedIds = modelFilterArg
     ? new Set(modelFilterArg.split(',').map((s) => s.trim()))
     : null
-  return selectedIds ? CANDIDATE_MODELS.filter((m) => selectedIds.has(m.id)) : CANDIDATE_MODELS
+  if (!selectedIds) return CANDIDATE_MODELS
+  const known = new Set(CANDIDATE_MODELS.map((m) => m.id))
+  const unknown = [...selectedIds].filter((id) => !known.has(id))
+  if (unknown.length > 0) {
+    throw new Error(
+      `--models 里有不认识的模型: ${unknown.join(', ')}（可选: ${[...known].join(', ')}）`,
+    )
+  }
+  return CANDIDATE_MODELS.filter((m) => selectedIds.has(m.id))
 }
 
 export async function downloadFileWithVerify(
@@ -325,6 +333,8 @@ export async function downloadFileWithVerify(
     stderr: 'inherit',
   })
   if ((await proc.exited) !== 0) {
+    // 不留半截文件：坏的或已完整的 .partial 会让下次 `-C -` 续传一直 416，永远下不下来
+    await rm(partialPath, { force: true })
     throw new Error(`下载失败: ${url}`)
   }
 
@@ -344,6 +354,8 @@ async function main(): Promise<void> {
   const evalDir = join(rootDir, 'target', 'asr-eval')
   const modelsDir = join(evalDir, 'models')
   const fixturesDir = join(rootDir, 'target', 'asr-fixtures')
+  // 先解析模型筛选参数：参数写错就在下载与编译之前报错
+  const models = selectModels(process.argv.slice(2))
   await mkdir(modelsDir, { recursive: true })
 
   // 1. 确保夹具已生成
@@ -398,9 +410,6 @@ async function main(): Promise<void> {
     { stdout: 'inherit', stderr: 'inherit' },
   )
   if ((await compile.exited) !== 0) throw new Error('编译 asr-runner 失败')
-
-  // 4. 解析模型筛选参数
-  const models = selectModels(process.argv.slice(2))
 
   const fixtureMap = new Map(FIXTURES.map((f) => [f.id, f]))
   const modelResults = []
