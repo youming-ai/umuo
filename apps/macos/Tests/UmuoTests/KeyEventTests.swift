@@ -26,3 +26,20 @@ struct KeyEventLayoutTests {
         #expect(KeyEvent.commandKeyCode(for: "v", fallback: KeyEvent.keyV, translate: none) == 9)
     }
 }
+
+// 后台合成按键只读缓存，TIS 只在主线程读：这里验缓存与组装规则，不碰 TIS。
+struct KeyEventCacheTests {
+    @Test func 主线程还没读过布局时缓存给ANSI位置() {
+        #expect(CommandKeyCache().current == CommandKeys(copy: 8, paste: 9))
+    }
+
+    @Test func 写入后读到新键码() {
+        let cache = CommandKeyCache()
+        cache.store(CommandKeys.resolve(translate: layout([8: "j", 9: "k", 34: "c", 47: "v"])))
+        #expect(cache.current == CommandKeys(copy: 34, paste: 47))
+    }
+
+    @Test func 拿不到布局整组退回ANSI() {
+        #expect(CommandKeys.resolve(translate: nil) == .ansi)
+    }
+}
