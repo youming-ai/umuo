@@ -473,6 +473,45 @@ mod tests {
     }
 
     #[test]
+    fn a_key_quoted_in_a_not_found_message_is_never_shown_as_the_model_name() {
+        // 运行时拼出假 Key：源码里不出现完整的 Key 格式。
+        let key = format!("sk-live-{}", "abcdef1234567890xyz");
+        let bodies = [
+            format!(r#"{{"error":{{"message":"The key '{key}' does not exist"}}}}"#),
+            format!(r#"{{"error":{{"message":"model_not_found","model":"{key}"}}}}"#),
+        ];
+        for body in bodies {
+            let err = classify_http_error(404, &body, None);
+            assert!(!err.to_string().contains("sk-live"), "{err}");
+            assert_eq!(
+                err,
+                CoreError::ModelUnavailable {
+                    model: "未知".to_string()
+                }
+            );
+        }
+    }
+
+    #[test]
+    fn apostrophes_in_contractions_are_not_taken_as_quotes() {
+        let body = r#"{"error":{"message":"That model doesn't exist and isn't available","code":"model_not_found"}}"#;
+        assert_eq!(
+            classify_http_error(404, body, None),
+            CoreError::ModelUnavailable {
+                model: "未知".to_string()
+            }
+        );
+        // 缩写之后真正被引号包住的模型名照样取得出来。
+        let body = r#"{"error":{"message":"Sorry, that model doesn't exist: 'gpt-9'","code":"model_not_found"}}"#;
+        assert_eq!(
+            classify_http_error(404, body, None),
+            CoreError::ModelUnavailable {
+                model: "gpt-9".to_string()
+            }
+        );
+    }
+
+    #[test]
     fn bare_500_is_retryable_but_summarised() {
         let err = classify_http_error(503, "", None);
         assert_eq!(
