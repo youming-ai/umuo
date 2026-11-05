@@ -131,7 +131,7 @@ final class OnboardingModel {
 
     // MARK: - 模型
 
-    /// 存 Key 之后首选换成这家、模型用它的默认模型（`engineForSavedKey`，审查 H6）。
+    /// 存 Key 之后首选换成这家；换了供应商时模型用它的默认模型（`engineForSavedKey`，审查 H6）。
     func saveKey() async {
         let key = draftKey.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !key.isEmpty else { return }
@@ -141,11 +141,16 @@ final class OnboardingModel {
             try await backend.saveApiKey(providerId, key)
             draftKey = ""
             keyConfigured = true
-            // 需要端点的供应商用用户填的模型（自定义端点没有默认模型，空着存会让首次翻译直接报缺模型）
+            // 模型：需要端点的供应商用用户填的；没填时只有**换了供应商**才用新供应商的默认模型（沿用上一家的会 404）。
+            // 供应商没变（重新运行引导只换 Key）就不动模型——改过的模型、Azure 部署名不能被默认值冲掉；
+            // 没有可写的（Azure、自定义端点没有默认模型）也不写，写进 "" 会让第一次翻译直接报缺模型。
             let typed = draftModel.trimmingCharacters(in: .whitespacesAndNewlines)
-            let chosen = needsEndpoint && !typed.isEmpty ? typed : detail?.defaultModel
+            let fallback = providerId == values.string("providerId") ? nil : detail?.defaultModel
+            let chosen = needsEndpoint && !typed.isEmpty ? typed : fallback
             let engine = Onboarding.engineForSavedKey(providerId: providerId, defaultModel: chosen)
-            commit(["providerId": .string(engine.providerId), "model": .string(engine.model)])
+            var patch: SettingsValues = ["providerId": .string(engine.providerId)]
+            if !engine.model.isEmpty { patch["model"] = .string(engine.model) }
+            commit(patch)
             notice = t("onboarding.keySaved", ["provider": detail?.label ?? providerId])
         } catch {
             notice = SettingsRules.message(error)
