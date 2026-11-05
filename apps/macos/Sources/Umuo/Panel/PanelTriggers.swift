@@ -73,9 +73,12 @@ extension PanelController {
     }
 
     /// 系统框选后在本机识别，结果交给 OCR 翻译流水线。
-    func triggerOcr() {
+    ///
+    /// `run` 是框选 + 识别（阻塞到用户松手），测试换成可控的闭包。返回后台任务；没有起新任务时返回 nil。
+    @discardableResult
+    func triggerOcr(run: @escaping @Sendable () -> ScreenOCR.Outcome = { ScreenOCR.run() }) -> Task<Void, Never>? {
         Task.detached {
-            let outcome = ScreenOCR.run()
+            let outcome = run()
             await MainActor.run {
                 switch outcome {
                 case .cancelled:
