@@ -784,6 +784,52 @@ mod tests {
     }
 
     #[test]
+    fn a_field_of_the_wrong_type_falls_back_alone_and_keeps_the_rest() {
+        // 手改成字符串、或新旧版本交替使用时字段类型变了：只有那一项回落默认值，
+        // 供应商、引导状态、快捷键等其余设置不能跟着整份丢掉。
+        let dir = temp_dir("wrong-type-field");
+        let raw = r#"{"providerId":"deepseek","onboardingDone":true,"composeHotkey":"Alt+Shift+A",
+            "historyRetentionDays":"30","historyEnabled":"no","appTargetLangs":{"Mail":"ja"},
+            "futureField":{"x":1}}"#;
+        fs::write(Settings::path_in(&dir), raw).unwrap();
+
+        let loaded = Settings::load(&dir);
+        assert_eq!(loaded.provider_id, "deepseek");
+        assert!(loaded.onboarding_done, "引导不该重新弹出");
+        assert_eq!(loaded.compose_hotkey, "Alt+Shift+A");
+        assert_eq!(loaded.app_target_langs.get("Mail").unwrap(), "ja");
+        assert_eq!(loaded.extra["futureField"], serde_json::json!({"x":1}));
+        assert_eq!(
+            loaded.history_retention_days, 90,
+            "类型不对的字段回落默认值"
+        );
+        assert!(loaded.history_enabled, "类型不对的字段回落默认值");
+        let backups = crate::persist::corrupt_backups(&dir, SETTINGS_FILE);
+        assert_eq!(backups.len(), 1, "用户手改的原文要留一份");
+        assert_eq!(fs::read_to_string(&backups[0]).unwrap(), raw);
+        assert!(Settings::path_in(&dir).exists(), "设置文件本身不能被挪走");
+
+        // 修复只发生一次：再启动不会每次多一份备份，读到的仍是同一份设置。
+        assert_eq!(Settings::load(&dir), loaded);
+        assert_eq!(
+            crate::persist::corrupt_backups(&dir, SETTINGS_FILE).len(),
+            1
+        );
+    }
+
+    #[test]
+    fn a_valid_json_that_is_not_an_object_is_backed_up_whole() {
+        let dir = temp_dir("not-object");
+        fs::write(Settings::path_in(&dir), "[1,2]").unwrap();
+        assert_eq!(Settings::load(&dir), Settings::default());
+        assert_eq!(
+            crate::persist::corrupt_backups(&dir, SETTINGS_FILE).len(),
+            1
+        );
+        assert!(!Settings::path_in(&dir).exists());
+    }
+
+    #[test]
     fn partial_file_keeps_defaults_for_absent_fields() {
         // 老版本写的文件缺字段时，缺的那部分取默认值，而不是整份作废。
         let dir = temp_dir("partial");
