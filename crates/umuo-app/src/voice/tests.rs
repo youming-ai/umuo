@@ -370,6 +370,16 @@ async fn a_whitespace_only_answer_is_an_empty_result_not_a_success_or_a_failure(
 }
 
 #[tokio::test]
+async fn a_cleanly_finished_stream_with_no_content_is_an_empty_result() {
+    // 整理指令要求「原文只有口头语时输出空」：模型照做时流正常结束、一个字也没有，
+    // 这是空结果，不是「响应格式不符合预期」。
+    let env = Env::new(|_| sse(&[])).await;
+    let failure = env.run(VoiceRequest::tidy("嗯，那个")).await.unwrap_err();
+    assert_eq!(failure.kind, VoiceFailureKind::EmptyResult);
+    assert_eq!(failure.transcript, "嗯，那个");
+}
+
+#[tokio::test]
 async fn a_translation_that_echoes_the_transcript_is_not_delivered() {
     let env = Env::new(|hit| sse(&[&format!("  {}  ", hit.message("user"))])).await;
 
