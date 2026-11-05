@@ -78,3 +78,21 @@ mod tests {
         );
     }
 }
+
+/// 内核的默认设置（`settings.json` 的形状）。内核打不开、读不到用户设置时，客户端按它注册快捷键，
+/// 免得在 Swift 里另抄一份默认值。
+#[uniffi::export]
+pub fn default_settings_json() -> String {
+    serde_json::to_string(&umuo_app::settings::Settings::default()).unwrap_or_default()
+}
+
+#[cfg(test)]
+mod default_settings_tests {
+    #[test]
+    fn default_settings_json_carries_the_default_hotkeys() {
+        let value: serde_json::Value =
+            serde_json::from_str(&super::default_settings_json()).unwrap();
+        assert_eq!(value["selectionHotkey"], "Ctrl Ctrl");
+        assert_eq!(value["silentReplaceHotkey"], "Alt Alt");
+    }
+}
