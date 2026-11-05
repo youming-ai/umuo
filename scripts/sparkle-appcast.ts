@@ -1,6 +1,7 @@
 import { createPublicKey, verify } from 'node:crypto'
 import { existsSync } from 'node:fs'
 import { join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 
 /**
  * Sparkle 的 `sign_update` 随 SwiftPM 二进制依赖解出，位置取决于构建用的 scratch 目录：
@@ -9,7 +10,8 @@ import { join } from 'node:path'
 export function signToolCandidates(
   buildDir: URL = new URL('../apps/macos/.build/', import.meta.url),
 ): string[] {
-  const build = buildDir.pathname
+  // URL.pathname 保留百分号编码（空格、中文），existsSync 会找不到；要转成文件系统路径。
+  const build = fileURLToPath(buildDir)
   const tail = 'artifacts/sparkle/Sparkle/bin/sign_update'
   return [join(build, tail), join(build, 'bundle-arm64', tail), join(build, 'bundle-x86_64', tail)]
 }
