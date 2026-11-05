@@ -226,11 +226,44 @@ impl Default for Settings {
 }
 
 impl Settings {
-    /// 读设置。文件不存在回落到默认值；读不动、解析不了，先备份成
+    /// 读设置。文件不存在回落到默认值；读不动、不是合法 JSON 或顶层不是对象，先备份成
     /// `settings.json.corrupt-<时间戳>` 再回落——一个坏掉的配置文件不该让客户端起不来，
     /// 也不该在下一次保存时被悄悄覆盖掉（见 [`crate::persist`]）。
+    ///
+    /// JSON 本身没坏、只是个别已知字段类型不对（手改成 `"90"`、新旧版本交替使用）时，
+    /// 只有那几个字段回落默认值，其余照旧（见 [`Self::from_fields_lenient`]）。
+    /// 这时先把原文**复制**一份 `.corrupt-<时间戳>`，再把修好的设置写回：
+    /// 用户手改的值找得回来，下次启动也不会每次再多一份备份。复制失败就不写回，原文件留着。
     pub fn load(dir: &Path) -> Self {
-        crate::persist::load_or_backup(dir, SETTINGS_FILE)
+        let Some(fields) = crate::persist::load_object_or_backup(dir, SETTINGS_FILE) else {
+            return Self::default();
+        };
+        let (settings, dropped) = Self::from_fields_lenient(fields);
+        if dropped && crate::persist::copy_aside(&Self::path_in(dir)).is_ok() {
+            let _ = settings.save(dir);
+        }
+        settings
+    }
+
+    /// 从 JSON 对象做字段级容错的反序列化，返回设置与「是否丢弃了字段」。
+    ///
+    /// 与保存路径（`apply_settings_patch`）同一个思路：设置按顶层键整体覆盖，
+    /// 结构体是 `#[serde(default)]`，缺的键取默认值。所以逐个顶层键单独试一次，
+    /// 试不过的（类型不对）丢掉，剩下的键再组成一份。未知键总能落进 `extra`，不会被丢。
+    /// 嵌套对象（如 `appTargetLangs`）里任何一处不对，整个顶层键回落默认值。
+    fn from_fields_lenient(fields: serde_json::Map<String, serde_json::Value>) -> (Self, bool) {
+        if let Ok(settings) = Self::deserialize(&fields) {
+            return (settings, false);
+        }
+        let kept: serde_json::Map<_, _> = fields
+            .into_iter()
+            .filter(|(key, value)| {
+                let single = serde_json::json!({ key.as_str(): value });
+                serde_json::from_value::<Self>(single).is_ok()
+            })
+            .collect();
+        let settings = serde_json::from_value(serde_json::Value::Object(kept)).unwrap_or_default();
+        (settings, true)
     }
 
     /// 原子写（临时文件 + rename）：断电时不会只剩半截文件。
@@ -788,6 +821,52 @@ mod tests {
             1,
             "坏文件应被备份，而不是被覆盖丢掉"
         );
+    }
+
+    #[test]
+    fn a_field_of_the_wrong_type_falls_back_alone_and_keeps_the_rest() {
+        // 手改成字符串、或新旧版本交替使用时字段类型变了：只有那一项回落默认值，
+        // 供应商、引导状态、快捷键等其余设置不能跟着整份丢掉。
+        let dir = temp_dir("wrong-type-field");
+        let raw = r#"{"providerId":"deepseek","onboardingDone":true,"composeHotkey":"Alt+Shift+A",
+            "historyRetentionDays":"30","historyEnabled":"no","appTargetLangs":{"Mail":"ja"},
+            "futureField":{"x":1}}"#;
+        fs::write(Settings::path_in(&dir), raw).unwrap();
+
+        let loaded = Settings::load(&dir);
+        assert_eq!(loaded.provider_id, "deepseek");
+        assert!(loaded.onboarding_done, "引导不该重新弹出");
+        assert_eq!(loaded.compose_hotkey, "Alt+Shift+A");
+        assert_eq!(loaded.app_target_langs.get("Mail").unwrap(), "ja");
+        assert_eq!(loaded.extra["futureField"], serde_json::json!({"x":1}));
+        assert_eq!(
+            loaded.history_retention_days, 90,
+            "类型不对的字段回落默认值"
+        );
+        assert!(loaded.history_enabled, "类型不对的字段回落默认值");
+        let backups = crate::persist::corrupt_backups(&dir, SETTINGS_FILE);
+        assert_eq!(backups.len(), 1, "用户手改的原文要留一份");
+        assert_eq!(fs::read_to_string(&backups[0]).unwrap(), raw);
+        assert!(Settings::path_in(&dir).exists(), "设置文件本身不能被挪走");
+
+        // 修复只发生一次：再启动不会每次多一份备份，读到的仍是同一份设置。
+        assert_eq!(Settings::load(&dir), loaded);
+        assert_eq!(
+            crate::persist::corrupt_backups(&dir, SETTINGS_FILE).len(),
+            1
+        );
+    }
+
+    #[test]
+    fn a_valid_json_that_is_not_an_object_is_backed_up_whole() {
+        let dir = temp_dir("not-object");
+        fs::write(Settings::path_in(&dir), "[1,2]").unwrap();
+        assert_eq!(Settings::load(&dir), Settings::default());
+        assert_eq!(
+            crate::persist::corrupt_backups(&dir, SETTINGS_FILE).len(),
+            1
+        );
+        assert!(!Settings::path_in(&dir).exists());
     }
 
     #[test]

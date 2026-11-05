@@ -14,7 +14,7 @@ use crate::config_io::ImportSummary;
 use crate::legacy_glossaries::Glossaries;
 use crate::settings::Settings;
 use crate::settings_patch::SettingsEffects;
-use crate::{config_io, history, AppCore};
+use crate::{config_io, history, persist, AppCore};
 
 // ---------------------------------------------------------------- 供应商
 
@@ -277,7 +277,7 @@ pub fn export_config(core: &AppCore, home: &Path) -> Result<String, String> {
     }
 
     let json = config_io::export_json(&settings, &glossaries);
-    std::fs::write(&path, json).map_err(|e| format!("写入失败：{e}"))?;
+    persist::write_atomic(&path, json.as_bytes()).map_err(|e| format!("写入失败：{e}"))?;
     Ok(path.to_string_lossy().to_string())
 }
 
@@ -300,13 +300,25 @@ pub fn import_config(core: &AppCore, path: &Path) -> Result<Imported, String> {
     let glossaries = Glossaries::load(&core.config_dir);
     let prepared = config_io::prepare_import(&raw, &current, &glossaries)?;
     // 术语表在设置**校验通过之后、落盘之前**写：保存时对着最新文件再校验一次，
-    // 那次不通过也不能让术语表已经被覆盖。
+    // 那次不通过也不能让术语表已经被覆盖。设置写盘失败时把术语表恢复成导入前的字节
+    // （原本没有就删掉），不会只导进来一半。
     let patch = serde_json::to_value(&prepared.settings).expect("设置结构体一定可序列化");
+    let glossaries_path = core
+        .config_dir
+        .join(crate::legacy_glossaries::GLOSSARIES_FILE);
     let (settings, effects) = core.apply_settings_patch_with(patch, || {
+        let previous = std::fs::read(&glossaries_path).ok();
         prepared
             .glossaries
             .save(&core.config_dir)
-            .map_err(|e| e.to_string())
+            .map_err(|e| e.to_string())?;
+        Ok(move || {
+            // 尽力而为：回滚本身也写不动时，返回的仍是设置写盘失败的错误。
+            let _ = match previous {
+                Some(bytes) => persist::write_atomic(&glossaries_path, &bytes),
+                None => std::fs::remove_file(&glossaries_path),
+            };
+        })
     })?;
     Ok(Imported {
         summary: prepared.summary,
@@ -471,6 +483,47 @@ mod tests {
             settings_bytes,
             "设置文件不变"
         );
+    }
+
+    #[test]
+    fn an_import_whose_settings_fail_to_write_rolls_the_glossaries_back() {
+        // 磁盘满、权限之类让设置写不进去时，术语表不能已经被换掉（「不会只导进来一半」）。
+        // 在设置的临时文件路径上占一个目录，`write_atomic` 建临时文件就会失败，
+        // 而术语表的临时文件不受影响。
+        let glossary_bundle = |id: &str, core: &AppCore| {
+            config_io::export_json(
+                &core.settings.lock().unwrap(),
+                &Glossaries {
+                    lists: vec![serde_json::json!({ "id": id })],
+                    ..Glossaries::default()
+                },
+            )
+        };
+        for had_glossaries in [true, false] {
+            let core = open_in(&format!("import-save-fails-{had_glossaries}"));
+            let glossaries = core
+                .config_dir
+                .join(crate::legacy_glossaries::GLOSSARIES_FILE);
+            if had_glossaries {
+                std::fs::write(&glossaries, r#"{"lists":[{"id":"local"}]}"#).unwrap();
+            }
+            let before = std::fs::read(&glossaries).ok();
+            let path = core.config_dir.join("bundle.json");
+            std::fs::write(&path, glossary_bundle("imported", &core)).unwrap();
+            let settings_path = Settings::path_in(&core.config_dir);
+            let mut tmp = settings_path.clone().into_os_string();
+            tmp.push(".tmp");
+            std::fs::create_dir_all(&tmp).unwrap();
+            let memory = core.settings.lock().unwrap().clone();
+
+            assert!(import_config(&core, &path).is_err());
+            assert_eq!(
+                std::fs::read(&glossaries).ok(),
+                before,
+                "术语表回到导入前（原本没有就仍然没有）"
+            );
+            assert_eq!(*core.settings.lock().unwrap(), memory, "内存不变");
+        }
     }
 
     #[test]
