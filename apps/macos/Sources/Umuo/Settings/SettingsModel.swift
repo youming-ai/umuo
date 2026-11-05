@@ -130,12 +130,13 @@ final class SettingsModel {
     }
 
     /// 窗口重新成为 key 时：用户多半是去系统设置授完权、或在浮窗里改了点什么再切回来——权限与设置都再读一次。
+    /// Key 状态无条件重查：首次引导可能刚给同一个供应商存了 Key，供应商没变也得跟上。
     func windowFocused() async {
         guard queue != nil else { return }
         await recheckPermissions()
         if let latest = try? await backend.loadSettings() {
             queue?.refresh(latest)
-            await providerMaybeChanged()
+            await refreshKeyStatus()
         }
     }
 
