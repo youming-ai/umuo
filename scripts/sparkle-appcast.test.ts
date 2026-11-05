@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 import { generateKeyPairSync, sign } from 'node:crypto'
-import { createAppcast } from './sparkle-appcast'
+import { createAppcast, signToolCandidates } from './sparkle-appcast'
 
 function fixture() {
   const { privateKey, publicKey } = generateKeyPairSync('ed25519')
@@ -37,5 +37,16 @@ describe('Sparkle 更新清单', () => {
 
   test('拒绝把非版本字符串插入 XML', () => {
     expect(() => createAppcast({ ...fixture(), version: '0.2.0</title>' })).toThrow('版本号')
+  })
+})
+
+describe('sign_update 查找路径', () => {
+  test('仓库路径含空格与中文时给出文件系统路径而不是百分号编码', () => {
+    const [first] = signToolCandidates(
+      new URL('file:///Users/me/我的 代码/umuo/apps/macos/.build/'),
+    )
+    expect(first).toBe(
+      '/Users/me/我的 代码/umuo/apps/macos/.build/artifacts/sparkle/Sparkle/bin/sign_update',
+    )
   })
 })

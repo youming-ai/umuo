@@ -6,14 +6,16 @@ import { join } from 'node:path'
  * Sparkle 的 `sign_update` 随 SwiftPM 二进制依赖解出，位置取决于构建用的 scratch 目录：
  * 冒烟 / 本机开发是 `.build`，正式组装（bundle.sh）是每个架构各自的 `.build/bundle-<arch>`。依次找，先找到先用。
  */
-function findSignTool(): string {
-  const build = new URL('../apps/macos/.build/', import.meta.url).pathname
+export function signToolCandidates(
+  buildDir: URL = new URL('../apps/macos/.build/', import.meta.url),
+): string[] {
+  const build = buildDir.pathname
   const tail = 'artifacts/sparkle/Sparkle/bin/sign_update'
-  const candidates = [
-    join(build, tail),
-    join(build, 'bundle-arm64', tail),
-    join(build, 'bundle-x86_64', tail),
-  ]
+  return [join(build, tail), join(build, 'bundle-arm64', tail), join(build, 'bundle-x86_64', tail)]
+}
+
+function findSignTool(): string {
+  const candidates = signToolCandidates()
   const found = candidates.find((path) => existsSync(path))
   if (!found)
     throw new Error(`找不到 Sparkle 的 sign_update（先构建一次）：\n${candidates.join('\n')}`)
