@@ -243,28 +243,46 @@ pub fn classify_http_error(status: u16, body: &str, retry_after: Option<Duration
 /// 两条路径都试：结构化字段（`error.model`）优先，其次从 message 里挖引号包裹的词
 /// （OpenAI 的 `model_not_found` 就只把模型名写在 message 里，形如
 /// ``The model `gpt-9` does not exist``）。
+///
+/// 取出来的片段要过 [`redact_secrets`]：有的端点把**请求里的 Key** 引在同一句话里
+/// （`The key 'sk-…' does not exist`）。被遮了说明它其实是 Key 而不是模型名，直接放弃。
 fn extract_model_name(body: &str) -> Option<String> {
     let value: serde_json::Value = serde_json::from_str(body).ok()?;
-    if let Some(model) = value.pointer("/error/model").and_then(|v| v.as_str()) {
-        if !model.trim().is_empty() {
-            return Some(model.to_string());
-        }
-    }
-    let message = value.pointer("/error/message").and_then(|v| v.as_str())?;
-    extract_quoted(message)
+    let structured = value
+        .pointer("/error/model")
+        .and_then(|v| v.as_str())
+        .map(str::trim)
+        .filter(|model| !model.is_empty())
+        .map(str::to_string);
+    let name = match structured {
+        Some(model) => model,
+        None => extract_quoted(value.pointer("/error/message").and_then(|v| v.as_str())?)?,
+    };
+    (redact_secrets(&name) == name).then_some(name)
 }
 
 /// 取出第一个被反引号/单引号/双引号包裹的片段。
+///
+/// 单引号还兼作英文撇号（`doesn't`、`isn't`）：开引号前面、闭引号后面都不能紧挨字母数字，
+/// 否则「doesn't exist, isn't」会被切出 `t exist, isn` 这样的假片段。
 fn extract_quoted(message: &str) -> Option<String> {
+    let is_word = |c: Option<char>| c.is_some_and(|c| c.is_alphanumeric());
     for quote in ['`', '\'', '"'] {
-        if let Some(start) = message.find(quote) {
-            let rest = &message[start + quote.len_utf8()..];
-            if let Some(end) = rest.find(quote) {
-                let candidate = rest[..end].trim();
-                if !candidate.is_empty() {
-                    return Some(candidate.to_string());
-                }
-            }
+        let positions: Vec<usize> = message.match_indices(quote).map(|(i, _)| i).collect();
+        let before = |i: usize| message[..i].chars().next_back();
+        let after = |i: usize| message[i + quote.len_utf8()..].chars().next();
+        let opens = |i: usize| quote != '\'' || !is_word(before(i));
+        let closes = |i: usize| quote != '\'' || !is_word(after(i));
+        let Some(open) = positions.iter().position(|&i| opens(i)) else {
+            continue;
+        };
+        let Some(&close) = positions[open + 1..].iter().find(|&&i| closes(i)) else {
+            continue;
+        };
+        let start = positions[open] + quote.len_utf8();
+        let candidate = message[start..close].trim();
+        if !candidate.is_empty() {
+            return Some(candidate.to_string());
         }
     }
     None
