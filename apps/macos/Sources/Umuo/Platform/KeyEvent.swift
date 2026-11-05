@@ -12,6 +12,13 @@ enum KeyEvent {
     /// `kVK_ANSI_V`
     static let keyV: CGKeyCode = 9
 
+    /// 在布局里找按住 ⌘ 时打出 `character` 的键码；找不到就用 `fallback`（ANSI 位置）。
+    /// `translate` 给出某个键码按住 ⌘ 时打出的字符。
+    static func commandKeyCode(for character: String, fallback: CGKeyCode,
+                               translate: (CGKeyCode) -> String?) -> CGKeyCode {
+        fallback
+    }
+
     static func copy() throws(SelectionError) { try sendCommandKey(keyC) }
     static func paste() throws(SelectionError) { try sendCommandKey(keyV) }
 
