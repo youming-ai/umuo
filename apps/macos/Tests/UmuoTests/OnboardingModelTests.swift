@@ -234,6 +234,19 @@ struct OnboardingModelTests {
         #expect(backend.stored["providerId"] == .string("openai"))
     }
 
+    @Test func 关掉引导窗后才回来的探测结果也不改首选() async {
+        let backend = FakeOnboarding(defaults)
+        backend.local = ["ollama": ["qwen2.5:7b"]]
+        backend.listDelay = .milliseconds(50)
+        let model = await loaded(backend)
+        let detecting = Task { await model.detectLocal() }
+        await Task.yield()
+        model.windowClosed()
+        await detecting.value
+        await settle()
+        #expect(backend.patches.isEmpty)
+    }
+
     @Test func Ollama没有就试LMStudio并标出是哪家() async {
         let backend = FakeOnboarding(defaults)
         backend.local = ["ollama": [], "lmstudio": ["qwen3-8b"]]
