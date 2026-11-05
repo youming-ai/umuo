@@ -277,7 +277,7 @@ pub fn export_config(core: &AppCore, home: &Path) -> Result<String, String> {
     }
 
     let json = config_io::export_json(&settings, &glossaries);
-    std::fs::write(&path, json).map_err(|e| format!("写入失败：{e}"))?;
+    persist::write_atomic(&path, json.as_bytes()).map_err(|e| format!("写入失败：{e}"))?;
     Ok(path.to_string_lossy().to_string())
 }
 
