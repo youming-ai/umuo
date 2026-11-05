@@ -53,7 +53,8 @@ private class FakeOnboarding: OnboardingBackend {
                            requiresKey: false, requiresBaseUrl: false, local: true),
             ProviderDetail(id: "lmstudio", label: "LM Studio", defaultModel: "", suggestedModels: [], keysUrl: "",
                            requiresKey: false, requiresBaseUrl: false, local: true),
-            ProviderDetail(id: "azure", label: "Azure OpenAI", defaultModel: "gpt-4o-mini", suggestedModels: [],
+            // 与内核一致：Azure 的「模型」是用户自己起的部署名，没有默认模型
+            ProviderDetail(id: "azure", label: "Azure OpenAI", defaultModel: "", suggestedModels: [],
                            keysUrl: "", requiresKey: true, requiresBaseUrl: true, local: false),
             ProviderDetail(id: "custom", label: "自定义端点", defaultModel: "", suggestedModels: [], keysUrl: "",
                            requiresKey: true, requiresBaseUrl: true, local: false),
@@ -186,14 +187,35 @@ struct OnboardingModelTests {
         #expect(model.draftEndpoint == "https://res.openai.azure.com")
     }
 
-    @Test func 需要端点的供应商没填模型时用它的默认模型() async {
-        let backend = FakeOnboarding(defaults)
-        let model = await loaded(backend)
-        model.draftProvider = "azure"
-        model.draftKey = "k"
-        await model.saveKey()
-        await settle()
-        #expect(backend.patches.last == ["providerId": .string("azure"), "model": .string("gpt-4o-mini")])
+    @Test func 需要端点的供应商没填模型时不写空模型() async {
+        // Azure 与自定义端点都没有默认模型：写进 "" 会让第一次翻译直接报缺模型
+        for providerId in ["azure", "custom"] {
+            let backend = FakeOnboarding(defaults)
+            let model = await loaded(backend)
+            model.draftProvider = providerId
+            model.draftKey = "k"
+            await model.saveKey()
+            await settle()
+            #expect(backend.keys[providerId] == "k")
+            #expect(backend.patches.last == ["providerId": .string(providerId)], "\(providerId)")
+        }
+    }
+
+    @Test func 重新运行引导换Key不把改过的模型或Azure部署名改回默认() async {
+        for (providerId, custom) in [("azure", "my-deploy"), ("openai", "gpt-4o")] {
+            var values = defaults
+            values["providerId"] = .string(providerId)
+            values["model"] = .string(custom)
+            let backend = FakeOnboarding(values)
+            let model = await loaded(backend)
+            #expect(model.draftProvider == providerId)
+            model.draftKey = "sk-new"
+            await model.saveKey()
+            await settle()
+            #expect(backend.keys[providerId] == "sk-new")
+            #expect(backend.patches.last?["model"] == nil, "\(providerId)")
+            #expect(backend.stored.string("model") == custom, "\(providerId)")
+        }
     }
 
     @Test func 换了下拉里的供应商就清掉没保存的Key草稿() async {
