@@ -530,6 +530,32 @@ mod tests {
     }
 
     #[test]
+    fn a_bare_404_without_a_model_name_points_at_the_endpoint_address() {
+        // 自定义端点的 Base URL 少了 /v1：网关回 404，跟模型无关。
+        for body in [
+            r#"{"error":{"message":"Invalid URL (POST /chat/completions)","type":"invalid_request_error"}}"#,
+            "404 page not found",
+            "",
+        ] {
+            let err = classify_http_error(404, body, None);
+            assert!(
+                !matches!(err, CoreError::ModelUnavailable { .. }),
+                "{body}: {err:?}"
+            );
+            assert!(err.to_string().contains("地址"), "{err}");
+            assert_eq!(err.actions(), vec![SuggestedAction::OpenModelSettings]);
+        }
+        // 明确说了模型不存在的照旧。
+        let body = r#"{"error":{"message":"The model `gpt-9` does not exist"}}"#;
+        assert_eq!(
+            classify_http_error(404, body, None),
+            CoreError::ModelUnavailable {
+                model: "gpt-9".to_string()
+            }
+        );
+    }
+
+    #[test]
     fn bare_500_is_retryable_but_summarised() {
         let err = classify_http_error(503, "", None);
         assert_eq!(
