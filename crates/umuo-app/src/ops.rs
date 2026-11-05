@@ -474,6 +474,47 @@ mod tests {
     }
 
     #[test]
+    fn an_import_whose_settings_fail_to_write_rolls_the_glossaries_back() {
+        // 磁盘满、权限之类让设置写不进去时，术语表不能已经被换掉（「不会只导进来一半」）。
+        // 在设置的临时文件路径上占一个目录，`write_atomic` 建临时文件就会失败，
+        // 而术语表的临时文件不受影响。
+        let glossary_bundle = |id: &str, core: &AppCore| {
+            config_io::export_json(
+                &core.settings.lock().unwrap(),
+                &Glossaries {
+                    lists: vec![serde_json::json!({ "id": id })],
+                    ..Glossaries::default()
+                },
+            )
+        };
+        for had_glossaries in [true, false] {
+            let core = open_in(&format!("import-save-fails-{had_glossaries}"));
+            let glossaries = core
+                .config_dir
+                .join(crate::legacy_glossaries::GLOSSARIES_FILE);
+            if had_glossaries {
+                std::fs::write(&glossaries, r#"{"lists":[{"id":"local"}]}"#).unwrap();
+            }
+            let before = std::fs::read(&glossaries).ok();
+            let path = core.config_dir.join("bundle.json");
+            std::fs::write(&path, glossary_bundle("imported", &core)).unwrap();
+            let settings_path = Settings::path_in(&core.config_dir);
+            let mut tmp = settings_path.clone().into_os_string();
+            tmp.push(".tmp");
+            std::fs::create_dir_all(&tmp).unwrap();
+            let memory = core.settings.lock().unwrap().clone();
+
+            assert!(import_config(&core, &path).is_err());
+            assert_eq!(
+                std::fs::read(&glossaries).ok(),
+                before,
+                "术语表回到导入前（原本没有就仍然没有）"
+            );
+            assert_eq!(*core.settings.lock().unwrap(), memory, "内存不变");
+        }
+    }
+
+    #[test]
     fn short_text_is_returned_as_is() {
         assert_eq!(trim_display("  hello  ", 60), "hello");
         assert_eq!(trim_display("你好", 60), "你好");
