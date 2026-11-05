@@ -318,7 +318,8 @@ fn summarize(body: &str) -> String {
 /// 把文本里像凭据的片段换成 `[REDACTED]`：供应商错误体、流内错误、代理与网络错误都要过它再进界面或日志。
 ///
 /// 认的格式：`Bearer <token>`、`sk-…`（OpenAI 系与多数中转）、`AIza…`（Gemini）、
-/// 恰好 32 位的独立十六进制串（Azure OpenAI 的 Key），以及 URL 里的 `user:pass@`（只去凭据、留主机，方便排查）。
+/// 恰好 32 位的独立十六进制串（Azure OpenAI 的 Key；后接 `.secret` 时连同智谱 Key 的后半段一起遮）、
+/// [`is_prefixed_key`] 列出的网关前缀 Key，以及 URL 里的 `user:pass@`（只去凭据、留主机，方便排查）。
 /// 宁可多遮一个长得像的请求 id，也不能让 Key 原样出现在浮窗或日志里。
 pub fn redact_secrets(input: &str) -> String {
     let mut out = String::with_capacity(input.len());
@@ -356,12 +357,27 @@ pub fn redact_secrets(input: &str) -> String {
             .find(|c: char| !(c.is_ascii_alphanumeric() || c == '-' || c == '_'))
             .unwrap_or(rest.len());
         let token = &rest[..token_len];
+        let azure_like =
+            !prev_word && token_len == 32 && token.bytes().all(|b| b.is_ascii_hexdigit());
         let is_secret = (token.starts_with("sk-") && token_len >= 8)
             || (token.starts_with("AIza") && token_len >= 30)
-            || (!prev_word && token_len == 32 && token.bytes().all(|b| b.is_ascii_hexdigit()));
+            || azure_like
+            || (!prev_word && is_prefixed_key(token));
         if is_secret {
             out.push_str("[REDACTED]");
-            rest = &rest[token_len..];
+            let mut secret_len = token_len;
+            // 智谱 Key 是 `{32 位十六进制}.{secret}`：点号后面的才是真正的密钥，一起遮掉。
+            if azure_like {
+                if let Some(after_dot) = rest[token_len..].strip_prefix('.') {
+                    let tail = after_dot
+                        .find(|c: char| !c.is_ascii_alphanumeric())
+                        .unwrap_or(after_dot.len());
+                    if tail >= 16 {
+                        secret_len += 1 + tail;
+                    }
+                }
+            }
+            rest = &rest[secret_len..];
             prev_word = false;
             continue;
         }
@@ -371,6 +387,20 @@ pub fn redact_secrets(input: &str) -> String {
         prev_word = ch.is_alphanumeric() || ch == '-' || ch == '_';
     }
     out
+}
+
+/// 其他网关与供应商的带前缀 Key：Groq `gsk_`、Hugging Face `hf_`、xAI `xai-`、
+/// `sk_`（ElevenLabs 等）、Perplexity `pplx-`。
+///
+/// 前缀之后必须是至少 20 位**纯字母数字**：真 Key 是一长串随机字符，而模型名
+/// （`xai-grok-2`、`pplx-70b-online`）与 snake_case 标识符（`hf_model_name`）都带分隔符，不会被误遮。
+fn is_prefixed_key(token: &str) -> bool {
+    const PREFIXES: &[&str] = &["gsk_", "hf_", "xai-", "sk_", "pplx-"];
+    PREFIXES.iter().any(|prefix| {
+        token
+            .strip_prefix(prefix)
+            .is_some_and(|body| body.len() >= 20 && body.bytes().all(|b| b.is_ascii_alphanumeric()))
+    })
 }
 
 #[cfg(test)]
