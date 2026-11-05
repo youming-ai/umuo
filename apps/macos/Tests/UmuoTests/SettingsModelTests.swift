@@ -56,7 +56,13 @@ private final class FakeBackend: SettingsBackend {
 
     func saveApiKey(_ providerId: String, _ key: String) async throws { keys[providerId] = key }
     func deleteApiKey(_ providerId: String) async throws { keys[providerId] = nil }
-    func listModels(_ providerId: String) async throws -> [String] { ["\(providerId)-a", "\(providerId)-b"] }
+    /// 每次拉模型时后端存着的设置：看拉的是不是刚提交的端点。
+    var listedWith: [SettingsValues] = []
+
+    func listModels(_ providerId: String) async throws -> [String] {
+        listedWith.append(stored)
+        return ["\(providerId)-a", "\(providerId)-b"]
+    }
     func permissions() async -> PermissionStatus { perms }
     func requestScreenRecording() async { calls.append("requestScreen") }
     func openSystemSettings(_ permission: PermissionKind) { calls.append("open:\(permission.rawValue)") }
@@ -222,6 +228,15 @@ struct SettingsModelTests {
         await model.engine.fetchModels()
         #expect(model.engine.models == ["openai-a", "openai-b"])
         #expect(model.engine.modelNotice == model.t("prefs.engine.gotModels", ["count": "2"]))
+    }
+
+    @Test func 拉模型等刚提交的端点存好再拉() async {
+        // 端点框失焦即提交，与点「拉取模型」是同一下点击；内核按存好的地址拉，不等的话拉的是旧地址
+        let backend = FakeBackend(base)
+        let model = await loaded(backend)
+        model.commitRow("endpoint", ["customBaseUrl": .string("https://new.example/v1")])
+        await model.engine.fetchModels()
+        #expect(backend.listedWith.last?.string("customBaseUrl") == "https://new.example/v1")
     }
 
     @Test func 开机启动以实现返回的状态为准被拒时说出原因且不存设置() async {
