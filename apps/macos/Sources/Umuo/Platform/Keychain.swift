@@ -72,20 +72,24 @@ struct Keychain {
     }
 
     /// 写一条：没有就新建，有就覆盖（`keyring` 的 `set_password` 也是这个语义）。
+    ///
+    /// 与 `read` 取同一把锁（只互斥，不关交互）：否则正好碰上读的那一刻，进程级的交互开关是关着的，
+    /// 本该弹授权框的写入直接拿到 `errSecInteractionNotAllowed`。可能等锁、可能弹框，**不要在主线程上调**。
     func write(account: String, secret: String) throws(Failure) {
         let data = Data(secret.utf8)
         var add = query(account)
         add[kSecValueData] = data
-        let status = calls.add(add as CFDictionary)
+        let status = Self.exclusive { calls.add(add as CFDictionary) }
         if status == errSecSuccess { return }
         guard status == errSecDuplicateItem else { throw .status(status, .write) }
-        let updated = calls.update(query(account) as CFDictionary, [kSecValueData: data] as CFDictionary)
+        let updated = Self.exclusive { calls.update(query(account) as CFDictionary, [kSecValueData: data] as CFDictionary) }
         guard updated == errSecSuccess else { throw .status(updated, .write) }
     }
 
     /// 删一条。删一个本来就不存在的条目算成功，否则「清空全部 Key」会中途报错（与 Rust 一致）。
+    /// 锁与线程的要求同 `write`。
     func delete(account: String) throws(Failure) {
-        let status = calls.delete(query(account) as CFDictionary)
+        let status = Self.exclusive { calls.delete(query(account) as CFDictionary) }
         guard status == errSecSuccess || status == errSecItemNotFound else { throw .status(status, .delete) }
     }
 
@@ -95,7 +99,16 @@ struct Keychain {
     /// `SecKeychainSetUserInteractionAllowed` 自 macOS 10.10 起标为弃用（编译有警告），目前仍是关掉旧文件 Keychain
     /// 授权框的唯一办法。**待真机实测**：macOS 14 与 26 上读 ad-hoc 签名构建写不进 ACL 的条目时，
     /// 确实返回 `errSecInteractionNotAllowed` / `errSecAuthFailed` 而不弹框、不卡住工作线程。
+    ///
+    /// 写 / 删也取这把锁（`exclusive`，不碰交互开关）。持锁期间都不等主线程，读在 tokio 工作线程、写删在
+    /// `Task.detached`，不会互相卡死；代价是写入弹授权框期间，同时到来的读会等到用户点完。
     static let interactionLock = NSLock()
+
+    private static func exclusive(_ body: () -> OSStatus) -> OSStatus {
+        interactionLock.lock()
+        defer { interactionLock.unlock() }
+        return body()
+    }
 
     private static func withoutUserInteraction(_ body: () -> OSStatus) -> OSStatus {
         interactionLock.lock()
