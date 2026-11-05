@@ -242,6 +242,18 @@ struct OnboardingModelTests {
         #expect(model.keyConfigured == false)
     }
 
+    @Test func 首选是不需要Key的本机引擎时重新运行引导也算有引擎() async {
+        // 与设置窗同一条规则：本机模型不需要 Key，算已配
+        for providerId in ["ollama", "lmstudio"] {
+            var values = defaults
+            values["providerId"] = .string(providerId)
+            values["model"] = .string("qwen3-8b")
+            let model = await loaded(FakeOnboarding(values))
+            #expect(model.state.hasUsableEngine == true, "\(providerId)")
+            #expect(OnboardingStep.model.isSatisfied(model.state) == true, "\(providerId)")
+        }
+    }
+
     @Test func 空白Key不保存() async {
         let backend = FakeOnboarding(defaults)
         let model = await loaded(backend)
