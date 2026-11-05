@@ -9,11 +9,11 @@ private let t = Translate(locale: .zhCN)
 @Suite("快捷键冲突")
 struct HotkeyConflictTests {
     @Test func 修饰键别名与顺序不影响判定() {
-        #expect(HotkeyConflict.normalize("Option+D") == "alt+d")
-        #expect(HotkeyConflict.normalize("alt+d") == "alt+d")
-        #expect(HotkeyConflict.normalize("Command+Shift+T") == "shift+cmd+t")
-        #expect(HotkeyConflict.normalize("Shift+Cmd+T") == "shift+cmd+t")
-        #expect(HotkeyConflict.normalize("  Option + D  ") == "alt+d")
+        #expect(HotkeyConflict.normalize("Option+D") == "alt+keyd")
+        #expect(HotkeyConflict.normalize("alt+d") == "alt+keyd")
+        #expect(HotkeyConflict.normalize("Command+Shift+T") == "shift+cmd+keyt")
+        #expect(HotkeyConflict.normalize("Shift+Cmd+T") == "shift+cmd+keyt")
+        #expect(HotkeyConflict.normalize("  Option + D  ") == "alt+keyd")
         #expect(HotkeyConflict.normalize("ALT+SHIFT+C") == HotkeyConflict.normalize("alt + shift + c"))
         #expect(HotkeyConflict.normalize("") == "")
         #expect(HotkeyConflict.normalize("   ") == "")
@@ -73,6 +73,18 @@ struct HotkeyConflictTests {
         #expect(HotkeyConflict.check("Ctrl+Up", others: [])?.subject == "prefs.hotkey.sys.missionControl")
         #expect(HotkeyConflict.check("Cmd+Alt+Escape", others: [])?.subject == "prefs.hotkey.sys.forceQuit")
         #expect(HotkeyConflict.check("Alt+Up", others: [(label: "划词翻译", value: "Alt+ArrowUp")])?.kind == .duplicate)
+    }
+
+    @Test func 系统表的每一条都是解析得了的键_且除强制退出外都录得出来() {
+        let recordable = Set(HotkeyFormat.recordableKeys.map { HotkeyConflict.normalize("Ctrl+\($0)") })
+            .map { $0.replacingOccurrences(of: "ctrl+", with: "") }
+        for combo in HotkeyConflict.rawSystem.keys {
+            #expect(HotkeyCombo.parse(combo) != nil, "\(combo) 解析不了")
+            let main = HotkeyConflict.normalize(combo).split(separator: "+").last.map(String.init) ?? ""
+            // 录键时 Esc 是结束录制，这一条只会来自手写的 settings.json
+            if main == "escape" { continue }
+            #expect(recordable.contains(main), "\(combo) 的主键录键器录不出来")
+        }
     }
 
     @Test func 客户端自带的默认快捷键全部通过检查() {

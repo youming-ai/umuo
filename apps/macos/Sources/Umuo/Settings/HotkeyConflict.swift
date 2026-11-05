@@ -16,7 +16,9 @@ enum HotkeyConflict {
     }
 
     /// 已知的系统 / 常用快捷键 → 系统功能名的文案键。抢走它们不会报错，只会让用户觉得「某个功能突然坏了」。
-    private static let rawSystem: [String: String] = [
+    /// 主键可以写别名（`up`、`esc`）：`normalize` 按注册时同一个解析器换成键位名，与录键器存的 `ArrowUp` 对得上。
+    /// `cmd+option+esc` 录键器录不出来（录键时 Esc 是结束录制），但 settings.json 手写的值同样会过这里，所以保留。
+    static let rawSystem: [String: String] = [
         "cmd+space": "prefs.hotkey.sys.spotlight",
         "cmd+tab": "prefs.hotkey.sys.switchApps",
         "cmd+shift+3": "prefs.hotkey.sys.screenshotScreen",
@@ -49,7 +51,9 @@ enum HotkeyConflict {
 
     private static let order = ["ctrl", "alt", "shift", "cmd"]
 
-    /// 归一化：修饰键统一别名并**按固定顺序**排列，主键小写。`Option+D`、`Alt+D`、`alt+d` 是同一个键。
+    /// 归一化：修饰键统一别名并**按固定顺序**排列；主键用注册快捷键的同一个解析器（`HotkeyCombo.parseKey`）
+    /// 换成键位名再小写，`D` / `KeyD`、`Up` / `ArrowUp`、`Esc` / `Escape` 才是同一个键。解析不了的原样小写。
+    /// `Option+D`、`Alt+D`、`alt+d` 都归一成 `alt+keyd`。
     static func normalize(_ input: String) -> String {
         let parts = input.split(separator: "+", omittingEmptySubsequences: false)
             .map { $0.trimmingCharacters(in: .whitespaces).lowercased() }
@@ -58,7 +62,11 @@ enum HotkeyConflict {
         var modifiers = Set<String>()
         var keys: [String] = []
         for part in parts {
-            if let alias = aliases[part] { modifiers.insert(alias) } else { keys.append(part) }
+            if let alias = aliases[part] {
+                modifiers.insert(alias)
+            } else {
+                keys.append(HotkeyCombo.parseKey(part)?.lowercased() ?? part)
+            }
         }
         return (order.filter(modifiers.contains) + keys).joined(separator: "+")
     }
