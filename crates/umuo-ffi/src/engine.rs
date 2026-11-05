@@ -138,7 +138,7 @@ pub struct Engine {
 
 /// 最后一个引用可能在任意线程上释放：Swift 主线程，或者运行时自己的工作线程（任务结束时丢掉的 sink 持有 Engine）。
 /// 普通的 `Runtime` drop 会等工作线程退出——在运行时工作线程上 drop 会导致 tokio 直接 panic，在主线程上也会阻塞界面。
-/// 所以只发关闭信号、不等：还在跑的任务在下一个 await 点被丢弃。
+/// 所以只发关闭信号、不等：还在跑的任务在下一个 await 点被丢弃，丢弃时经 [`Engine::spawn_guarded`] 补一次结束回调。
 impl Engine {
     pub(crate) fn rt(&self) -> &tokio::runtime::Runtime {
         self.rt.as_ref().expect("运行时只在 drop 时取走")
@@ -185,13 +185,30 @@ impl Engine {
     }
 
     /// 在运行时上跑 `work`；它没跑完（panic，或运行时关闭时被丢弃）就调一次 `lost`。
+    ///
+    /// Swift 那边等着一次结束回调；tokio 会吞掉任务里的 panic，任务外的 catch_unwind 看不见，
+    /// 所以守卫放在任务里面：`work` 跑完才解除，否则随任务一起被丢弃时补上那次回调。
     pub(crate) fn spawn_guarded(
         &self,
         work: impl Future<Output = ()> + Send + 'static,
         lost: impl FnOnce() + Send + 'static,
     ) {
-        let _lost = lost;
-        self.rt().spawn(work);
+        self.rt().spawn(async move {
+            let mut guard = Unfinished(Some(lost));
+            work.await;
+            guard.0 = None;
+        });
+    }
+}
+
+/// 任务没跑完就被丢弃时调用里面的回调；跑完后置空即解除。
+struct Unfinished<F: FnOnce()>(Option<F>);
+
+impl<F: FnOnce()> Drop for Unfinished<F> {
+    fn drop(&mut self) {
+        if let Some(lost) = self.0.take() {
+            lost();
+        }
     }
 }
 
