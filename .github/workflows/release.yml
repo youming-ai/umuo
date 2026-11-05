@@ -139,7 +139,8 @@ jobs:
         run: |
           # 更新说明从上一个 Release 起算；第一次发布没有上一个，就让 GitHub 从头生成。
           # 正式版并标 Latest：releases/latest/download/<文件名> 才会指向这一版（预发布不算 latest）
-          previous=$(gh release list --limit 1 --json tagName --jq '.[0].tagName // empty')
+          # 排除草稿与预发布：残留的草稿（tag 往往还不存在）会被排在最前，拿它当 --notes-start-tag 会让这一步失败
+          previous=$(gh release list --exclude-drafts --exclude-pre-releases --limit 1 --json tagName --jq '.[0].tagName // empty')
           notes=$(mktemp)
           # 不加引号的 EOF：$VERSION 要展开；反引号转义，免得被当成命令替换
           cat >"$notes" <<EOF
