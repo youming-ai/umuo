@@ -60,6 +60,14 @@ pub enum CoreError {
     #[error("模型不可用：{model}")]
     ModelUnavailable { model: String },
 
+    /// 404 且错误体没提到模型：多半是接口地址不对（自定义端点的 Base URL 少了 `/v1`，
+    /// 网关回 `Invalid URL (POST /chat/completions)`），也可能是模型名写错。
+    ///
+    /// 不并进 [`CoreError::ModelUnavailable`]：「模型不可用：未知」会让用户去换模型，
+    /// 而真正要改的是地址。
+    #[error("接口地址或模型名不对（HTTP 404）：请检查 Base URL 是否完整（例如少了 /v1）")]
+    EndpointNotFound,
+
     #[error("请求超出模型上下文长度")]
     ContextTooLong,
 
@@ -122,7 +130,9 @@ impl CoreError {
             CoreError::InvalidKey | CoreError::MissingKey | CoreError::InsufficientBalance => {
                 vec![SuggestedAction::OpenModelSettings]
             }
-            CoreError::ModelUnavailable { .. } => vec![SuggestedAction::OpenModelSettings],
+            CoreError::ModelUnavailable { .. } | CoreError::EndpointNotFound => {
+                vec![SuggestedAction::OpenModelSettings]
+            }
             CoreError::ContextTooLong => {
                 vec![SuggestedAction::OpenModelSettings, SuggestedAction::Retry]
             }
@@ -220,8 +230,10 @@ pub fn classify_http_error(status: u16, body: &str, retry_after: Option<Duration
     match status {
         401 | 403 => CoreError::InvalidKey,
         402 => CoreError::InsufficientBalance,
-        404 => CoreError::ModelUnavailable {
-            model: extract_model_name(body).unwrap_or_else(|| "未知".to_string()),
+        // 没有「模型不存在」之类的关键词：取得出模型名才算模型问题，否则指向地址。
+        404 => match extract_model_name(body) {
+            Some(model) => CoreError::ModelUnavailable { model },
+            None => CoreError::EndpointNotFound,
         },
         // 408 与 5xx 是「再试一次可能就好」，属于供应商侧的临时问题。
         408 => CoreError::Timeout {
