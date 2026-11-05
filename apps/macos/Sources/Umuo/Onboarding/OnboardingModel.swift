@@ -48,7 +48,10 @@ final class OnboardingModel {
     var notice: String?
 
     /// 模型这一步的草稿：选中的供应商与还没保存的 Key。
-    var draftProvider = ""
+    /// 换供应商就清掉 Key 草稿：它属于上一个供应商，留着的话按「保存」会把它存到新供应商名下。
+    var draftProvider = "" {
+        didSet { if draftProvider != oldValue { draftKey = "" } }
+    }
     var draftKey = ""
     /// 需要端点的供应商（Azure、自定义端点）要自己填的模型名：自定义端点没有默认模型，Azure 是部署名。
     var draftModel = ""
