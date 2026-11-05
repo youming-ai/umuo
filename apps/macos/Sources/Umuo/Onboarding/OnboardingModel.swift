@@ -131,8 +131,7 @@ final class OnboardingModel {
         engineCheck += 1
         let mine = engineCheck
         let requested = currentEngine
-        guard !requested.model.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
-              let detail = providers.first(where: { $0.id == requested.providerId }) else {
+        guard let detail = providers.first(where: { $0.id == requested.providerId }) else {
             configuredEngine = nil
             return
         }
