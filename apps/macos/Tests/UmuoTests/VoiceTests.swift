@@ -895,7 +895,7 @@ struct VoiceRulesTests {
         await #expect(throws: VoiceFault.self) { _ = try await run.value }
     }
 
-    @Test(arguments: [true, false]) @MainActor
+    @Test(.serialized, arguments: [true, false]) @MainActor
     func 新会话开始前后取消旧会话_迟到的旧句柄仍被取消(cancelBeforeNext: Bool) async throws {
         let engine = DelayedHandleEngine()
         let processor = EngineVoicePostProcessor(engine: { engine }, unavailable: { "" })
@@ -977,7 +977,8 @@ private final class DelayedHandleEngine: Engine, @unchecked Sendable {
         }
         let handle = CancellingHandle(session: session, transcript: request.transcript, sink: sink)
         pending.withLock { $0 = handle }
-        release.wait()
+        // 参数用例串行运行，只占一个后台线程；异常时也不无限占用 CI 的线程池。
+        #expect(release.wait(timeout: .now() + 10) == .success)
         return handle
     }
 }
