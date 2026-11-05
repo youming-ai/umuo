@@ -287,6 +287,18 @@ struct OnboardingModelTests {
         #expect(backend.patches == [["providerId": .string("lmstudio"), "model": .string("qwen3-8b")]])
     }
 
+    @Test func 下拉选了本机供应商再探测_仍按首选有没有Key决定换不换() async {
+        // Key 状态跟着下拉走、本机供应商算已配；但「首选此刻能不能用」看的是存着的首选，不是下拉
+        let backend = FakeOnboarding(defaults)
+        backend.local = ["ollama": ["qwen2.5:7b"]]
+        let model = await loaded(backend)
+        model.draftProvider = "ollama"
+        await settle()
+        await model.detectLocal()
+        await settle()
+        #expect(backend.patches == [["providerId": .string("ollama"), "model": .string("qwen2.5:7b")]])
+    }
+
     @Test func 首选已能用时探测到本机模型也不抢() async {
         let backend = FakeOnboarding(defaults)
         backend.keys = ["openai": "sk"]

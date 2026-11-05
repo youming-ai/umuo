@@ -103,11 +103,15 @@ final class OnboardingModel {
         }
     }
 
-    /// 查下拉里选中的供应商有没有配 Key。
+    /// 查下拉里选中的供应商有没有配 Key。本机模型（不需要 Key）算已配，与设置窗同一条规则。
     func refreshKeyStatus() async {
         let providerId = draftProvider
         keyCheck += 1
         let mine = keyCheck
+        if !(draftDetail?.requiresKey ?? true) {
+            keyConfigured = true
+            return
+        }
         let configured = (try? await backend.keyStatus(providerId)) ?? false
         guard mine == keyCheck else { return }
         keyConfigured = configured
@@ -188,10 +192,12 @@ final class OnboardingModel {
         case let .success(found):
             localModel = found
             notice = t("onboarding.detectedModel", ["model": detectedLabel(found)])
+            // 看存着的首选有没有 Key，不看 `keyConfigured`：那是下拉里选中的那一家
             let current = values.string("providerId")
             let requiresKey = providers.first { $0.id == current }?.requiresKey ?? true
+            let currentHasKey = (try? await backend.keyStatus(current)) ?? false
             if let engine = Onboarding.engineForLocalModel(found.model, providerId: found.providerId,
-                                                           keyConfigured: keyConfigured, requiresKey: requiresKey)
+                                                           keyConfigured: currentHasKey, requiresKey: requiresKey)
             {
                 commit(["providerId": .string(engine.providerId), "model": .string(engine.model)])
             }
