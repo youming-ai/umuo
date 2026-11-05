@@ -8,6 +8,8 @@
 //!   都先把原文件挪成 `<文件名>.corrupt-<时间戳>` 再回落——否则回落后的第一次保存会把它覆盖掉，
 //!   用户连找回的机会都没有。备份名带时间戳，第二次损坏不会盖掉第一次的备份
 //!   （与 `history.db.corrupt-<时间戳>` 同一约定）。
+//! - 设置另走 [`load_object_or_backup`]：只有不是合法 JSON 或顶层不是对象才整份备份，
+//!   能解析成对象时由 `Settings::load` 做字段级容错（见那里的说明）。
 
 use std::fs;
 use std::io::{self, Write};
@@ -59,13 +61,48 @@ pub fn load_or_backup<T: DeserializeOwned + Default>(dir: &Path, file: &str) -> 
     }
 }
 
+/// 读 `dir/file` 里的 JSON **对象**，不反序列化成具体类型，留给调用方做字段级容错。
+///
+/// 不存在 → `None`，不备份；读不动、不是合法 JSON、顶层不是对象 → 备份后 `None`。
+pub fn load_object_or_backup(
+    dir: &Path,
+    file: &str,
+) -> Option<serde_json::Map<String, serde_json::Value>> {
+    let path = dir.join(file);
+    let raw = match fs::read(&path) {
+        Ok(raw) => raw,
+        Err(error) if error.kind() == io::ErrorKind::NotFound => return None,
+        Err(_) => {
+            backup_aside(&path);
+            return None;
+        }
+    };
+    match serde_json::from_slice(&raw) {
+        Ok(serde_json::Value::Object(fields)) => Some(fields),
+        _ => {
+            backup_aside(&path);
+            None
+        }
+    }
+}
+
+/// 把原文件**复制**一份到 `<文件名>.corrupt-<时间戳>`，原文件留在原处。
+///
+/// 字段级回落用：文件整体还能用，只是有字段被丢弃，用户手改的原文要能找回。
+pub fn copy_aside(path: &Path) -> io::Result<()> {
+    fs::copy(path, with_suffix(path, &format!(".corrupt-{}", stamp()))).map(|_| ())
+}
+
 /// 把坏文件挪到 `<文件名>.corrupt-<时间戳>`。挪不动也不拦启动。
 fn backup_aside(path: &Path) {
-    let stamp = std::time::SystemTime::now()
+    let _ = fs::rename(path, with_suffix(path, &format!(".corrupt-{}", stamp())));
+}
+
+fn stamp() -> u128 {
+    std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map(|elapsed| elapsed.as_millis())
-        .unwrap_or_default();
-    let _ = fs::rename(path, with_suffix(path, &format!(".corrupt-{stamp}")));
+        .unwrap_or_default()
 }
 
 fn with_suffix(path: &Path, suffix: &str) -> PathBuf {
