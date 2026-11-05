@@ -60,12 +60,12 @@ pub(crate) struct Endpoint {
 /// 按设置解析当前供应商 → 读 Key → 校验 → 端点覆盖 → 模型。文字翻译与语音后处理共用这一份。
 pub(crate) fn resolve_endpoint(core: &AppCore, settings: &Settings) -> Result<Endpoint, CoreError> {
     let provider = provider::find_provider(&settings.provider_id).ok_or(CoreError::NoEngine)?;
+    // 读 Keychain 失败（应用签名变了、条目 ACL 坏了）按「Key 无效」报：唯一管用的是去模型设置
+    // 重新保存 Key，重试只会再失败一次。宿主的错误串不进界面文案。
     let api_key = core
         .host
         .api_key(provider.id)
-        .map_err(|e| CoreError::BadResponse {
-            detail: format!("读取 Keychain 失败：{e}"),
-        })?
+        .map_err(|_| CoreError::InvalidKey)?
         .unwrap_or_default();
     // 本机供应商（Ollama / LM Studio）没有 Key 条目，照常发请求。
     if provider.requires_key() && api_key.trim().is_empty() {
