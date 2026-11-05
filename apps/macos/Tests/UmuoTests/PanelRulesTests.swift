@@ -1,4 +1,5 @@
 import Foundation
+import os
 import Testing
 import UmuoCore
 @testable import Umuo
@@ -20,6 +21,37 @@ struct TriggerGateTests {
         #expect(!gate.isCurrent(pending))
         let next = gate.begin()
         #expect(gate.isCurrent(next))
+    }
+}
+
+@Suite("截图翻译的触发")
+@MainActor
+struct OcrTriggerTests {
+    @Test func 框选进行中再按一次_不再起第二个框选() async {
+        let panel = PanelController(app: AppModel(arguments: [], bundleIdentifier: nil))
+        let release = DispatchSemaphore(value: 0)
+        let calls = OSAllocatedUnfairLock(initialState: 0)
+        // 模拟 `screencapture -i`：一直等到用户松手（放行信号）；取消框选不碰窗口
+        let capture: @Sendable () -> ScreenOCR.Outcome = {
+            calls.withLock { $0 += 1 }
+            release.wait()
+            return .cancelled
+        }
+        let first = panel.triggerOcr(run: capture)
+        let second = panel.triggerOcr(run: capture)
+        #expect(first != nil)
+        #expect(second == nil, "框选还没结束，第二次触发应当被忽略")
+        // 放行两次：没守住时第二个框选也在等，不能把测试卡死
+        release.signal()
+        release.signal()
+        await first?.value
+        await second?.value
+        #expect(calls.withLock { $0 } == 1)
+
+        // 上一次结束（含取消）后可以再触发
+        let third = panel.triggerOcr(run: { .cancelled })
+        #expect(third != nil)
+        await third?.value
     }
 }
 

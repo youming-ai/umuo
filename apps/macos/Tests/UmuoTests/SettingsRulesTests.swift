@@ -1,5 +1,7 @@
 import AppKit
 import Foundation
+import os
+import Security
 import Testing
 import UmuoCore
 @testable import Umuo
@@ -306,5 +308,29 @@ struct AutostartTests {
     @Test func 与旧版客户端同一个文件() {
         #expect(Autostart.plistURL(home: URL(fileURLWithPath: "/Users/someone")).path
             == "/Users/someone/Library/LaunchAgents/app.umuo.desktop.plist")
+    }
+}
+
+@Suite("Keychain 写入与删除")
+struct KeychainLockTests {
+    @Test func 写与删和读取共用同一把锁_且不关掉用户交互() throws {
+        // 读 Key 时进程级关掉 Keychain 交互（见 Keychain.read）。写 / 删若不取同一把锁，并发时本该弹授权框的写入
+        // 会直接失败（-25308 errSecInteractionNotAllowed）。这里在每个 SecItem 调用里看：锁是不是被占着、交互是不是开着。
+        let seen = OSAllocatedUnfairLock<[String]>(initialState: [])
+        let probe: @Sendable (String) -> Void = { name in
+            let free = Keychain.interactionLock.try()
+            if free { Keychain.interactionLock.unlock() }
+            var allowed: DarwinBoolean = false
+            _ = SecKeychainGetUserInteractionAllowed(&allowed)
+            let interactive = allowed.boolValue
+            seen.withLock { $0.append("\(name):\(free ? "未加锁" : "已加锁"):\(interactive ? "可交互" : "不可交互")") }
+        }
+        var keychain = Keychain(service: "app.umuo.tests")
+        keychain.calls.add = { _ in probe("add"); return errSecDuplicateItem }
+        keychain.calls.update = { _, _ in probe("update"); return errSecSuccess }
+        keychain.calls.delete = { _ in probe("delete"); return errSecItemNotFound }
+        try keychain.write(account: "openai", secret: "sk-test")
+        try keychain.delete(account: "openai")
+        #expect(seen.withLock { $0 } == ["add:已加锁:可交互", "update:已加锁:可交互", "delete:已加锁:可交互"])
     }
 }

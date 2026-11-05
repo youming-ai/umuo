@@ -27,6 +27,8 @@ final class PanelController: PanelBackend {
     private var showGeneration = 0
     /// 划词 / 原地替换按键的先后（见 `TriggerGate`）。只在 MainActor 上读写。
     var triggers = TriggerGate()
+    /// 截图翻译的框选（`screencapture -i`）正在进行：再按一次快捷键直接忽略，不再起第二个框选。只在 MainActor 上读写。
+    var ocrInFlight = false
     private var watchdog: Task<Void, Never>?
     /// 浮窗可见期间的 Esc（见 `armEscape`），与语音浮层共用一个注册者，按最近认领的一方路由。
     private var escape: EscapeRouter { app.escape }

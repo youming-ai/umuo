@@ -1,5 +1,6 @@
 import CryptoKit
 import Foundation
+import os
 import Testing
 import UmuoCore
 @testable import Umuo
@@ -875,6 +876,43 @@ struct VoiceRulesTests {
         #expect(asked == 1)
     }
 
+    @Test @MainActor func 后处理在后台调Engine的startVoice_不占主线程() async throws {
+        // ARCHITECTURE §2.3：Engine 的同步方法一律放进 Task.detached（与浮窗的 translate 同一约定）
+        let engine = ThreadRecordingEngine()
+        let processor = EngineVoicePostProcessor(engine: { engine }, unavailable: { "" })
+        let outcome = try await processor.run(session: 1, text: "你好", task: .translate)
+        #expect(outcome == VoicePostOutcome(text: "Hi", truncated: false))
+        #expect(engine.calledOnMain.withLock { $0 } == [false])
+    }
+
+    @Test @MainActor func 后台登记句柄前后到达的取消都会落到句柄上() async {
+        // startVoice 在后台调：取消可能先于句柄登记到达，登记时要补上 cancel()，否则请求一直挂着
+        let engine = CancelOnlyEngine()
+        let processor = EngineVoicePostProcessor(engine: { engine }, unavailable: { "" })
+        let run = Task { try await processor.run(session: 7, text: "你好", task: .tidy) }
+        while engine.started.withLock({ $0 }) == false { await Task.yield() }
+        processor.cancel(session: 7)
+        await #expect(throws: VoiceFault.self) { _ = try await run.value }
+    }
+
+    @Test(.serialized, arguments: [true, false]) @MainActor
+    func 新会话开始前后取消旧会话_迟到的旧句柄仍被取消(cancelBeforeNext: Bool) async throws {
+        let engine = DelayedHandleEngine()
+        let processor = EngineVoicePostProcessor(engine: { engine }, unavailable: { "" })
+        let first = Task { try await processor.run(session: 7, text: "旧转写", task: .tidy) }
+        await until { engine.pending.withLock { $0 != nil } }
+        if cancelBeforeNext { processor.cancel(session: 7) }
+        // 旧句柄卡在后台时，新会话已经完成；旧取消记录仍须留到句柄登记。
+        _ = try await processor.run(session: 8, text: "新转写", task: .tidy)
+        if !cancelBeforeNext { processor.cancel(session: 7) }
+        engine.release.signal()
+        await until { engine.pending.withLock { $0?.wasCancelled.withLock { $0 } == true } }
+        #expect(engine.pending.withLock { $0?.wasCancelled.withLock { $0 } == true })
+        // 修复前也要结束旧 continuation，避免失败测试留下悬挂任务；sink 会防重复回调。
+        engine.pending.withLock { $0 }?.cancel()
+        await #expect(throws: VoiceFault.self) { _ = try await first.value }
+    }
+
     @Test func 每种错误与下载失败都有四语言文案() {
         let catalog = StringCatalog.main
         let kinds: [VoiceErrorKind] = [.micPermissionDenied, .noInputDevice, .recording, .tooShort, .noSpeech,
@@ -890,6 +928,87 @@ struct VoiceRulesTests {
         #expect(VoiceOverlayView.elapsed(from: Date(timeIntervalSince1970: 0), to: Date(timeIntervalSince1970: 75))
             == "1:15")
     }
+}
+
+/// 只记 `startVoice` 在哪个线程上被调用的假 Engine：当场回一个成功结果，不碰 Rust。
+private final class ThreadRecordingEngine: Engine, @unchecked Sendable {
+    let calledOnMain = OSAllocatedUnfairLock<[Bool]>(initialState: [])
+
+    init() { super.init(noHandle: NoHandle()) }
+
+    required init(unsafeFromHandle handle: UInt64) { fatalError("测试用的假 Engine 不从句柄构造") }
+
+    override func startVoice(session: UInt64, request: VoicePostRequest, sink: VoiceSink) -> RequestHandle {
+        calledOnMain.withLock { $0.append(Thread.isMainThread) }
+        let output = VoicePostOutput(task: request.task, text: "Hi", transcript: request.transcript, sourceLang: "zh-CN",
+                                     outputLang: "en", provider: "OpenAI", providerId: "openai", model: "m",
+                                     firstTokenMs: nil, totalMs: 1, truncated: false)
+        sink.onResult(session: session, result: .done(output: output))
+        return NoopHandle(noHandle: RequestHandle.NoHandle())
+    }
+}
+
+/// 不主动回结果的假 Engine：句柄被 `cancel()` 时才回一个「已取消」的失败。
+private final class CancelOnlyEngine: Engine, @unchecked Sendable {
+    let started = OSAllocatedUnfairLock(initialState: false)
+
+    init() { super.init(noHandle: NoHandle()) }
+
+    required init(unsafeFromHandle handle: UInt64) { fatalError("测试用的假 Engine 不从句柄构造") }
+
+    override func startVoice(session: UInt64, request: VoicePostRequest, sink: VoiceSink) -> RequestHandle {
+        started.withLock { $0 = true }
+        return CancellingHandle(session: session, transcript: request.transcript, sink: sink)
+    }
+}
+
+/// 暂停旧会话的句柄返回，让新会话与取消都确定发生在登记之前。
+private final class DelayedHandleEngine: Engine, @unchecked Sendable {
+    let pending = OSAllocatedUnfairLock<CancellingHandle?>(initialState: nil)
+    let release = DispatchSemaphore(value: 0)
+
+    init() { super.init(noHandle: NoHandle()) }
+
+    required init(unsafeFromHandle handle: UInt64) { fatalError("测试用的假 Engine 不从句柄构造") }
+
+    override func startVoice(session: UInt64, request: VoicePostRequest, sink: VoiceSink) -> RequestHandle {
+        guard session == 7 else {
+            return ThreadRecordingEngine().startVoice(session: session, request: request, sink: sink)
+        }
+        let handle = CancellingHandle(session: session, transcript: request.transcript, sink: sink)
+        pending.withLock { $0 = handle }
+        // 参数用例串行运行，只占一个后台线程；异常时也不无限占用 CI 的线程池。
+        #expect(release.wait(timeout: .now() + 10) == .success)
+        return handle
+    }
+}
+
+private final class CancellingHandle: RequestHandle, @unchecked Sendable {
+    let wasCancelled = OSAllocatedUnfairLock(initialState: false)
+    private let session: UInt64
+    private let transcript: String
+    private let sink: VoiceSink
+
+    init(session: UInt64, transcript: String, sink: VoiceSink) {
+        self.session = session
+        self.transcript = transcript
+        self.sink = sink
+        super.init(noHandle: NoHandle())
+    }
+
+    required init(unsafeFromHandle handle: UInt64) { fatalError("测试用的假句柄不从句柄构造") }
+
+    override func cancel() {
+        wasCancelled.withLock { $0 = true }
+        let failure = VoicePostFailure(kind: .failed, message: "", transcript: transcript, retryable: false,
+                                       cancelled: true)
+        sink.onResult(session: session, result: .failed(failure: failure))
+    }
+}
+
+/// 不碰 Rust 的请求句柄：`cancel()` 什么都不做。
+private final class NoopHandle: RequestHandle, @unchecked Sendable {
+    override func cancel() {}
 }
 
 /// 停在系统麦克风授权框上的「授权」：测试决定什么时候、以什么结果放行。

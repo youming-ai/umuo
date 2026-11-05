@@ -9,11 +9,11 @@ private let t = Translate(locale: .zhCN)
 @Suite("快捷键冲突")
 struct HotkeyConflictTests {
     @Test func 修饰键别名与顺序不影响判定() {
-        #expect(HotkeyConflict.normalize("Option+D") == "alt+d")
-        #expect(HotkeyConflict.normalize("alt+d") == "alt+d")
-        #expect(HotkeyConflict.normalize("Command+Shift+T") == "shift+cmd+t")
-        #expect(HotkeyConflict.normalize("Shift+Cmd+T") == "shift+cmd+t")
-        #expect(HotkeyConflict.normalize("  Option + D  ") == "alt+d")
+        #expect(HotkeyConflict.normalize("Option+D") == "alt+keyd")
+        #expect(HotkeyConflict.normalize("alt+d") == "alt+keyd")
+        #expect(HotkeyConflict.normalize("Command+Shift+T") == "shift+cmd+keyt")
+        #expect(HotkeyConflict.normalize("Shift+Cmd+T") == "shift+cmd+keyt")
+        #expect(HotkeyConflict.normalize("  Option + D  ") == "alt+keyd")
         #expect(HotkeyConflict.normalize("ALT+SHIFT+C") == HotkeyConflict.normalize("alt + shift + c"))
         #expect(HotkeyConflict.normalize("") == "")
         #expect(HotkeyConflict.normalize("   ") == "")
@@ -51,6 +51,40 @@ struct HotkeyConflictTests {
         #expect(HotkeyEditor.warning(spotlight, en)?.contains("Spotlight search") == true)
         let area = HotkeyConflict.check("Cmd+Shift+4", others: others)
         #expect(HotkeyEditor.warning(area, zh)?.contains("截取屏幕区域") == true)
+    }
+
+    @Test func 录键器录出的方向键组合也能认出系统快捷键() {
+        // 录键器存的主键名是 `ArrowUp` 这类 W3C code，系统表写的是 `ctrl+up`：两边要归到同一个名字。
+        let cases = [
+            ("ArrowUp", "prefs.hotkey.sys.missionControl"), ("ArrowDown", "prefs.hotkey.sys.appWindows"),
+            ("ArrowLeft", "prefs.hotkey.sys.spaceLeft"), ("ArrowRight", "prefs.hotkey.sys.spaceRight"),
+        ]
+        for (code, name) in cases {
+            guard case let .combo(value) = HotkeyFormat.combo(from: .init(code: code, ctrl: true)) else {
+                Issue.record("\(code) 录不出组合键")
+                continue
+            }
+            #expect(HotkeyConflict.check(value, others: []) == .init(kind: .system, subject: name), "\(value)")
+        }
+    }
+
+    @Test func 手写的键名别名与录键器的写法认作同一个键() {
+        // settings.json 可以手写：`Up` / `Esc` 与 `ArrowUp` / `Escape` 解析成同一个键（HotkeyCombo.parseKey）
+        #expect(HotkeyConflict.check("Ctrl+Up", others: [])?.subject == "prefs.hotkey.sys.missionControl")
+        #expect(HotkeyConflict.check("Cmd+Alt+Escape", others: [])?.subject == "prefs.hotkey.sys.forceQuit")
+        #expect(HotkeyConflict.check("Alt+Up", others: [(label: "划词翻译", value: "Alt+ArrowUp")])?.kind == .duplicate)
+    }
+
+    @Test func 系统表的每一条都是解析得了的键_且除强制退出外都录得出来() {
+        let recordable = Set(HotkeyFormat.recordableKeys.map { HotkeyConflict.normalize("Ctrl+\($0)") })
+            .map { $0.replacingOccurrences(of: "ctrl+", with: "") }
+        for combo in HotkeyConflict.rawSystem.keys {
+            #expect(HotkeyCombo.parse(combo) != nil, "\(combo) 解析不了")
+            let main = HotkeyConflict.normalize(combo).split(separator: "+").last.map(String.init) ?? ""
+            // 录键时 Esc 是结束录制，这一条只会来自手写的 settings.json
+            if main == "escape" { continue }
+            #expect(recordable.contains(main), "\(combo) 的主键录键器录不出来")
+        }
     }
 
     @Test func 客户端自带的默认快捷键全部通过检查() {

@@ -73,10 +73,20 @@ extension PanelController {
     }
 
     /// 系统框选后在本机识别，结果交给 OCR 翻译流水线。
-    func triggerOcr() {
-        Task.detached {
-            let outcome = ScreenOCR.run()
+    ///
+    /// 框选进行中再次触发直接忽略（返回 nil）：否则会再起一个框选，两次结果各自开始翻译、后到的覆盖先到的。
+    /// 划词那边是「新按键顶掉旧按键」（`TriggerGate`），这里不同——框选要等用户操作，第二个框选只会叠在第一个上面。
+    ///
+    /// `run` 是框选 + 识别（阻塞到用户松手），测试换成可控的闭包。返回后台任务；没有起新任务时返回 nil。
+    @discardableResult
+    func triggerOcr(run: @escaping @Sendable () -> ScreenOCR.Outcome = { ScreenOCR.run() }) -> Task<Void, Never>? {
+        guard !ocrInFlight else { return nil }
+        ocrInFlight = true
+        return Task.detached {
+            let outcome = run()
             await MainActor.run {
+                // 所有结果（含取消）都要放开，否则之后再也触发不了
+                self.ocrInFlight = false
                 switch outcome {
                 case .cancelled:
                     return
