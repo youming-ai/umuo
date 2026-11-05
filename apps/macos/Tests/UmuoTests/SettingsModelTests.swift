@@ -275,6 +275,27 @@ struct SettingsModelTests {
         #expect(model.keyConfigured == true)
         #expect(model.attention.isEmpty)
     }
+
+    @Test func 别处换了供应商就清掉没保存的Key草稿() async {
+        // 草稿是给上一个供应商填的：不清掉的话按「保存」会把它存到新供应商名下
+        let backend = FakeBackend(base)
+        let model = await loaded(backend)
+        model.engine.apiKey = "sk-typed-for-openai"
+        backend.stored["providerId"] = .string("deepseek")
+        await model.windowFocused()
+        #expect(model.providerId == "deepseek")
+        #expect(model.engine.apiKey == "")
+        await model.engine.saveKey()
+        #expect(backend.keys.isEmpty)
+
+        // 导入配置换了首选也一样
+        model.engine.apiKey = "sk-typed-for-deepseek"
+        backend.stored["providerId"] = .string("openai")
+        model.general.configPath = "/tmp/a.json"
+        await model.general.importConfig()
+        #expect(model.providerId == "openai")
+        #expect(model.engine.apiKey == "")
+    }
 }
 
 @Suite("设置窗：快捷键与录键")

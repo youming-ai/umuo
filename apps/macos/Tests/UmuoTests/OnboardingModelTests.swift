@@ -196,6 +196,17 @@ struct OnboardingModelTests {
         #expect(backend.patches.last == ["providerId": .string("azure"), "model": .string("gpt-4o-mini")])
     }
 
+    @Test func 换了下拉里的供应商就清掉没保存的Key草稿() async {
+        // 草稿是给上一个供应商填的：不清掉的话按「保存」会把它存到新供应商名下
+        let backend = FakeOnboarding(defaults)
+        let model = await loaded(backend)
+        model.draftKey = "sk-typed-for-openai"
+        model.draftProvider = "anthropic"
+        #expect(model.draftKey.isEmpty)
+        await model.saveKey()
+        #expect(backend.keys.isEmpty)
+    }
+
     @Test func 空白Key不保存() async {
         let backend = FakeOnboarding(defaults)
         let model = await loaded(backend)
