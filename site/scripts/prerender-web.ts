@@ -21,6 +21,7 @@ import { join } from 'node:path'
 
 import { DEFAULT_LOCALE, LOCALES } from '../apps/web/src/config'
 import type { Locale } from '../apps/web/src/content/types'
+import { replaceLiteral } from '../apps/web/src/lib/html'
 
 const WEB_DIR = join(import.meta.dirname, '..', 'apps/web')
 const DIST = join(WEB_DIR, 'dist')
@@ -51,7 +52,7 @@ for (const { file, locale } of targets) {
     throw new Error(`${locale} 的预渲染正文只有 ${body.length} 字符，明显不对`)
   }
 
-  writeFileSync(file, html.replace(MOUNT_MARKER, `<div id="root">${body}</div>`))
+  writeFileSync(file, replaceLiteral(html, MOUNT_MARKER, `<div id="root">${body}</div>`))
   done++
   console.log(
     `  预渲染 ${locale.padEnd(6)} 正文 ${String(body.length).padStart(7)} 字符 → ${file.replace(`${WEB_DIR}/`, '')}`,
