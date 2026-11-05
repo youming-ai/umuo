@@ -125,9 +125,9 @@ final class EngineHistoryBackend: HistoryBackend {
         return engine
     }
 
-    func query(_ filter: HistoryFilter, limit: UInt32) async throws -> [HistoryRecord] {
+    func query(_ filter: HistoryFilter, limit: UInt32, offset: UInt32) async throws -> [HistoryRecord] {
         let engine = try engine()
-        return try await Task.detached { try engine.historyQuery(filter: filter, limit: limit, offset: 0) }.value
+        return try await Task.detached { try engine.historyQuery(filter: filter, limit: limit, offset: offset) }.value
     }
 
     func privacyMode() async throws -> Bool {

@@ -99,11 +99,11 @@ private final class FakeHistory: HistoryBackend {
     /// 一次最多返回几条：对应 Rust 侧 `ops.rs` 的 `HISTORY_PAGE_MAX`（超过的 limit 被内核截掉）。
     let cap: UInt32 = 500
 
-    func query(_ filter: HistoryFilter, limit: UInt32) async throws -> [HistoryRecord] {
+    func query(_ filter: HistoryFilter, limit: UInt32, offset: UInt32) async throws -> [HistoryRecord] {
         filters.append(filter)
         limits.append(limit)
         if fail { throw Broken() }
-        return Array(rows.prefix(Int(min(limit, cap))))
+        return Array(rows.dropFirst(Int(offset)).prefix(Int(min(limit, cap))))
     }
 
     func privacyMode() async throws -> Bool { privacy }
