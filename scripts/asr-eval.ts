@@ -297,7 +297,16 @@ export function scoreTranscript(
   }
 }
 
-async function downloadFileWithVerify(
+/** 按 `--models=a,b` 筛选候选模型；不带该参数时评测全部。 */
+export function selectModels(args: string[]): CandidateModel[] {
+  const modelFilterArg = args.find((a) => a.startsWith('--models='))?.slice('--models='.length)
+  const selectedIds = modelFilterArg
+    ? new Set(modelFilterArg.split(',').map((s) => s.trim()))
+    : null
+  return selectedIds ? CANDIDATE_MODELS.filter((m) => selectedIds.has(m.id)) : CANDIDATE_MODELS
+}
+
+export async function downloadFileWithVerify(
   url: string,
   destPath: string,
   expectedSizeBytes: number,
@@ -391,14 +400,7 @@ async function main(): Promise<void> {
   if ((await compile.exited) !== 0) throw new Error('编译 asr-runner 失败')
 
   // 4. 解析模型筛选参数
-  const args = process.argv.slice(2)
-  const modelFilterArg = args.find((a) => a.startsWith('--models='))?.slice('--models='.length)
-  const selectedIds = modelFilterArg
-    ? new Set(modelFilterArg.split(',').map((s) => s.trim()))
-    : null
-  const models = selectedIds
-    ? CANDIDATE_MODELS.filter((m) => selectedIds.has(m.id))
-    : CANDIDATE_MODELS
+  const models = selectModels(process.argv.slice(2))
 
   const fixtureMap = new Map(FIXTURES.map((f) => [f.id, f]))
   const modelResults = []
