@@ -71,7 +71,7 @@ pub struct Provider {
     pub suggested_models: &'static [&'static str],
     /// 申请 Key 的官方页面，给用户一个入口。
     pub keys_url: &'static str,
-    /// 用于 PRD §6.2 的「粘贴 Key 自动推测供应商」。越长的前缀越有判别力。
+    /// 各家 Key 的常见前缀（空表示没有可辨识前缀）。目前只是目录数据，程序里没有据此推测供应商的功能。
     pub key_prefixes: &'static [&'static str],
 }
 

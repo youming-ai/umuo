@@ -434,7 +434,7 @@ fn join_url(base: &str, path: &str) -> String {
 ///
 /// 返回多个事件：同一个 payload 里可能**同时**有文本和用量（Gemini 每块都带
 /// `usageMetadata`；DeepSeek 的末块是 `content:""` 加 usage）。只返回其中一个，
-/// 另一个就丢了——用量丢了的结果是历史里记成 0 token、$0，上限也跟着失明。
+/// 另一个就丢了——用量丢了的结果是历史里记成 0 token。
 pub fn parse_stream_event(protocol: Protocol, data: &str) -> Vec<StreamEvent> {
     let data = data.trim();
     if data.is_empty() {

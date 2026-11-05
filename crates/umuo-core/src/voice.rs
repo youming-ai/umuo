@@ -11,9 +11,6 @@
 use crate::prompt::PromptVars;
 use crate::wire::ChatRequest;
 
-/// 语音后处理指令的版本，用于记录和排查行为变化。
-pub const VOICE_PROMPT_VERSION: &str = "2026-10-30.1";
-
 /// 语音后处理的温度：整理与翻译都要稳定，不要发挥。
 pub const VOICE_TEMPERATURE: f32 = 0.1;
 
@@ -32,15 +29,6 @@ impl VoiceTask {
         match self {
             VoiceTask::Tidy => "tidy",
             VoiceTask::Translate => "translate",
-        }
-    }
-
-    /// 由字符串标识还原；不认识的返回 None，由调用方报错，不猜。
-    pub fn from_id(id: &str) -> Option<Self> {
-        match id.trim() {
-            "tidy" => Some(VoiceTask::Tidy),
-            "translate" => Some(VoiceTask::Translate),
-            _ => None,
         }
     }
 }
@@ -179,16 +167,6 @@ mod tests {
             assert!(!request.json_mode);
             assert_eq!(request.temperature, VOICE_TEMPERATURE);
         }
-    }
-
-    #[test]
-    fn task_ids_round_trip_and_unknown_ids_are_rejected() {
-        for task in [VoiceTask::Tidy, VoiceTask::Translate] {
-            assert_eq!(VoiceTask::from_id(task.as_str()), Some(task));
-        }
-        assert_eq!(VoiceTask::from_id(" tidy "), Some(VoiceTask::Tidy));
-        assert_eq!(VoiceTask::from_id("polish"), None);
-        assert_eq!(VoiceTask::from_id(""), None);
     }
 
     #[test]
