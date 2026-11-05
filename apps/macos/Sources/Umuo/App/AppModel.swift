@@ -28,6 +28,8 @@ final class AppModel {
     /// 全局 Esc 的唯一注册者：翻译浮窗与语音浮层同时可见时按最近弹出的一方路由。没有认领者时不注册。
     let escape = EscapeRouter()
     let updater = AppUpdater()
+    /// ⌘C / ⌘V 键码随输入法切换刷新（见 `KeyEvent.layoutKeys`）。
+    @ObservationIgnored private let keyboardLayout = KeyboardLayoutWatcher()
     /// 划词浮窗。`start()` 里才建：`swift test` 会构造 AppModel，那里不该开窗口。
     @ObservationIgnored private(set) var panel: PanelController?
     /// 设置窗、撰写窗、历史窗、首次引导、快捷面板与菜单栏图标。`start()` 里才建，理由同 `panel`。
@@ -74,6 +76,7 @@ final class AppModel {
         NSApplication.shared.setActivationPolicy(.accessory)
         frontmost.start()
         updater.start()
+        keyboardLayout.start()
         panel = PanelController(app: self)
         compose = ComposeController(app: self)
         let settings = SettingsWindowController(app: self)

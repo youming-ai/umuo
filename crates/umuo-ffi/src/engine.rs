@@ -10,6 +10,7 @@
 //! 工作线程数用 tokio 默认（CPU 核数）：宿主回调是同步的外部调用，个别回调卡住（例如 Keychain 弹窗）
 //! 不该拖住其他流和取消轮询；`BridgeHost` 还会用 `block_in_place` 把工作线程让出来。
 
+use std::future::Future;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
@@ -18,7 +19,7 @@ use umuo_app::requests::Ticket;
 use umuo_app::translate::{self, Mode, Request};
 use umuo_app::AppCore;
 
-use crate::event::{ForwardTranslate, TranslateSink};
+use crate::event::{lost_event, ForwardTranslate, Route, TranslateSink};
 use crate::host::{BridgeHost, FocusSource, HostBridge};
 
 /// Engine 方法的失败。文案是给用户看的中文，Swift 端直接显示。
@@ -137,7 +138,7 @@ pub struct Engine {
 
 /// 最后一个引用可能在任意线程上释放：Swift 主线程，或者运行时自己的工作线程（任务结束时丢掉的 sink 持有 Engine）。
 /// 普通的 `Runtime` drop 会等工作线程退出——在运行时工作线程上 drop 会导致 tokio 直接 panic，在主线程上也会阻塞界面。
-/// 所以只发关闭信号、不等：还在跑的任务在下一个 await 点被丢弃。
+/// 所以只发关闭信号、不等：还在跑的任务在下一个 await 点被丢弃，丢弃时经 [`Engine::spawn_guarded`] 补一次结束回调。
 impl Engine {
     pub(crate) fn rt(&self) -> &tokio::runtime::Runtime {
         self.rt.as_ref().expect("运行时只在 drop 时取走")
@@ -155,12 +156,61 @@ impl Engine {
             id: ticket.id,
             cancel: ticket.cancel.clone(),
         };
+        let route = Route {
+            surface: request.mode.surface().to_owned(),
+            request_id: ticket.id,
+        };
+        let text = request.text.clone();
         let core = self.core.clone();
-        let sink = ForwardTranslate(sink);
-        self.rt().spawn(async move {
+        self.spawn_translate(route, text, sink, move |sink| async move {
             translate::run(&core, &sink, request, guard_token, ticket).await;
         });
         Arc::new(handle)
+    }
+
+    /// 跑一次翻译任务：`work` 没跑完就中止时，补发一个错误事件，浮窗的流照常收尾。
+    pub(crate) fn spawn_translate<F>(
+        &self,
+        route: Route,
+        text: String,
+        sink: Arc<dyn TranslateSink>,
+        work: impl FnOnce(ForwardTranslate) -> F,
+    ) where
+        F: Future<Output = ()> + Send + 'static,
+    {
+        let lost_sink = sink.clone();
+        self.spawn_guarded(work(ForwardTranslate(sink)), move || {
+            lost_sink.on_event(route, lost_event(text));
+        });
+    }
+
+    /// 在运行时上跑 `work`；它没跑完（panic，或运行时关闭时被丢弃）就调一次 `lost`。
+    ///
+    /// Swift 那边等着一次结束回调；tokio 会吞掉任务里的 panic，任务外的 catch_unwind 看不见，
+    /// 所以守卫放在任务里面：`work` 跑完才解除，否则随任务一起被丢弃时补上那次回调。
+    pub(crate) fn spawn_guarded(
+        &self,
+        work: impl Future<Output = ()> + Send + 'static,
+        lost: impl FnOnce() + Send + 'static,
+    ) {
+        // 首次 poll 之前就可能被运行时丢弃；先创建守卫，再把整个守卫移进任务。
+        let guard = Unfinished(Some(lost));
+        self.rt().spawn(async move {
+            let mut guard = guard;
+            work.await;
+            guard.0 = None;
+        });
+    }
+}
+
+/// 任务没跑完就被丢弃时调用里面的回调；跑完后置空即解除。
+struct Unfinished<F: FnOnce()>(Option<F>);
+
+impl<F: FnOnce()> Drop for Unfinished<F> {
+    fn drop(&mut self) {
+        if let Some(lost) = self.0.take() {
+            lost();
+        }
     }
 }
 
@@ -663,6 +713,125 @@ mod tests {
         assert!(failure.cancelled);
         assert!(!failure.retryable);
         assert_eq!(failure.transcript, "嗯，那个，周四开会");
+    }
+
+    // ------------------------------------------------ 任务中途 panic
+
+    /// 注入的故障：后处理跑到一半 panic。
+    async fn voice_stage_panics(
+    ) -> Result<umuo_app::voice::VoiceOutput, umuo_app::voice::VoiceFailure> {
+        panic!("注入：后处理中途 panic")
+    }
+
+    /// 注入的故障：翻译跑到一半 panic。
+    async fn translate_stage_panics() {
+        panic!("注入：翻译中途 panic")
+    }
+
+    #[test]
+    fn a_panicking_voice_task_still_delivers_exactly_one_failure() {
+        use crate::voice::VoicePostResult;
+        let engine = open(json!({}));
+        let (sink, rx) = recorder();
+        engine.spawn_voice(5, "周四开会".into(), voice_stage_panics(), sink);
+        let (session, result) = rx
+            .recv_timeout(Duration::from_secs(5))
+            .expect("panic 之后 sink 一次都没收到");
+        assert_eq!(session, 5);
+        let VoicePostResult::Failed { failure } = result else {
+            panic!("panic 不能当成功：{result:?}");
+        };
+        assert_eq!(failure.transcript, "周四开会");
+        assert!(failure.retryable && !failure.cancelled);
+        assert!(
+            rx.recv_timeout(Duration::from_millis(300)).is_err(),
+            "结束回调只能有一次"
+        );
+    }
+
+    #[test]
+    fn a_panicking_translate_task_still_ends_the_stream_exactly_once() {
+        let engine = open(json!({}));
+        let (sink, rx) = recorder();
+        let route = Route {
+            surface: "panel".into(),
+            request_id: 9,
+        };
+        engine.spawn_translate(route, "原文".into(), sink, |_| translate_stage_panics());
+        let (route, event) = rx
+            .recv_timeout(Duration::from_secs(5))
+            .expect("panic 之后 sink 一次都没收到");
+        assert_eq!((route.surface.as_str(), route.request_id), ("panel", 9));
+        let TranslateEvent::Error { source, .. } = event else {
+            panic!("应当是错误事件：{event:?}");
+        };
+        assert_eq!(source.as_deref(), Some("原文"));
+        assert!(
+            rx.recv_timeout(Duration::from_millis(300)).is_err(),
+            "结束事件只能有一次"
+        );
+    }
+
+    #[test]
+    fn a_finished_task_does_not_fire_the_fallback() {
+        let engine = open(json!({}));
+        let (sink, rx) = recorder::<(Route, TranslateEvent)>();
+        let route = Route {
+            surface: "panel".into(),
+            request_id: 1,
+        };
+        engine.spawn_translate(route, "原文".into(), sink, |_| async {});
+        assert!(
+            rx.recv_timeout(Duration::from_millis(300)).is_err(),
+            "正常跑完不该补发错误"
+        );
+    }
+
+    #[test]
+    fn shutdown_ends_even_the_tasks_that_have_not_been_polled() {
+        let mut engine = open(json!({}));
+        let rt = tokio::runtime::Builder::new_multi_thread()
+            .worker_threads(1)
+            .build()
+            .unwrap();
+        let old = Arc::get_mut(&mut engine).unwrap().rt.replace(rt).unwrap();
+        old.shutdown_background();
+
+        // 占住唯一工作线程，让翻译任务先排队，再关闭运行时。
+        let (started, ready) = channel();
+        let (release, blocked) = channel();
+        engine.rt().spawn(async move {
+            started.send(()).unwrap();
+            blocked.recv().unwrap();
+        });
+        ready.recv_timeout(Duration::from_secs(5)).unwrap();
+        let (sink, rx) = recorder();
+        for id in 0..1000 {
+            engine.spawn_translate(
+                Route {
+                    surface: "panel".into(),
+                    request_id: id,
+                },
+                "原文".into(),
+                sink.clone(),
+                |_| std::future::pending(),
+            );
+        }
+        drop(sink);
+        drop(engine);
+        release.send(()).unwrap();
+
+        let mut ended = Vec::new();
+        while let Ok((route, event)) = rx.recv_timeout(Duration::from_secs(5)) {
+            assert!(matches!(event, TranslateEvent::Error { .. }));
+            ended.push(route.request_id);
+        }
+        ended.sort_unstable();
+        assert_eq!(
+            ended,
+            (0..1000).collect::<Vec<_>>(),
+            "每个请求必须恰好收尾一次"
+        );
     }
 
     #[test]

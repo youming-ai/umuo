@@ -80,6 +80,20 @@ pub trait TranslateSink: Send + Sync {
     fn on_event(&self, route: Route, event: TranslateEvent);
 }
 
+/// 任务没跑完就中止（panic）时补发的错误：浮窗等的是 Done / Error，没有它流就一直不收尾。
+pub(crate) fn lost_event(source: String) -> TranslateEvent {
+    TranslateEvent::Error {
+        message: LOST_MESSAGE.to_owned(),
+        actions: vec![SuggestedAction::Retry],
+        needs_permission: false,
+        permission: None,
+        source: Some(source),
+    }
+}
+
+/// 任务意外中止时给用户看的话。
+pub(crate) const LOST_MESSAGE: &str = "内部错误：这次请求意外中止，请重试。";
+
 /// 把 umuo-app 的事件换型后转给 Swift 的 sink。
 pub(crate) struct ForwardTranslate(pub Arc<dyn TranslateSink>);
 
