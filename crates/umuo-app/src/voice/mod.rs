@@ -297,6 +297,8 @@ async fn process(
     let options = StreamOptions {
         timeout: transport::DEFAULT_TIMEOUT,
         cancel: Some(cancel),
+        // 整理的 Prompt 允许输出空（原文只有口头语）：空流交给下面判成 EmptyResult。
+        allow_empty: true,
     };
     // 不切分：语音转写远小于任何当前模型的上下文。不逐字推送：结果要整段核验后才算数。
     let outcome = transport::stream_chat(

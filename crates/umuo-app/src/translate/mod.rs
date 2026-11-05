@@ -199,6 +199,7 @@ async fn translate(
     let options = StreamOptions {
         timeout: transport::DEFAULT_TIMEOUT,
         cancel: Some(&ticket.cancel),
+        allow_empty: false,
     };
     let context_tokens = provider::context_window_for(&model);
 

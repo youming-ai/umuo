@@ -244,6 +244,11 @@ pub struct StreamOptions<'a> {
     pub timeout: Duration,
     /// 轮询式取消标志；用户按 Esc 时置位。
     pub cancel: Option<&'a AtomicBool>,
+    /// 流正常结束却没有任何内容时，是否当作合法的空输出交给调用方。
+    ///
+    /// 翻译不允许（空译文就是失败）；语音整理允许：Prompt 要求原文只有口头语时输出空，
+    /// 由调用方判成「空结果」。连接半路断开（截断）的空流无论如何都是错误。
+    pub allow_empty: bool,
 }
 
 impl Default for StreamOptions<'_> {
@@ -251,6 +256,7 @@ impl Default for StreamOptions<'_> {
         Self {
             timeout: DEFAULT_TIMEOUT,
             cancel: None,
+            allow_empty: false,
         }
     }
 }
@@ -357,7 +363,7 @@ pub async fn stream_chat(
         outcome.truncated = true;
     }
 
-    if outcome.text.is_empty() {
+    if outcome.text.is_empty() && !(options.allow_empty && !outcome.truncated) {
         // 200 + 空内容是最容易被误解的失败形态：界面上会显示成「翻译成功但没有结果」。
         return Err(CoreError::BadResponse {
             detail: "流式响应没有产生任何内容".to_string(),
@@ -901,6 +907,82 @@ mod tests {
         .expect("去掉 temperature 后应当成功");
         assert_eq!(outcome.text, "译");
         assert_eq!(hits.load(Ordering::SeqCst), 2, "只重试一次");
+    }
+
+    /// 本机假服务：每个请求都回同一段固定的 SSE 正文。
+    fn fixed_sse_server(sse: &'static str) -> String {
+        use std::io::{BufRead, BufReader, Read, Write};
+
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let address = format!("http://{}/v1", listener.local_addr().unwrap());
+        std::thread::spawn(move || {
+            for stream in listener.incoming() {
+                let Ok(stream) = stream else { break };
+                let mut reader = BufReader::new(stream);
+                let mut length = 0usize;
+                loop {
+                    let mut line = String::new();
+                    if reader.read_line(&mut line).unwrap_or(0) == 0 || line == "\r\n" {
+                        break;
+                    }
+                    let lower = line.to_ascii_lowercase();
+                    if let Some(value) = lower.strip_prefix("content-length:") {
+                        length = value.trim().parse().unwrap_or(0);
+                    }
+                }
+                let mut body = vec![0u8; length];
+                let _ = reader.read_exact(&mut body);
+                let mut stream = reader.into_inner();
+                let _ = write!(
+                    stream,
+                    "HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\n\
+                     Content-Length: {}\r\nConnection: close\r\n\r\n{sse}",
+                    sse.len()
+                );
+            }
+        });
+        address
+    }
+
+    async fn stream_against(base_url: &str, allow_empty: bool) -> Result<StreamOutcome, CoreError> {
+        let client = build_client_with(&crate::proxy::ProxyChoice::Direct).unwrap();
+        let provider = crate::provider::find_provider("openai").unwrap();
+        let chat = ChatRequest::new("system", "原文");
+        let mut sink = |_: &str| {};
+        stream_chat(
+            &client,
+            &ChatTarget {
+                provider,
+                base_url: Some(base_url),
+                model: "gpt-4o-mini",
+                api_key: "sk-test",
+                chat: &chat,
+            },
+            &StreamOptions {
+                allow_empty,
+                ..StreamOptions::default()
+            },
+            &mut sink,
+        )
+        .await
+    }
+
+    #[tokio::test]
+    async fn an_empty_stream_is_an_error_unless_the_caller_allows_a_clean_empty_answer() {
+        let clean = fixed_sse_server(
+            "data: {\"choices\":[{\"delta\":{},\"finish_reason\":\"stop\"}]}\n\ndata: [DONE]\n\n",
+        );
+        // 翻译（默认）：空译文仍是错误。
+        let err = stream_against(&clean, false).await.unwrap_err();
+        assert!(matches!(err, CoreError::BadResponse { .. }), "{err:?}");
+        // 语音整理：正常结束的空流交给调用方判「空结果」。
+        let outcome = stream_against(&clean, true).await.expect("允许空输出");
+        assert!(outcome.text.is_empty() && !outcome.truncated);
+
+        // 半路断开的空流（没有结束哨兵）即使允许空输出也是错误，不能伪装成「模型没说话」。
+        let cut = fixed_sse_server(": keep-alive\n\n");
+        let err = stream_against(&cut, true).await.unwrap_err();
+        assert!(matches!(err, CoreError::BadResponse { .. }), "{err:?}");
     }
 
     #[test]
