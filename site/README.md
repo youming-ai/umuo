@@ -9,7 +9,7 @@ umuo 是 macOS 系统级 AI 翻译客户端，客户端在仓库根目录；`sit
 
 ## 开发
 
-需要 Bun ≥ 1.2 和 Node ≥ 24.21。官网运行在 Vite，Worker 使用 Void；Cloudflare 资源用 `cf` 管理。
+需要 Bun ≥ 1.4（版本以 `package.json` 的 `packageManager` 为准）和 Node ≥ 24.21。官网运行在 Vite，Worker 使用 Void；Cloudflare 资源用 `cf` 管理。
 
 ```bash
 bun install
