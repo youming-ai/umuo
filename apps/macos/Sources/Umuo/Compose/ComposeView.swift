@@ -68,6 +68,13 @@ struct ComposeView: View {
             Toggle(t("compose.autoTranslate"), isOn: $session.autoTranslate)
                 .toggleStyle(.checkbox)
                 .fixedSize()
+            // 关掉自动翻译时的翻译入口（⌘T 同效，由窗口的按键监听处理）
+            if !session.autoTranslate {
+                PanelButton(t("compose.translate"), bordered: true) { session.translateNow() }
+                    .disabled(session.input.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    .help("\(t("compose.translate")) (⌘T)")
+                    .fixedSize()
+            }
             PanelButton(t("compose.close"), systemImage: "xmark") { session.escape() }
                 .fixedSize()
         }
