@@ -193,8 +193,10 @@ impl Engine {
         work: impl Future<Output = ()> + Send + 'static,
         lost: impl FnOnce() + Send + 'static,
     ) {
+        // 首次 poll 之前就可能被运行时丢弃；先创建守卫，再把整个守卫移进任务。
+        let guard = Unfinished(Some(lost));
         self.rt().spawn(async move {
-            let mut guard = Unfinished(Some(lost));
+            let mut guard = guard;
             work.await;
             guard.0 = None;
         });
@@ -782,6 +784,53 @@ mod tests {
         assert!(
             rx.recv_timeout(Duration::from_millis(300)).is_err(),
             "正常跑完不该补发错误"
+        );
+    }
+
+    #[test]
+    fn shutdown_ends_even_the_tasks_that_have_not_been_polled() {
+        let mut engine = open(json!({}));
+        let rt = tokio::runtime::Builder::new_multi_thread()
+            .worker_threads(1)
+            .build()
+            .unwrap();
+        let old = Arc::get_mut(&mut engine).unwrap().rt.replace(rt).unwrap();
+        old.shutdown_background();
+
+        // 占住唯一工作线程，让翻译任务先排队，再关闭运行时。
+        let (started, ready) = channel();
+        let (release, blocked) = channel();
+        engine.rt().spawn(async move {
+            started.send(()).unwrap();
+            blocked.recv().unwrap();
+        });
+        ready.recv_timeout(Duration::from_secs(5)).unwrap();
+        let (sink, rx) = recorder();
+        for id in 0..1000 {
+            engine.spawn_translate(
+                Route {
+                    surface: "panel".into(),
+                    request_id: id,
+                },
+                "原文".into(),
+                sink.clone(),
+                |_| std::future::pending(),
+            );
+        }
+        drop(sink);
+        drop(engine);
+        release.send(()).unwrap();
+
+        let mut ended = Vec::new();
+        while let Ok((route, event)) = rx.recv_timeout(Duration::from_secs(5)) {
+            assert!(matches!(event, TranslateEvent::Error { .. }));
+            ended.push(route.request_id);
+        }
+        ended.sort_unstable();
+        assert_eq!(
+            ended,
+            (0..1000).collect::<Vec<_>>(),
+            "每个请求必须恰好收尾一次"
         );
     }
 
