@@ -258,7 +258,7 @@ mod tests {
         assert_eq!(
             saved.provider_base_urls.len(),
             1,
-            "与 settings-queue.ts 一致：整体替换"
+            "providerBaseUrls 整体替换，不按键合并"
         );
     }
 

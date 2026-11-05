@@ -3,15 +3,16 @@
 //! 流水线只认这里的事件和 [`TranslateSink`]，不碰任何窗口系统：
 //! SwiftUI 客户端经 FFI 接收类型化事件。
 //!
-//! 历史 JSON 契约由 `tests/event_wire.rs` 的黄金快照逐字节守着：
-//! 改字段名或顺序 = 改前端协议。
+//! SwiftUI 不走 JSON，也不按事件名订阅；这里的 `Serialize` 与 [`TranslateEvent::name`]
+//! 只剩 `tests/event_wire.rs` 在用——它把旧更新通道时代的 JSON 契约作为黄金快照逐字节守着，
+//! 当作字段语义的回归证据。
 
 use serde::Serialize;
 use umuo_core::error::SuggestedAction;
 
 /// 事件发往哪里、属于哪一次请求。
 ///
-/// 每个 translate:// 事件都带上请求 id：前端只认自己正在显示的那一次，
+/// 每个事件都带上请求 id：界面只认自己正在显示的那一次，
 /// 被顶掉的旧请求迟到的增量、错误一律丢掉（审查 H2 / M1）。
 #[derive(Clone, Copy, Debug)]
 pub struct Route {
@@ -19,21 +20,21 @@ pub struct Route {
     pub request_id: u64,
 }
 
-/// 发给浮窗 / 撰写窗的翻译事件。序列化为**载荷本身**（untagged），事件名见 [`TranslateEvent::name`]。
+/// 发给浮窗 / 撰写窗的翻译事件。快照测试里序列化为**载荷本身**（untagged），事件名见 [`TranslateEvent::name`]。
 #[derive(Clone, Serialize)]
 #[serde(untagged)]
 pub enum TranslateEvent {
     Start(StartPayload),
     Delta(DeltaPayload),
     /// 单词词卡解析成功时发这个（PRD §5.2）。与 delta 互斥：词卡模式下增量被抑制，
-    /// 整段 JSON 解析成结构后一次性推给前端。
+    /// 整段 JSON 解析成结构后一次性推给界面。
     Card(CardPayload),
     Done(DonePayload),
     Error(ErrorPayload),
 }
 
 impl TranslateEvent {
-    /// 前端订阅的事件名。
+    /// 旧更新通道时代的事件名。现在只有 `tests/event_wire.rs` 的快照用它，SwiftUI 经 FFI 按变体区分。
     pub fn name(&self) -> &'static str {
         match self {
             Self::Start(_) => "translate://start",

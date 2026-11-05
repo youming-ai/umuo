@@ -538,7 +538,7 @@ mod tests {
         let settings = Settings::default();
         assert_eq!(settings.target_lang, "zh-CN");
         assert_eq!(settings.secondary_target_lang, "en");
-        // 2026-10-08 起新装默认对齐 Trancy Air（⌃⌃ / ⌥⌥ / ⌥P / ⌥⌘O），不再沿用 luca-translate 的 ⌥ 系；
+        // 2026-10-08 起新装默认对齐 Trancy Air（⌃⌃ / ⌥⌥ / ⌥⌘A / ⌥⌘O；⌥P 属已退役的对照窗），不再沿用 luca-translate 的 ⌥ 系；
         // 老用户的设置文件里已经写着各自的键位，不受影响。
         assert_eq!(settings.selection_hotkey, "Ctrl Ctrl");
         assert_eq!(settings.silent_replace_hotkey, "Alt Alt");
