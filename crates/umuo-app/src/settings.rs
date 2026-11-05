@@ -830,6 +830,29 @@ mod tests {
     }
 
     #[test]
+    fn a_rejected_endpoint_does_not_echo_its_credentials() {
+        let previous = Settings::default();
+        let with = |url: &str| {
+            let mut s = Settings::default();
+            s.provider_base_urls
+                .insert("openai".to_string(), url.to_string());
+            s.validate_endpoints(&previous).unwrap_err()
+        };
+        // 不是 https 被拒、解析失败被拒，两条错误都不能把 user:pass 原样回显。
+        for url in [
+            "http://alice:s3cret@relay.example/v1",
+            "http://alice:s3cret@[::1",
+            "alice:s3cret@relay.example/v1",
+        ] {
+            let error = with(url);
+            assert!(!error.contains("s3cret"), "{error}");
+            assert!(!error.contains("alice"), "{error}");
+        }
+        // 没有凭据的地址照常回显，方便用户看出填错了什么。
+        assert!(with("http://relay.example/v1").contains("relay.example"));
+    }
+
+    #[test]
     fn an_endpoint_that_did_not_change_is_not_rechecked() {
         // 老配置里已有的局域网 http 地址：不该让用户从此改不了主题。
         let mut previous = Settings {
