@@ -65,6 +65,9 @@ final class OnboardingModel {
     @ObservationIgnored private var lastSave: Task<Void, Error>?
     /// 最近一次查 Key 状态的序号：结果回来时下拉可能又换了，只认最后一次。
     @ObservationIgnored private var keyCheck = 0
+    /// 草稿的 Key 状态只用于输入框；完成度必须对应已经保存的首选引擎。
+    @ObservationIgnored private var engineCheck = 0
+    private var configuredEngine: EngineChoice?
 
     init(backend: OnboardingBackend) {
         self.backend = backend
@@ -73,9 +76,13 @@ final class OnboardingModel {
     var values: SettingsValues { queue?.current ?? [:] }
     var isLoaded: Bool { queue != nil }
 
+    private var currentEngine: EngineChoice {
+        EngineChoice(providerId: values.string("providerId"), model: values.string("model"))
+    }
+
     var state: OnboardingState {
-        OnboardingState(targetLang: values.string("targetLang"), keyConfigured: keyConfigured,
-                        localModelFound: localModel != nil, accessibilityTrusted: permissions.accessibility == true,
+        OnboardingState(targetLang: values.string("targetLang"), keyConfigured: configuredEngine == currentEngine,
+                        accessibilityTrusted: permissions.accessibility == true,
                         screenRecordingGranted: permissions.screenRecording == true, practiced: practiced)
     }
 
@@ -98,6 +105,7 @@ final class OnboardingModel {
             draftProvider = current.string("providerId")
             permissions = await backend.permissions()
             await refreshKeyStatus()
+            await refreshEngineStatus()
         } catch {
             notice = t("onboarding.settingsFailed", ["reason": SettingsRules.message(error)])
         }
@@ -117,6 +125,27 @@ final class OnboardingModel {
         keyConfigured = configured
     }
 
+    /// 按保存成功的引擎检查完成度，探测结果或下拉草稿都不能代替实际配置。
+    private func refreshEngineStatus() async {
+        await queue?.settled()
+        engineCheck += 1
+        let mine = engineCheck
+        let requested = currentEngine
+        guard !requested.model.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+              let detail = providers.first(where: { $0.id == requested.providerId }) else {
+            configuredEngine = nil
+            return
+        }
+        let configured: Bool
+        if detail.requiresKey {
+            configured = (try? await backend.keyStatus(requested.providerId)) ?? false
+        } else {
+            configured = true
+        }
+        guard mine == engineCheck, requested == currentEngine else { return }
+        configuredEngine = configured ? requested : nil
+    }
+
     func commit(_ patch: SettingsValues) {
         _ = commitTask(patch)
     }
@@ -128,7 +157,10 @@ final class OnboardingModel {
         let task = queue.commit(patch)
         lastSave = task
         Task {
-            do { try await task.value } catch { self.notice = SettingsRules.message(error) }
+            do {
+                try await task.value
+                await refreshEngineStatus()
+            } catch { self.notice = SettingsRules.message(error) }
         }
         return task
     }
@@ -193,9 +225,11 @@ final class OnboardingModel {
             localModel = found
             notice = t("onboarding.detectedModel", ["model": detectedLabel(found)])
             // 看存着的首选有没有 Key，不看 `keyConfigured`：那是下拉里选中的那一家
-            let current = values.string("providerId")
+            let requestedEngine = currentEngine
+            let current = requestedEngine.providerId
             let requiresKey = providers.first { $0.id == current }?.requiresKey ?? true
             let currentHasKey = (try? await backend.keyStatus(current)) ?? false
+            guard requestedEngine == currentEngine else { return }
             if let engine = Onboarding.engineForLocalModel(found.model, providerId: found.providerId,
                                                            keyConfigured: currentHasKey, requiresKey: requiresKey)
             {

@@ -254,6 +254,43 @@ struct OnboardingModelTests {
         }
     }
 
+    @Test func 下拉草稿有Key或不需要Key也不能代替未配置的首选() async {
+        for providerId in ["ollama", "anthropic"] {
+            let backend = FakeOnboarding(defaults)
+            backend.keys["anthropic"] = "sk-ant"
+            let model = await loaded(backend)
+            model.draftProvider = providerId
+            await model.refreshKeyStatus()
+            #expect(model.keyConfigured)
+            #expect(!model.state.hasUsableEngine)
+            #expect(!OnboardingStep.model.isSatisfied(model.state))
+            #expect(backend.stored.string("providerId") == "openai")
+            #expect(backend.patches.isEmpty)
+        }
+    }
+
+    @Test func 首选可用时切到缺Key草稿不应丢掉完成度() async {
+        let backend = FakeOnboarding(defaults)
+        backend.keys["openai"] = "sk"
+        let model = await loaded(backend)
+        model.draftProvider = "anthropic"
+        await model.refreshKeyStatus()
+        #expect(!model.keyConfigured)
+        #expect(model.state.hasUsableEngine)
+    }
+
+    @Test func 检测到本机模型但保存失败不能算有引擎() async {
+        let backend = FakeOnboarding(defaults)
+        backend.rejectKeys = ["providerId"]
+        backend.local = ["ollama": ["qwen"]]
+        let model = await loaded(backend)
+        await model.detectLocal()
+        await settle()
+        #expect(model.localModel != nil)
+        #expect(!model.state.hasUsableEngine)
+        #expect(backend.stored.string("providerId") == "openai")
+    }
+
     @Test func 空白Key不保存() async {
         let backend = FakeOnboarding(defaults)
         let model = await loaded(backend)
