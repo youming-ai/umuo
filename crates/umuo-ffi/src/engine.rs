@@ -10,6 +10,7 @@
 //! 工作线程数用 tokio 默认（CPU 核数）：宿主回调是同步的外部调用，个别回调卡住（例如 Keychain 弹窗）
 //! 不该拖住其他流和取消轮询；`BridgeHost` 还会用 `block_in_place` 把工作线程让出来。
 
+use std::future::Future;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
@@ -18,7 +19,7 @@ use umuo_app::requests::Ticket;
 use umuo_app::translate::{self, Mode, Request};
 use umuo_app::AppCore;
 
-use crate::event::{ForwardTranslate, TranslateSink};
+use crate::event::{lost_event, ForwardTranslate, Route, TranslateSink};
 use crate::host::{BridgeHost, FocusSource, HostBridge};
 
 /// Engine 方法的失败。文案是给用户看的中文，Swift 端直接显示。
@@ -155,12 +156,42 @@ impl Engine {
             id: ticket.id,
             cancel: ticket.cancel.clone(),
         };
+        let route = Route {
+            surface: request.mode.surface().to_owned(),
+            request_id: ticket.id,
+        };
+        let text = request.text.clone();
         let core = self.core.clone();
-        let sink = ForwardTranslate(sink);
-        self.rt().spawn(async move {
+        self.spawn_translate(route, text, sink, move |sink| async move {
             translate::run(&core, &sink, request, guard_token, ticket).await;
         });
         Arc::new(handle)
+    }
+
+    /// 跑一次翻译任务：`work` 没跑完就中止时，补发一个错误事件，浮窗的流照常收尾。
+    pub(crate) fn spawn_translate<F>(
+        &self,
+        route: Route,
+        text: String,
+        sink: Arc<dyn TranslateSink>,
+        work: impl FnOnce(ForwardTranslate) -> F,
+    ) where
+        F: Future<Output = ()> + Send + 'static,
+    {
+        let lost_sink = sink.clone();
+        self.spawn_guarded(work(ForwardTranslate(sink)), move || {
+            lost_sink.on_event(route, lost_event(text));
+        });
+    }
+
+    /// 在运行时上跑 `work`；它没跑完（panic，或运行时关闭时被丢弃）就调一次 `lost`。
+    pub(crate) fn spawn_guarded(
+        &self,
+        work: impl Future<Output = ()> + Send + 'static,
+        lost: impl FnOnce() + Send + 'static,
+    ) {
+        let _lost = lost;
+        self.rt().spawn(work);
     }
 }
 
@@ -663,6 +694,78 @@ mod tests {
         assert!(failure.cancelled);
         assert!(!failure.retryable);
         assert_eq!(failure.transcript, "嗯，那个，周四开会");
+    }
+
+    // ------------------------------------------------ 任务中途 panic
+
+    /// 注入的故障：后处理跑到一半 panic。
+    async fn voice_stage_panics(
+    ) -> Result<umuo_app::voice::VoiceOutput, umuo_app::voice::VoiceFailure> {
+        panic!("注入：后处理中途 panic")
+    }
+
+    /// 注入的故障：翻译跑到一半 panic。
+    async fn translate_stage_panics() {
+        panic!("注入：翻译中途 panic")
+    }
+
+    #[test]
+    fn a_panicking_voice_task_still_delivers_exactly_one_failure() {
+        use crate::voice::VoicePostResult;
+        let engine = open(json!({}));
+        let (sink, rx) = recorder();
+        engine.spawn_voice(5, "周四开会".into(), voice_stage_panics(), sink);
+        let (session, result) = rx
+            .recv_timeout(Duration::from_secs(5))
+            .expect("panic 之后 sink 一次都没收到");
+        assert_eq!(session, 5);
+        let VoicePostResult::Failed { failure } = result else {
+            panic!("panic 不能当成功：{result:?}");
+        };
+        assert_eq!(failure.transcript, "周四开会");
+        assert!(failure.retryable && !failure.cancelled);
+        assert!(
+            rx.recv_timeout(Duration::from_millis(300)).is_err(),
+            "结束回调只能有一次"
+        );
+    }
+
+    #[test]
+    fn a_panicking_translate_task_still_ends_the_stream_exactly_once() {
+        let engine = open(json!({}));
+        let (sink, rx) = recorder();
+        let route = Route {
+            surface: "panel".into(),
+            request_id: 9,
+        };
+        engine.spawn_translate(route, "原文".into(), sink, |_| translate_stage_panics());
+        let (route, event) = rx
+            .recv_timeout(Duration::from_secs(5))
+            .expect("panic 之后 sink 一次都没收到");
+        assert_eq!((route.surface.as_str(), route.request_id), ("panel", 9));
+        let TranslateEvent::Error { source, .. } = event else {
+            panic!("应当是错误事件：{event:?}");
+        };
+        assert_eq!(source.as_deref(), Some("原文"));
+        assert!(
+            rx.recv_timeout(Duration::from_millis(300)).is_err(),
+            "结束事件只能有一次"
+        );
+    }
+
+    #[test]
+    fn a_finished_task_does_not_fire_the_fallback() {
+        let engine = open(json!({}));
+        let (sink, rx) = recorder::<(Route, TranslateEvent)>();
+        let route = Route {
+            surface: "panel".into(),
+            request_id: 1,
+        };
+        engine.spawn_translate(route, "原文".into(), sink, |_| async {});
+        assert!(
+            rx.recv_timeout(Duration::from_millis(300)).is_err(),
+            "正常跑完不该补发错误"
+        );
     }
 
     #[test]

@@ -6,6 +6,7 @@
 //!
 //! 不登记 `Requests`：语音的会话号与迟到判定在 `voice_session` 状态机里，句柄的 id 就是会话号。
 
+use std::future::Future;
 use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
 
@@ -185,18 +186,49 @@ impl Engine {
         sink: Arc<dyn VoiceSink>,
     ) -> Arc<RequestHandle> {
         let cancel = Arc::new(AtomicBool::new(false));
+        let transcript = request.transcript.clone();
         let future = self.core.post_process_voice(request.into(), cancel.clone());
-        self.rt().spawn(async move {
-            let result = match future.await {
-                Ok(output) => VoicePostResult::Done {
-                    output: output.into(),
-                },
-                Err(failure) => VoicePostResult::Failed {
-                    failure: failure.into(),
-                },
-            };
-            sink.on_result(session, result);
-        });
+        self.spawn_voice(session, transcript, future, sink);
         Arc::new(RequestHandle::new(session, cancel))
+    }
+}
+
+impl Engine {
+    /// 跑一次后处理并把结果交给 sink；`work` 没跑完就中止时改交一个失败，Swift 的 continuation 不会悬着。
+    pub(crate) fn spawn_voice(
+        &self,
+        session: u64,
+        transcript: String,
+        work: impl Future<Output = Result<app::VoiceOutput, app::VoiceFailure>> + Send + 'static,
+        sink: Arc<dyn VoiceSink>,
+    ) {
+        let lost_sink = sink.clone();
+        self.spawn_guarded(
+            async move {
+                let result = match work.await {
+                    Ok(output) => VoicePostResult::Done {
+                        output: output.into(),
+                    },
+                    Err(failure) => VoicePostResult::Failed {
+                        failure: failure.into(),
+                    },
+                };
+                sink.on_result(session, result);
+            },
+            move || lost_sink.on_result(session, lost_result(transcript)),
+        );
+    }
+}
+
+/// 任务没跑完就中止（panic）时补交的失败；转写原样带回，可以再试。
+fn lost_result(transcript: String) -> VoicePostResult {
+    VoicePostResult::Failed {
+        failure: VoicePostFailure {
+            kind: VoicePostFailureKind::Failed,
+            message: crate::event::LOST_MESSAGE.to_owned(),
+            transcript,
+            retryable: true,
+            cancelled: false,
+        },
     }
 }
