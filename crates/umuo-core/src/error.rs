@@ -650,6 +650,35 @@ mod tests {
     }
 
     #[test]
+    fn a_zhipu_key_is_redacted_as_a_whole_including_its_secret_half() {
+        // 智谱 Key 形如 `{32 位十六进制 id}.{16 位 secret}`：只遮前半会把真正的 secret 露出来。
+        let secret = format!("{}{}", "AbCdEfGh", "1234WxYz");
+        let key = format!("{}.{secret}", "0123456789abcdef0123456789abcdef");
+        let redacted = redact_secrets(&format!("Authorization failed for {key}, retry"));
+        assert!(!redacted.contains(secret.as_str()), "{redacted}");
+        assert_eq!(redacted, "Authorization failed for [REDACTED], retry");
+    }
+
+    #[test]
+    fn common_prefixed_keys_from_other_gateways_are_redacted() {
+        // Groq、Hugging Face、xAI、ElevenLabs 一类、Perplexity：自定义端点常用的中转与网关。
+        let body = "A1b2C3d4E5f6G7h8I9j0K1l2M3n4O5p6";
+        for prefix in ["gsk_", "hf_", "xai-", "sk_", "pplx-"] {
+            let key = format!("{prefix}{body}");
+            let redacted = redact_secrets(&format!("bad key: {key}."));
+            assert_eq!(redacted, "bad key: [REDACTED].", "{prefix}");
+        }
+    }
+
+    #[test]
+    fn prefix_lookalikes_in_ordinary_text_are_left_alone() {
+        // 模型名、snake_case 标识符、词中间出现的前缀都不是 Key。
+        let text = "model xai-grok-2 pplx-70b-online hf_model_repository_name_here \
+                    task_runner_identifier_abcdefghijk mask_ABCDEFGHIJKLMNOPQRSTUVWX gsk_short";
+        assert_eq!(redact_secrets(text), text);
+    }
+
+    #[test]
     fn longer_hex_runs_and_ordinary_words_are_left_alone() {
         // 只认恰好 32 位的独立十六进制串：64 位的哈希、普通单词与数字不动。
         let sha = "a".repeat(64);
