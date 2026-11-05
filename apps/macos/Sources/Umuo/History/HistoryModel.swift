@@ -6,7 +6,7 @@ import UmuoCore
 /// 测试换成只记调用的假实现——历史窗的规则因此不碰真实历史库、剪贴板就能测。
 @MainActor
 protocol HistoryBackend: AnyObject {
-    func query(_ filter: HistoryFilter, limit: UInt32, offset: UInt32) async throws -> [HistoryRecord]
+    func query(_ filter: HistoryFilter, limit: UInt32, beforeId: Int64?) async throws -> [HistoryRecord]
     /// 隐私模式开着时列表是空的——要说清楚原因，否则用户以为记录丢了。
     func privacyMode() async throws -> Bool
     func delete(id: Int64) async throws
@@ -82,13 +82,14 @@ final class HistoryModel {
         let filter = HistoryFilter(query: query)
         let size = Int(Self.pageSize)
         do {
-            // 按页逐个读，每页多读一条：读到了就说明后面还有。不能一次读「页数 × 每页」条——
-            // 内核单次最多返回 500 条，超过的部分会被截掉。
+            // 下一页从已读取的最后一个 id 往前找，不用会随新增、删除而移动的偏移。
+            // 每页多读一条判断后面还有没有；这条留到下一页，不能当游标跳过去。
             var rows: [HistoryRecord] = []
             var more = false
-            for page in 0 ..< pages {
+            for _ in 0 ..< pages {
                 let fetched = try await backend.query(filter, limit: Self.pageSize + 1,
-                                                      offset: Self.pageSize * UInt32(page))
+                                                      beforeId: rows.last?.id)
+                guard mine == generation else { return }
                 rows += fetched.prefix(size)
                 more = fetched.count > size
                 if !more { break }

@@ -30,6 +30,9 @@ private class FakeOnboarding: OnboardingBackend {
     var saveDelay: Duration?
     /// 探测本机模型的等待（模拟探测结果在引导结束之后才回来）。
     var listDelay: Duration?
+    /// 控制 Key 状态返回的时刻，覆盖等待期间结束引导与更换首选的竞争。
+    var holdKeyChecks = false
+    var waitingKey: CheckedContinuation<Bool, Never>?
 
     init(_ stored: SettingsValues) { self.stored = stored }
 
@@ -55,14 +58,18 @@ private class FakeOnboarding: OnboardingBackend {
                            requiresKey: false, requiresBaseUrl: false, local: true),
             ProviderDetail(id: "lmstudio", label: "LM Studio", defaultModel: "", suggestedModels: [], keysUrl: "",
                            requiresKey: false, requiresBaseUrl: false, local: true),
-            ProviderDetail(id: "azure", label: "Azure OpenAI", defaultModel: "gpt-4o-mini", suggestedModels: [],
+            // 与内核一致：Azure 的「模型」是用户自己起的部署名，没有默认模型
+            ProviderDetail(id: "azure", label: "Azure OpenAI", defaultModel: "", suggestedModels: [],
                            keysUrl: "", requiresKey: true, requiresBaseUrl: true, local: false),
             ProviderDetail(id: "custom", label: "自定义端点", defaultModel: "", suggestedModels: [], keysUrl: "",
                            requiresKey: true, requiresBaseUrl: true, local: false),
         ]
     }
 
-    func keyStatus(_ providerId: String) async throws -> Bool { keys[providerId] != nil }
+    func keyStatus(_ providerId: String) async throws -> Bool {
+        if holdKeyChecks { return await withCheckedContinuation { waitingKey = $0 } }
+        return keys[providerId] != nil
+    }
     func saveApiKey(_ providerId: String, _ key: String) async throws { keys[providerId] = key }
 
     func listModels(_ providerId: String) async throws -> [String] {
@@ -189,14 +196,108 @@ struct OnboardingModelTests {
         #expect(model.draftEndpoint == "https://res.openai.azure.com")
     }
 
-    @Test func 需要端点的供应商没填模型时用它的默认模型() async {
+    @Test func 需要端点的供应商没填模型时不写空模型() async {
+        // Azure 与自定义端点都没有默认模型：写进 "" 会让第一次翻译直接报缺模型
+        for providerId in ["azure", "custom"] {
+            let backend = FakeOnboarding(defaults)
+            let model = await loaded(backend)
+            model.draftProvider = providerId
+            model.draftKey = "k"
+            await model.saveKey()
+            await settle()
+            #expect(backend.keys[providerId] == "k")
+            #expect(backend.patches.last == ["providerId": .string(providerId)], "\(providerId)")
+        }
+    }
+
+    @Test func 重新运行引导换Key不把改过的模型或Azure部署名改回默认() async {
+        for (providerId, custom) in [("azure", "my-deploy"), ("openai", "gpt-4o")] {
+            var values = defaults
+            values["providerId"] = .string(providerId)
+            values["model"] = .string(custom)
+            let backend = FakeOnboarding(values)
+            let model = await loaded(backend)
+            #expect(model.draftProvider == providerId)
+            model.draftKey = "sk-new"
+            await model.saveKey()
+            await settle()
+            #expect(backend.keys[providerId] == "sk-new")
+            #expect(backend.patches.last?["model"] == nil, "\(providerId)")
+            #expect(backend.stored.string("model") == custom, "\(providerId)")
+        }
+    }
+
+    @Test func 换了下拉里的供应商就清掉没保存的Key草稿() async {
+        // 草稿是给上一个供应商填的：不清掉的话按「保存」会把它存到新供应商名下
         let backend = FakeOnboarding(defaults)
         let model = await loaded(backend)
-        model.draftProvider = "azure"
-        model.draftKey = "k"
+        model.draftKey = "sk-typed-for-openai"
+        model.draftProvider = "anthropic"
+        #expect(model.draftKey.isEmpty)
         await model.saveKey()
+        #expect(backend.keys.isEmpty)
+    }
+
+    @Test func Key状态跟着下拉里选的供应商() async {
+        let backend = FakeOnboarding(defaults)
+        backend.keys = ["anthropic": "sk-ant"]
+        let model = await loaded(backend)
+        #expect(model.keyConfigured == false)
+        model.draftProvider = "anthropic"
         await settle()
-        #expect(backend.patches.last == ["providerId": .string("azure"), "model": .string("gpt-4o-mini")])
+        #expect(model.keyConfigured == true)
+        model.draftProvider = "openai"
+        await settle()
+        #expect(model.keyConfigured == false)
+    }
+
+    @Test func 首选是不需要Key的本机引擎时重新运行引导也算有引擎() async {
+        // 与设置窗同一条规则：本机模型不需要 Key，算已配
+        for providerId in ["ollama", "lmstudio"] {
+            var values = defaults
+            values["providerId"] = .string(providerId)
+            values["model"] = .string("qwen3-8b")
+            let model = await loaded(FakeOnboarding(values))
+            #expect(model.state.hasUsableEngine == true, "\(providerId)")
+            #expect(OnboardingStep.model.isSatisfied(model.state) == true, "\(providerId)")
+        }
+    }
+
+    @Test func 下拉草稿有Key或不需要Key也不能代替未配置的首选() async {
+        for providerId in ["ollama", "anthropic"] {
+            let backend = FakeOnboarding(defaults)
+            backend.keys["anthropic"] = "sk-ant"
+            let model = await loaded(backend)
+            model.draftProvider = providerId
+            await model.refreshKeyStatus()
+            #expect(model.keyConfigured)
+            #expect(!model.state.hasUsableEngine)
+            #expect(!OnboardingStep.model.isSatisfied(model.state))
+            #expect(backend.stored.string("providerId") == "openai")
+            #expect(backend.patches.isEmpty)
+        }
+    }
+
+    @Test func 首选可用时切到缺Key草稿不应丢掉完成度() async {
+        let backend = FakeOnboarding(defaults)
+        backend.keys["openai"] = "sk"
+        let model = await loaded(backend)
+        model.draftProvider = "anthropic"
+        await model.refreshKeyStatus()
+        #expect(!model.keyConfigured)
+        #expect(model.state.hasUsableEngine)
+    }
+
+    @Test func 检测到本机模型但保存失败不能算有引擎() async {
+        let backend = FakeOnboarding(defaults)
+        backend.rejectKeys = ["providerId"]
+        backend.local = ["ollama": ["qwen"]]
+        let model = await loaded(backend)
+        await model.detectLocal()
+        await settle()
+        #expect(model.localModel != nil)
+        #expect(!model.state.hasUsableEngine)
+        #expect(backend.stored.string("providerId") == "openai")
     }
 
     @Test func 空白Key不保存() async {
@@ -247,6 +348,49 @@ struct OnboardingModelTests {
         #expect(backend.patches.isEmpty)
     }
 
+    @Test func 等Key状态时结束或关窗也不能让探测结果改首选() async throws {
+        for closeWindow in [false, true] {
+            let backend = FakeOnboarding(defaults)
+            backend.local = ["ollama": ["qwen"]]
+            let model = await loaded(backend)
+            await settle()
+            backend.holdKeyChecks = true
+            let detecting = Task { await model.detectLocal() }
+            for _ in 0 ..< 1000 where backend.waitingKey == nil { await Task.yield() }
+            let waiting = try #require(backend.waitingKey)
+            backend.holdKeyChecks = false
+            if closeWindow { model.windowClosed() } else { await model.finish() }
+            waiting.resume(returning: false)
+            backend.waitingKey = nil
+            await detecting.value
+            await settle()
+            #expect(backend.stored.string("providerId") == "openai")
+            #expect(backend.patches == (closeWindow ? [] : [["onboardingDone": .bool(true)]]))
+        }
+    }
+
+    @Test func 等Key状态期间换了首选就丢弃旧探测决策() async throws {
+        let backend = FakeOnboarding(defaults)
+        backend.local = ["ollama": ["qwen"]]
+        backend.keys["anthropic"] = "sk-ant"
+        let model = await loaded(backend)
+        await settle()
+        backend.holdKeyChecks = true
+        let detecting = Task { await model.detectLocal() }
+        for _ in 0 ..< 1000 where backend.waitingKey == nil { await Task.yield() }
+        let waiting = try #require(backend.waitingKey)
+        backend.holdKeyChecks = false
+        let patch: SettingsValues = ["providerId": .string("anthropic"), "model": .string("claude")]
+        let saving = model.commitTask(patch)
+        try await saving?.value
+        waiting.resume(returning: false)
+        backend.waitingKey = nil
+        await detecting.value
+        await settle()
+        #expect(backend.patches == [patch])
+        #expect(backend.stored.string("providerId") == "anthropic")
+    }
+
     @Test func Ollama没有就试LMStudio并标出是哪家() async {
         let backend = FakeOnboarding(defaults)
         backend.local = ["ollama": [], "lmstudio": ["qwen3-8b"]]
@@ -257,6 +401,18 @@ struct OnboardingModelTests {
         #expect(model.localModel == EngineChoice(providerId: "lmstudio", model: "qwen3-8b"))
         #expect(model.notice == "检测到本机模型：qwen3-8b（LM Studio）")
         #expect(backend.patches == [["providerId": .string("lmstudio"), "model": .string("qwen3-8b")]])
+    }
+
+    @Test func 下拉选了本机供应商再探测_仍按首选有没有Key决定换不换() async {
+        // Key 状态跟着下拉走、本机供应商算已配；但「首选此刻能不能用」看的是存着的首选，不是下拉
+        let backend = FakeOnboarding(defaults)
+        backend.local = ["ollama": ["qwen2.5:7b"]]
+        let model = await loaded(backend)
+        model.draftProvider = "ollama"
+        await settle()
+        await model.detectLocal()
+        await settle()
+        #expect(backend.patches == [["providerId": .string("ollama"), "model": .string("qwen2.5:7b")]])
     }
 
     @Test func 首选已能用时探测到本机模型也不抢() async {

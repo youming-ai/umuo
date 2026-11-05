@@ -122,6 +122,26 @@ pub fn history_delete(core: &AppCore, id: i64) -> Result<bool, String> {
     history::with_store(core, |store| store.delete(id))
 }
 
+/// 按记录 id 游标读取历史。每页最多 500 条，跨页新增记录不会导致重复或跳行。
+pub fn history_query_before(
+    core: &AppCore,
+    filter: Option<HistoryFilterDto>,
+    limit: u32,
+    before_id: Option<i64>,
+) -> Result<Vec<RecordDto>, String> {
+    let filter = filter.unwrap_or_default();
+    let rows = history::with_store(core, |store| {
+        store.query_before(
+            &umuo_store::HistoryFilter {
+                query: filter.query,
+            },
+            limit.min(HISTORY_PAGE_MAX),
+            before_id,
+        )
+    })?;
+    Ok(records_to_dto(rows))
+}
+
 pub fn history_clear(core: &AppCore) -> Result<usize, String> {
     history::with_store(core, |store| store.clear())
 }
@@ -329,6 +349,48 @@ mod tests {
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).unwrap();
         AppCore::open(dir, Arc::new(KeyHost)).unwrap()
+    }
+
+    #[test]
+    fn history_cursor_preserves_search_and_the_page_limit() {
+        let core = open_in("history-cursor");
+        let mut entry = umuo_store::NewRecord {
+            created_at: 1,
+            source_text: "match".into(),
+            translated_text: "译文".into(),
+            source_lang: None,
+            target_lang: "zh-CN".into(),
+            provider_id: "openai".into(),
+            model: "test".into(),
+            style_id: "standard".into(),
+            scene: "compose".into(),
+            source_app: None,
+            input_tokens: 0,
+            output_tokens: 0,
+            estimated: false,
+            cost_usd: None,
+        };
+        history::with_store(&core, |store| {
+            for _ in 0..505 {
+                store.insert(&entry)?;
+            }
+            entry.source_text = "other".into();
+            store.insert(&entry)?;
+            Ok(())
+        })
+        .unwrap();
+        let filter = Some(HistoryFilterDto {
+            query: Some("match".into()),
+        });
+        let first = history_query_before(&core, filter.clone(), 1000, None).unwrap();
+        assert_eq!(first.len(), 500);
+        assert_eq!(first.first().unwrap().id, 505);
+        let second =
+            history_query_before(&core, filter, 1000, Some(first.last().unwrap().id)).unwrap();
+        assert_eq!(
+            second.iter().map(|r| r.id).collect::<Vec<_>>(),
+            [5, 4, 3, 2, 1]
+        );
     }
 
     #[test]

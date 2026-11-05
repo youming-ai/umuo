@@ -98,12 +98,17 @@ private final class FakeHistory: HistoryBackend {
     var limits: [UInt32] = []
     /// 一次最多返回几条：对应 Rust 侧 `ops.rs` 的 `HISTORY_PAGE_MAX`（超过的 limit 被内核截掉）。
     let cap: UInt32 = 500
+    var afterQuery: (() -> Void)?
 
-    func query(_ filter: HistoryFilter, limit: UInt32, offset: UInt32) async throws -> [HistoryRecord] {
+    func query(_ filter: HistoryFilter, limit: UInt32, beforeId: Int64?) async throws -> [HistoryRecord] {
         filters.append(filter)
         limits.append(limit)
         if fail { throw Broken() }
-        return Array(rows.dropFirst(Int(offset)).prefix(Int(min(limit, cap))))
+        let result = Array(rows.sorted { $0.id > $1.id }
+            .filter { beforeId == nil || $0.id < beforeId! }
+            .prefix(Int(min(limit, cap))))
+        afterQuery?()
+        return result
     }
 
     func privacyMode() async throws -> Bool { privacy }
@@ -191,6 +196,35 @@ struct HistoryModelTests {
         await model.reload()
         #expect(model.records.count == Int(HistoryModel.pageSize))
         #expect(!model.hasMore)
+    }
+
+    @Test func 跨页期间新增历史不会重复或跳过边界记录() async {
+        let backend = FakeHistory()
+        backend.rows = (1 ... 250).map { id in with { $0.id = Int64(id) } }
+        let model = HistoryModel(backend: backend, sleep: instant)
+        await model.reload()
+        backend.afterQuery = {
+            backend.afterQuery = nil
+            backend.rows.append(with { $0.id = 251 })
+        }
+        await model.loadMore()
+        #expect(model.records.map(\.id) == Array((51 ... 250).reversed()).map(Int64.init))
+        #expect(Set(model.records.map(\.id)).count == 200)
+        #expect(model.hasMore)
+    }
+
+    @Test func 跨页期间删除较新记录也不会跳过下一页() async {
+        let backend = FakeHistory()
+        backend.rows = (1 ... 250).map { id in with { $0.id = Int64(id) } }
+        let model = HistoryModel(backend: backend, sleep: instant)
+        await model.reload()
+        backend.afterQuery = {
+            backend.afterQuery = nil
+            backend.rows.removeAll { $0.id >= 151 }
+        }
+        await model.loadMore()
+        #expect(model.records.map(\.id) == Array((51 ... 250).reversed()).map(Int64.init))
+        #expect(model.hasMore)
     }
 
     @Test func 搜索词改了就送后端() async {

@@ -56,7 +56,13 @@ private final class FakeBackend: SettingsBackend {
 
     func saveApiKey(_ providerId: String, _ key: String) async throws { keys[providerId] = key }
     func deleteApiKey(_ providerId: String) async throws { keys[providerId] = nil }
-    func listModels(_ providerId: String) async throws -> [String] { ["\(providerId)-a", "\(providerId)-b"] }
+    /// 每次拉模型时后端存着的设置：看拉的是不是刚提交的端点。
+    var listedWith: [SettingsValues] = []
+
+    func listModels(_ providerId: String) async throws -> [String] {
+        listedWith.append(stored)
+        return ["\(providerId)-a", "\(providerId)-b"]
+    }
     func permissions() async -> PermissionStatus { perms }
     func requestScreenRecording() async { calls.append("requestScreen") }
     func openSystemSettings(_ permission: PermissionKind) { calls.append("open:\(permission.rawValue)") }
@@ -224,6 +230,15 @@ struct SettingsModelTests {
         #expect(model.engine.modelNotice == model.t("prefs.engine.gotModels", ["count": "2"]))
     }
 
+    @Test func 拉模型等刚提交的端点存好再拉() async {
+        // 端点框失焦即提交，与点「拉取模型」是同一下点击；内核按存好的地址拉，不等的话拉的是旧地址
+        let backend = FakeBackend(base)
+        let model = await loaded(backend)
+        model.commitRow("endpoint", ["customBaseUrl": .string("https://new.example/v1")])
+        await model.engine.fetchModels()
+        #expect(backend.listedWith.last?.string("customBaseUrl") == "https://new.example/v1")
+    }
+
     @Test func 开机启动以实现返回的状态为准被拒时说出原因且不存设置() async {
         let backend = FakeBackend(base)
         let model = await loaded(backend)
@@ -263,6 +278,38 @@ struct SettingsModelTests {
         await model.windowFocused()
         #expect(model.values.object("appTargetLangs")["Slack"] == .string("en"))
         #expect(model.permissions.accessibility == false)
+    }
+
+    @Test func 别处存了同一供应商的Key后聚焦就显示已配置() async {
+        // 首次引导或另一个窗口存了 Key：供应商没变，但 Key 状态变了
+        let backend = FakeBackend(base)
+        let model = await loaded(backend)
+        #expect(model.keyConfigured == false)
+        backend.keys["openai"] = "sk-from-onboarding"
+        await model.windowFocused()
+        #expect(model.keyConfigured == true)
+        #expect(model.attention.isEmpty)
+    }
+
+    @Test func 别处换了供应商就清掉没保存的Key草稿() async {
+        // 草稿是给上一个供应商填的：不清掉的话按「保存」会把它存到新供应商名下
+        let backend = FakeBackend(base)
+        let model = await loaded(backend)
+        model.engine.apiKey = "sk-typed-for-openai"
+        backend.stored["providerId"] = .string("deepseek")
+        await model.windowFocused()
+        #expect(model.providerId == "deepseek")
+        #expect(model.engine.apiKey == "")
+        await model.engine.saveKey()
+        #expect(backend.keys.isEmpty)
+
+        // 导入配置换了首选也一样
+        model.engine.apiKey = "sk-typed-for-deepseek"
+        backend.stored["providerId"] = .string("openai")
+        model.general.configPath = "/tmp/a.json"
+        await model.general.importConfig()
+        #expect(model.providerId == "openai")
+        #expect(model.engine.apiKey == "")
     }
 }
 
@@ -351,6 +398,18 @@ struct HotkeyEditorTests {
         #expect(model.hotkeys.commit("ocrHotkey", "Option+D") == nil)
         #expect(backend.patches.isEmpty)
         #expect(model.hotkeys.message("ocrHotkey") == model.t("prefs.hotkey.duplicate", ["name": model.t("prefs.translate.selection")]))
+    }
+
+    @Test func 不带修饰键的F键也查重复不让两个功能都用F5() async {
+        // 「缺修饰键」只是提醒、照样能存；它若抢在重复检查之前返回，两个功能就能同时设成 F5，其中一个注册时静默失败。
+        #expect(HotkeyConflict.check("F5", others: [(label: "划词翻译", value: "F5")])?.kind == .duplicate)
+        var settings = base
+        settings["selectionHotkey"] = .string("F5")
+        let backend = FakeBackend(settings)
+        let model = await loaded(backend)
+        #expect(model.hotkeys.commit("ocrHotkey", "F5") == nil)
+        #expect(model.hotkeys.errors["ocrHotkey"] == model.t("prefs.hotkey.duplicate", ["name": model.t("prefs.translate.selection")]))
+        #expect(backend.patches.isEmpty)
     }
 
     @Test func 语音键与翻译入口互查冲突且只收组合键() async {

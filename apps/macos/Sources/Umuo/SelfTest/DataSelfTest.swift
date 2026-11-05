@@ -20,6 +20,16 @@ enum DataSelfTest {
                 && meta.contains("openai · gpt-4o-mini") && meta.contains("划词"),
                 "空条件 \(all.count) 条、命中 \(matched.count)、无关词 \(none.count)；\(meta)")
 
+            let firstPage = try engine.historyQueryBefore(filter: HistoryFilter(query: "你好"), limit: 1, beforeId: nil)
+            if let first = firstPage.first {
+                let nextPage = try engine.historyQueryBefore(filter: HistoryFilter(query: "你好"), limit: 100,
+                                                            beforeId: first.id)
+                check("history: 游标分页", firstPage.map(\.id) + nextPage.map(\.id) == matched.map(\.id),
+                      "首条 \(first.id)，下一页 \(nextPage.count) 条，无重复或遗漏")
+            } else {
+                check("history: 游标分页", false, "未读到刚写入的历史")
+            }
+
             let quick = engine.quickState(paused: true)
             check("quickState", quick.paused && quick.providerLabel == "OpenAI" && quick.model == "gpt-4o-mini"
                 && quick.recent.first?.translation == "你好世界",

@@ -113,8 +113,34 @@ impl Store {
         limit: u32,
         offset: u32,
     ) -> Result<Vec<Record>, StoreError> {
+        self.query_page(filter, limit, offset, None)
+    }
+
+    /// 按主键游标取下一页（不含 `before_id`），新增或删除更近的记录不会移动分页边界。
+    /// `None` 表示第一页；搜索规则与 [`Self::query`] 相同。
+    pub fn query_before(
+        &self,
+        filter: &HistoryFilter,
+        limit: u32,
+        before_id: Option<i64>,
+    ) -> Result<Vec<Record>, StoreError> {
+        self.query_page(filter, limit, 0, before_id)
+    }
+
+    fn query_page(
+        &self,
+        filter: &HistoryFilter,
+        limit: u32,
+        offset: u32,
+        before_id: Option<i64>,
+    ) -> Result<Vec<Record>, StoreError> {
         let mut clauses: Vec<&str> = Vec::new();
         let mut params: Vec<Box<dyn rusqlite::ToSql>> = Vec::new();
+
+        if let Some(id) = before_id {
+            clauses.push("id < ?");
+            params.push(Box::new(id));
+        }
 
         if let Some(needle) = filter
             .query
@@ -247,6 +273,37 @@ mod tests {
         assert_eq!(first[0].entry.source_text, "s4", "最新的在最前");
         let second = store.recent(2, 2).unwrap();
         assert_eq!(second[0].entry.source_text, "s2");
+    }
+
+    #[test]
+    fn cursor_pages_do_not_shift_when_newer_records_are_inserted_or_deleted() {
+        let store = Store::open_in_memory().unwrap();
+        for i in 0..6 {
+            store.insert(&sample("match", "译", i)).unwrap();
+        }
+        let filter = HistoryFilter {
+            query: Some("match".into()),
+        };
+        let first = store.query_before(&filter, 2, None).unwrap();
+        assert_eq!(first.iter().map(|r| r.id).collect::<Vec<_>>(), [6, 5]);
+        store.insert(&sample("match", "新", 7)).unwrap();
+        store.delete(6).unwrap();
+        store.delete(5).unwrap();
+        let second = store.query_before(&filter, 2, Some(5)).unwrap();
+        assert_eq!(second.iter().map(|r| r.id).collect::<Vec<_>>(), [4, 3]);
+        let last = store.query_before(&filter, 2, Some(3)).unwrap();
+        assert_eq!(last.iter().map(|r| r.id).collect::<Vec<_>>(), [2, 1]);
+        assert!(store.query_before(&filter, 2, Some(1)).unwrap().is_empty());
+        assert!(store
+            .query_before(
+                &HistoryFilter {
+                    query: Some("absent".into())
+                },
+                2,
+                Some(5)
+            )
+            .unwrap()
+            .is_empty());
     }
 
     #[test]
