@@ -1,5 +1,6 @@
 import CryptoKit
 import Foundation
+import os
 import Testing
 import UmuoCore
 @testable import Umuo
@@ -875,6 +876,15 @@ struct VoiceRulesTests {
         #expect(asked == 1)
     }
 
+    @Test @MainActor func 后处理在后台调Engine的startVoice_不占主线程() async throws {
+        // ARCHITECTURE §2.3：Engine 的同步方法一律放进 Task.detached（与浮窗的 translate 同一约定）
+        let engine = ThreadRecordingEngine()
+        let processor = EngineVoicePostProcessor(engine: { engine }, unavailable: { "" })
+        let outcome = try await processor.run(session: 1, text: "你好", task: .translate)
+        #expect(outcome == VoicePostOutcome(text: "Hi", truncated: false))
+        #expect(engine.calledOnMain.withLock { $0 } == [false])
+    }
+
     @Test func 每种错误与下载失败都有四语言文案() {
         let catalog = StringCatalog.main
         let kinds: [VoiceErrorKind] = [.micPermissionDenied, .noInputDevice, .recording, .tooShort, .noSpeech,
@@ -890,6 +900,29 @@ struct VoiceRulesTests {
         #expect(VoiceOverlayView.elapsed(from: Date(timeIntervalSince1970: 0), to: Date(timeIntervalSince1970: 75))
             == "1:15")
     }
+}
+
+/// 只记 `startVoice` 在哪个线程上被调用的假 Engine：当场回一个成功结果，不碰 Rust。
+private final class ThreadRecordingEngine: Engine, @unchecked Sendable {
+    let calledOnMain = OSAllocatedUnfairLock<[Bool]>(initialState: [])
+
+    init() { super.init(noHandle: NoHandle()) }
+
+    required init(unsafeFromHandle handle: UInt64) { fatalError("测试用的假 Engine 不从句柄构造") }
+
+    override func startVoice(session: UInt64, request: VoicePostRequest, sink: VoiceSink) -> RequestHandle {
+        calledOnMain.withLock { $0.append(Thread.isMainThread) }
+        let output = VoicePostOutput(task: request.task, text: "Hi", transcript: request.transcript, sourceLang: "zh-CN",
+                                     outputLang: "en", provider: "OpenAI", providerId: "openai", model: "m",
+                                     firstTokenMs: nil, totalMs: 1, truncated: false)
+        sink.onResult(session: session, result: .done(output: output))
+        return NoopHandle(noHandle: RequestHandle.NoHandle())
+    }
+}
+
+/// 不碰 Rust 的请求句柄：`cancel()` 什么都不做。
+private final class NoopHandle: RequestHandle, @unchecked Sendable {
+    override func cancel() {}
 }
 
 /// 停在系统麦克风授权框上的「授权」：测试决定什么时候、以什么结果放行。
