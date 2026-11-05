@@ -22,7 +22,7 @@ protocol PanelBackend: AnyObject {
     /// 替换原文。成功为 nil，失败返回原因（已是完整的一句，例如「写回原文失败：…」）。
     /// `original`：这次翻译的原文，写入前核对选区还是它。
     func replace(_ text: String, original: String, owner: String?) async -> String?
-    /// 「在撰写窗打开」。`owner` 是浮窗归属的源应用：撰写窗 ⌘⇧Enter 要优先粘回那里（`compose_owner_for_caller`）。
+    /// 「在撰写窗打开」。`owner` 是浮窗归属的源应用：撰写窗 ⌘⇧Enter 要优先粘回那里（`ComposeRules.ownerForCaller`）。
     func openCompose(text: String, translation: String?, owner: String?)
     func openSettings()
     func openSystemSettings(_ permission: PermissionKind)

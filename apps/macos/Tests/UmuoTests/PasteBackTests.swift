@@ -5,7 +5,7 @@ import Testing
 // 浮窗「替换原文」与撰写窗 ⌘⇧↩ 的 ⌘V 兜底：与语音交付同一套受控粘贴（快照 → ⌘V → 延迟按 changeCount 恢复）。
 // 假剪贴板（FakePasteboard）+ 假的 ⌘V：不动用户剪贴板、不往别的应用里按键。
 
-private final class Board: @unchecked Sendable {
+final class Board: @unchecked Sendable {
     let pasteboard: FakePasteboard
     /// 每次 ⌘V 时剪贴板上的文字（目标应用读到的）。
     private(set) var pasted: [String] = []
