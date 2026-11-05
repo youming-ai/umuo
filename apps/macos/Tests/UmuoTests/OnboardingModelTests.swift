@@ -229,6 +229,19 @@ struct OnboardingModelTests {
         #expect(backend.keys.isEmpty)
     }
 
+    @Test func Key状态跟着下拉里选的供应商() async {
+        let backend = FakeOnboarding(defaults)
+        backend.keys = ["anthropic": "sk-ant"]
+        let model = await loaded(backend)
+        #expect(model.keyConfigured == false)
+        model.draftProvider = "anthropic"
+        await settle()
+        #expect(model.keyConfigured == true)
+        model.draftProvider = "openai"
+        await settle()
+        #expect(model.keyConfigured == false)
+    }
+
     @Test func 空白Key不保存() async {
         let backend = FakeOnboarding(defaults)
         let model = await loaded(backend)
