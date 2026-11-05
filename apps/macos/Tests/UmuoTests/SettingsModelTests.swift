@@ -353,6 +353,18 @@ struct HotkeyEditorTests {
         #expect(model.hotkeys.message("ocrHotkey") == model.t("prefs.hotkey.duplicate", ["name": model.t("prefs.translate.selection")]))
     }
 
+    @Test func 不带修饰键的F键也查重复不让两个功能都用F5() async {
+        // 「缺修饰键」只是提醒、照样能存；它若抢在重复检查之前返回，两个功能就能同时设成 F5，其中一个注册时静默失败。
+        #expect(HotkeyConflict.check("F5", others: [(label: "划词翻译", value: "F5")])?.kind == .duplicate)
+        var settings = base
+        settings["selectionHotkey"] = .string("F5")
+        let backend = FakeBackend(settings)
+        let model = await loaded(backend)
+        #expect(model.hotkeys.commit("ocrHotkey", "F5") == nil)
+        #expect(model.hotkeys.errors["ocrHotkey"] == model.t("prefs.hotkey.duplicate", ["name": model.t("prefs.translate.selection")]))
+        #expect(backend.patches.isEmpty)
+    }
+
     @Test func 语音键与翻译入口互查冲突且只收组合键() async {
         var settings = base
         settings[HotkeyCenter.voiceField] = .string("Alt+Cmd+V")
