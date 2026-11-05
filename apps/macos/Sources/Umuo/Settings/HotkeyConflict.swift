@@ -84,14 +84,15 @@ enum HotkeyConflict {
             return Conflict(kind: .duplicate, subject: clash.label)
         }
 
+        // 重复要先查：「缺修饰键」只是提醒、照样能存（F5 这类单键就是这样），先返回它的话两个功能能同时设成 F5。
+        if let clash = others.first(where: { normalize($0.value) == normalized }) {
+            return Conflict(kind: .duplicate, subject: clash.label)
+        }
+
         // 只有 Shift 不算真正的修饰键：没有真正修饰键的全局热键会**吞掉**所有应用里的这个按键。
         let parts = normalized.split(separator: "+").map(String.init)
         if !["ctrl", "alt", "cmd"].contains(where: parts.contains) {
             return Conflict(kind: .noModifier)
-        }
-
-        if let clash = others.first(where: { normalize($0.value) == normalized }) {
-            return Conflict(kind: .duplicate, subject: clash.label)
         }
 
         if let name = system[normalized] {
