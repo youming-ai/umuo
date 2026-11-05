@@ -8,7 +8,7 @@ export const zhTw: SiteContent = {
   seo: {
     title: 'umuo — 讀與寫，一鍵翻譯 | Mac AI 翻譯軟體',
     description:
-      'umuo 是 macOS 上的 AI 翻譯軟體：⌃⌃ 劃詞翻譯、⌥⌘A 輸入翻譯、⌥⌥ 閃電替換、⌥⌘O 截圖翻譯。接上自己的金鑰（GPT、Claude、Gemini 等）或本機模型即可使用，完全免費，無訂閱、不需帳號；語音輸入開發中。',
+      'umuo 是 macOS 上的 AI 翻譯軟體：⌃⌃ 劃詞翻譯、⌥⌘A 輸入翻譯、⌥⌥ 閃電替換、⌥⌘O 截圖翻譯。接上自己的金鑰（GPT、Claude、Gemini 等）或本機模型即可使用，完全免費，無訂閱、不需帳號；語音輸入以實驗功能提供。',
     ogLocale: 'zh_TW',
   },
   nav: {
@@ -50,12 +50,12 @@ export const zhTw: SiteContent = {
         },
         {
           id: 'speak',
-          hint: '開發中：按住 ⌃⌘V 說話，放開後翻譯成目標語言；按住 ⌥⌘V 則整理成通順的同語言文字',
+          hint: '按住 ⌃⌘V 說話，放開後翻譯成目標語言；按住 ⌥⌘V 則整理成通順的同語言文字',
           name: '語音輸入',
-          tag: '開發中',
+          tag: '實驗性',
           before: '嗯，那個，會議能改到禮拜五嗎',
           after: 'Could we move the meeting to Friday?',
-          note: '開發中：預覽版暫不包含語音輸入。',
+          note: '實驗性：預覽版已內建，本機轉寫，第一次使用會下載約 560 MB 的語音模型。',
         },
       ],
     },

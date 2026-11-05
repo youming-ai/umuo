@@ -8,7 +8,7 @@ export const zhCn: SiteContent = {
   seo: {
     title: 'umuo — 读与写，一键翻译 | macOS AI 翻译',
     description:
-      'umuo 是 macOS 上的 AI 翻译工具：⌃⌃ 划词翻译、⌥⌘A 输入翻译、⌥⌥ 闪电替换、⌥⌘O 截图翻译。接上自己的 Key（GPT、Claude、Gemini 等）或本地模型即可使用，完全免费，无订阅、无需账号；语音输入开发中。',
+      'umuo 是 macOS 上的 AI 翻译工具：⌃⌃ 划词翻译、⌥⌘A 输入翻译、⌥⌥ 闪电替换、⌥⌘O 截图翻译。接上自己的 Key（GPT、Claude、Gemini 等）或本地模型即可使用，完全免费，无订阅、无需账号；语音输入以实验功能提供。',
     ogLocale: 'zh_CN',
   },
   nav: {
@@ -50,12 +50,12 @@ export const zhCn: SiteContent = {
         },
         {
           id: 'speak',
-          hint: '开发中：按住 ⌃⌘V 说话，松开后翻译成目标语言；按住 ⌥⌘V 则整理成通顺的同语言文字',
+          hint: '按住 ⌃⌘V 说话，松开后翻译成目标语言；按住 ⌥⌘V 则整理成通顺的同语言文字',
           name: '语音输入',
-          tag: '开发中',
+          tag: '实验性',
           before: '嗯，那个，会议能改到周五吗',
           after: 'Could we move the meeting to Friday?',
-          note: '开发中：预览版暂不包含语音输入。',
+          note: '实验性：预览版已包含，本机转写，首次使用会下载约 560 MB 的语音模型。',
         },
       ],
     },

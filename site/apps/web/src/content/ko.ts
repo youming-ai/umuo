@@ -5,7 +5,7 @@ export const ko: SiteContent = {
   seo: {
     title: 'umuo: 읽고 쓰는 Mac AI 번역기',
     description:
-      'umuo는 macOS용 AI 번역 앱입니다. ⌃⌃ 선택 영역 번역, ⌥⌘A 입력 번역, ⌥⌥ 입력란 제자리 교체, ⌥⌘O 스크린샷 번역. 내 API 키(GPT, Claude, Gemini 등)나 로컬 모델을 연결해 쓰며, 완전 무료이며 구독도 계정도 필요 없습니다. 음성 입력은 개발 중입니다.',
+      'umuo는 macOS용 AI 번역 앱입니다. ⌃⌃ 선택 영역 번역, ⌥⌘A 입력 번역, ⌥⌥ 입력란 제자리 교체, ⌥⌘O 스크린샷 번역. 내 API 키(GPT, Claude, Gemini 등)나 로컬 모델을 연결해 쓰며, 완전 무료이며 구독도 계정도 필요 없습니다. 음성 입력은 실험 기능으로 제공됩니다.',
     ogLocale: 'ko_KR',
   },
   nav: {
@@ -48,12 +48,12 @@ export const ko: SiteContent = {
         },
         {
           id: 'speak',
-          hint: '개발 중: ⌃⌘V를 누른 채 말하고 떼면 목표 언어로 번역합니다. ⌥⌘V를 쓰면 같은 언어로 매끄럽게 다듬습니다',
+          hint: '⌃⌘V를 누른 채 말하고 떼면 목표 언어로 번역합니다. ⌥⌘V를 쓰면 같은 언어로 매끄럽게 다듬습니다',
           name: '음성 입력',
-          tag: '개발 중',
+          tag: '실험 기능',
           before: '음, 회의 금요일로 옮길 수 있을까',
           after: 'Could we move the meeting to Friday?',
-          note: '개발 중: 프리뷰에는 아직 음성 입력이 없습니다.',
+          note: '실험 기능: 프리뷰에 포함되어 있습니다. 음성 인식은 Mac에서 처리하며, 처음 사용할 때 약 560MB의 음성 모델을 내려받습니다.',
         },
       ],
     },

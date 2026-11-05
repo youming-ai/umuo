@@ -8,7 +8,7 @@ export const en: SiteContent = {
   seo: {
     title: 'umuo: AI translator for Mac — read and write in any app',
     description:
-      'umuo translates in any app on your Mac: ⌃⌃ for selected text, ⌥⌘A for typed input, ⌥⌥ to replace what you typed in place, ⌥⌘O for screenshots. Use your own key (GPT, Claude, Gemini and more) or a local model. Completely free, no subscription, no account needed. Voice input is in development.',
+      'umuo translates in any app on your Mac: ⌃⌃ for selected text, ⌥⌘A for typed input, ⌥⌥ to replace what you typed in place, ⌥⌘O for screenshots. Use your own key (GPT, Claude, Gemini and more) or a local model. Completely free, no subscription, no account needed. Voice input is available as an experimental feature.',
     ogLocale: 'en_US',
   },
   nav: {
@@ -51,12 +51,12 @@ export const en: SiteContent = {
         },
         {
           id: 'speak',
-          hint: 'In development: hold ⌃⌘V and speak, release to get it in your target language; hold ⌥⌘V to tidy it up in the same language',
+          hint: 'Hold ⌃⌘V and speak, release to get it in your target language; hold ⌥⌘V to tidy it up in the same language',
           name: 'Voice',
-          tag: 'In development',
+          tag: 'Experimental',
           before: 'Um, so, can we move the meeting to Friday',
           after: '会议可以改到周五吗？',
-          note: 'In development: the preview does not include voice input yet.',
+          note: 'Experimental: included in the preview. Speech is transcribed on your Mac; first use downloads a voice model of about 560 MB.',
         },
       ],
     },
