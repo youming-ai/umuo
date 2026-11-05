@@ -60,6 +60,7 @@ final class OnboardingWindowController: NSObject, NSWindowDelegate {
 
     func windowWillClose(_ notification: Notification) {
         guard (notification.object as? NSWindow) === window else { return }
+        model?.windowClosed()
         model = nil
         window = nil
     }

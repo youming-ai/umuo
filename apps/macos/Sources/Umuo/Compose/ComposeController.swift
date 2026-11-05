@@ -89,12 +89,14 @@ final class ComposeController: ComposeBackend {
             let key = ComposeKey.of(keyCode: event.keyCode,
                                     command: flags.contains(.command) || flags.contains(.control),
                                     shift: flags.contains(.shift),
-                                    composing: MainActor.assumeIsolated { window.isComposingText })
+                                    composing: MainActor.assumeIsolated { window.isComposingText },
+                                    control: flags.contains(.control))
             guard let key else { return event }
             MainActor.assumeIsolated {
                 switch key {
                 case .escape: self?.session.escape()
                 case let .commit(paste): self?.session.commit(paste: paste)
+                case .translate: self?.session.translateNow()
                 }
             }
             return nil

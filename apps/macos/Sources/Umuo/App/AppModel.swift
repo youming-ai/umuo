@@ -15,6 +15,12 @@ final class AppModel {
     @ObservationIgnored private(set) lazy var hotkeys = HotkeyCenter { [unowned self] action in self.perform(action) }
     /// 见 `HotkeyPolicy`：开发构建默认不注册，免得与正式安装版同开时抢同一组快捷键。
     let registersHotkeys: Bool
+    /// Engine 打开之后注册全局快捷键（只有 `registersHotkeys` 为真才真的注册）。
+    /// 测试换成只记调用的闭包，不碰 Carbon 的全局注册。
+    @ObservationIgnored lazy var registerHotkeys: @MainActor ([String: String]) -> Void = { [unowned self] values in
+        guard self.registersHotkeys else { return }
+        self.hotkeys.register(values)
+    }
     /// `--settings`：启动时直接打开设置窗（开发用：菜单栏应用没有 Dock 图标，命令行起的时候不用再去点菜单）。
     let opensSettingsAtLaunch: Bool
     private(set) var engine: Engine?
@@ -132,7 +138,7 @@ final class AppModel {
     }
 
     /// `result` 为 nil：拿不到 HOME，没有打开 Engine。
-    private func opened(_ result: Result<Engine, Error>?, settingsJson: String?) {
+    func opened(_ result: Result<Engine, Error>?, settingsJson: String?) {
         switch result {
         case let .success(engine)?:
             self.engine = engine
@@ -140,7 +146,7 @@ final class AppModel {
             if let settingsJson {
                 applyLocale(settingsJson)
                 voice?.overlay.hotkeyLabels = HotkeyCenter.voiceLabels(HotkeyCenter.values(settingsJson: settingsJson))
-                if registersHotkeys { hotkeys.register(HotkeyCenter.values(settingsJson: settingsJson)) }
+                registerHotkeys(HotkeyCenter.values(settingsJson: settingsJson))
             }
             settingsWindow?.engineReady()
             history?.engineReady()
@@ -148,9 +154,18 @@ final class AppModel {
             if Self.needsOnboarding(settingsJson: settingsJson) { scheduleOnboarding() }
         case let .failure(error)?:
             engineState = .failed(reason: userMessage(error))
+            registerHotkeysWithoutEngine()
         case nil:
             engineState = .noHome
+            registerHotkeysWithoutEngine()
         }
+    }
+
+    /// 内核没打开：读不到设置，快捷键按各行的回落组合键注册（自定义的键位此时无从得知——
+    /// settings.json 只由 Rust 读写）。不注册的话按键毫无反应；注册了，各入口发现没有 Engine 时
+    /// 会说明原因（划词 / 原地替换 / 截图弹浮窗提示 `engineStatus`，撰写窗与语音在发请求时报同一句话）。
+    private func registerHotkeysWithoutEngine() {
+        registerHotkeys(HotkeyCenter.values(settingsJson: ""))
     }
 
     /// 保存设置之后（设置窗、导入配置）：界面语言与主题当场跟上，快捷键变了就当场重注册，不用重启。

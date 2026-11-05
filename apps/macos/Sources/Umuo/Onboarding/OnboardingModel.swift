@@ -63,6 +63,8 @@ final class OnboardingModel {
     var t = Translate(locale: .source)
 
     @ObservationIgnored private var lastSave: Task<Void, Error>?
+    /// 引导已经结束（点了「完成」、或窗口被关掉）。之后才回来的探测结果不能再改设置里的首选引擎。
+    @ObservationIgnored private var ended = false
     /// 最近一次查 Key 状态的序号：结果回来时下拉可能又换了，只认最后一次。
     @ObservationIgnored private var keyCheck = 0
     /// 草稿的 Key 状态只用于输入框；完成度必须对应已经保存的首选引擎。
@@ -219,6 +221,8 @@ final class OnboardingModel {
                 probes.append((providerId, .unreachable))
             }
         }
+        // 探测要走网络：结果回来时用户可能已经走完或关掉了引导，这时不再动首选
+        guard !ended else { return }
         switch Onboarding.pickLocal(probes) {
         case let .success(found):
             localModel = found
@@ -228,7 +232,7 @@ final class OnboardingModel {
             let current = requestedEngine.providerId
             let requiresKey = providers.first { $0.id == current }?.requiresKey ?? true
             let currentHasKey = (try? await backend.keyStatus(current)) ?? false
-            guard requestedEngine == currentEngine else { return }
+            guard !ended, requestedEngine == currentEngine else { return }
             if let engine = Onboarding.engineForLocalModel(found.model, providerId: found.providerId,
                                                            keyConfigured: currentHasKey, requiresKey: requiresKey)
             {
@@ -273,12 +277,18 @@ final class OnboardingModel {
     /// 无论有没有配好引擎都记下「走完了」——他可能就是想先看看客户端长什么样。界面负责说清后果。
     /// 先等最后一次保存落定（失败也照样结束：原因已经显示过了）。
     func finish() async {
+        ended = true
         _ = await lastSave?.result
         do {
             _ = try await backend.applyPatch(["onboardingDone": .bool(true)])
             backend.close()
         } catch {
+            // 没记下来、窗口也没关：引导还在，之后的探测结果照常生效
+            ended = false
             notice = SettingsRules.message(error)
         }
     }
+
+    /// 窗口被关掉（含点关闭按钮跳过引导）。
+    func windowClosed() { ended = true }
 }

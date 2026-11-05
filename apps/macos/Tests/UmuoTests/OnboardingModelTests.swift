@@ -28,6 +28,11 @@ private class FakeOnboarding: OnboardingBackend {
     var translateError: Error?
     /// 保存前的等待（模拟一次慢保存，看「结束」会不会等它）。
     var saveDelay: Duration?
+    /// 探测本机模型的等待（模拟探测结果在引导结束之后才回来）。
+    var listDelay: Duration?
+    /// 控制 Key 状态返回的时刻，覆盖等待期间结束引导与更换首选的竞争。
+    var holdKeyChecks = false
+    var waitingKey: CheckedContinuation<Bool, Never>?
 
     init(_ stored: SettingsValues) { self.stored = stored }
 
@@ -61,11 +66,15 @@ private class FakeOnboarding: OnboardingBackend {
         ]
     }
 
-    func keyStatus(_ providerId: String) async throws -> Bool { keys[providerId] != nil }
+    func keyStatus(_ providerId: String) async throws -> Bool {
+        if holdKeyChecks { return await withCheckedContinuation { waitingKey = $0 } }
+        return keys[providerId] != nil
+    }
     func saveApiKey(_ providerId: String, _ key: String) async throws { keys[providerId] = key }
 
     func listModels(_ providerId: String) async throws -> [String] {
         listed.append(providerId)
+        if let listDelay { try? await Task.sleep(for: listDelay) }
         guard let models = local[providerId] else { throw Rejected(message: "连不上") }
         return models
     }
@@ -310,6 +319,76 @@ struct OnboardingModelTests {
         #expect(model.notice == "检测到本机模型：qwen2.5:7b（Ollama）", "与别家一样统一显示「模型（供应商）」")
         #expect(backend.patches == [["providerId": .string("ollama"), "model": .string("qwen2.5:7b")]])
         #expect(model.state.hasUsableEngine)
+    }
+
+    @Test func 引导结束后才回来的探测结果不再改首选() async {
+        let backend = FakeOnboarding(defaults)
+        backend.local = ["ollama": ["qwen2.5:7b"]]
+        backend.listDelay = .milliseconds(50)
+        let model = await loaded(backend)
+        let detecting = Task { await model.detectLocal() }
+        await model.finish()
+        #expect(backend.closed == 1)
+        await detecting.value
+        await settle()
+        #expect(backend.patches == [["onboardingDone": .bool(true)]])
+        #expect(backend.stored["providerId"] == .string("openai"))
+    }
+
+    @Test func 关掉引导窗后才回来的探测结果也不改首选() async {
+        let backend = FakeOnboarding(defaults)
+        backend.local = ["ollama": ["qwen2.5:7b"]]
+        backend.listDelay = .milliseconds(50)
+        let model = await loaded(backend)
+        let detecting = Task { await model.detectLocal() }
+        await Task.yield()
+        model.windowClosed()
+        await detecting.value
+        await settle()
+        #expect(backend.patches.isEmpty)
+    }
+
+    @Test func 等Key状态时结束或关窗也不能让探测结果改首选() async throws {
+        for closeWindow in [false, true] {
+            let backend = FakeOnboarding(defaults)
+            backend.local = ["ollama": ["qwen"]]
+            let model = await loaded(backend)
+            await settle()
+            backend.holdKeyChecks = true
+            let detecting = Task { await model.detectLocal() }
+            for _ in 0 ..< 1000 where backend.waitingKey == nil { await Task.yield() }
+            let waiting = try #require(backend.waitingKey)
+            backend.holdKeyChecks = false
+            if closeWindow { model.windowClosed() } else { await model.finish() }
+            waiting.resume(returning: false)
+            backend.waitingKey = nil
+            await detecting.value
+            await settle()
+            #expect(backend.stored.string("providerId") == "openai")
+            #expect(backend.patches == (closeWindow ? [] : [["onboardingDone": .bool(true)]]))
+        }
+    }
+
+    @Test func 等Key状态期间换了首选就丢弃旧探测决策() async throws {
+        let backend = FakeOnboarding(defaults)
+        backend.local = ["ollama": ["qwen"]]
+        backend.keys["anthropic"] = "sk-ant"
+        let model = await loaded(backend)
+        await settle()
+        backend.holdKeyChecks = true
+        let detecting = Task { await model.detectLocal() }
+        for _ in 0 ..< 1000 where backend.waitingKey == nil { await Task.yield() }
+        let waiting = try #require(backend.waitingKey)
+        backend.holdKeyChecks = false
+        let patch: SettingsValues = ["providerId": .string("anthropic"), "model": .string("claude")]
+        let saving = model.commitTask(patch)
+        try await saving?.value
+        waiting.resume(returning: false)
+        backend.waitingKey = nil
+        await detecting.value
+        await settle()
+        #expect(backend.patches == [patch])
+        #expect(backend.stored.string("providerId") == "anthropic")
     }
 
     @Test func Ollama没有就试LMStudio并标出是哪家() async {

@@ -236,6 +236,18 @@ impl Engine {
             .map_err(failed)
     }
 
+    /// 按记录 id 游标取历史（不含 `before_id`），None 表示第一页；每页最多 500 条。
+    pub fn history_query_before(
+        &self,
+        filter: Option<HistoryFilter>,
+        limit: u32,
+        before_id: Option<i64>,
+    ) -> Result<Vec<HistoryRecord>, EngineError> {
+        ops::history_query_before(&self.core, filter.map(Into::into), limit, before_id)
+            .map(|rows| rows.into_iter().map(Into::into).collect())
+            .map_err(failed)
+    }
+
     /// 删一条历史，返回是否真的删掉了。
     pub fn history_delete(&self, id: i64) -> Result<bool, EngineError> {
         ops::history_delete(&self.core, id).map_err(failed)

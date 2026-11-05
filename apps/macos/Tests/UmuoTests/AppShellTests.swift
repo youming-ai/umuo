@@ -44,6 +44,20 @@ struct AppShellTests {
         #expect(model.hotkeys.registeredCombos == 0)
     }
 
+    @Test func 内核打不开也照样注册快捷键_按下时由各入口说明内核状态() {
+        struct OpenFailed: Error, CustomStringConvertible { var description: String { "TLS 初始化失败" } }
+        for result in [Result<Engine, Error>.failure(OpenFailed()), nil] {
+            let model = AppModel(arguments: [], bundleIdentifier: nil)
+            var registered: [[String: String]] = []
+            model.registerHotkeys = { registered.append($0) }
+            model.opened(result, settingsJson: nil)
+            // 读不到设置：按各行的回落组合键注册（空值 = 全部回落）
+            #expect(registered == [[:]])
+            #expect(model.engine == nil)
+            #expect(model.engineStatus != model.t("app.engineStarting"))
+        }
+    }
+
     @Test func 旧退役键位不进入全局注册计划() {
         let values = HotkeyCenter.values(settingsJson: #"{"selectionHotkey":"Ctrl Ctrl","silentReplaceHotkey":"Alt Alt","composeHotkey":"Alt+Cmd+A","ocrHotkey":"Alt+Cmd+O","compareHotkey":"Alt+Cmd+O","ocrSilentHotkey":"Ctrl Ctrl","speakHotkey":"Alt Alt"}"#)
         let plan = HotkeyCenter.plan(values)

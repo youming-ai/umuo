@@ -152,6 +152,14 @@ final class ComposeSession {
         }
     }
 
+    /// 「翻译」按钮与 ⌘T：不等防抖，当前输入马上交给调度器（翻译中就只排队）。
+    /// 关掉自动翻译时这是唯一的翻译入口。
+    func translateNow() {
+        debounceTask?.cancel()
+        debounceTask = nil
+        flushInput()
+    }
+
     /// 出错块的「重试」：当前输入再走一次调度器（不绕过队列，免得与紧接着的一次输入并发）。
     func retry() { flushInput() }
 

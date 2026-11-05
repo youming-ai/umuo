@@ -50,19 +50,23 @@ final class ComposeWindow: NSPanel {
     }
 }
 
-/// 撰写窗的三个快捷键：Esc 收起；⌘↩ 复制并关闭；⌘⇧↩ 复制并粘贴回原来的应用（PRD §5.3）。
-/// 纯函数：按键 → 要做什么，测得到；窗口只负责把 NSEvent 换成这三个值。
+/// 撰写窗的快捷键：Esc 收起；⌘↩ 复制并关闭；⌘⇧↩ 复制并粘贴回原来的应用（PRD §5.3）；
+/// ⌘T 立即翻译（关掉自动翻译时靠它或「翻译」按钮发起）。
+/// 纯函数：按键 → 要做什么，测得到；窗口只负责把 NSEvent 换成这几个值。
 enum ComposeKey: Equatable {
     case escape
     case commit(paste: Bool)
+    case translate
 
-    /// kVK_Escape / kVK_Return / kVK_ANSI_KeypadEnter
-    static func of(keyCode: UInt16, command: Bool, shift: Bool, composing: Bool) -> ComposeKey? {
+    /// kVK_Escape / kVK_Return / kVK_ANSI_KeypadEnter / kVK_ANSI_T。
+    /// `control` 单独给出：⌃T 是输入框的「对调字符」，不能当成 ⌘T。
+    static func of(keyCode: UInt16, command: Bool, shift: Bool, composing: Bool, control: Bool = false) -> ComposeKey? {
         if composing { return nil }
         switch keyCode {
         case 53: return .escape
         // ⌃↩ 也算：由调用方把 control 并进 command 传进来
         case 36, 76: return command ? .commit(paste: shift) : nil
+        case 17: return command && !control && !shift ? .translate : nil
         default: return nil
         }
     }

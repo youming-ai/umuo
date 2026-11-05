@@ -6,7 +6,7 @@ import UmuoCore
 /// 测试换成只记调用的假实现——历史窗的规则因此不碰真实历史库、剪贴板就能测。
 @MainActor
 protocol HistoryBackend: AnyObject {
-    func query(_ filter: HistoryFilter, limit: UInt32) async throws -> [HistoryRecord]
+    func query(_ filter: HistoryFilter, limit: UInt32, beforeId: Int64?) async throws -> [HistoryRecord]
     /// 隐私模式开着时列表是空的——要说清楚原因，否则用户以为记录丢了。
     func privacyMode() async throws -> Bool
     func delete(id: Int64) async throws
@@ -28,6 +28,8 @@ protocol HistoryBackend: AnyObject {
 final class HistoryModel {
     /// 搜索输入的防抖：每敲一个字就查一次库没必要，输入停顿后再查（`SEARCH_DEBOUNCE_MS`）。
     static let debounce: Duration = .milliseconds(250)
+    /// 每页条数。一次只读一页（多读一条判断后面还有没有），`pageSize + 1` 必须不超过内核单次上限
+    /// （`crates/umuo-app/src/ops.rs` 的 `HISTORY_PAGE_MAX`，500），否则多读的那条被截掉、「显示更多」就消失了。
     static let pageSize: UInt32 = 100
 
     let backend: HistoryBackend
@@ -37,7 +39,7 @@ final class HistoryModel {
     var status: String?
     /// 列表里选中的那一条：右键菜单与 Delete 键作用于它。
     var selection: Int64?
-    /// 已经读了几页。库里的查询只有条数上限、没有偏移，「显示更多」就是多读一页重查。
+    /// 已经读了几页。「显示更多」就是多读一页，整页重读时按页逐个读。
     private(set) var pages = 1
     /// 后面还有没显示的记录：列表末尾给出「显示更多」，而不是静默截断。
     private(set) var hasMore = false
@@ -77,14 +79,24 @@ final class HistoryModel {
     func reload() async {
         generation += 1
         let mine = generation
-        // 多读一条：读到了就说明后面还有
-        let limit = Self.pageSize * UInt32(pages)
+        let filter = HistoryFilter(query: query)
+        let size = Int(Self.pageSize)
         do {
-            let fetched = try await backend.query(HistoryFilter(query: query), limit: limit + 1)
+            // 下一页从已读取的最后一个 id 往前找，不用会随新增、删除而移动的偏移。
+            // 每页多读一条判断后面还有没有；这条留到下一页，不能当游标跳过去。
+            var rows: [HistoryRecord] = []
+            var more = false
+            for _ in 0 ..< pages {
+                let fetched = try await backend.query(filter, limit: Self.pageSize + 1,
+                                                      beforeId: rows.last?.id)
+                guard mine == generation else { return }
+                rows += fetched.prefix(size)
+                more = fetched.count > size
+                if !more { break }
+            }
             let privacy = try await backend.privacyMode()
             guard mine == generation else { return }
-            hasMore = fetched.count > Int(limit)
-            let rows = Array(fetched.prefix(Int(limit)))
+            hasMore = more
             records = rows
             // 搜索或重载后不能让 Delete 仍指向列表外的旧记录。
             if let selection, !rows.contains(where: { $0.id == selection }) {
