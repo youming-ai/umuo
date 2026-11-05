@@ -885,6 +885,16 @@ struct VoiceRulesTests {
         #expect(engine.calledOnMain.withLock { $0 } == [false])
     }
 
+    @Test @MainActor func 后台登记句柄前后到达的取消都会落到句柄上() async {
+        // startVoice 在后台调：取消可能先于句柄登记到达，登记时要补上 cancel()，否则请求一直挂着
+        let engine = CancelOnlyEngine()
+        let processor = EngineVoicePostProcessor(engine: { engine }, unavailable: { "" })
+        let run = Task { try await processor.run(session: 7, text: "你好", task: .tidy) }
+        while engine.started.withLock({ $0 }) == false { await Task.yield() }
+        processor.cancel(session: 7)
+        await #expect(throws: VoiceFault.self) { _ = try await run.value }
+    }
+
     @Test func 每种错误与下载失败都有四语言文案() {
         let catalog = StringCatalog.main
         let kinds: [VoiceErrorKind] = [.micPermissionDenied, .noInputDevice, .recording, .tooShort, .noSpeech,
@@ -917,6 +927,41 @@ private final class ThreadRecordingEngine: Engine, @unchecked Sendable {
                                      firstTokenMs: nil, totalMs: 1, truncated: false)
         sink.onResult(session: session, result: .done(output: output))
         return NoopHandle(noHandle: RequestHandle.NoHandle())
+    }
+}
+
+/// 不主动回结果的假 Engine：句柄被 `cancel()` 时才回一个「已取消」的失败。
+private final class CancelOnlyEngine: Engine, @unchecked Sendable {
+    let started = OSAllocatedUnfairLock(initialState: false)
+
+    init() { super.init(noHandle: NoHandle()) }
+
+    required init(unsafeFromHandle handle: UInt64) { fatalError("测试用的假 Engine 不从句柄构造") }
+
+    override func startVoice(session: UInt64, request: VoicePostRequest, sink: VoiceSink) -> RequestHandle {
+        started.withLock { $0 = true }
+        return CancellingHandle(session: session, transcript: request.transcript, sink: sink)
+    }
+}
+
+private final class CancellingHandle: RequestHandle, @unchecked Sendable {
+    private let session: UInt64
+    private let transcript: String
+    private let sink: VoiceSink
+
+    init(session: UInt64, transcript: String, sink: VoiceSink) {
+        self.session = session
+        self.transcript = transcript
+        self.sink = sink
+        super.init(noHandle: NoHandle())
+    }
+
+    required init(unsafeFromHandle handle: UInt64) { fatalError("测试用的假句柄不从句柄构造") }
+
+    override func cancel() {
+        let failure = VoicePostFailure(kind: .failed, message: "", transcript: transcript, retryable: false,
+                                       cancelled: true)
+        sink.onResult(session: session, result: .failed(failure: failure))
     }
 }
 
