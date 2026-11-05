@@ -161,11 +161,13 @@ final class AppModel {
         }
     }
 
-    /// 内核没打开：读不到设置，快捷键按各行的回落组合键注册（自定义的键位此时无从得知——
-    /// settings.json 只由 Rust 读写）。不注册的话按键毫无反应；注册了，各入口发现没有 Engine 时
-    /// 会说明原因（划词 / 原地替换 / 截图弹浮窗提示 `engineStatus`，撰写窗与语音在发请求时报同一句话）。
+    /// 内核没打开：读不到设置，快捷键按内核的默认键位注册（自定义的键位此时无从得知——
+    /// settings.json 只由 Rust 读写）。不用 `HotkeyCenter.table` 的回落组合键：划词、原地替换默认是
+    /// 连按 ⌃⌃ / ⌥⌥，回落的 ⌥D / ⌥⇧T 在部分键盘布局下用来输入字符。不注册的话按键毫无反应；注册了，
+    /// 各入口发现没有 Engine 时会说明原因（划词 / 原地替换 / 截图弹浮窗提示 `engineStatus`，
+    /// 撰写窗与语音在发请求时报同一句话）。
     private func registerHotkeysWithoutEngine() {
-        registerHotkeys(HotkeyCenter.values(settingsJson: ""))
+        registerHotkeys(HotkeyCenter.values(settingsJson: defaultSettingsJson()))
     }
 
     /// 保存设置之后（设置窗、导入配置）：界面语言与主题当场跟上，快捷键变了就当场重注册，不用重启。
