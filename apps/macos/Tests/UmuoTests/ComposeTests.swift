@@ -121,6 +121,15 @@ struct ComposeRulesTests {
         #expect(ComposeKey.of(keyCode: 0, command: true, shift: false, composing: false) == nil)
     }
 
+    @Test func 命令T立即翻译_控制T仍是输入框的对调字符() {
+        // kVK_ANSI_T = 17。调用方把 ⌃ 并进 command，所以另传 control 区分 ⌘T 与 ⌃T
+        #expect(ComposeKey.of(keyCode: 17, command: true, shift: false, composing: false, control: false) == .translate)
+        #expect(ComposeKey.of(keyCode: 17, command: true, shift: false, composing: false, control: true) == nil)
+        #expect(ComposeKey.of(keyCode: 17, command: true, shift: true, composing: false, control: false) == nil)
+        #expect(ComposeKey.of(keyCode: 17, command: false, shift: false, composing: false, control: false) == nil)
+        #expect(ComposeKey.of(keyCode: 17, command: true, shift: false, composing: true, control: false) == nil)
+    }
+
     @Test func 输入法组字时Esc与回车属于输入法() {
         #expect(ComposeKey.of(keyCode: 53, command: false, shift: false, composing: true) == nil)
         #expect(ComposeKey.of(keyCode: 36, command: true, shift: false, composing: true) == nil)
@@ -179,6 +188,17 @@ struct ComposeSessionTests {
         await settle()
         #expect(backend.translated.isEmpty)
         session.autoTranslate = true
+        await settle()
+        #expect(backend.translated.map(\.text) == ["你好"])
+    }
+
+    @Test func 关掉自动翻译时手动翻译按当前输入发一次() async {
+        let (session, backend) = session()
+        session.autoTranslate = false
+        session.input = "你好"
+        await settle()
+        #expect(backend.translated.isEmpty)
+        session.translateNow()
         await settle()
         #expect(backend.translated.map(\.text) == ["你好"])
     }
