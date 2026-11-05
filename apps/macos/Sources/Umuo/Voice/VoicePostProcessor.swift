@@ -27,8 +27,9 @@ final class EngineVoicePostProcessor: VoicePostProcessing {
     }
 
     func run(session: UInt64, text: String, task: VoiceTask) async throws -> VoicePostOutcome {
-        // 会话号单调递增：比这一次旧的取消记录不会再用到
-        cancelled = cancelled.filter { $0 >= session }
+        // 旧请求可能仍在后台等待句柄登记，取消记录必须保留到请求结束。
+        // 会话号单调递增：只清理已结束的旧会话。
+        cancelled = cancelled.filter { $0 >= session || running.contains($0) }
         // 详情不显示：被取消的结果状态机按迟到忽略
         guard !cancelled.contains(session) else { throw VoiceFault(kind: .postProcess, detail: "") }
         guard let engine = engine() else {

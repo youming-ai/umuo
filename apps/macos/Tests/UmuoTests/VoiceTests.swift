@@ -895,6 +895,24 @@ struct VoiceRulesTests {
         await #expect(throws: VoiceFault.self) { _ = try await run.value }
     }
 
+    @Test(arguments: [true, false]) @MainActor
+    func 新会话开始前后取消旧会话_迟到的旧句柄仍被取消(cancelBeforeNext: Bool) async throws {
+        let engine = DelayedHandleEngine()
+        let processor = EngineVoicePostProcessor(engine: { engine }, unavailable: { "" })
+        let first = Task { try await processor.run(session: 7, text: "旧转写", task: .tidy) }
+        await until { engine.pending.withLock { $0 != nil } }
+        if cancelBeforeNext { processor.cancel(session: 7) }
+        // 旧句柄卡在后台时，新会话已经完成；旧取消记录仍须留到句柄登记。
+        _ = try await processor.run(session: 8, text: "新转写", task: .tidy)
+        if !cancelBeforeNext { processor.cancel(session: 7) }
+        engine.release.signal()
+        await until { engine.pending.withLock { $0?.wasCancelled.withLock { $0 } == true } }
+        #expect(engine.pending.withLock { $0?.wasCancelled.withLock { $0 } == true })
+        // 修复前也要结束旧 continuation，避免失败测试留下悬挂任务；sink 会防重复回调。
+        engine.pending.withLock { $0 }?.cancel()
+        await #expect(throws: VoiceFault.self) { _ = try await first.value }
+    }
+
     @Test func 每种错误与下载失败都有四语言文案() {
         let catalog = StringCatalog.main
         let kinds: [VoiceErrorKind] = [.micPermissionDenied, .noInputDevice, .recording, .tooShort, .noSpeech,
@@ -944,7 +962,28 @@ private final class CancelOnlyEngine: Engine, @unchecked Sendable {
     }
 }
 
+/// 暂停旧会话的句柄返回，让新会话与取消都确定发生在登记之前。
+private final class DelayedHandleEngine: Engine, @unchecked Sendable {
+    let pending = OSAllocatedUnfairLock<CancellingHandle?>(initialState: nil)
+    let release = DispatchSemaphore(value: 0)
+
+    init() { super.init(noHandle: NoHandle()) }
+
+    required init(unsafeFromHandle handle: UInt64) { fatalError("测试用的假 Engine 不从句柄构造") }
+
+    override func startVoice(session: UInt64, request: VoicePostRequest, sink: VoiceSink) -> RequestHandle {
+        guard session == 7 else {
+            return ThreadRecordingEngine().startVoice(session: session, request: request, sink: sink)
+        }
+        let handle = CancellingHandle(session: session, transcript: request.transcript, sink: sink)
+        pending.withLock { $0 = handle }
+        release.wait()
+        return handle
+    }
+}
+
 private final class CancellingHandle: RequestHandle, @unchecked Sendable {
+    let wasCancelled = OSAllocatedUnfairLock(initialState: false)
     private let session: UInt64
     private let transcript: String
     private let sink: VoiceSink
@@ -959,6 +998,7 @@ private final class CancellingHandle: RequestHandle, @unchecked Sendable {
     required init(unsafeFromHandle handle: UInt64) { fatalError("测试用的假句柄不从句柄构造") }
 
     override func cancel() {
+        wasCancelled.withLock { $0 = true }
         let failure = VoicePostFailure(kind: .failed, message: "", transcript: transcript, retryable: false,
                                        cancelled: true)
         sink.onResult(session: session, result: .failed(failure: failure))
