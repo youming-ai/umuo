@@ -48,9 +48,13 @@ final class OnboardingModel {
     var notice: String?
 
     /// 模型这一步的草稿：选中的供应商与还没保存的 Key。
-    /// 换供应商就清掉 Key 草稿：它属于上一个供应商，留着的话按「保存」会把它存到新供应商名下。
+    /// 换供应商就清掉 Key 草稿：它属于上一个供应商，留着的话按「保存」会把它存到新供应商名下；Key 状态也改查这一家。
     var draftProvider = "" {
-        didSet { if draftProvider != oldValue { draftKey = "" } }
+        didSet {
+            guard draftProvider != oldValue else { return }
+            draftKey = ""
+            Task { await refreshKeyStatus() }
+        }
     }
     var draftKey = ""
     /// 需要端点的供应商（Azure、自定义端点）要自己填的模型名：自定义端点没有默认模型，Azure 是部署名。
@@ -59,6 +63,8 @@ final class OnboardingModel {
     var t = Translate(locale: .source)
 
     @ObservationIgnored private var lastSave: Task<Void, Error>?
+    /// 最近一次查 Key 状态的序号：结果回来时下拉可能又换了，只认最后一次。
+    @ObservationIgnored private var keyCheck = 0
 
     init(backend: OnboardingBackend) {
         self.backend = backend
@@ -91,10 +97,20 @@ final class OnboardingModel {
             queue = SettingsQueue(initial: current) { [backend] patch in try await backend.applyPatch(patch) }
             draftProvider = current.string("providerId")
             permissions = await backend.permissions()
-            keyConfigured = (try? await backend.keyStatus(current.string("providerId"))) ?? false
+            await refreshKeyStatus()
         } catch {
             notice = t("onboarding.settingsFailed", ["reason": SettingsRules.message(error)])
         }
+    }
+
+    /// 查下拉里选中的供应商有没有配 Key。
+    func refreshKeyStatus() async {
+        let providerId = draftProvider
+        keyCheck += 1
+        let mine = keyCheck
+        let configured = (try? await backend.keyStatus(providerId)) ?? false
+        guard mine == keyCheck else { return }
+        keyConfigured = configured
     }
 
     func commit(_ patch: SettingsValues) {
