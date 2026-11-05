@@ -96,12 +96,14 @@ private final class FakeHistory: HistoryBackend {
     var composed: [(String, String)] = []
     var privacy = false
     var limits: [UInt32] = []
+    /// 一次最多返回几条：对应 Rust 侧 `ops.rs` 的 `HISTORY_PAGE_MAX`（超过的 limit 被内核截掉）。
+    let cap: UInt32 = 500
 
     func query(_ filter: HistoryFilter, limit: UInt32) async throws -> [HistoryRecord] {
         filters.append(filter)
         limits.append(limit)
         if fail { throw Broken() }
-        return Array(rows.prefix(Int(limit)))
+        return Array(rows.prefix(Int(min(limit, cap))))
     }
 
     func privacyMode() async throws -> Bool { privacy }
@@ -167,6 +169,19 @@ struct HistoryModelTests {
         for _ in 0 ..< 200 where backend.filters.last?.query != "Hello" { await Task.yield() }
         #expect(model.pages == 1)
         #expect(backend.limits.last == HistoryModel.pageSize + 1)
+    }
+
+    @Test func 超过内核单次上限500条时仍给显示更多() async {
+        let backend = FakeHistory()
+        backend.rows = (1 ... 505).map { id in with { $0.id = Int64(id) } }
+        let model = HistoryModel(backend: backend, sleep: instant)
+        await model.reload()
+        while model.records.count < 500, model.hasMore { await model.loadMore() }
+        #expect(model.records.count == 500)
+        #expect(model.hasMore)
+        await model.loadMore()
+        #expect(model.records.count == 505)
+        #expect(!model.hasMore)
     }
 
     @Test func 正好一页时不给显示更多() async {
