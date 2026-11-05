@@ -3,6 +3,7 @@ import react from '@vitejs/plugin-react'
 import { defineConfig, type Plugin } from 'vite'
 import { DEFAULT_LOCALE, HTML_LANG, LOCALES } from './src/config'
 import type { Locale } from './src/content/types'
+import { replaceLiteral } from './src/lib/html'
 import { headTags } from './src/lib/seo'
 
 function escapeHtml(value: string): string {
@@ -59,12 +60,15 @@ function localeHtmlPlugin(): Plugin {
       }
 
       const htmlFor = (locale: Locale) =>
-        template
-          .replace(
+        replaceLiteral(
+          replaceLiteral(
+            template,
             /<html lang="[^"]*"/,
             `<html lang="${HTML_LANG[locale] ?? locale}" data-locale="${locale}"`,
-          )
-          .replace(/<!-- seo:start -->[\s\S]*?<!-- seo:end -->/, seoHead(locale))
+          ),
+          /<!-- seo:start -->[\s\S]*?<!-- seo:end -->/,
+          seoHead(locale),
+        )
 
       // 根路径保留默认语言（Worker 不在时的兜底），再为每种语言产出一份内部文件 <locale>/index.html
       entry.source = htmlFor(DEFAULT_LOCALE)

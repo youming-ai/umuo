@@ -24,7 +24,7 @@ Void 运行时用到 `node:async_hooks`。
 
 ## 开发与验证
 
-需要 Bun ≥ 1.2、Node ≥ 24.21。本机默认 Node 较低时，可在以下命令前加 `mise exec node@24 --`。
+需要 Bun ≥ 1.4（版本以 `package.json` 的 `packageManager` 为准）、Node ≥ 24.21。本机默认 Node 较低时，可在以下命令前加 `mise exec node@24 --`。
 
 ```bash
 bun install --frozen-lockfile

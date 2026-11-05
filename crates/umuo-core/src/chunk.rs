@@ -37,8 +37,9 @@ pub struct TextChunk {
 /// 输入预算取两者较小（审查 M4）：上下文的 70%，以及输出上限能装下的原文量。
 /// 只看上下文的话，2 万字的长文对 200k 窗口的模型是「一次就发」，
 /// 而译文会在输出上限（[`crate::wire::DEFAULT_MAX_OUTPUT_TOKENS`]）处被截断。
-/// 不按协议区分：OpenAI 兼容的供应商不发 `max_tokens`、默认上限各家不同
-/// （DeepSeek 只有 4096），按膨胀系数折算后的同一个数对它们也够用。
+/// 不按协议区分，统一按 8192 折算：输入最多约 4096 token，按膨胀系数估出的译文约 8192 token。
+/// OpenAI 兼容的供应商不发 `max_tokens`、默认上限各家不同；默认上限更小的（如 DeepSeek 的 4096）
+/// 在接近预算的长分段上仍可能截断——那时靠流里的截断标记（`length`）报出来，而不是静默丢字。
 pub fn char_budget(context_tokens: usize, cjk_ratio: f64) -> usize {
     let per_token = LATIN_CHARS_PER_TOKEN
         + (CJK_CHARS_PER_TOKEN - LATIN_CHARS_PER_TOKEN) * cjk_ratio.clamp(0.0, 1.0);

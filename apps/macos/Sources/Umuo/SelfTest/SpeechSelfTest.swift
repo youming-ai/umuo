@@ -1,6 +1,6 @@
 import AVFoundation
 
-/// `--selftest` 的朗读部分：挑发音人与文本清理用 Rust 测试的同一批夹具，再在本机真实发音人上挑几种语言。
+/// `--selftest` 的朗读部分：挑发音人与文本清理跑一批固定夹具（规则只在 Swift 的 `SpeechRules`），再在本机真实发音人上挑几种语言。
 ///
 /// **不出声**：不对真实合成器调 `speak`（空文本那一条在任何合成器创建之前就返回）。不涉及 TCC 权限。
 enum SpeechSelfTest {
@@ -65,7 +65,7 @@ enum SpeechSelfTest {
         check("Speech.utterance", ok, "「-o/tmp/x」「- 第一点」原样作为文本；失效的 identifier → 系统默认发音人")
     }
 
-    /// 本机真实装了什么因机而异（Rust 那条是 #[ignore]），所以只要求英语一定挑得到，其它语言打印出来。
+    /// 本机真实装了什么因机而异，所以只要求英语一定挑得到，其它语言打印出来。
     @MainActor
     static func installed(_ check: (String, Bool, String) -> Void) {
         let voices = Speech.installedVoices()

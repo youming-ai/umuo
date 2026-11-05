@@ -192,7 +192,7 @@ impl Store {
         &self.conn
     }
 
-    /// 当前结构版本。设置页的「关于」里可以显示它，便于排查。
+    /// 当前结构版本（`PRAGMA user_version`）。目前只有测试用它确认迁移跑到了最新版。
     pub fn schema_version(&self) -> Result<i64, StoreError> {
         Ok(self
             .conn

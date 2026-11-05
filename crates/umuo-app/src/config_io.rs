@@ -29,7 +29,9 @@ pub const EXPORT_FILE: &str = "umuo-config.json";
 #[serde(rename_all = "camelCase")]
 pub struct Bundle {
     pub version: u32,
-    /// 导出这个包的客户端版本。**只用于事后排查**，不参与任何判断——
+    /// 导出这个包的内核 crate 版本（`CARGO_PKG_VERSION`，即 workspace 版本），
+    /// **不是**发布版本号（`v0.2.<运行序号>` 只写在 Swift 宿主的 Info.plist 里）。
+    /// **只用于事后排查**，不参与任何判断——
     /// 版本号参与逻辑就会变成一道随时会拦人的墙。
     pub app_version: String,
     pub settings: Settings,
@@ -184,8 +186,8 @@ fn keep_local_unknown_fields(
 
 /// 导出路径：`<home>/Downloads/umuo-config.json`。
 ///
-/// 不弹文件选择器（本仓库没引 dialog 插件）：固定位置 + 界面显示完整路径，
-/// 用户照样找得到；导入时路径可改，所以也不限于这一处。
+/// 导出不弹保存面板：固定位置 + 界面显示完整路径，用户照样找得到；
+/// 导入由 Swift 宿主的打开面板选文件，所以也不限于这一处。
 pub fn export_path_in(home: &Path) -> PathBuf {
     home.join("Downloads").join(EXPORT_FILE)
 }
@@ -380,7 +382,7 @@ mod tests {
 
     #[test]
     fn a_file_without_a_version_is_refused() {
-        // serde 会给 `version` 一个 0；那多半是别的 JSON 被误当成配置。
+        // `version` 是必填字段，缺了在解析时就被拒；显式写成 0 的多半是别的 JSON 被误当成配置。
         assert!(check_version(0).is_err());
     }
 

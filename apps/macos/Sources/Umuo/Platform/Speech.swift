@@ -11,9 +11,9 @@ struct Voice: Equatable {
     var flaggedNovelty = false
 }
 
-/// 发音朗读的纯规则：按语言挑发音人、把译文收拾成可念的文本。
+/// 发音朗读的纯规则：按语言挑发音人、把译文收拾成可念的文本。规则只在 Swift 这一份（Rust 侧没有对应实现）。
 enum SpeechRules {
-    /// macOS 自带的「趣味」发音人，与 Rust 的 `NOVELTY_VOICES` 同一份名单。
+    /// macOS 自带的「趣味」发音人名单。
     ///
     /// 它们**在每个语言下都出现一遍**，且按字母序排在自然发音人前面——「取第一个匹配」会让中文挑到 Eddy。
     /// AVSpeech 的 `voiceTraits.isNoveltyVoice` 只标了其中一部分（Eddy、Flo、Grandma 这批 eloquence 音实测都没标），
@@ -32,7 +32,7 @@ enum SpeechRules {
 
     /// 从可用发音人里按语言挑一个，返回它的 identifier。挑不到返回 nil，交给系统默认发音人。
     ///
-    /// 四层优先级与 Rust 的 `pick_voice` 一致：
+    /// 四层优先级：
     ///
     ///   1. 地区精确 + 自然音   （zh-TW 文本 → zh_TW 的 Meijia）
     ///   2. 同语言 + 自然音     （zh-CN 文本 → zh_TW 的 Meijia）
@@ -56,15 +56,15 @@ enum SpeechRules {
         return (natural(exact) ?? natural(sameLanguage) ?? exact.first ?? sameLanguage.first)?.identifier
     }
 
-    /// 把文本收拾成适合朗读的样子，与 Rust 的 `to_speech_text` 同一规则：
+    /// 把文本收拾成适合朗读的样子：
     /// 逐行 trim，代码块围栏与纯符号行（含空行）不念，行与行用一个空格连成一段（逐行念会一顿一顿），
     /// 再把 `* ` # _` 换成空格、压掉连续空白——否则用户听到的是「星号星号粗体星号星号」。
     static func toSpeechText(_ text: String) -> String {
         var kept: [String] = []
-        // Rust 的 `lines()`：按 \n 切，行尾的 \r 一并去掉（trim 已覆盖）。
+        // 按 \n 切行，行尾的 \r 一并去掉（trim 已覆盖）。
         // 必须按 Unicode 标量切：Swift 的 Character 里 "\r\n" 是一个字形簇，不等于 "\n"，
         // 按 Character 切的话 CRLF 文本整段只算一行，围栏与纯符号行都跳不掉。
-        // 单独的 \r、U+2028 不切，与 `lines()` 一致。
+        // 单独的 \r、U+2028 不切。
         for scalars in text.unicodeScalars.split(separator: "\n", omittingEmptySubsequences: false) {
             let trimmed = String(String.UnicodeScalarView(scalars)).trimmingCharacters(in: .whitespacesAndNewlines)
             if trimmed.hasPrefix("```") || !trimmed.contains(where: { $0.isLetter || $0.isNumber }) { continue }
@@ -78,7 +78,7 @@ enum SpeechRules {
     /// 不像 `say` 那样走命令行参数，以 `-` 开头的译文（「- 第一点」「-o/路径」）不会被当成选项（M11 那一类问题不存在）。
     static func utterance(_ spoken: String, voiceIdentifier: String?) -> AVSpeechUtterance {
         let utterance = AVSpeechUtterance(string: spoken)
-        // identifier 失效（发音人被卸载）时构造出 nil，等同 Rust 的「挑不到 → 系统默认发音人」
+        // identifier 失效（发音人被卸载）时构造出 nil，等同「挑不到 → 系统默认发音人」
         utterance.voice = voiceIdentifier.flatMap { AVSpeechSynthesisVoice(identifier: $0) }
         return utterance
     }
@@ -94,7 +94,7 @@ enum SpeechRules {
 /// 也避开「同一个合成器刚 stop 就 speak，新句子偶尔被吞」。
 ///
 /// 用 AVSpeech 时 `speak` 没有失败路径（不起进程、不解析参数），所以不抛错；
-/// 挑不到发音人或 identifier 失效都落到系统默认发音人，与 Rust 的 `None` 一致。
+/// 挑不到发音人或 identifier 失效都落到系统默认发音人。
 @MainActor
 final class Speech {
     /// 当前正在朗读的合成器。nil = 没在朗读。

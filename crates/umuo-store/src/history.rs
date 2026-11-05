@@ -31,7 +31,7 @@ pub struct NewRecord {
     pub output_tokens: u32,
     /// 用量是本地估算的（厂商没回 usage）。
     pub estimated: bool,
-    /// 价格表里查不到该模型时为 `None`。
+    /// 旧版按价格表估算的费用。价格表已退出，新记录一律为 `None`；列保留以兼容旧库里的历史。
     pub cost_usd: Option<f64>,
 }
 

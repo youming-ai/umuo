@@ -16,7 +16,7 @@ struct OcrResult: Equatable {
     let lines: [OcrLine]
 
     /// 空行丢掉（在翻译 prompt 里只会变成噪声），每行去掉首尾空白，按 Vision 给的顺序用 `\n` 拼接。
-    /// 与 Rust 的 `from_lines` 同一规则；`lines` 里保留的是未 trim 的原文与各自的置信度。
+    /// 规则只在 Swift 这一份；`lines` 里保留的是未 trim 的原文与各自的置信度。
     init(lines: [OcrLine]) {
         let kept = lines.filter { !$0.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
         self.lines = kept

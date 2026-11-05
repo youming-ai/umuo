@@ -2,8 +2,6 @@
 
 use crate::wire::ChatRequest;
 
-/// 内置指令版本，用于记录和排查翻译行为。
-pub const PROMPT_VERSION: &str = "2026-11-04.1";
 /// 历史表沿用的标准翻译标识，不读取旧配置选中的风格。
 pub const DEFAULT_STYLE_ID: &str = "standard";
 

@@ -35,8 +35,8 @@ bun run build:web
 bun run dev:worker
 ```
 
-验证首页语言、404、`/api/health`、`/download/macos/update.json` 与 `/__void/ready`；
-本地运行使用本地 KV / R2，不证明云端资源、Waffo 凭据或生产网络配置正确。
+验证首页语言、404、`/api/health`、`/download/macos`（302 到最新 dmg）、`/download/macos/appcast.xml` 与 `/__void/ready`；
+本地运行不证明云端 Worker 配置或生产网络正确（Worker 没有 KV / R2 等绑定，也没有任何 secret）。
 `bun run build` 使用 Void 1.2.1 的部署构建模式，并检查生成的 Worker 名、域名、访问开关、绑定及就绪探针。
 
 ## 静态资源的缓存

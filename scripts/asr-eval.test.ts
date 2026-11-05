@@ -1,14 +1,17 @@
 import { describe, expect, test } from 'bun:test'
+import { existsSync } from 'node:fs'
 import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import {
   CANDIDATE_MODELS,
+  downloadFileWithVerify,
   ENGINE_ARTIFACT,
   hfResolveUrl,
   normalizeForCer,
   normalizeForWer,
   scoreTranscript,
+  selectModels,
   verifyFileIntegrity,
 } from './asr-eval'
 
@@ -105,5 +108,29 @@ describe('阶段 B 本地转写评测规则与目录校验', () => {
     )
     expect(silenceHallucinated.errPct).toBe(100)
     expect(silenceHallucinated.keepPassed).toBe(false)
+  })
+})
+
+describe('评测脚本的失败路径', () => {
+  test('curl 下载失败时删掉 .partial，下次不会带着坏的续传点卡在 416', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'umuo-asr-dl-'))
+    try {
+      const dest = join(dir, 'model.bin')
+      await writeFile(`${dest}.partial`, '上次中断留下的半截文件')
+      // file:// 指向不存在的文件：curl 立即失败，不访问网络
+      await expect(
+        downloadFileWithVerify(`file://${join(dir, 'missing.bin')}`, dest, 10, 'a'.repeat(64)),
+      ).rejects.toThrow('下载失败')
+      expect(existsSync(`${dest}.partial`)).toBe(false)
+    } finally {
+      await rm(dir, { recursive: true, force: true })
+    }
+  })
+
+  test('--models= 里有不认识的模型 id 时报错，而不是静默评测空集合', () => {
+    expect(() => selectModels(['--models=no-such-model'])).toThrow('no-such-model')
+    expect(selectModels([])).toEqual(CANDIDATE_MODELS)
+    const first = CANDIDATE_MODELS[0]
+    expect(selectModels([`--models=${first?.id}`])).toEqual([first])
   })
 })
