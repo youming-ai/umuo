@@ -229,7 +229,7 @@ Anthropic `stop_reason: max_tokens`、Gemini `finishReason: MAX_TOKENS`；Gemini
 ## 4.3 单一当前模型
 
 PRD §6.3 首版只用一个当前文字模型：`translate` 解析 `provider_id` + `model`（设置里的模型或供应商默认模型），
-没配 Key（本机供应商除外）报 `MissingKey`，自定义端点没填地址报 `CustomEndpointMissing`，不发请求。
+没配 Key（本机供应商除外）报 `MissingKey`，读 Keychain 失败报 `InvalidKey`（去模型设置重新保存），自定义端点没填地址报 `CustomEndpointMissing`，不发请求。
 请求失败、超时、限流都如实交给用户重试或换模型；不按场景选模型、不按备用顺序重试、不因断网改用本机模型，
 所以同一请求只有一个 Start。超时（`transport::DEFAULT_TIMEOUT`，8 s 首字）、Esc 取消、长文分片与截断保护不变。
 

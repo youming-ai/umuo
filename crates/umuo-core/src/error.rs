@@ -60,6 +60,14 @@ pub enum CoreError {
     #[error("模型不可用：{model}")]
     ModelUnavailable { model: String },
 
+    /// 404 且错误体没提到模型：多半是接口地址不对（自定义端点的 Base URL 少了 `/v1`，
+    /// 网关回 `Invalid URL (POST /chat/completions)`），也可能是模型名写错。
+    ///
+    /// 不并进 [`CoreError::ModelUnavailable`]：「模型不可用：未知」会让用户去换模型，
+    /// 而真正要改的是地址。
+    #[error("接口地址或模型名不对（HTTP 404）：请检查 Base URL 是否完整（例如少了 /v1）")]
+    EndpointNotFound,
+
     #[error("请求超出模型上下文长度")]
     ContextTooLong,
 
@@ -122,7 +130,9 @@ impl CoreError {
             CoreError::InvalidKey | CoreError::MissingKey | CoreError::InsufficientBalance => {
                 vec![SuggestedAction::OpenModelSettings]
             }
-            CoreError::ModelUnavailable { .. } => vec![SuggestedAction::OpenModelSettings],
+            CoreError::ModelUnavailable { .. } | CoreError::EndpointNotFound => {
+                vec![SuggestedAction::OpenModelSettings]
+            }
             CoreError::ContextTooLong => {
                 vec![SuggestedAction::OpenModelSettings, SuggestedAction::Retry]
             }
@@ -206,7 +216,11 @@ pub fn classify_http_error(status: u16, body: &str, retry_after: Option<Duration
         return CoreError::ContextTooLong;
     }
 
+    // Anthropic 的模型不存在是 `not_found_error`（message 形如 `model: <名字>`）；
+    // Gemini 是 `models/<名字> is not found for API version …`。
     if has("model_not_found")
+        || has("not_found_error")
+        || has("is not found for api version")
         || has("does not exist")
         || has("no such model")
         || has("unknown model")
@@ -220,8 +234,10 @@ pub fn classify_http_error(status: u16, body: &str, retry_after: Option<Duration
     match status {
         401 | 403 => CoreError::InvalidKey,
         402 => CoreError::InsufficientBalance,
-        404 => CoreError::ModelUnavailable {
-            model: extract_model_name(body).unwrap_or_else(|| "未知".to_string()),
+        // 没有「模型不存在」之类的关键词：取得出模型名才算模型问题，否则指向地址。
+        404 => match extract_model_name(body) {
+            Some(model) => CoreError::ModelUnavailable { model },
+            None => CoreError::EndpointNotFound,
         },
         // 408 与 5xx 是「再试一次可能就好」，属于供应商侧的临时问题。
         408 => CoreError::Timeout {
@@ -243,28 +259,46 @@ pub fn classify_http_error(status: u16, body: &str, retry_after: Option<Duration
 /// 两条路径都试：结构化字段（`error.model`）优先，其次从 message 里挖引号包裹的词
 /// （OpenAI 的 `model_not_found` 就只把模型名写在 message 里，形如
 /// ``The model `gpt-9` does not exist``）。
+///
+/// 取出来的片段要过 [`redact_secrets`]：有的端点把**请求里的 Key** 引在同一句话里
+/// （`The key 'sk-…' does not exist`）。被遮了说明它其实是 Key 而不是模型名，直接放弃。
 fn extract_model_name(body: &str) -> Option<String> {
     let value: serde_json::Value = serde_json::from_str(body).ok()?;
-    if let Some(model) = value.pointer("/error/model").and_then(|v| v.as_str()) {
-        if !model.trim().is_empty() {
-            return Some(model.to_string());
-        }
-    }
-    let message = value.pointer("/error/message").and_then(|v| v.as_str())?;
-    extract_quoted(message)
+    let structured = value
+        .pointer("/error/model")
+        .and_then(|v| v.as_str())
+        .map(str::trim)
+        .filter(|model| !model.is_empty())
+        .map(str::to_string);
+    let name = match structured {
+        Some(model) => model,
+        None => extract_quoted(value.pointer("/error/message").and_then(|v| v.as_str())?)?,
+    };
+    (redact_secrets(&name) == name).then_some(name)
 }
 
 /// 取出第一个被反引号/单引号/双引号包裹的片段。
+///
+/// 单引号还兼作英文撇号（`doesn't`、`isn't`）：开引号前面、闭引号后面都不能紧挨字母数字，
+/// 否则「doesn't exist, isn't」会被切出 `t exist, isn` 这样的假片段。
 fn extract_quoted(message: &str) -> Option<String> {
+    let is_word = |c: Option<char>| c.is_some_and(|c| c.is_alphanumeric());
     for quote in ['`', '\'', '"'] {
-        if let Some(start) = message.find(quote) {
-            let rest = &message[start + quote.len_utf8()..];
-            if let Some(end) = rest.find(quote) {
-                let candidate = rest[..end].trim();
-                if !candidate.is_empty() {
-                    return Some(candidate.to_string());
-                }
-            }
+        let positions: Vec<usize> = message.match_indices(quote).map(|(i, _)| i).collect();
+        let before = |i: usize| message[..i].chars().next_back();
+        let after = |i: usize| message[i + quote.len_utf8()..].chars().next();
+        let opens = |i: usize| quote != '\'' || !is_word(before(i));
+        let closes = |i: usize| quote != '\'' || !is_word(after(i));
+        let Some(open) = positions.iter().position(|&i| opens(i)) else {
+            continue;
+        };
+        let Some(&close) = positions[open + 1..].iter().find(|&&i| closes(i)) else {
+            continue;
+        };
+        let start = positions[open] + quote.len_utf8();
+        let candidate = message[start..close].trim();
+        if !candidate.is_empty() {
+            return Some(candidate.to_string());
         }
     }
     None
@@ -288,7 +322,8 @@ fn summarize(body: &str) -> String {
 /// 把文本里像凭据的片段换成 `[REDACTED]`：供应商错误体、流内错误、代理与网络错误都要过它再进界面或日志。
 ///
 /// 认的格式：`Bearer <token>`、`sk-…`（OpenAI 系与多数中转）、`AIza…`（Gemini）、
-/// 恰好 32 位的独立十六进制串（Azure OpenAI 的 Key），以及 URL 里的 `user:pass@`（只去凭据、留主机，方便排查）。
+/// 恰好 32 位的独立十六进制串（Azure OpenAI 的 Key；后接 `.secret` 时连同智谱 Key 的后半段一起遮）、
+/// [`is_prefixed_key`] 列出的网关前缀 Key，以及 URL 里的 `user:pass@`（只去凭据、留主机，方便排查）。
 /// 宁可多遮一个长得像的请求 id，也不能让 Key 原样出现在浮窗或日志里。
 pub fn redact_secrets(input: &str) -> String {
     let mut out = String::with_capacity(input.len());
@@ -326,12 +361,27 @@ pub fn redact_secrets(input: &str) -> String {
             .find(|c: char| !(c.is_ascii_alphanumeric() || c == '-' || c == '_'))
             .unwrap_or(rest.len());
         let token = &rest[..token_len];
+        let azure_like =
+            !prev_word && token_len == 32 && token.bytes().all(|b| b.is_ascii_hexdigit());
         let is_secret = (token.starts_with("sk-") && token_len >= 8)
             || (token.starts_with("AIza") && token_len >= 30)
-            || (!prev_word && token_len == 32 && token.bytes().all(|b| b.is_ascii_hexdigit()));
+            || azure_like
+            || (!prev_word && is_prefixed_key(token));
         if is_secret {
             out.push_str("[REDACTED]");
-            rest = &rest[token_len..];
+            let mut secret_len = token_len;
+            // 智谱 Key 是 `{32 位十六进制}.{secret}`：点号后面的才是真正的密钥，一起遮掉。
+            if azure_like {
+                if let Some(after_dot) = rest[token_len..].strip_prefix('.') {
+                    let tail = after_dot
+                        .find(|c: char| !c.is_ascii_alphanumeric())
+                        .unwrap_or(after_dot.len());
+                    if tail >= 16 {
+                        secret_len += 1 + tail;
+                    }
+                }
+            }
+            rest = &rest[secret_len..];
             prev_word = false;
             continue;
         }
@@ -341,6 +391,20 @@ pub fn redact_secrets(input: &str) -> String {
         prev_word = ch.is_alphanumeric() || ch == '-' || ch == '_';
     }
     out
+}
+
+/// 其他网关与供应商的带前缀 Key：Groq `gsk_`、Hugging Face `hf_`、xAI `xai-`、
+/// `sk_`（ElevenLabs 等）、Perplexity `pplx-`。
+///
+/// 前缀之后必须是至少 20 位**纯字母数字**：真 Key 是一长串随机字符，而模型名
+/// （`xai-grok-2`、`pplx-70b-online`）与 snake_case 标识符（`hf_model_name`）都带分隔符，不会被误遮。
+fn is_prefixed_key(token: &str) -> bool {
+    const PREFIXES: &[&str] = &["gsk_", "hf_", "xai-", "sk_", "pplx-"];
+    PREFIXES.iter().any(|prefix| {
+        token
+            .strip_prefix(prefix)
+            .is_some_and(|body| body.len() >= 20 && body.bytes().all(|b| b.is_ascii_alphanumeric()))
+    })
 }
 
 #[cfg(test)]
@@ -473,6 +537,86 @@ mod tests {
     }
 
     #[test]
+    fn a_key_quoted_in_a_not_found_message_is_never_shown_as_the_model_name() {
+        // 运行时拼出假 Key：源码里不出现完整的 Key 格式。
+        let key = format!("sk-live-{}", "abcdef1234567890xyz");
+        let bodies = [
+            format!(r#"{{"error":{{"message":"The key '{key}' does not exist"}}}}"#),
+            format!(r#"{{"error":{{"message":"model_not_found","model":"{key}"}}}}"#),
+        ];
+        for body in bodies {
+            let err = classify_http_error(404, &body, None);
+            assert!(!err.to_string().contains("sk-live"), "{err}");
+            assert_eq!(
+                err,
+                CoreError::ModelUnavailable {
+                    model: "未知".to_string()
+                }
+            );
+        }
+    }
+
+    #[test]
+    fn apostrophes_in_contractions_are_not_taken_as_quotes() {
+        let body = r#"{"error":{"message":"That model doesn't exist and isn't available","code":"model_not_found"}}"#;
+        assert_eq!(
+            classify_http_error(404, body, None),
+            CoreError::ModelUnavailable {
+                model: "未知".to_string()
+            }
+        );
+        // 缩写之后真正被引号包住的模型名照样取得出来。
+        let body = r#"{"error":{"message":"Sorry, that model doesn't exist: 'gpt-9'","code":"model_not_found"}}"#;
+        assert_eq!(
+            classify_http_error(404, body, None),
+            CoreError::ModelUnavailable {
+                model: "gpt-9".to_string()
+            }
+        );
+    }
+
+    #[test]
+    fn a_bare_404_without_a_model_name_points_at_the_endpoint_address() {
+        // 自定义端点的 Base URL 少了 /v1：网关回 404，跟模型无关。
+        for body in [
+            r#"{"error":{"message":"Invalid URL (POST /chat/completions)","type":"invalid_request_error"}}"#,
+            "404 page not found",
+            "",
+        ] {
+            let err = classify_http_error(404, body, None);
+            assert!(
+                !matches!(err, CoreError::ModelUnavailable { .. }),
+                "{body}: {err:?}"
+            );
+            assert!(err.to_string().contains("地址"), "{err}");
+            assert_eq!(err.actions(), vec![SuggestedAction::OpenModelSettings]);
+        }
+        // 明确说了模型不存在的照旧。
+        let body = r#"{"error":{"message":"The model `gpt-9` does not exist"}}"#;
+        assert_eq!(
+            classify_http_error(404, body, None),
+            CoreError::ModelUnavailable {
+                model: "gpt-9".to_string()
+            }
+        );
+    }
+
+    #[test]
+    fn anthropic_and_gemini_unknown_model_404s_stay_model_errors() {
+        // 这两家的「模型不存在」不用 model_not_found 之类的字样，不能被当成地址问题。
+        for body in [
+            r#"{"type":"error","error":{"type":"not_found_error","message":"model: claude-9"}}"#,
+            r#"{"error":{"code":404,"message":"models/gemini-9 is not found for API version v1beta, or is not supported for generateContent.","status":"NOT_FOUND"}}"#,
+        ] {
+            let err = classify_http_error(404, body, None);
+            assert!(
+                matches!(err, CoreError::ModelUnavailable { .. }),
+                "{body}: {err:?}"
+            );
+        }
+    }
+
+    #[test]
     fn bare_500_is_retryable_but_summarised() {
         let err = classify_http_error(503, "", None);
         assert_eq!(
@@ -552,6 +696,35 @@ mod tests {
             redacted.starts_with("key=") && redacted.ends_with(" end"),
             "{redacted}"
         );
+    }
+
+    #[test]
+    fn a_zhipu_key_is_redacted_as_a_whole_including_its_secret_half() {
+        // 智谱 Key 形如 `{32 位十六进制 id}.{16 位 secret}`：只遮前半会把真正的 secret 露出来。
+        let secret = format!("{}{}", "AbCdEfGh", "1234WxYz");
+        let key = format!("{}.{secret}", "0123456789abcdef0123456789abcdef");
+        let redacted = redact_secrets(&format!("Authorization failed for {key}, retry"));
+        assert!(!redacted.contains(secret.as_str()), "{redacted}");
+        assert_eq!(redacted, "Authorization failed for [REDACTED], retry");
+    }
+
+    #[test]
+    fn common_prefixed_keys_from_other_gateways_are_redacted() {
+        // Groq、Hugging Face、xAI、ElevenLabs 一类、Perplexity：自定义端点常用的中转与网关。
+        let body = "A1b2C3d4E5f6G7h8I9j0K1l2M3n4O5p6";
+        for prefix in ["gsk_", "hf_", "xai-", "sk_", "pplx-"] {
+            let key = format!("{prefix}{body}");
+            let redacted = redact_secrets(&format!("bad key: {key}."));
+            assert_eq!(redacted, "bad key: [REDACTED].", "{prefix}");
+        }
+    }
+
+    #[test]
+    fn prefix_lookalikes_in_ordinary_text_are_left_alone() {
+        // 模型名、snake_case 标识符、词中间出现的前缀都不是 Key。
+        let text = "model xai-grok-2 pplx-70b-online hf_model_repository_name_here \
+                    task_runner_identifier_abcdefghijk mask_ABCDEFGHIJKLMNOPQRSTUVWX gsk_short";
+        assert_eq!(redact_secrets(text), text);
     }
 
     #[test]

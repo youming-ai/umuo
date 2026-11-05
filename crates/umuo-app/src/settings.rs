@@ -394,15 +394,22 @@ fn check_endpoint_with(label: &str, url: &str, allow_plain_http: bool) -> Result
     if candidate.is_empty() {
         return Ok(());
     }
-    let parsed = reqwest::Url::parse(candidate)
-        .map_err(|_| format!("{label} 的地址不是有效的 URL（当前填的是「{candidate}」）。"))?;
+    // 错误里回显用户填的地址前先去掉 `user:pass@`（含少了协议头的写法）与像 Key 的片段。
+    let shown = || umuo_core::proxy::redact_proxy(candidate);
+    let parsed = reqwest::Url::parse(candidate).map_err(|_| {
+        format!(
+            "{label} 的地址不是有效的 URL（当前填的是「{}」）。",
+            shown()
+        )
+    })?;
     let loopback = matches!(parsed.host_str(), Some("localhost" | "127.0.0.1" | "[::1]"));
     match parsed.scheme() {
         "https" => Ok(()),
         "http" if loopback || allow_plain_http => Ok(()),
         _ => Err(format!(
             "{label} 的地址必须以 https:// 开头（本机 localhost / 127.0.0.1 除外），\
-             否则 API Key 会以明文发出（当前填的是「{candidate}」）。"
+             否则 API Key 会以明文发出（当前填的是「{}」）。",
+            shown()
         )),
     }
 }
@@ -827,6 +834,29 @@ mod tests {
             ..Settings::default()
         };
         assert!(custom.validate_endpoints(&previous).is_err());
+    }
+
+    #[test]
+    fn a_rejected_endpoint_does_not_echo_its_credentials() {
+        let previous = Settings::default();
+        let with = |url: &str| {
+            let mut s = Settings::default();
+            s.provider_base_urls
+                .insert("openai".to_string(), url.to_string());
+            s.validate_endpoints(&previous).unwrap_err()
+        };
+        // 不是 https 被拒、解析失败被拒，两条错误都不能把 user:pass 原样回显。
+        for url in [
+            "http://alice:s3cret@relay.example/v1",
+            "http://alice:s3cret@[::1",
+            "alice:s3cret@relay.example/v1",
+        ] {
+            let error = with(url);
+            assert!(!error.contains("s3cret"), "{error}");
+            assert!(!error.contains("alice"), "{error}");
+        }
+        // 没有凭据的地址照常回显，方便用户看出填错了什么。
+        assert!(with("http://relay.example/v1").contains("relay.example"));
     }
 
     #[test]

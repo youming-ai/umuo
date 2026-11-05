@@ -24,6 +24,10 @@ struct Fake {
 
 impl Host for Fake {
     fn api_key(&self, provider_id: &str) -> Result<Option<String>, String> {
+        // 智谱模拟「Keychain 读取失败」（签名变了、条目 ACL 坏了），而不是「没存 Key」。
+        if provider_id == "zhipu" {
+            return Err(KEYCHAIN_FAILURE.to_string());
+        }
         Ok(self.keys.get(provider_id).cloned())
     }
     fn frontmost_app_name(&self) -> Option<String> {
@@ -36,6 +40,8 @@ impl Host for Fake {
         panic!("语音后处理不写回，交付由会话层负责")
     }
 }
+
+const KEYCHAIN_FAILURE: &str = "errSecInteractionNotAllowed (-25308)";
 
 // ---------------------------------------------------------------- SSE 桩
 
@@ -370,6 +376,16 @@ async fn a_whitespace_only_answer_is_an_empty_result_not_a_success_or_a_failure(
 }
 
 #[tokio::test]
+async fn a_cleanly_finished_stream_with_no_content_is_an_empty_result() {
+    // 整理指令要求「原文只有口头语时输出空」：模型照做时流正常结束、一个字也没有，
+    // 这是空结果，不是「响应格式不符合预期」。
+    let env = Env::new(|_| sse(&[])).await;
+    let failure = env.run(VoiceRequest::tidy("嗯，那个")).await.unwrap_err();
+    assert_eq!(failure.kind, VoiceFailureKind::EmptyResult);
+    assert_eq!(failure.transcript, "嗯，那个");
+}
+
+#[tokio::test]
 async fn a_translation_that_echoes_the_transcript_is_not_delivered() {
     let env = Env::new(|hit| sse(&[&format!("  {}  ", hit.message("user"))])).await;
 
@@ -403,6 +419,28 @@ async fn an_empty_transcript_sends_no_request() {
         assert_eq!(failure.transcript, transcript);
         assert!(!failure.retryable(), "空转写要重新录音，不是重试");
     }
+    assert!(env.stub.hits().is_empty());
+}
+
+#[tokio::test]
+async fn a_keychain_read_failure_points_at_the_model_settings_not_a_retry() {
+    // 读不出 Key 时重试只会再失败一次；该做的是去模型设置里重新保存 Key。
+    // 文字翻译与语音后处理共用 resolve_endpoint，这里一并覆盖。
+    let env = Env::new(|_| sse(&["不该被请求"])).await;
+    env.core.settings.lock().unwrap().provider_id = "zhipu".into();
+
+    let failure = env.run(VoiceRequest::tidy(DICTATION)).await.unwrap_err();
+
+    let VoiceFailureKind::Failed(error) = &failure.kind else {
+        panic!("期望 Failed，实际 {:?}", failure.kind);
+    };
+    assert_eq!(
+        error.actions(),
+        vec![umuo_core::error::SuggestedAction::OpenModelSettings]
+    );
+    assert!(!error.to_string().contains("响应格式"), "{error}");
+    assert!(!error.to_string().contains(KEYCHAIN_FAILURE), "{error}");
+    assert_eq!(failure.transcript, DICTATION);
     assert!(env.stub.hits().is_empty());
 }
 
