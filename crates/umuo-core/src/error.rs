@@ -598,6 +598,21 @@ mod tests {
     }
 
     #[test]
+    fn anthropic_and_gemini_unknown_model_404s_stay_model_errors() {
+        // 这两家的「模型不存在」不用 model_not_found 之类的字样，不能被当成地址问题。
+        for body in [
+            r#"{"type":"error","error":{"type":"not_found_error","message":"model: claude-9"}}"#,
+            r#"{"error":{"code":404,"message":"models/gemini-9 is not found for API version v1beta, or is not supported for generateContent.","status":"NOT_FOUND"}}"#,
+        ] {
+            let err = classify_http_error(404, body, None);
+            assert!(
+                matches!(err, CoreError::ModelUnavailable { .. }),
+                "{body}: {err:?}"
+            );
+        }
+    }
+
+    #[test]
     fn bare_500_is_retryable_but_summarised() {
         let err = classify_http_error(503, "", None);
         assert_eq!(
