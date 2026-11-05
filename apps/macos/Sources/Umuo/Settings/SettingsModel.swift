@@ -46,6 +46,8 @@ final class SettingsModel {
     /// 最近一次查 Key 状态的序号：结果回来时供应商可能又换了，只认最后一次。
     private var keyCheck = 0
     private var keyCheckedProvider: String?
+    /// 界面上此刻显示的供应商：变了就清引擎页的草稿（见 `adopt`）。
+    @ObservationIgnored private var shownProvider: String?
 
     init(backend: SettingsBackend) {
         self.backend = backend
@@ -104,7 +106,16 @@ final class SettingsModel {
     private func adopt(_ loaded: SettingsValues) {
         // 每次保存都叠在后端此刻的值上（`applyPatch` 即 `applySettingsPatch`）：设置窗开着时浮窗也会写设置
         // （按 App 记住的目标语言等），拿窗口里的旧快照整份写回会把它们抹掉。
-        queue = SettingsQueue(initial: loaded) { [backend] patch in try await backend.applyPatch(patch) }
+        let queue = SettingsQueue(initial: loaded) { [backend] patch in try await backend.applyPatch(patch) }
+        shownProvider = loaded.string("providerId")
+        // 供应商不管从哪里变的（引擎页下拉、常用组合、聚焦刷新、导入配置、保存失败退回），都在这一处清掉引擎页的草稿：
+        // 没保存的 Key 属于上一个供应商，留着的话按「保存」会把它存到新供应商名下。
+        queue.onChange = { [weak self] values in
+            guard let self, values.string("providerId") != shownProvider else { return }
+            shownProvider = values.string("providerId")
+            engine.reset()
+        }
+        self.queue = queue
     }
 
     /// 关掉后再打开：全量重读，各页的草稿与行内状态都从头开始。
@@ -130,12 +141,13 @@ final class SettingsModel {
     }
 
     /// 窗口重新成为 key 时：用户多半是去系统设置授完权、或在浮窗里改了点什么再切回来——权限与设置都再读一次。
+    /// Key 状态无条件重查：首次引导可能刚给同一个供应商存了 Key，供应商没变也得跟上。
     func windowFocused() async {
         guard queue != nil else { return }
         await recheckPermissions()
         if let latest = try? await backend.loadSettings() {
             queue?.refresh(latest)
-            await providerMaybeChanged()
+            await refreshKeyStatus()
         }
     }
 
@@ -251,18 +263,16 @@ final class EngineEditor {
         modelNotice = nil
     }
 
-    /// 换供应商：没保存的 Key 草稿属于上一个供应商，不清掉的话按「保存」会把它存到新供应商名下。模型换成新供应商的默认模型。
+    /// 换供应商，模型换成新供应商的默认模型。没保存的 Key 草稿由 `SettingsModel.adopt` 里的那一处统一清掉。
     func switchProvider(_ providerId: String) {
         let next = model.providers.first { $0.id == providerId }
-        apiKey = ""
-        keyError = nil
-        models = []
-        modelNotice = nil
         model.commit(["providerId": .string(providerId), "model": .string(next?.defaultModel ?? "")])
     }
 
     /// 用用户自己的 Key 拉一次模型列表（同时也就校验了 Key）。结果回来时供应商换了就不作数。
+    /// 内核按存好的设置取地址：先等还在路上的保存（端点框失焦提交与点这个按钮是同一下点击），否则拉的是旧地址。
     func fetchModels() async {
+        await model.queue?.settled()
         let requested = model.providerId
         modelNotice = nil
         do {

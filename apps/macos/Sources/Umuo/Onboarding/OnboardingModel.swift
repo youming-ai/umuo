@@ -48,7 +48,14 @@ final class OnboardingModel {
     var notice: String?
 
     /// 模型这一步的草稿：选中的供应商与还没保存的 Key。
-    var draftProvider = ""
+    /// 换供应商就清掉 Key 草稿：它属于上一个供应商，留着的话按「保存」会把它存到新供应商名下；Key 状态也改查这一家。
+    var draftProvider = "" {
+        didSet {
+            guard draftProvider != oldValue else { return }
+            draftKey = ""
+            Task { await refreshKeyStatus() }
+        }
+    }
     var draftKey = ""
     /// 需要端点的供应商（Azure、自定义端点）要自己填的模型名：自定义端点没有默认模型，Azure 是部署名。
     var draftModel = ""
@@ -56,6 +63,11 @@ final class OnboardingModel {
     var t = Translate(locale: .source)
 
     @ObservationIgnored private var lastSave: Task<Void, Error>?
+    /// 最近一次查 Key 状态的序号：结果回来时下拉可能又换了，只认最后一次。
+    @ObservationIgnored private var keyCheck = 0
+    /// 草稿的 Key 状态只用于输入框；完成度必须对应已经保存的首选引擎。
+    @ObservationIgnored private var engineCheck = 0
+    private var configuredEngine: EngineChoice?
 
     init(backend: OnboardingBackend) {
         self.backend = backend
@@ -64,9 +76,13 @@ final class OnboardingModel {
     var values: SettingsValues { queue?.current ?? [:] }
     var isLoaded: Bool { queue != nil }
 
+    private var currentEngine: EngineChoice {
+        EngineChoice(providerId: values.string("providerId"), model: values.string("model"))
+    }
+
     var state: OnboardingState {
-        OnboardingState(targetLang: values.string("targetLang"), keyConfigured: keyConfigured,
-                        localModelFound: localModel != nil, accessibilityTrusted: permissions.accessibility == true,
+        OnboardingState(targetLang: values.string("targetLang"), keyConfigured: configuredEngine == currentEngine,
+                        accessibilityTrusted: permissions.accessibility == true,
                         screenRecordingGranted: permissions.screenRecording == true, practiced: practiced)
     }
 
@@ -88,10 +104,45 @@ final class OnboardingModel {
             queue = SettingsQueue(initial: current) { [backend] patch in try await backend.applyPatch(patch) }
             draftProvider = current.string("providerId")
             permissions = await backend.permissions()
-            keyConfigured = (try? await backend.keyStatus(current.string("providerId"))) ?? false
+            await refreshKeyStatus()
+            await refreshEngineStatus()
         } catch {
             notice = t("onboarding.settingsFailed", ["reason": SettingsRules.message(error)])
         }
+    }
+
+    /// 查下拉里选中的供应商有没有配 Key。本机模型（不需要 Key）算已配，与设置窗同一条规则。
+    func refreshKeyStatus() async {
+        let providerId = draftProvider
+        keyCheck += 1
+        let mine = keyCheck
+        if !(draftDetail?.requiresKey ?? true) {
+            keyConfigured = true
+            return
+        }
+        let configured = (try? await backend.keyStatus(providerId)) ?? false
+        guard mine == keyCheck else { return }
+        keyConfigured = configured
+    }
+
+    /// 按保存成功的引擎检查完成度，探测结果或下拉草稿都不能代替实际配置。
+    private func refreshEngineStatus() async {
+        await queue?.settled()
+        engineCheck += 1
+        let mine = engineCheck
+        let requested = currentEngine
+        guard let detail = providers.first(where: { $0.id == requested.providerId }) else {
+            configuredEngine = nil
+            return
+        }
+        let configured: Bool
+        if detail.requiresKey {
+            configured = (try? await backend.keyStatus(requested.providerId)) ?? false
+        } else {
+            configured = true
+        }
+        guard mine == engineCheck, requested == currentEngine else { return }
+        configuredEngine = configured ? requested : nil
     }
 
     func commit(_ patch: SettingsValues) {
@@ -105,7 +156,10 @@ final class OnboardingModel {
         let task = queue.commit(patch)
         lastSave = task
         Task {
-            do { try await task.value } catch { self.notice = SettingsRules.message(error) }
+            do {
+                try await task.value
+                await refreshEngineStatus()
+            } catch { self.notice = SettingsRules.message(error) }
         }
         return task
     }
@@ -128,7 +182,7 @@ final class OnboardingModel {
 
     // MARK: - 模型
 
-    /// 存 Key 之后首选换成这家、模型用它的默认模型（`engineForSavedKey`，审查 H6）。
+    /// 存 Key 之后首选换成这家；换了供应商时模型用它的默认模型（`engineForSavedKey`，审查 H6）。
     func saveKey() async {
         let key = draftKey.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !key.isEmpty else { return }
@@ -138,11 +192,16 @@ final class OnboardingModel {
             try await backend.saveApiKey(providerId, key)
             draftKey = ""
             keyConfigured = true
-            // 需要端点的供应商用用户填的模型（自定义端点没有默认模型，空着存会让首次翻译直接报缺模型）
+            // 模型：需要端点的供应商用用户填的；没填时只有**换了供应商**才用新供应商的默认模型（沿用上一家的会 404）。
+            // 供应商没变（重新运行引导只换 Key）就不动模型——改过的模型、Azure 部署名不能被默认值冲掉；
+            // 没有可写的（Azure、自定义端点没有默认模型）也不写，写进 "" 会让第一次翻译直接报缺模型。
             let typed = draftModel.trimmingCharacters(in: .whitespacesAndNewlines)
-            let chosen = needsEndpoint && !typed.isEmpty ? typed : detail?.defaultModel
+            let fallback = providerId == values.string("providerId") ? nil : detail?.defaultModel
+            let chosen = needsEndpoint && !typed.isEmpty ? typed : fallback
             let engine = Onboarding.engineForSavedKey(providerId: providerId, defaultModel: chosen)
-            commit(["providerId": .string(engine.providerId), "model": .string(engine.model)])
+            var patch: SettingsValues = ["providerId": .string(engine.providerId)]
+            if !engine.model.isEmpty { patch["model"] = .string(engine.model) }
+            commit(patch)
             notice = t("onboarding.keySaved", ["provider": detail?.label ?? providerId])
         } catch {
             notice = SettingsRules.message(error)
@@ -164,10 +223,14 @@ final class OnboardingModel {
         case let .success(found):
             localModel = found
             notice = t("onboarding.detectedModel", ["model": detectedLabel(found)])
-            let current = values.string("providerId")
+            // 看存着的首选有没有 Key，不看 `keyConfigured`：那是下拉里选中的那一家
+            let requestedEngine = currentEngine
+            let current = requestedEngine.providerId
             let requiresKey = providers.first { $0.id == current }?.requiresKey ?? true
+            let currentHasKey = (try? await backend.keyStatus(current)) ?? false
+            guard requestedEngine == currentEngine else { return }
             if let engine = Onboarding.engineForLocalModel(found.model, providerId: found.providerId,
-                                                           keyConfigured: keyConfigured, requiresKey: requiresKey)
+                                                           keyConfigured: currentHasKey, requiresKey: requiresKey)
             {
                 commit(["providerId": .string(engine.providerId), "model": .string(engine.model)])
             }
