@@ -51,8 +51,13 @@ struct AppShellTests {
             var registered: [[String: String]] = []
             model.registerHotkeys = { registered.append($0) }
             model.opened(result, settingsJson: nil)
-            // 读不到设置：按各行的回落组合键注册（空值 = 全部回落）
-            #expect(registered == [[:]])
+            // 读不到设置：按内核的默认键位注册。划词、原地替换默认是连按 ⌃⌃ / ⌥⌥，
+            // 不能回落成 ⌥D / ⌥⇧T 这类组合键——它们在部分键盘布局下用来输入字符，注册了就打不出来。
+            #expect(registered.count == 1)
+            #expect(registered.first?["selectionHotkey"] == "Ctrl Ctrl")
+            #expect(registered.first?["silentReplaceHotkey"] == "Alt Alt")
+            #expect(registered.first?["composeHotkey"] == "Alt+Cmd+A")
+            #expect(registered.first?["ocrHotkey"] == "Alt+Cmd+O")
             #expect(model.engine == nil)
             #expect(model.engineStatus != model.t("app.engineStarting"))
         }
