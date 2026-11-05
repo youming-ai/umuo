@@ -53,6 +53,28 @@ struct HotkeyConflictTests {
         #expect(HotkeyEditor.warning(area, zh)?.contains("截取屏幕区域") == true)
     }
 
+    @Test func 录键器录出的方向键组合也能认出系统快捷键() {
+        // 录键器存的主键名是 `ArrowUp` 这类 W3C code，系统表写的是 `ctrl+up`：两边要归到同一个名字。
+        let cases = [
+            ("ArrowUp", "prefs.hotkey.sys.missionControl"), ("ArrowDown", "prefs.hotkey.sys.appWindows"),
+            ("ArrowLeft", "prefs.hotkey.sys.spaceLeft"), ("ArrowRight", "prefs.hotkey.sys.spaceRight"),
+        ]
+        for (code, name) in cases {
+            guard case let .combo(value) = HotkeyFormat.combo(from: .init(code: code, ctrl: true)) else {
+                Issue.record("\(code) 录不出组合键")
+                continue
+            }
+            #expect(HotkeyConflict.check(value, others: []) == .init(kind: .system, subject: name), "\(value)")
+        }
+    }
+
+    @Test func 手写的键名别名与录键器的写法认作同一个键() {
+        // settings.json 可以手写：`Up` / `Esc` 与 `ArrowUp` / `Escape` 解析成同一个键（HotkeyCombo.parseKey）
+        #expect(HotkeyConflict.check("Ctrl+Up", others: [])?.subject == "prefs.hotkey.sys.missionControl")
+        #expect(HotkeyConflict.check("Cmd+Alt+Escape", others: [])?.subject == "prefs.hotkey.sys.forceQuit")
+        #expect(HotkeyConflict.check("Alt+Up", others: [(label: "划词翻译", value: "Alt+ArrowUp")])?.kind == .duplicate)
+    }
+
     @Test func 客户端自带的默认快捷键全部通过检查() {
         // 新增默认快捷键时如果撞了系统键或彼此重复，这里会亮。当前默认值取自 HotkeyCenter.table。
         let defaults = HotkeyCenter.table.map(\.fallback)
