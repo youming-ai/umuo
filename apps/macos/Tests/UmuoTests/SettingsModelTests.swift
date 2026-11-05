@@ -264,6 +264,17 @@ struct SettingsModelTests {
         #expect(model.values.object("appTargetLangs")["Slack"] == .string("en"))
         #expect(model.permissions.accessibility == false)
     }
+
+    @Test func 别处存了同一供应商的Key后聚焦就显示已配置() async {
+        // 首次引导或另一个窗口存了 Key：供应商没变，但 Key 状态变了
+        let backend = FakeBackend(base)
+        let model = await loaded(backend)
+        #expect(model.keyConfigured == false)
+        backend.keys["openai"] = "sk-from-onboarding"
+        await model.windowFocused()
+        #expect(model.keyConfigured == true)
+        #expect(model.attention.isEmpty)
+    }
 }
 
 @Suite("设置窗：快捷键与录键")
