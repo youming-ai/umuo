@@ -270,7 +270,9 @@ final class EngineEditor {
     }
 
     /// 用用户自己的 Key 拉一次模型列表（同时也就校验了 Key）。结果回来时供应商换了就不作数。
+    /// 内核按存好的设置取地址：先等还在路上的保存（端点框失焦提交与点这个按钮是同一下点击），否则拉的是旧地址。
     func fetchModels() async {
+        await model.queue?.settled()
         let requested = model.providerId
         modelNotice = nil
         do {

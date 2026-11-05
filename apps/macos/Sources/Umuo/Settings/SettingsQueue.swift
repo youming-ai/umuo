@@ -69,6 +69,11 @@ final class SettingsQueue<Value: Sendable & Equatable> {
         return run
     }
 
+    /// 等到此刻已提交的保存全部落定（成功或失败都算）。要按后端存好的值做事的调用方（拉模型）先等它。
+    func settled() async {
+        await chain?.value
+    }
+
     /// 没有保存在路上时，用后端的最新值替换界面；有的话忽略（落定后自然会同步）。
     func refresh(_ latest: Values) {
         guard pending == 0 else { return }
