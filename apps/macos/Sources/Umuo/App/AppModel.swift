@@ -15,6 +15,12 @@ final class AppModel {
     @ObservationIgnored private(set) lazy var hotkeys = HotkeyCenter { [unowned self] action in self.perform(action) }
     /// 见 `HotkeyPolicy`：开发构建默认不注册，免得与正式安装版同开时抢同一组快捷键。
     let registersHotkeys: Bool
+    /// Engine 打开之后注册全局快捷键（只有 `registersHotkeys` 为真才真的注册）。
+    /// 测试换成只记调用的闭包，不碰 Carbon 的全局注册。
+    @ObservationIgnored lazy var registerHotkeys: @MainActor ([String: String]) -> Void = { [unowned self] values in
+        guard self.registersHotkeys else { return }
+        self.hotkeys.register(values)
+    }
     /// `--settings`：启动时直接打开设置窗（开发用：菜单栏应用没有 Dock 图标，命令行起的时候不用再去点菜单）。
     let opensSettingsAtLaunch: Bool
     private(set) var engine: Engine?
@@ -129,7 +135,7 @@ final class AppModel {
     }
 
     /// `result` 为 nil：拿不到 HOME，没有打开 Engine。
-    private func opened(_ result: Result<Engine, Error>?, settingsJson: String?) {
+    func opened(_ result: Result<Engine, Error>?, settingsJson: String?) {
         switch result {
         case let .success(engine)?:
             self.engine = engine
@@ -137,7 +143,7 @@ final class AppModel {
             if let settingsJson {
                 applyLocale(settingsJson)
                 voice?.overlay.hotkeyLabels = HotkeyCenter.voiceLabels(HotkeyCenter.values(settingsJson: settingsJson))
-                if registersHotkeys { hotkeys.register(HotkeyCenter.values(settingsJson: settingsJson)) }
+                registerHotkeys(HotkeyCenter.values(settingsJson: settingsJson))
             }
             settingsWindow?.engineReady()
             history?.engineReady()
