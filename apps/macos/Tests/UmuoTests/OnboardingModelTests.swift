@@ -28,6 +28,8 @@ private class FakeOnboarding: OnboardingBackend {
     var translateError: Error?
     /// 保存前的等待（模拟一次慢保存，看「结束」会不会等它）。
     var saveDelay: Duration?
+    /// 探测本机模型的等待（模拟探测结果在引导结束之后才回来）。
+    var listDelay: Duration?
 
     init(_ stored: SettingsValues) { self.stored = stored }
 
@@ -65,6 +67,7 @@ private class FakeOnboarding: OnboardingBackend {
 
     func listModels(_ providerId: String) async throws -> [String] {
         listed.append(providerId)
+        if let listDelay { try? await Task.sleep(for: listDelay) }
         guard let models = local[providerId] else { throw Rejected(message: "连不上") }
         return models
     }
@@ -215,6 +218,20 @@ struct OnboardingModelTests {
         #expect(model.notice == "检测到本机模型：qwen2.5:7b（Ollama）", "与别家一样统一显示「模型（供应商）」")
         #expect(backend.patches == [["providerId": .string("ollama"), "model": .string("qwen2.5:7b")]])
         #expect(model.state.hasUsableEngine)
+    }
+
+    @Test func 引导结束后才回来的探测结果不再改首选() async {
+        let backend = FakeOnboarding(defaults)
+        backend.local = ["ollama": ["qwen2.5:7b"]]
+        backend.listDelay = .milliseconds(50)
+        let model = await loaded(backend)
+        let detecting = Task { await model.detectLocal() }
+        await model.finish()
+        #expect(backend.closed == 1)
+        await detecting.value
+        await settle()
+        #expect(backend.patches == [["onboardingDone": .bool(true)]])
+        #expect(backend.stored["providerId"] == .string("openai"))
     }
 
     @Test func Ollama没有就试LMStudio并标出是哪家() async {
