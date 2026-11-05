@@ -14,7 +14,7 @@ use crate::config_io::ImportSummary;
 use crate::legacy_glossaries::Glossaries;
 use crate::settings::Settings;
 use crate::settings_patch::SettingsEffects;
-use crate::{config_io, history, AppCore};
+use crate::{config_io, history, persist, AppCore};
 
 // ---------------------------------------------------------------- 供应商
 
@@ -300,13 +300,25 @@ pub fn import_config(core: &AppCore, path: &Path) -> Result<Imported, String> {
     let glossaries = Glossaries::load(&core.config_dir);
     let prepared = config_io::prepare_import(&raw, &current, &glossaries)?;
     // 术语表在设置**校验通过之后、落盘之前**写：保存时对着最新文件再校验一次，
-    // 那次不通过也不能让术语表已经被覆盖。
+    // 那次不通过也不能让术语表已经被覆盖。设置写盘失败时把术语表恢复成导入前的字节
+    // （原本没有就删掉），不会只导进来一半。
     let patch = serde_json::to_value(&prepared.settings).expect("设置结构体一定可序列化");
+    let glossaries_path = core
+        .config_dir
+        .join(crate::legacy_glossaries::GLOSSARIES_FILE);
     let (settings, effects) = core.apply_settings_patch_with(patch, || {
+        let previous = std::fs::read(&glossaries_path).ok();
         prepared
             .glossaries
             .save(&core.config_dir)
-            .map_err(|e| e.to_string())
+            .map_err(|e| e.to_string())?;
+        Ok(move || {
+            // 尽力而为：回滚本身也写不动时，返回的仍是设置写盘失败的错误。
+            let _ = match previous {
+                Some(bytes) => persist::write_atomic(&glossaries_path, &bytes),
+                None => std::fs::remove_file(&glossaries_path),
+            };
+        })
     })?;
     Ok(Imported {
         summary: prepared.summary,

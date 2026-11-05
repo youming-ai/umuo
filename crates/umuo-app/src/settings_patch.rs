@@ -32,17 +32,19 @@ impl AppCore {
         &self,
         patch: serde_json::Value,
     ) -> Result<(Settings, SettingsEffects), String> {
-        self.apply_settings_patch_with(patch, || Ok(()))
+        self.apply_settings_patch_with(patch, || Ok(|| ()))
     }
 
     /// 同 [`Self::apply_settings_patch`]，但在校验通过之后、设置落盘之前先执行 `before_save`。
     ///
     /// 导入配置用它写术语表：设置校验不通过时 `before_save` 根本不会被调用，
     /// 满足「不合法就一个文件都不写」；`before_save` 失败时设置同样不落盘、内存不变。
-    pub(crate) fn apply_settings_patch_with(
+    /// `before_save` 成功时返回一个回滚动作：设置写盘失败（磁盘满、权限）就在设置锁里执行它，
+    /// 把 `before_save` 写过的东西恢复原样，再返回错误——要么都写成，要么都不写。
+    pub(crate) fn apply_settings_patch_with<Rollback: FnOnce()>(
         &self,
         patch: serde_json::Value,
-        before_save: impl FnOnce() -> Result<(), String>,
+        before_save: impl FnOnce() -> Result<Rollback, String>,
     ) -> Result<(Settings, SettingsEffects), String> {
         let serde_json::Value::Object(patch) = patch else {
             return Err("设置的改动必须是一个 JSON 对象".to_string());
@@ -61,8 +63,11 @@ impl AppCore {
         let mut next: Settings =
             serde_json::from_value(merged).map_err(|e| format!("设置格式不对：{e}"))?;
         next.prepare_for_save(&latest)?;
-        before_save()?;
-        next.save(&self.config_dir).map_err(|e| e.to_string())?;
+        let rollback = before_save()?;
+        if let Err(error) = next.save(&self.config_dir) {
+            rollback();
+            return Err(error.to_string());
+        }
 
         // 与内存里的旧值比：宿主注册着的是它，不是刚从文件重载的那份。
         let effects = SettingsEffects {
