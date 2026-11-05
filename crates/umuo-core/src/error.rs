@@ -216,7 +216,11 @@ pub fn classify_http_error(status: u16, body: &str, retry_after: Option<Duration
         return CoreError::ContextTooLong;
     }
 
+    // Anthropic 的模型不存在是 `not_found_error`（message 形如 `model: <名字>`）；
+    // Gemini 是 `models/<名字> is not found for API version …`。
     if has("model_not_found")
+        || has("not_found_error")
+        || has("is not found for api version")
         || has("does not exist")
         || has("no such model")
         || has("unknown model")
