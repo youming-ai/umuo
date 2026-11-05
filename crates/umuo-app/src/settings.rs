@@ -394,15 +394,22 @@ fn check_endpoint_with(label: &str, url: &str, allow_plain_http: bool) -> Result
     if candidate.is_empty() {
         return Ok(());
     }
-    let parsed = reqwest::Url::parse(candidate)
-        .map_err(|_| format!("{label} 的地址不是有效的 URL（当前填的是「{candidate}」）。"))?;
+    // 错误里回显用户填的地址前先去掉 `user:pass@`（含少了协议头的写法）与像 Key 的片段。
+    let shown = || umuo_core::proxy::redact_proxy(candidate);
+    let parsed = reqwest::Url::parse(candidate).map_err(|_| {
+        format!(
+            "{label} 的地址不是有效的 URL（当前填的是「{}」）。",
+            shown()
+        )
+    })?;
     let loopback = matches!(parsed.host_str(), Some("localhost" | "127.0.0.1" | "[::1]"));
     match parsed.scheme() {
         "https" => Ok(()),
         "http" if loopback || allow_plain_http => Ok(()),
         _ => Err(format!(
             "{label} 的地址必须以 https:// 开头（本机 localhost / 127.0.0.1 除外），\
-             否则 API Key 会以明文发出（当前填的是「{candidate}」）。"
+             否则 API Key 会以明文发出（当前填的是「{}」）。",
+            shown()
         )),
     }
 }
