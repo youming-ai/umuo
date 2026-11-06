@@ -66,7 +66,7 @@
 
 | 编号 | PRD | 要求 | 状态 | 实现证据与剩余验收 |
 | --- | --- | --- | --- | --- |
-| R1 | §12 | Sparkle 代码与签名清单链路 | 🟡 | `App/AppUpdater.swift`、`bundle.sh`、`scripts/sparkle-appcast.ts`、`release.yml`：SUFeedURL 为 GitHub `releases/latest/download/appcast.xml`，enclosure 指向同版本 Release 的 `umuo.app.tar.gz`；正式包改用固定自签名证书（公钥随仓库、私钥在发布 Secrets），嵌套框架统一签名；2026-11-06 本机 arm64 release、主应用/框架/DMG 签名验证与包内自检（75 通过、9 项 TCC 跳过）通过；CI 导入脚本改为临时 runner 管理员域的非交互代码签名信任，记录阶段并限制两分钟；假命令回归覆盖授权失败不导出配置、临时 p12 清理及本机拒绝执行；真实 Actions 导入待修复合入后验证；普通门禁仍为 ad-hoc，N → N+1 与首次身份迁移未实测 |
+| R1 | §12 | Sparkle 代码与签名清单链路 | 🟡 | `App/AppUpdater.swift`、`bundle.sh`、`scripts/sparkle-appcast.ts`、`release.yml`：SUFeedURL 为 GitHub `releases/latest/download/appcast.xml`，enclosure 指向同版本 Release 的 `umuo.app.tar.gz`；正式包改用固定自签名证书（公钥随仓库、私钥在发布 Secrets），嵌套框架统一签名；2026-11-06 本机 arm64 release、主应用/框架/DMG 签名验证与包内自检（75 通过、9 项 TCC 跳过）通过；CI 导入脚本改为临时 runner 管理员域的非交互代码签名信任，记录阶段并限制两分钟；假命令回归覆盖授权失败不导出配置、临时 p12 清理及本机拒绝执行；Release 第 16 次运行已验证非交互导入成功；继续补齐 runner 钥匙串搜索列表及实际试签检查，防止查得到身份但 codesign 无法签名（真实签名待合入后验证）；普通门禁仍为 ad-hoc，N → N+1 与首次身份迁移未实测 |
 | R2 | §12 | 正式密钥、GitHub Releases 分发、N → N+1 更新 | 🟡 | 合入 main 自动发正式 Release（标 Latest，附件 `umuo-v<版本>.dmg` / `umuo.app.tar.gz` / `appcast.xml`），官网 `/download/macos` 302 到最新的 `umuo-v<版本>.dmg`，R2 已下线；从 GitHub 真实下载、验签、替换、重启全流程待实测，不能以本机清单生成替代 |
 | R3 | §8、§12 | Developer ID、公证、Gatekeeper、DMG 与系统权限 | ⬜ | 实际正式产物及安装/升级记录 |
 | R4 | §8、§12 | Apple Silicon 真机、原生 release 性能 | ⬜ | 按 `NATIVE-WALKTHROUGH.md`「性能测量」新测，旧 Tauri 数字不算通过 |

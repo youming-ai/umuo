@@ -137,6 +137,8 @@ Release 构建前调用 `.github/scripts/import-signing-identity.sh`，使用随
 用户域信任修改会弹认证框，因此 runner 通过 `sudo -n security add-trusted-cert -d -p codeSign`
 在管理员域授权这张公钥证书，不改变 TLS 信任；无非交互 sudo 权限时立即失败。
 导入步骤记录阶段且限制两分钟，避免再次静默等待到整个发布 job 的一小时上限。
+临时钥匙串加入 runner 用户搜索列表并保留原有路径，供 `codesign` 构建证书链；
+导入阶段用同一指纹、同一钥匙串试签临时程序并验证，成功后才导出构建配置，避免只查到身份却无法签名。
 不设置这两个 Secrets 时发布失败，不发布身份变化的包。PR 门禁与 `--quick` 不访问发布密钥，仍用 ad-hoc。
 
 ## 以后接 Developer ID 签名与公证
