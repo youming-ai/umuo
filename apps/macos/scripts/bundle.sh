@@ -205,7 +205,7 @@ plutil -lint -s "$app/Contents/Info.plist" || fail "Info.plist 不合法"
 # 留着 SwiftPM 的 ad-hoc 签名的话，Developer ID 签名与公证会拒；先用同一个身份重签它，再签 .app。
 # 不用 --deep：它会给嵌套内容套上同一组权利
 # 自签名没有 Apple 安全时间戳；Developer ID 才请求时间戳。
-# --keychain 显式限定私钥查找范围，不改用户的钥匙串搜索列表。
+# --keychain 显式限定身份匹配；CI 导入脚本另将临时钥匙串加入 runner 搜索列表，供证书链查找。
 sign_code() {
   if [ "$signing_kind" = developer-id ]; then
     set -- --timestamp "$@"

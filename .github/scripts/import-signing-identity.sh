@@ -14,7 +14,9 @@ test -n "${GITHUB_ENV:-}"
 certificate="$PWD/apps/macos/packaging/umuo-signing.pem"
 keychain="$RUNNER_TEMP/umuo-signing.keychain-db"
 p12="$(mktemp "$RUNNER_TEMP/umuo-signing.XXXXXX")"
-trap 'rm -f "$p12"' EXIT
+search_list="$(mktemp "$RUNNER_TEMP/umuo-signing-search-list.XXXXXX")"
+probe="$(mktemp "$RUNNER_TEMP/umuo-signing-probe.XXXXXX")"
+trap 'rm -f "$p12" "$search_list" "$probe"' EXIT
 password="$(openssl rand -hex 32)"
 echo "::add-mask::$password"
 echo '→ 解码签名身份并创建临时钥匙串'
@@ -35,5 +37,21 @@ fi
 echo '→ 核对固定签名身份的指纹'
 fingerprint="$(openssl x509 -in "$certificate" -noout -fingerprint -sha1 | cut -d= -f2 | tr -d ':')"
 security find-identity -v -p codesigning "$keychain" | grep -Fq "$fingerprint"
+echo '→ 将临时钥匙串加入 runner 搜索列表，保留原有钥匙串'
+# --keychain 只限定身份匹配；codesign 仍从用户搜索列表构建证书链。
+# 不用 eval 或按空白拆词，已有路径可能包含空格。
+security list-keychains -d user > "$search_list"
+set -- "$keychain"
+while IFS= read -r entry; do
+  entry="$(printf '%s\n' "$entry" | sed 's/^[[:space:]]*"//; s/"[[:space:]]*$//')"
+  if [ -n "$entry" ] && [ "$entry" != "$keychain" ]; then
+    set -- "$@" "$entry"
+  fi
+done < "$search_list"
+security list-keychains -d user -s "$@"
+echo '→ 试签并验证临时程序，确认私钥访问与证书链均可用'
+cp /usr/bin/true "$probe"
+codesign --force --options runtime --timestamp=none --keychain "$keychain" --sign "$fingerprint" "$probe"
+codesign --verify --strict "$probe"
 printf 'APPLE_SIGNING_KEYCHAIN=%s\n' "$keychain" >> "$GITHUB_ENV"
 echo '✓ 固定自签名身份已就绪'

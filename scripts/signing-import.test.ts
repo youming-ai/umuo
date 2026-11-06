@@ -9,16 +9,21 @@ const script = fileURLToPath(
 )
 
 // 所有签名命令都替换成假实现，不读真实私钥、不碰 Keychain 或证书信任。
-function runImport(options: { trusted?: boolean; denySudo?: boolean; local?: boolean } = {}) {
+function runImport(
+  options: { trusted?: boolean; denySudo?: boolean; local?: boolean; denySign?: boolean } = {},
+) {
   const dir = mkdtempSync(join(tmpdir(), 'umuo-signing-test-'))
   const bin = join(dir, 'bin')
   const runner = join(dir, 'runner')
   const envFile = join(dir, 'github-env')
   const callsFile = join(dir, 'calls')
+  const searchList = join(dir, 'search-list')
+  const existingKeychain = join(dir, 'existing keychain-db')
   mkdirSync(bin)
   mkdirSync(runner)
   writeFileSync(envFile, '')
   writeFileSync(callsFile, '')
+  writeFileSync(searchList, `${existingKeychain}\n`)
   writeFileSync(
     join(bin, 'openssl'),
     '#!/bin/sh\ncase "$1" in rand) echo fake-password ;; x509) echo SHA1=AA:BB:CC ;; esac\n',
@@ -29,12 +34,29 @@ function runImport(options: { trusted?: boolean; denySudo?: boolean; local?: boo
     `#!/bin/sh
 echo "$1" >> "$SIGNING_TEST_CALLS"
 case "$1" in
+  list-keychains)
+    if [ "$4" = -s ]; then
+      shift 4
+      printf '%s\\n' "$@" > "$SIGNING_TEST_SEARCH_LIST"
+    else
+      while IFS= read -r entry; do printf '    "%s"\\n' "$entry"; done < "$SIGNING_TEST_SEARCH_LIST"
+    fi ;;
   verify-cert) [ "$SIGNING_TEST_TRUSTED" = 1 ] ;;
   add-trusted-cert)
     # 不允许回到需要用户确认的信任修改路径。
     [ "$SIGNING_TEST_ELEVATED" = 1 ] && [ "$2" = -d ] ;;
   find-identity) echo '1) AABBCC "umuo Self-Signed"' ;;
 esac
+`,
+    { mode: 0o700 },
+  )
+  writeFileSync(
+    join(bin, 'codesign'),
+    `#!/bin/sh
+echo "codesign $1" >> "$SIGNING_TEST_CALLS"
+[ "$SIGNING_TEST_DENY_SIGN" != 1 ] || exit 12
+# 模拟 codesign 的证书链查找：显式 --keychain 不能替代用户搜索列表。
+grep -Fxq "$RUNNER_TEMP/umuo-signing.keychain-db" "$SIGNING_TEST_SEARCH_LIST"
 `,
     { mode: 0o700 },
   )
@@ -62,6 +84,8 @@ SIGNING_TEST_ELEVATED=1 exec "$@"
         SIGNING_TEST_CALLS: callsFile,
         SIGNING_TEST_TRUSTED: options.trusted ? '1' : '0',
         SIGNING_TEST_DENY_SUDO: options.denySudo ? '1' : '0',
+        SIGNING_TEST_DENY_SIGN: options.denySign ? '1' : '0',
+        SIGNING_TEST_SEARCH_LIST: searchList,
       },
       timeout: 5000,
     })
@@ -71,6 +95,8 @@ SIGNING_TEST_ELEVATED=1 exec "$@"
       calls: readFileSync(callsFile, 'utf8'),
       exported: readFileSync(envFile, 'utf8'),
       leftovers: readdirSync(runner),
+      searchList: readFileSync(searchList, 'utf8'),
+      existingKeychain,
     }
   } finally {
     rmSync(dir, { recursive: true, force: true })
@@ -110,4 +136,20 @@ test('拒绝在本机执行 runner 管理员域授权', () => {
   expect(result.exitCode).not.toBe(0)
   expect(result.calls).toBe('')
   expect(result.exported).toBe('')
+})
+
+test('试签前将临时钥匙串加入搜索列表，并保留含空格的原有路径', () => {
+  const result = runImport()
+  expect(result.exitCode).toBe(0)
+  expect(result.searchList).toContain('/umuo-signing.keychain-db\n')
+  expect(result.searchList).toContain(`${result.existingKeychain}\n`)
+  expect(result.calls).toContain('codesign --force')
+  expect(result.calls).toContain('codesign --verify')
+})
+
+test('身份能查到但实际试签失败时，不导出配置并清理临时文件', () => {
+  const result = runImport({ denySign: true })
+  expect(result.exitCode).not.toBe(0)
+  expect(result.exported).toBe('')
+  expect(result.leftovers).toEqual([])
 })
