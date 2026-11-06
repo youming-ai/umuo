@@ -139,6 +139,11 @@
 
 ## 阶段 G 正式发布
 
+2026-11-06：正式包改为固定 `umuo Self-Signed` 证书，Release 导入同一份 `.p12`；
+PR 冒烟仍为 ad-hoc。自签名不是 Developer ID/公证，首次从 ad-hoc 升级后的权限与 Keychain 仍待验收。
+本机完整 `bun run verify` 通过，包含 412 项 Rust、396 项 Swift 测试与打包冒烟。
+arm64 release 自签名打包通过，包内自检 75 项通过、9 项因 TCC 未授权跳过；主应用、嵌套框架与 DMG 的签名均通过验证。
+
 - [ ] 配置 Sparkle 正式密钥，从 GitHub Releases 实测 N → N+1 下载、验签、安装与重启（appcast 随 Release 发布，无需部署路由）。
 - [ ] Developer ID 签名、公证、Gatekeeper、DMG 拖装、TCC 与 Keychain 升级访问验收（Release 工作流要补的步骤见 [SWIFTUI-MIGRATION.md](SWIFTUI-MIGRATION.md)）。
 - [ ] 原生 release 的性能、Apple Silicon 真机、VoiceOver、完整键盘操作、多显示器与权限走查。

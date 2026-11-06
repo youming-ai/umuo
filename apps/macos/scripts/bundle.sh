@@ -5,9 +5,10 @@
 #   sh apps/macos/scripts/bundle.sh --version 0.2.0   # 正式组装：arm64（Apple Silicon）release，须在 Apple Silicon 上跑
 #   sh apps/macos/scripts/bundle.sh --quick           # 冒烟：复用 .build/debug 的产物，只本机架构、ad-hoc、不出 .dmg
 #
-# 环境变量（都可选）：
-#   APPLE_SIGNING_IDENTITY   codesign 身份（「Developer ID Application: …」）；不设就 ad-hoc 签名（--quick 一律 ad-hoc，忽略它与 APPLE_API_*）。
-#                            Release 工作流目前不传它与 APPLE_API_*（ad-hoc），接公证的步骤见 docs/SWIFTUI-MIGRATION.md
+# 环境变量：
+#   APPLE_SIGNING_IDENTITY   默认使用 packaging/umuo-signing.pem 固定的自签名证书；也可指定 Developer ID Application 身份。
+#   APPLE_SIGNING_KEYCHAIN   可选的签名钥匙串；本机默认 ~/.config/umuo/signing/umuo.keychain-db（若存在）。
+#                            --quick 始终 ad-hoc；正式包缺证书就失败，不降级。密钥准备见 docs/SWIFTUI-MIGRATION.md。
 #   APPLE_API_KEY / APPLE_API_ISSUER / APPLE_API_KEY_PATH
 #                            三个都设了才公证（notarytool --wait）并 staple
 #   SPARKLE_PUBLIC_ED_KEY    Sparkle Ed25519 公钥（正式构建必填，generate_keys --account app.umuo.desktop 生成）
@@ -50,14 +51,35 @@ echo "$VERSION" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$' || fail "版本号要是 X
 
 # 冒烟一律 ad-hoc、不公证：为发版 export 过 APPLE_SIGNING_IDENTITY / APPLE_API_* 的机器上，
 # verify 也要保持离线、无 Keychain 弹框（Developer ID + --timestamp 要连 Apple 的时间戳服务、会请求用私钥）
-identity=""
+identity="-"
+signing_kind=adhoc
+signing_keychain=""
 notarize=0
 if [ "$quick" = 1 ]; then
   [ -z "${APPLE_SIGNING_IDENTITY:-}" ] || echo "（--quick 忽略 APPLE_SIGNING_IDENTITY / APPLE_API_*：冒烟只做 ad-hoc 签名）"
 else
-  identity="${APPLE_SIGNING_IDENTITY:-}"
-  if [ -n "${APPLE_API_KEY:-}" ] && [ -n "${APPLE_API_ISSUER:-}" ] && [ -n "${APPLE_API_KEY_PATH:-}" ]; then
-    [ -n "$identity" ] || fail "公证要 Developer ID 签名：设了 APPLE_API_* 却没设 APPLE_SIGNING_IDENTITY"
+  certificate="$here/packaging/umuo-signing.pem"
+  fingerprint="$(openssl x509 -in "$certificate" -noout -fingerprint -sha1 | cut -d= -f2 | tr -d ':')"
+  [ -n "$fingerprint" ] || fail "无法读取自签名证书指纹"
+  identity="${APPLE_SIGNING_IDENTITY:-$fingerprint}"
+  case "$identity" in
+    "$fingerprint" | "umuo Self-Signed") identity="$fingerprint"; signing_kind=self-signed ;;
+    "Developer ID Application: "*) signing_kind=developer-id ;;
+    *) fail "正式签名只接受固定的 umuo 自签名证书或 Developer ID Application 身份" ;;
+  esac
+  signing_keychain="${APPLE_SIGNING_KEYCHAIN:-}"
+  if [ -z "$signing_keychain" ] && [ -f "$HOME/.config/umuo/signing/umuo.keychain-db" ] && [ "$signing_kind" = self-signed ]; then
+    signing_keychain="$HOME/.config/umuo/signing/umuo.keychain-db"
+  fi
+  if [ -n "$signing_keychain" ]; then
+    identities="$(security find-identity -v -p codesigning "$signing_keychain")"
+  else
+    identities="$(security find-identity -v -p codesigning)"
+  fi
+  printf '%s\n' "$identities" | grep -Fq "$identity" || fail "找不到签名身份；请导入固定证书及私钥并解锁签名钥匙串"
+  if [ -n "${APPLE_API_KEY:-}${APPLE_API_ISSUER:-}${APPLE_API_KEY_PATH:-}" ]; then
+    [ "$signing_kind" = developer-id ] || fail "自签名证书不能用于 Apple 公证"
+    [ -n "${APPLE_API_KEY:-}" ] && [ -n "${APPLE_API_ISSUER:-}" ] && [ -n "${APPLE_API_KEY_PATH:-}" ] || fail "公证必须同时设置三个 APPLE_API_* 变量"
     notarize=1
   fi
 fi
@@ -182,22 +204,22 @@ plutil -lint -s "$app/Contents/Info.plist" || fail "Info.plist 不合法"
 # ---- 签名：由内向外。SwiftPM 的资源包是带 _CodeSignature 的嵌套 bundle（里面没有代码），
 # 留着 SwiftPM 的 ad-hoc 签名的话，Developer ID 签名与公证会拒；先用同一个身份重签它，再签 .app。
 # 不用 --deep：它会给嵌套内容套上同一组权利
-sign() {
-  if [ -n "$identity" ]; then
-    codesign --force --options runtime --timestamp --entitlements "$entitlements" --sign "$identity" "$@"
+# 自签名没有 Apple 安全时间戳；Developer ID 才请求时间戳。
+# --keychain 显式限定私钥查找范围，不改用户的钥匙串搜索列表。
+sign_code() {
+  if [ "$signing_kind" = developer-id ]; then
+    set -- --timestamp "$@"
   else
-    # ad-hoc 没有时间戳服务可用；保留 hardened runtime，开发权利只放宽库校验
-    codesign --force --options runtime --entitlements "$entitlements" --sign - "$@"
+    set -- --timestamp=none "$@"
   fi
-}
-# Sparkle 官方要求按此顺序重签；Downloader 保留上游自己的权利，其余 helper 不套宿主权利。
-sign_sparkle() {
-  if [ -n "$identity" ]; then
-    codesign --force --options runtime --timestamp --sign "$identity" "$@"
-  else
-    codesign --force --options runtime --sign - "$@"
+  if [ -n "$signing_keychain" ]; then
+    set -- --keychain "$signing_keychain" "$@"
   fi
+  codesign --force --options runtime --sign "$identity" "$@"
 }
+sign() { sign_code --entitlements "$entitlements" "$@"; }
+# Downloader 保留上游自己的权利，其余 helper 不套宿主权利。
+sign_sparkle() { sign_code "$@"; }
 framework="$app/Contents/Frameworks/Sparkle.framework"
 step "签名 Sparkle 的辅助程序与框架"
 sign_sparkle "$framework/Versions/B/XPCServices/Installer.xpc"
@@ -209,12 +231,12 @@ sign_sparkle "$framework"
 step "签名 CTranscribe.framework"
 sign_sparkle "$app/Contents/Frameworks/CTranscribe.framework"
 entitlements="$here/packaging/umuo.entitlements"
-if [ -z "$identity" ]; then
-  entitlements="$OUT_DIR/adhoc.entitlements"
+if [ "$signing_kind" != developer-id ]; then
+  entitlements="$OUT_DIR/unsigned-team.entitlements"
   cp "$here/packaging/umuo.entitlements" "$entitlements"
   /usr/libexec/PlistBuddy -c "Add :com.apple.security.cs.disable-library-validation bool true" "$entitlements"
 fi
-step "签名（${identity:-ad-hoc}）"
+step "签名（${signing_kind}：${identity}）"
 sign "$app/Contents/Resources/Umuo_Umuo.bundle"
 sign "$app"
 
@@ -292,7 +314,7 @@ if [ "$quick" = 0 ]; then
   ln -s /Applications "$stage/Applications"
   rm -f "$dmg"
   hdiutil create -quiet -volname umuo -srcfolder "$stage" -fs HFS+ -format UDZO -ov "$dmg"
-  if [ -n "$identity" ]; then codesign --force --timestamp --sign "$identity" "$dmg"; fi
+  if [ "$signing_kind" != adhoc ]; then sign_code "$dmg"; fi
   if [ "$notarize" = 1 ]; then
     step "公证 .dmg"
     notary "$dmg"
@@ -301,4 +323,4 @@ if [ "$quick" = 0 ]; then
 fi
 
 size="$(du -sk "$app" | cut -f1)"
-echo "✓ umuo.app ${VERSION}（$((size / 1024)) MB，签名 ${identity:-ad-hoc}$([ "$notarize" = 1 ] && echo '，已公证')）→ $OUT_DIR"
+echo "✓ umuo.app ${VERSION}（$((size / 1024)) MB，签名 $signing_kind$([ "$notarize" = 1 ] && echo '，已公证')）→ $OUT_DIR"

@@ -1,7 +1,7 @@
 name: Release
 
 # 客户端改动合入 main 时自动构建 Apple Silicon（arm64）安装包并发布到 GitHub Releases
-# （正式版并标为 Latest；ad-hoc 签名，尚未经 Apple 公证）。
+# （正式版并标为 Latest；固定自签名证书签名，尚未经 Apple 公证）。
 # 版本号 = Cargo.toml 的主.次版本 + 本工作流的运行序号（如 0.2.12）；手动运行（workflow_dispatch）时可指定版本。
 # 附件：umuo-v<版本>.dmg（安装包，带版本号；官网 /download/macos 由 Worker 查最新 tag 后跳过去）、
 # umuo.app.tar.gz 与 appcast.xml（名字固定；Sparkle 的 SUFeedURL 指向 releases/latest/download/appcast.xml），发布即上线。签名、密钥与失败后的清理见 docs/SWIFTUI-MIGRATION.md。
@@ -105,12 +105,23 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
 
-      # ad-hoc 签名：还没有导入 Developer ID 证书与公证用的 App Store Connect API Key（.p8）的步骤，
-      # 所以不传 APPLE_SIGNING_IDENTITY / APPLE_API_*。以后接公证要补的步骤见 docs/SWIFTUI-MIGRATION.md。
+      # 所有版本复用同一张自签名证书；不能在 runner 上临时生成，否则升级时身份会变化。
+      - name: Import umuo signing identity
+        env:
+          UMUO_SIGNING_P12_BASE64: ${{ secrets.UMUO_SIGNING_P12_BASE64 }}
+          UMUO_SIGNING_P12_PASSWORD: ${{ secrets.UMUO_SIGNING_P12_PASSWORD }}
+        run: sh .github/scripts/import-signing-identity.sh
+
       - name: Build native app (arm64)
         env:
           SPARKLE_PUBLIC_ED_KEY: ${{ vars.SPARKLE_PUBLIC_ED_KEY }}
         run: sh apps/macos/scripts/bundle.sh --version "$VERSION"
+
+      - name: Delete signing keychain
+        if: always()
+        run: |
+          keychain="$RUNNER_TEMP/umuo-signing.keychain-db"
+          if [ -f "$keychain" ]; then security delete-keychain "$keychain"; fi
 
       - name: Sign Sparkle update and generate appcast
         env:
