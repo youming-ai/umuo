@@ -107,6 +107,7 @@ jobs:
 
       # 所有版本复用同一张自签名证书；不能在 runner 上临时生成，否则升级时身份会变化。
       - name: Import umuo signing identity
+        timeout-minutes: 2
         env:
           UMUO_SIGNING_P12_BASE64: ${{ secrets.UMUO_SIGNING_P12_BASE64 }}
           UMUO_SIGNING_P12_PASSWORD: ${{ secrets.UMUO_SIGNING_P12_PASSWORD }}
