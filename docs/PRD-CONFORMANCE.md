@@ -12,7 +12,7 @@
 | 编号 | PRD | 要求 | 状态 | 实现证据与剩余验收 |
 | --- | --- | --- | --- | --- |
 | T1 | §5.2 | AX 取词、复制降级与剪贴板保护 | ✅ | `Platform/Selection.swift`、`Pasteboard.swift`；Swift 规则/selftest 已有，真实应用兼容继续走查 |
-| T2 | §5.1–5.2 | 非激活流式浮窗、复制/朗读/钉住/拖动/缩放 | 🟡 | `Panel/`、`Platform/Speech.swift`；#107 通过 `FloatingPanelChrome` 使用非激活系统面板，顶部拖动、四边缩放；macOS 26 使用 `floatingSurface` Liquid Glass，14–15 回落系统材质；#116 输入法组字中按 Esc 只取消组字、不关浮窗不取消翻译，原文超过三行可展开/收起、新翻译开始时收回；焦点、缩放、外观与多显示器仍需真机验收 |
+| T2 | §5.1–5.2 | 非激活流式浮窗、复制/朗读/钉住/拖动/缩放 | 🟡 | `Panel/`、`Platform/Speech.swift`；#107 通过 `FloatingPanelChrome` 使用非激活系统面板，顶部拖动、四边缩放；macOS 26 使用 `floatingSurface` Liquid Glass，14–15 回落系统材质；#116 输入法组字中按 Esc 只取消组字、不关浮窗不取消翻译，原文超过三行可展开/收起、新翻译开始时收回；2026-11-06 修复 v0.2.14 显示划词浮窗时 `NSHostingView.windowDidLayout` 反复增高窗口导致的 `NSGenericException`，改由 AppKit 容器持有尺寸；`PanelLayoutSelfTest` 在完整 SwiftUI 事件循环覆盖显示、长原文、流式更新、缩放、报错重开与共用外壳的撰写窗，接入 `verify.sh selftest`；焦点、拖动、外观与多显示器仍需真机验收 |
 | T3 | §5.3 | 简单输入翻译窗 | 🟡 | `Compose/`：第四批已移除回译与临时换模型，保留源/目标语言、自动翻译、复制与复制粘贴；#107 共用系统面板外壳与按系统版本切换的材质；#116 记下发出翻译时的原文与语言，只有与当前输入一致时才可提交，旧译文不会被提交；关掉自动翻译时页头给出「翻译」按钮，⌘T 同效；直接输入、粘贴回原应用与外观仍待真机验收 |
 | T4 | §5.4 | 选区或整框原地翻译，失败不改原文 | 🟡 | `Platform/AXWriteBack.swift`、`umuo-app/src/translate/`；已有守卫测试，真实应用与同应用焦点变化待验 |
 | T5 | §5.2 | 单词语境释义与朗读 | 🟡 | `umuo-core/src/word_card.rs`、`Panel/WordCardView.swift`：第四批只保留词、发音、语境释义与朗读；真机待验收 |

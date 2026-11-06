@@ -5,4 +5,8 @@ import UmuoCore
 if CommandLine.arguments.contains("--selftest") {
     exit(SelfTest.run() ? 0 : 1)
 }
+if CommandLine.arguments.contains("--selftest-panel-layout") {
+    PanelLayoutSelfTest.main()
+    exit(0)
+}
 UmuoApp.main()
