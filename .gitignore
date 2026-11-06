@@ -35,3 +35,8 @@ pnpm-lock.yaml
 
 # 本机 agent 工作树（独立 checkout，不随主仓库公开）
 /.claude/worktrees/
+
+# 签名私钥与导出身份（公钥证书 umuo-signing.pem 可以提交）
+*.p12
+*.pfx
+*.key

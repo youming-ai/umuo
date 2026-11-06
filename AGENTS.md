@@ -63,7 +63,7 @@ Swift 视图模型与纯规则用 Swift Testing；不要在测试里碰真实 Ke
 
 ## 发布与兼容性
 
-客户端改动合入 main 即由 `.github/workflows/release.yml` 发布到 GitHub Releases（`v0.2.<运行序号>`，arm64，正式版并标 Latest，ad-hoc 签名、尚未公证）。
+客户端改动合入 main 即由 `.github/workflows/release.yml` 发布到 GitHub Releases（`v0.2.<运行序号>`，arm64，正式版并标 Latest，固定自签名证书签名、尚未公证）。
 手动发版用该工作流的 workflow_dispatch；发布失败后的清理见 `docs/SWIFTUI-MIGRATION.md`。
 附件：安装包 `umuo-v<版本>.dmg`（官网 `/download/macos` 由 Worker 读 `releases/latest` 的跳转拿到最新 tag 再跳过去，缓存 5 分钟），
 更新包 `umuo.app.tar.gz` 与 `appcast.xml` 名字固定（Sparkle 的 SUFeedURL 指向 `releases/latest/download/appcast.xml`）。

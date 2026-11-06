@@ -3,7 +3,7 @@
 > 文件名沿用旧的 `SWIFTUI-MIGRATION.md`：源码与官网文档里还有按这个名字（与「必须守住的兼容性」小节）引用它的地方。
 > SwiftUI 迁移本身已完成；迁移阶段的记录在 git 历史里。开发命令见 [README](../README.md)，真机走查见 [NATIVE-WALKTHROUGH.md](NATIVE-WALKTHROUGH.md)。
 
-客户端只发 Apple Silicon（arm64）、macOS 14+ 的包。当前为 ad-hoc 签名、**未经 Apple 公证**；Developer ID 公证、
+客户端只发 Apple Silicon（arm64）、macOS 14+ 的包。正式包使用固定的 `umuo Self-Signed` 自签名证书签名、**未经 Apple 公证**；Developer ID 公证、
 真实 N → N+1 更新实测与 Homebrew Cask 是待办（见 [开发计划](IMPLEMENTATION-PLAN.md) 阶段 G）。
 
 ## 自动发布（`.github/workflows/release.yml`）
@@ -55,7 +55,7 @@ git push origin --delete v0.2.N              # 只剩 tag、没有 Release 时
 
 - 正式组装需要 `SPARKLE_PUBLIC_ED_KEY`（写进包内 `SUPublicEDKey`）；编一次 arm64 release（独立 scratch 目录 `.build/bundle-arm64`），
   以 macOS 14 为部署目标，嵌入 Sparkle.framework 与 CTranscribe.framework（两者是上游的通用框架，原样嵌入），
-  按 Sparkle 官方顺序由内向外重签；没有 Developer ID 时 ad-hoc 签名。
+  按 Sparkle 官方顺序由内向外重签；默认固定自签名证书，缺证书或私钥就失败，不降级到 ad-hoc。
 - 组装后自检：codesign、Info.plist 关键值、主程序为 arm64、框架含 arm64 切片、资源包与许可文件位置，再从 `.app` 里跑 `--selftest`。
 - `--quick` 复用 `verify.sh` 刚编好的 debug 产物，只做 ad-hoc、不公证、不打 `.dmg`，是 `bun run verify` 里的打包冒烟。
 
@@ -67,7 +67,7 @@ git push origin --delete v0.2.N              # 只剩 tag、没有 Release 时
 - SwiftPM 锁定 Sparkle 2.10.0，`App/AppUpdater.swift` 在主线程持有唯一更新会话；菜单和关于页接到原生更新 UI。
 - 裸开发构建与 `--quick` 不启动更新；正式包写入 HTTPS feed 与 Ed25519 公钥。
 - 不启用系统信息上报，不默认自动安装；自动检查遵循 Sparkle 的用户授权流程。
-- ad-hoc 包没有 Team ID，附加开发用的关闭库校验权利；Developer ID 包保留库校验。
+- 自签名与 ad-hoc 包没有 Team ID，附加关闭库校验权利；Developer ID 包保留库校验。
 - `scripts/sparkle-appcast.ts` 用官方 `sign_update` 签名，再独立以包内公钥验签，生成含最低 macOS 14.0.0 的 appcast；
   签名错误、篡改包与 XML 版本注入由工具测试拦截。
 
@@ -99,20 +99,51 @@ Release 工作流使用 repository variable `SPARKLE_PUBLIC_ED_KEY` 与 secret `
 [手动签名顺序](https://sparkle-project.org/documentation/sandboxing/#code-signing)、
 [发布与 appcast](https://sparkle-project.org/documentation/publishing/)。
 
+## 固定自签名证书
+
+正式包与 Tinycast 一样使用自行签发的代码签名证书，开启 hardened runtime，没有 Apple Team ID，
+不请求 Apple 安全时间戳，也没有 Apple 公证。Gatekeeper 首次下载放行提示仍需保留。
+自签名与 Sparkle 的 Ed25519 更新包签名是两套独立密钥；原有 Sparkle 密钥保持不变。
+
+- 公钥证书：`apps/macos/packaging/umuo-signing.pem`，名称 `umuo Self-Signed`，有效期十年。
+- 打包脚本从这张证书读取 SHA-1 指纹，按指纹选择身份，不仅按名称匹配，防止误用同名新证书。
+- 每次版本发布复用同一份证书与私钥；默认 designated requirement 绑定 Bundle ID 与证书，不能每次生成新证书。
+- 首次从 ad-hoc 升级到自签名属于身份变化，TCC 权限与 Keychain 可能需要重新授权/保存 Key；真实升级仍需验收。
+- 自签名不等于 Apple 认证；不让用户安装或信任根证书，不关闭用户的 Gatekeeper。
+
+### 本机与备份
+
+本机私密材料在 `~/.config/umuo/signing/`（目录 700，私密文件 600）：
+`identity.p12`、`p12-password`、`private-key.pem`、`certificate.pem`、`umuo.keychain-db` 与 `keychain-password`。
+这是仓库外的凭据目录，不进 git。请将 `.p12` 与密码存入密码管理器作为独立备份；GitHub Secrets 无法读回备份。
+不要重新制证替代丢失的私钥，证书改名也不会恢复原签名身份。
+
+打包默认使用这个本机专用钥匙串（存在时），可通过 `APPLE_SIGNING_KEYCHAIN` 指定其他钥匙串。
+锁定后先解锁（不在终端或日志显示密码）：
+
+```bash
+security unlock-keychain -p "$(cat ~/.config/umuo/signing/keychain-password)" ~/.config/umuo/signing/umuo.keychain-db
+```
+
+换机时从备份导入同一份 `.p12`；参照 `.github/scripts/import-signing-identity.sh` 创建专用钥匙串、
+允许 codesign 访问私钥，并仅对公钥证书设置用户域的 `codeSign` 信任。无需修改系统域或 TLS 信任。
+
+### GitHub Actions
+
+仓库 Secrets：`UMUO_SIGNING_P12_BASE64`（`.p12` 文件的 Base64）与 `UMUO_SIGNING_P12_PASSWORD`。
+Release 构建前调用 `.github/scripts/import-signing-identity.sh`，使用随机密码创建临时钥匙串、
+导入固定身份并核对证书指纹；导入后删除临时 `.p12`，构建后 `always()` 删除临时钥匙串。
+不设置这两个 Secrets 时发布失败，不发布身份变化的包。PR 门禁与 `--quick` 不访问发布密钥，仍用 ad-hoc。
+
 ## 以后接 Developer ID 签名与公证
 
-`bundle.sh` 已支持：设了 `APPLE_SIGNING_IDENTITY` 就用该身份签名（带 `--timestamp`）；
-`APPLE_API_KEY`、`APPLE_API_ISSUER`、`APPLE_API_KEY_PATH` 三个都设了才用 `notarytool --wait` 公证并 staple `.app` 与 `.dmg`。
-Release 工作流目前**不传**这些变量，因为 runner 上还没有证书与 API Key 文件。接入时在 release.yml 的构建步骤前补：
+`bundle.sh` 保留 Developer ID 路径：设置 `APPLE_SIGNING_IDENTITY="Developer ID Application: …"`，
+并通过 `APPLE_SIGNING_KEYCHAIN` 指定导入 Apple 证书与私钥的钥匙串；这一路径保留库校验并请求安全时间戳。
+`APPLE_API_KEY`、`APPLE_API_ISSUER`、`APPLE_API_KEY_PATH` 三个都设了才用 `notarytool --wait` 公证并 staple `.app` 与 `.dmg`；
+自签名身份或只填部分 API 变量会被提前拒绝。
 
-1. 把「Developer ID Application」证书导出为 `.p12`，base64 后存为 secret（如 `APPLE_CERTIFICATE_P12`、`APPLE_CERTIFICATE_PASSWORD`）。
-2. 构建前建临时 keychain：`security create-keychain` → `security import <p12> -k <keychain> -P <密码> -T /usr/bin/codesign`
-   → `security set-key-partition-list -S apple-tool:,apple:,codesign: -k <密码> <keychain>` → `security list-keychains -d user -s <keychain> …`；
-   job 结束时 `security delete-keychain`。
-3. 把 App Store Connect API Key（`.p8`）存为 secret，构建前写入 `$RUNNER_TEMP` 下权限 600 的文件，作为 `APPLE_API_KEY_PATH`；
-   Key ID 与 Issuer ID 作为 `APPLE_API_KEY` / `APPLE_API_ISSUER`。
-4. 构建步骤再传 `APPLE_SIGNING_IDENTITY`（证书的完整名称）与上面三个变量；Release 说明去掉「未公证」的放行提示，
-   并按 [开发计划](IMPLEMENTATION-PLAN.md) 阶段 G 做 Gatekeeper、DMG 拖装与升级后 Keychain 访问的验收。
+接入时将 Release 的自签名导入步骤替换为 Developer ID `.p12` 导入，再安全写入 App Store Connect `.p8` 并传上述变量。
+完成后才能移除 Release 说明的未公证提示，并按阶段 G 验收 Gatekeeper、DMG 拖装及升级后的 TCC/Keychain。
 
 ## 必须守住的兼容性
 
