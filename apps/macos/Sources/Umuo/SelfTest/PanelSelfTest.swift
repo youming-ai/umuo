@@ -6,7 +6,7 @@ import UmuoCore
 ///
 /// **不碰用户的剪贴板、不往用户的应用里按键**：兜底整段跑在私有命名剪贴板上，「按 ⌘V」换成假的；
 /// 真正的写回要辅助功能权限，没授权时断言权限拒绝，授权了也不在用户正聚焦的输入框里试写，打印跳过。
-/// 窗口本身（NSPanel 的显示、拖动、缩放、看门狗）不在这里跑：要真机看。
+/// 窗口布局另由 `PanelLayoutSelfTest` 在完整 SwiftUI 事件循环里验证；拖动、焦点与看门狗仍需真机验收。
 enum PanelSelfTest {
     @MainActor
     static func run(_ check: (String, Bool, String) -> Void) {

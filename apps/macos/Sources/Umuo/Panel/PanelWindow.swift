@@ -76,20 +76,25 @@ enum FloatingPanelChrome {
         hosting.sizingOptions = []
         // 标题栏是透明的、内容从窗口顶边开始：不要标题栏高度的安全区，否则顶上空出一条
         hosting.safeAreaRegions = []
+        let surface: NSView
         if #available(macOS 26.0, *) {
             window.backgroundColor = .clear
             window.isOpaque = false
-            window.contentView = hosting
+            surface = NSView()
         } else {
-            let surface = NSVisualEffectView()
-            surface.material = .popover
-            surface.blendingMode = .behindWindow
-            surface.state = .active
-            hosting.frame = surface.bounds
-            hosting.autoresizingMask = [.width, .height]
-            surface.addSubview(hosting)
-            window.contentView = surface
+            let material = NSVisualEffectView()
+            material.material = .popover
+            material.blendingMode = .behindWindow
+            material.state = .active
+            surface = material
         }
+        // 由 AppKit 容器持有窗口尺寸，SwiftUI 只跟随容器铺满。
+        // 即使 sizingOptions 为空，NSHostingView 直接作为 contentView 时仍可能在
+        // windowDidLayout 中更新窗口高度，形成「改窗口 → 重新布局 → 再改窗口」的循环。
+        window.contentView = surface
+        hosting.frame = surface.bounds
+        hosting.autoresizingMask = [.width, .height]
+        surface.addSubview(hosting)
         return hosting
     }
 }

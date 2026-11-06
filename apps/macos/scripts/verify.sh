@@ -48,6 +48,8 @@ fi
 
 if run selftest; then
   .build/debug/Umuo --selftest
+  # 必须跑完整 SwiftUI 应用事件循环，普通 selftest 不会进入 windowDidLayout 的窗口尺寸协商。
+  .build/debug/Umuo --selftest-panel-layout
 fi
 
 # 打包冒烟：把上面这份 debug 产物组装成 ad-hoc 签名的 umuo.app，验 codesign --verify、
