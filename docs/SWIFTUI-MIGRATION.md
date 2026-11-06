@@ -125,14 +125,18 @@ Release 工作流使用 repository variable `SPARKLE_PUBLIC_ED_KEY` 与 secret `
 security unlock-keychain -p "$(cat ~/.config/umuo/signing/keychain-password)" ~/.config/umuo/signing/umuo.keychain-db
 ```
 
-换机时从备份导入同一份 `.p12`；参照 `.github/scripts/import-signing-identity.sh` 创建专用钥匙串、
-允许 codesign 访问私钥，并仅对公钥证书设置用户域的 `codeSign` 信任。无需修改系统域或 TLS 信任。
+换机时从备份导入同一份 `.p12`，创建专用钥匙串、允许 codesign 访问私钥，
+并仅对公钥证书设置用户域的 `codeSign` 信任；这一步需要本机用户确认认证框。无需修改系统域或 TLS 信任。
+`.github/scripts/import-signing-identity.sh` 专供临时 CI runner，不在本机运行。
 
 ### GitHub Actions
 
 仓库 Secrets：`UMUO_SIGNING_P12_BASE64`（`.p12` 文件的 Base64）与 `UMUO_SIGNING_P12_PASSWORD`。
 Release 构建前调用 `.github/scripts/import-signing-identity.sh`，使用随机密码创建临时钥匙串、
 导入固定身份并核对证书指纹；导入后删除临时 `.p12`，构建后 `always()` 删除临时钥匙串。
+用户域信任修改会弹认证框，因此 runner 通过 `sudo -n security add-trusted-cert -d -p codeSign`
+在管理员域授权这张公钥证书，不改变 TLS 信任；无非交互 sudo 权限时立即失败。
+导入步骤记录阶段且限制两分钟，避免再次静默等待到整个发布 job 的一小时上限。
 不设置这两个 Secrets 时发布失败，不发布身份变化的包。PR 门禁与 `--quick` 不访问发布密钥，仍用 ad-hoc。
 
 ## 以后接 Developer ID 签名与公证
