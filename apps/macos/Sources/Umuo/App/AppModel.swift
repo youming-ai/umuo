@@ -93,6 +93,8 @@ final class AppModel {
         quick = QuickPanelController(app: self)
         statusBar = StatusBarController(app: self)
         startVoice()
+        // 浮窗以外的 umuo 窗口成为 key 时，浮窗把 Esc 交还给它
+        escape.followKeyWindow { !($0 is PanelWindow) }
         if !registersHotkeys {
             print("umuo: 不是正式客户端（Bundle ID 不是 \(bundleId())），不注册全局快捷键；要注册请加 --hotkeys")
         }

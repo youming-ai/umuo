@@ -331,6 +331,31 @@ struct KeychainLockTests {
         keychain.calls.delete = { _ in probe("delete"); return errSecItemNotFound }
         try keychain.write(account: "openai", secret: "sk-test")
         try keychain.delete(account: "openai")
-        #expect(seen.withLock { $0 } == ["add:已加锁:可交互", "update:已加锁:可交互", "delete:已加锁:可交互"])
+        #expect(seen.withLock { $0 }
+            == ["add:已加锁:可交互", "delete:已加锁:可交互", "update:已加锁:可交互", "delete:已加锁:可交互"])
+    }
+
+    @Test func 已有条目时删掉重建_不原地更新() throws {
+        // 原地 update 不动 ACL：旧版写的条目只信任旧版的 cdhash，重新保存后新版照样读不到（errSecAuthFailed）。
+        let calls = OSAllocatedUnfairLock<[String]>(initialState: [])
+        var keychain = Keychain(service: "app.umuo.tests")
+        keychain.calls.add = { _ in
+            calls.withLock { $0.append("add") }
+            return calls.withLock { $0.contains("delete") } ? errSecSuccess : errSecDuplicateItem
+        }
+        keychain.calls.update = { _, _ in calls.withLock { $0.append("update") }; return errSecSuccess }
+        keychain.calls.delete = { _ in calls.withLock { $0.append("delete") }; return errSecSuccess }
+        try keychain.write(account: "deepseek", secret: "sk-new")
+        #expect(calls.withLock { $0 } == ["add", "delete", "add"])
+    }
+
+    @Test func 删不掉时退回原地更新() throws {
+        let calls = OSAllocatedUnfairLock<[String]>(initialState: [])
+        var keychain = Keychain(service: "app.umuo.tests")
+        keychain.calls.add = { _ in calls.withLock { $0.append("add") }; return errSecDuplicateItem }
+        keychain.calls.update = { _, _ in calls.withLock { $0.append("update") }; return errSecSuccess }
+        keychain.calls.delete = { _ in calls.withLock { $0.append("delete") }; return errSecAuthFailed }
+        try keychain.write(account: "deepseek", secret: "sk-new")
+        #expect(calls.withLock { $0 } == ["add", "delete", "update"])
     }
 }

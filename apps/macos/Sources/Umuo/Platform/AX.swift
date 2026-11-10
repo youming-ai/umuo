@@ -1,4 +1,5 @@
 import ApplicationServices
+import Carbon
 
 /// Accessibility 的最小封装，取词（`Selection`）与写回（`AXWriteBack`）共用。
 /// 封装 macOS Accessibility：全是线程安全的 C API，工作线程上直接调。
@@ -27,6 +28,16 @@ enum AX {
         else { return nil }
         return (value as! CFString) as String
     }
+
+    /// 安全输入：聚焦的是密码框（角色或子角色），或有应用开启了安全键盘输入（`IsSecureEventInputEnabled`）。
+    /// 取词、静默写回、浮窗替换与语音交付共用这一处判断：密码框里的内容不读、不发给供应商，也不往里写。
+    /// 浏览器把密码框的 `AXValue` 暴露成掩码，整框翻译会把掩码发出去，再把译文写回覆盖密码。
+    static func isSecureInput(_ element: AXUIElement?) -> Bool {
+        if IsSecureEventInputEnabled() { return true }
+        guard let element else { return false }
+        return string(element, kAXRoleAttribute as CFString) == "AXSecureTextField"
+            || string(element, kAXSubroleAttribute as CFString) == (kAXSecureTextFieldSubrole as String)
+    }
 }
 
 /// 写回守卫眼里「此刻聚焦的文本目标」：权限、聚焦元素、属性的可写性与内容、写入。
@@ -40,6 +51,8 @@ protocol FocusedTextProbing: Sendable {
     /// nil = 问不出来（见 `AX.isSettable`）。
     func isSettable(_ element: AXUIElement, _ attribute: String) -> Bool?
     func string(_ element: AXUIElement, _ attribute: String) -> String?
+    /// 密码框或安全输入（见 `AX.isSecureInput`）：是的话一律不写。
+    func secureInput(_ element: AXUIElement?) -> Bool
     /// 写入属性。返回是否成功。
     func write(_ text: String, to element: AXUIElement, _ attribute: String) -> Bool
 }
@@ -53,6 +66,7 @@ struct AXTextProbe: FocusedTextProbing {
     }
 
     func string(_ element: AXUIElement, _ attribute: String) -> String? { AX.string(element, attribute as CFString) }
+    func secureInput(_ element: AXUIElement?) -> Bool { AX.isSecureInput(element) }
     func write(_ text: String, to element: AXUIElement, _ attribute: String) -> Bool {
         AXUIElementSetAttributeValue(element, attribute as CFString, text as CFString) == .success
     }

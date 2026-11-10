@@ -102,7 +102,7 @@ protocol VoiceFocusProbing: Sendable {
     func frontmostPid() -> pid_t?
 }
 
-/// 正式实现：Accessibility + `NSRunningApplication` + `IsSecureEventInputEnabled`。线程安全的 C API，后台直接调。
+/// 正式实现：Accessibility + `NSRunningApplication` + `AX.isSecureInput`。线程安全的 C API，后台直接调。
 struct AXFocusProbe: VoiceFocusProbing {
     func capture() -> VoiceTarget {
         guard AXIsProcessTrusted() else { return VoiceTarget(pid: frontmostPid(), element: nil, window: nil) }
@@ -127,11 +127,8 @@ struct AXFocusProbe: VoiceFocusProbing {
         let sameWindow = Self.same(current.flatMap(Self.window), target.window)
         check.sameElement = current.map { CFEqual($0, captured) } ?? false && sameWindow
         guard let current else { return check }
-        let role = AX.string(current, kAXRoleAttribute as CFString)
-        let subrole = AX.string(current, kAXSubroleAttribute as CFString)
-        check.role = role
-        check.secureInput = IsSecureEventInputEnabled() || role == "AXSecureTextField"
-            || subrole == (kAXSecureTextFieldSubrole as String)
+        check.role = AX.string(current, kAXRoleAttribute as CFString)
+        check.secureInput = AX.isSecureInput(current)
         let name = kAXSelectedTextAttribute as CFString
         check.settable = AX.isSettable(current, name)
         check.selectionReadable = AX.string(current, name) != nil

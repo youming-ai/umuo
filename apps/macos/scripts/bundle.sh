@@ -134,11 +134,15 @@ if [ "$quick" = 0 ]; then
   # 去掉本地符号，缩小安装包（门槛 30 MB）。全局符号留着，崩溃栈仍看得出函数名
   strip -x "$app/Contents/MacOS/$exe_name" 2>/dev/null || fail "strip 失败"
 fi
-# SwiftPM 可能留下指向构建机 PackageFrameworks 的绝对 rpath。移除后只从包内加载更新框架。
+# 链接器会留下指向构建机的绝对 rpath（.build/PackageFrameworks、Xcode / CLT 工具链的 swift-6.x/macosx），
+# 而且排在包内 Frameworks 之前。自签名包关了库校验，谁能在那条路径放一个同名框架，
+# umuo 启动时就会先加载它（/Applications/Xcode_*.app 管理员无需密码即可创建）。
+# 白名单：只留 @ 开头的相对路径与系统 Swift 运行时，其余一律删掉。
 otool -l "$app/Contents/MacOS/$exe_name" | sed -n 's/^ *path \(.*\) (offset .*$/\1/p' |
   while IFS= read -r search_path; do
     case "$search_path" in
-      "$here"/.build/*) install_name_tool -delete_rpath "$search_path" "$app/Contents/MacOS/$exe_name" ;;
+      @* | /usr/lib/swift) ;;
+      *) install_name_tool -delete_rpath "$search_path" "$app/Contents/MacOS/$exe_name" ;;
     esac
   done
 sed "s/@VERSION@/$VERSION/g" "$here/packaging/Info.plist" >"$app/Contents/Info.plist"
@@ -249,6 +253,9 @@ check CFBundleShortVersionString "$(plist_get CFBundleShortVersionString)" "$VER
 check CFBundleVersion "$(plist_get CFBundleVersion)" "$VERSION"
 check LSUIElement "$(plist_get LSUIElement)" true
 [ -x "$app/Contents/MacOS/$exe_name" ] || fail "可执行文件不在 Contents/MacOS/$exe_name"
+stray_rpaths=$(otool -l "$app/Contents/MacOS/$exe_name" | sed -n 's/^ *path \(.*\) (offset .*$/\1/p' |
+  grep -v -e '^@' -e '^/usr/lib/swift$' || true)
+[ -z "$stray_rpaths" ] || fail "主程序残留指向构建机的绝对 rpath：$stray_rpaths"
 [ -n "$(plist_get NSMicrophoneUsageDescription | grep -v '<缺>')" ] || fail "Info.plist 缺麦克风用途说明"
 for lang in zh-Hans zh-Hant en ja; do
   [ -f "$app/Contents/Resources/$lang.lproj/InfoPlist.strings" ] || fail "$lang.lproj/InfoPlist.strings 缺了"

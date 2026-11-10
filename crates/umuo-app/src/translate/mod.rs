@@ -281,6 +281,13 @@ async fn translate(
             if outcome.truncated {
                 return Err(CoreError::Truncated);
             }
+            // 只有空白的「译文」同样不能写回：传输层只拦完全为空的流，模型只回一个换行时
+            // 会走到这里，写回就把用户选中的原文换成了空白。
+            if outcome.text.trim().is_empty() {
+                return Err(CoreError::BadResponse {
+                    detail: "模型只返回了空白，没有替换原文".to_string(),
+                });
+            }
             write_back_focus(
                 &*deps.core.host,
                 guard,

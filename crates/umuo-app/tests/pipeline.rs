@@ -851,6 +851,22 @@ async fn silent_replace_never_touches_the_document_when_translation_fails() {
 }
 
 #[tokio::test]
+async fn silent_replace_never_replaces_the_text_with_whitespace() {
+    // 传输层只拦完全为空的流；模型只回换行 / 空格时，写回会把原文换成空白。
+    let env = Env::new(|hit| match hit.path.as_str() {
+        "/openai/chat/completions" => sse(&["\n", "  "]),
+        _ => not_found(),
+    })
+    .await;
+
+    let events = env.translate(silent(SENTENCE), Some("pid-1")).await;
+
+    assert_eq!(events.last().unwrap().name, "translate://error");
+    assert!(env.fake.writes().is_empty(), "空白译文不能替换原文");
+    assert_eq!(env.history_count(), 0);
+}
+
+#[tokio::test]
 async fn silent_replace_refuses_to_write_when_the_frontmost_app_changed() {
     let env = Env::new(|hit| match hit.path.as_str() {
         "/openai/chat/completions" => sse(&["译文"]),

@@ -961,6 +961,35 @@
         }
       }
     },
+    "error.secureInput": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "焦点在密码框或系统开启了安全输入，不读取也不改写这里的内容。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "焦點在密碼欄或系統開啟了安全輸入，不讀取也不改寫這裡的內容。"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A password field or Secure Input is active, so umuo won't read or change this text."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "パスワード入力欄またはセキュア入力が有効なため、ここの内容は読み取りも書き換えもしません。"
+          }
+        }
+      }
+    },
     "error.selectionChanged": {
       "extractionState": "manual",
       "localizations": {

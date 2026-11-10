@@ -992,9 +992,17 @@ mod tests {
             .insert("custom_token".into(), serde_json::json!("tok-123"));
         next.extra
             .insert("futurePreference".into(), serde_json::json!(true));
+        // 别的版本写的普通字段，只是名字里含 token / secret 这些字母
+        next.extra
+            .insert("maxOutputTokens".into(), serde_json::json!(4096));
         next.prepare_for_save(&Settings::default()).unwrap();
         assert!(!next.extra.contains_key("openaiApiKey"));
         assert!(!next.extra.contains_key("custom_token"));
+        assert_eq!(
+            next.extra.get("maxOutputTokens"),
+            Some(&serde_json::json!(4096)),
+            "保存设置不能删掉别的版本写的未知字段"
+        );
         assert_eq!(
             next.extra.get("futurePreference"),
             Some(&serde_json::json!(true))

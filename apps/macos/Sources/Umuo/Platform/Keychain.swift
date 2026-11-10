@@ -71,7 +71,12 @@ struct Keychain {
         return text
     }
 
-    /// 写一条：没有就新建，有就覆盖（`keyring` 的 `set_password` 也是这个语义）。
+    /// 写一条：没有就新建，有就**删掉重建**（对外语义同 `keyring` 的 `set_password`：覆盖）。
+    ///
+    /// 为什么不 `SecItemUpdate`：旧文件 Keychain 的条目 ACL 只信任写它的那个程序，自签名构建按 cdhash 认，
+    /// 每发一版 cdhash 就变，新版读旧条目拿到 `errSecAuthFailed`，提示用户「重新保存 Key」。而 update 只换数据、
+    /// 不动 ACL（`encrypt` 授权对谁都开），保存成功了照样读不到。删掉重建，新条目由当前程序创建，ACL 才信任它。
+    /// 删不掉（极少见）时退回 update，至少数据是新的。
     ///
     /// 与 `read` 取同一把锁（只互斥，不关交互）：否则正好碰上读的那一刻，进程级的交互开关是关着的，
     /// 本该弹授权框的写入直接拿到 `errSecInteractionNotAllowed`。可能等锁、可能弹框，**不要在主线程上调**。
@@ -79,11 +84,13 @@ struct Keychain {
         let data = Data(secret.utf8)
         var add = query(account)
         add[kSecValueData] = data
-        let status = Self.exclusive { calls.add(add as CFDictionary) }
-        if status == errSecSuccess { return }
-        guard status == errSecDuplicateItem else { throw .status(status, .write) }
-        let updated = Self.exclusive { calls.update(query(account) as CFDictionary, [kSecValueData: data] as CFDictionary) }
-        guard updated == errSecSuccess else { throw .status(updated, .write) }
+        let status = Self.exclusive {
+            let first = calls.add(add as CFDictionary)
+            guard first == errSecDuplicateItem else { return first }
+            if calls.delete(query(account) as CFDictionary) == errSecSuccess { return calls.add(add as CFDictionary) }
+            return calls.update(query(account) as CFDictionary, [kSecValueData: data] as CFDictionary)
+        }
+        guard status == errSecSuccess else { throw .status(status, .write) }
     }
 
     /// 删一条。删一个本来就不存在的条目算成功，否则「清空全部 Key」会中途报错（与 Rust 一致）。
