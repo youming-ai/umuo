@@ -35,9 +35,14 @@ pub fn detect(text: &str) -> Option<&'static str> {
     // 其它字母（格鲁吉亚文、亚美尼亚文……）：认得出是文字，但不知道是哪种语言。
     let mut other = 0usize;
     let mut meaningful = 0usize;
+    // 拉丁字母组成的「词」数：一个汉字 / 假名 / 谚文音节大致抵一个词，比字母数更能和它们比多少。
+    let mut latin_words = 0usize;
+    let mut in_latin_word = false;
 
     for ch in text.chars() {
-        if ch.is_whitespace() || ch.is_ascii_punctuation() {
+        let was_in_latin_word = std::mem::replace(&mut in_latin_word, false);
+        // 片假名中点「・」是标点：中文里的外国人名也用它（约翰・史密斯），不能当假名把整段判成日文。
+        if ch.is_whitespace() || ch.is_ascii_punctuation() || ch == '\u{30FB}' {
             continue;
         }
         meaningful += 1;
@@ -61,33 +66,38 @@ pub fn detect(text: &str) -> Option<&'static str> {
             _ if ch.is_alphabetic() => other += 1,
             _ => {}
         }
+        let is_latin = ch.is_ascii_alphabetic()
+            || (matches!(c, 0x00C0..=0x024F | 0x1E00..=0x1EFF) && ch.is_alphabetic());
+        if is_latin && !was_in_latin_word {
+            latin_words += 1;
+        }
+        in_latin_word = is_latin;
     }
 
     if meaningful == 0 {
         return None;
     }
 
+    // 中日韩文字占多数才按它们判，比的是「字数 vs 拉丁词数」。以前出现一个就判：
+    // 英文里夹一个中文人名（Please contact 张伟 for details）会被判成中文，
+    // 中文用户拿到英译英。中文里夹几个英文术语（我用 React 写代码）仍是中文。
     // 顺序即优先级，其中「假名 > 汉字」是关键：日文里混着大量汉字，
     // 只要出现假名就必须判成日文，否则一段日文会被翻成中文。
-    if kana > 0 {
-        return Some("ja");
-    }
-    if hangul > 0 {
-        return Some("ko");
-    }
-    if han > 0 {
+    if kana + hangul + han > 0 && kana + hangul + han >= latin_words {
+        if kana > 0 {
+            return Some("ja");
+        }
+        if hangul > 0 {
+            return Some("ko");
+        }
         return Some("zh");
     }
-    // 西里尔与阿拉伯文沿用「出现即判」（审查前的行为）。后加的几种文字要求占多数：
-    // 希腊字母常作数学符号混在英文里（「The α value is 0.5」「Δt」），出现一个就判成
-    // 希腊文会让英文目标的用户拿到英译英、TTS 换成希腊语音。
-    if cyrillic > 0 {
-        return Some("ru");
-    }
-    if arabic > 0 {
-        return Some("ar");
-    }
+    // 其余文字都是字母文字，与拉丁字母按字母数比，占多数才判。
+    // 希腊字母常作数学符号混在英文里（「The α value is 0.5」「Δt」），西里尔、阿拉伯字母
+    // 也常以专名出现在英文里，出现一个就判会让英文目标的用户拿到英译英、TTS 换错发音人。
     let scripts = [
+        (cyrillic, "ru"),
+        (arabic, "ar"),
         (greek, "el"),
         (hebrew, "he"),
         (thai, "th"),
@@ -101,7 +111,7 @@ pub fn detect(text: &str) -> Option<&'static str> {
         return Some(code);
     }
     // 拉丁字母为主时才去细分；混着认不出的文字时，猜一个只会把 {source_lang} 填错。
-    let minority_script = greek + hebrew + thai + devanagari;
+    let minority_script = cyrillic + arabic + greek + hebrew + thai + devanagari;
     if latin > 0 && latin >= other + minority_script {
         return Some(latin_language(text));
     }
@@ -423,6 +433,35 @@ mod tests {
         ] {
             assert_eq!(detect(text), Some("en"), "{text}");
         }
+    }
+
+    #[test]
+    fn a_name_in_another_script_does_not_take_over_an_english_sentence() {
+        // 审查：中日韩、西里尔、阿拉伯文字以前「出现一个就判」，英文里夹一个专名就英译英。
+        for text in [
+            "Please contact 张伟 for details",
+            "Tokyo (東京) is a big city",
+            "Our partner Сбербанк signed the deal today",
+            "The word سلام means peace",
+        ] {
+            assert_eq!(detect(text), Some("en"), "{text}");
+        }
+    }
+
+    #[test]
+    fn cjk_text_with_a_few_english_terms_stays_cjk() {
+        assert_eq!(detect("我用 React 和 TypeScript 写代码"), Some("zh"));
+        assert_eq!(detect("iPhone 很好用"), Some("zh"));
+        assert_eq!(detect("このAPIはdeprecatedです"), Some("ja"));
+        assert_eq!(detect("Swift로 앱을 만들었어요"), Some("ko"));
+        assert_eq!(detect("张伟"), Some("zh"));
+        assert_eq!(detect("Сбербанк Bank"), Some("ru"));
+    }
+
+    #[test]
+    fn the_katakana_middle_dot_in_a_chinese_name_is_not_japanese() {
+        assert_eq!(detect("约翰・史密斯来了"), Some("zh"));
+        assert_eq!(detect("ジョン・スミス"), Some("ja"));
     }
 
     #[test]
