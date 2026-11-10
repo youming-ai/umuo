@@ -128,17 +128,63 @@ pub fn export_json(settings: &Settings, glossaries: &Glossaries) -> String {
     serde_json::to_string_pretty(&bundle).expect("导出包一定可序列化")
 }
 
-/// 键名看起来像凭据（不区分大小写，忽略 `_` 与 `-`）。宁可多去掉一个未知字段，
-/// 也不能让 Key 进配置文件或导出文件。
+/// 键名看起来像凭据：按 camelCase、`_`、`-` 拆成词，整词是凭据类名词、相邻的 `api` + `key`，
+/// 或以 `token` 结尾才算。
+///
+/// 每次保存设置都会按它剔除未知字段，所以不能用子串匹配：新版本写的 `maxOutputTokens`、
+/// `secretaryMode` 会被旧版本一保存就删掉，违反「保留未知字段」。
+/// 宁可多去掉一个未知字段，也不能让 Key 进配置文件或导出文件——凭据类名词之外的词照常保留。
 pub(crate) fn looks_like_a_secret(key: &str) -> bool {
-    let key: String = key
-        .chars()
-        .filter(|c| *c != '_' && *c != '-')
-        .collect::<String>()
-        .to_lowercase();
-    ["apikey", "secret", "token", "password", "credential"]
+    const SECRET_WORDS: &[&str] = &[
+        "apikey",
+        "secret",
+        "password",
+        "passwd",
+        "credential",
+        "credentials",
+        "bearer",
+    ];
+    let words = split_words(key);
+    words
         .iter()
-        .any(|word| key.contains(word))
+        .any(|word| SECRET_WORDS.contains(&word.as_str()))
+        || words
+            .windows(2)
+            .any(|pair| pair[0] == "api" && pair[1] == "key")
+        // token 在最后才是凭据（authToken、accessToken）；在前面多半是模型的 token（tokenBudget、tokenLimit）
+        || words.last().is_some_and(|word| word == "token")
+}
+
+/// 把键名拆成小写的词：`openaiApiKey` → openai / api / key，`APIKey` → api / key，`auth_token` → auth / token。
+fn split_words(key: &str) -> Vec<String> {
+    let chars: Vec<char> = key.chars().collect();
+    let mut words = Vec::new();
+    let mut word = String::new();
+    for (i, &ch) in chars.iter().enumerate() {
+        if !ch.is_alphanumeric() {
+            if !word.is_empty() {
+                words.push(std::mem::take(&mut word));
+            }
+            continue;
+        }
+        let prev = i.checked_sub(1).map(|j| chars[j]);
+        let next = chars.get(i + 1).copied();
+        // 小写→大写是新词（apiKey）；连续大写里最后一个、后面跟小写的也是新词（APIKey 的 K）。
+        let boundary = ch.is_uppercase()
+            && prev.is_some_and(|p| {
+                p.is_lowercase()
+                    || p.is_ascii_digit()
+                    || (p.is_uppercase() && next.is_some_and(char::is_lowercase))
+            });
+        if boundary && !word.is_empty() {
+            words.push(std::mem::take(&mut word));
+        }
+        word.extend(ch.to_lowercase());
+    }
+    if !word.is_empty() {
+        words.push(word);
+    }
+    words
 }
 
 /// 校验并准备好的导入内容，还没写进任何文件。
@@ -312,6 +358,39 @@ mod tests {
             assert!(!keys.iter().any(|k| *k == secret), "{secret} 不该被导出");
         }
         assert_eq!(exported["settings"]["futureHotkeyHint"], "ok");
+    }
+
+    #[test]
+    fn secret_detection_matches_whole_words_not_substrings() {
+        for secret in [
+            "apiKey",
+            "openaiApiKey",
+            "APIKey",
+            "api_key",
+            "apikey",
+            "authToken",
+            "access-token",
+            "clientSecret",
+            "password",
+            "proxyPasswd",
+            "awsCredentials",
+            "bearer",
+        ] {
+            assert!(looks_like_a_secret(secret), "{secret} 应判为凭据");
+        }
+        // 只是含这些字母的普通字段：每次保存都会过这道判定，误判就会删掉别的版本写的设置
+        for plain in [
+            "maxOutputTokens",
+            "tokenBudget",
+            "tokenLimit",
+            "secretaryMode",
+            "hotkey",
+            "keyboardLayout",
+            "passwordlessHint",
+            "futureHotkeyHint",
+        ] {
+            assert!(!looks_like_a_secret(plain), "{plain} 不该判为凭据");
+        }
     }
 
     fn bundle() -> Bundle {
