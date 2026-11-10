@@ -52,6 +52,8 @@ enum Selection {
     static func readFocusText() throws(SelectionError) -> FocusText {
         guard AXIsProcessTrusted() else { throw .permissionDenied }
         let element = AX.focusedElement()
+        // 密码框一个字都不读：读出来的可能是掩码，发给供应商之后还会被写回、覆盖密码。
+        if AX.isSecureInput(element) { throw .other(UserText("error.secureInput")) }
 
         // 选中了什么就翻什么。写不回去的话先说清楚，免得白翻一遍。
         if let text = element.flatMap({ AX.string($0, kAXSelectedTextAttribute as CFString) }),

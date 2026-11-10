@@ -20,12 +20,15 @@ final class FakeTextProbe: FocusedTextProbing, @unchecked Sendable {
     /// 按属性名回答内容；没设的属性读不出（nil）。
     var strings: [String: String] = [:]
     var writeSucceeds = true
+    /// 聚焦的是密码框 / 安全输入开着。
+    var isSecure = false
     private(set) var writes: [Write] = []
 
     func trusted() -> Bool { isTrusted }
     func focusedElement() -> AXUIElement? { hasFocus ? AXUIElementCreateApplication(42) : nil }
     func isSettable(_: AXUIElement, _ attribute: String) -> Bool? { settable[attribute] }
     func string(_: AXUIElement, _ attribute: String) -> String? { strings[attribute] }
+    func secureInput(_: AXUIElement?) -> Bool { isSecure }
     func write(_ text: String, to _: AXUIElement, _ attribute: String) -> Bool {
         writes.append(Write(attribute: attribute, text: text))
         return writeSucceeds
@@ -66,6 +69,15 @@ struct PanelReplaceGuardTests {
         let probe = readableSelection(), board = Board("用户原来复制的")
         probe.isTrusted = false
         #expect(replace(probe, board) == "error.accessibilityRequired")
+        #expect(probe.writes.isEmpty)
+        #expect(board.pasted.isEmpty)
+    }
+
+    @Test func 取词后焦点换到密码框_不写不粘() {
+        // 密码框读不出选区，没有这道检查会跳过「选区未变」直接 ⌘V 粘进去
+        let probe = FakeTextProbe(), board = Board("用户原来复制的")
+        probe.isSecure = true
+        #expect(replace(probe, board) == "error.secureInput")
         #expect(probe.writes.isEmpty)
         #expect(board.pasted.isEmpty)
     }
@@ -143,6 +155,14 @@ struct SilentWriteBackGuardTests {
         let probe = field(selected)
         probe.isTrusted = false
         #expect(replace(.selection, probe) == "error.accessibilityRequired")
+        #expect(probe.writes.isEmpty)
+    }
+
+    @Test(arguments: [FocusSource.selection, .wholeField])
+    func 密码框或安全输入_不写(source: FocusSource) {
+        let probe = field(AXWriteBack.attribute(source))
+        probe.isSecure = true
+        #expect(replace(source, probe) == "error.secureInput")
         #expect(probe.writes.isEmpty)
     }
 

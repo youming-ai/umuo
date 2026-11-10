@@ -31,6 +31,9 @@ enum ReplaceSelection {
     {
         guard probe.trusted() else { throw AXWriteBack.Refused("error.accessibilityRequired") }
         let element = probe.focusedElement()
+        // 取词后用户可能在同一应用里点进了密码框：前台 pid 守卫拦不住，密码框又读不出选区、
+        // 会跳过「选区未变」直接走 ⌘V 兜底，把译文粘进密码框。
+        if probe.secureInput(element) { throw AXWriteBack.Refused("error.secureInput") }
         let name = kAXSelectedTextAttribute
         let current = element.flatMap { probe.string($0, name) }
         try checkPanelWritable(settable: element.flatMap { probe.isSettable($0, name) },
