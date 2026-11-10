@@ -1,4 +1,4 @@
-import Foundation
+import AppKit
 
 /// 全局 Esc 的唯一注册者：翻译浮窗与语音浮层都要在可见期间拦 Esc（非激活面板收不到 keyDown），
 /// 而同一进程里同一个组合键只能注册一次——各注册各的，后注册的一方会失败，只能点关闭按钮。
@@ -42,6 +42,34 @@ final class EscapeRouter {
     /// 是否已在系统里注册了 Esc。
     var isArmed: Bool { key.isRegistered }
 
+    /// umuo 自己的其它窗口（设置、撰写、引导、历史）是 key：翻译浮窗暂时交出 Esc。
+    ///
+    /// Carbon 热键先于事件分发，对本应用的 key 窗口也一样。从浮窗点开设置或撰写窗后浮窗仍开着，
+    /// 不交出的话录快捷键时按 Esc 取消不了、输入法组字时按 Esc 先收起了浮窗。
+    /// 只对浮窗生效：语音浮层开着时用户在录音，不在打字，Esc 仍然用来取消录音。
+    var yieldsToOwnWindow = false {
+        didSet { if oldValue != yieldsToOwnWindow { sync() } }
+    }
+
+    private var keyWindowObservers: [NSObjectProtocol] = []
+
+    /// 跟踪本应用的 key 窗口，维护 `yieldsToOwnWindow`。`shouldYield` 判断某个 key 窗口要不要拿到 Esc
+    /// （浮窗自己是 key 时——OCR 原文框——不算，仍由这里处理）。只在正式启动时调，测试不碰真实窗口。
+    func followKeyWindow(shouldYield: @escaping @MainActor (NSWindow) -> Bool) {
+        let refresh: @Sendable (Notification) -> Void = { [weak self] _ in
+            // 失去 key 的通知发出时 keyWindow 还没更新：下一轮再读
+            DispatchQueue.main.async {
+                MainActor.assumeIsolated {
+                    self?.yieldsToOwnWindow = NSApp.keyWindow.map(shouldYield) ?? false
+                }
+            }
+        }
+        let center = NotificationCenter.default
+        for name in [NSWindow.didBecomeKeyNotification, NSWindow.didResignKeyNotification] {
+            keyWindowObservers.append(center.addObserver(forName: name, object: nil, queue: .main, using: refresh))
+        }
+    }
+
     /// 认领 Esc（可见期间）。重复调用只更新处理函数。
     func claim(_ owner: Owner, _ handler: @escaping @MainActor () -> Void) {
         handlers[owner] = handler
@@ -63,7 +91,7 @@ final class EscapeRouter {
     }
 
     private func sync() {
-        if claims.top == nil {
+        if claims.top == nil || (claims.top == .panel && yieldsToOwnWindow) {
             key.unregister()
         } else if !key.isRegistered {
             do {
