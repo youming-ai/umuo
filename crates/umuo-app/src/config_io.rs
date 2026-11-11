@@ -41,7 +41,9 @@ pub struct Bundle {
     pub extra: umuo_core::UnknownFields,
 }
 
-/// 导入结果摘要：让界面能如实说"应用了什么"，而不是只报一句"成功"。
+/// 导入摘要：**应用之前**给用户确认的那张单子，也是导入后的提示。
+///
+/// 只要导入会覆盖掉、或会带来用户意料不到的副作用，就必须在这里看得见。
 #[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ImportSummary {
@@ -57,11 +59,21 @@ pub struct ImportSummary {
     /// 取词黑名单新增、移除的条目。移除意味着某个应用里的选中内容从此会被读取并发给云端。
     pub blacklist_added: Vec<String>,
     pub blacklist_removed: Vec<String>,
+    /// 本机现有的自建风格与术语表条数：导入按文件**整份替换**，这些都会被覆盖。
+    pub replaced_custom_style_count: usize,
+    pub replaced_glossary_count: usize,
+    /// 历史保留天数被改短时的新值：应用当场就删掉超期的历史。
+    pub retention_shortened_to: Option<u32>,
+    /// 代理变了时的新设置（`custom` 时是地址，否则是模式名）。所有请求、连同 Key 都走它。
+    pub proxy_change: Option<String>,
+    /// 全局快捷键有变化。
+    pub hotkeys_changed: bool,
 }
 
 /// 对比当前设置与（已规范化的）导入设置，生成摘要。纯函数，便于测试。
 pub fn summarize(
     current: &Settings,
+    current_glossaries: &Glossaries,
     incoming: &Settings,
     glossaries: &Glossaries,
     bundle_version: u32,
@@ -107,6 +119,20 @@ pub fn summarize(
             .filter(|name| !contains(&incoming.selection_blacklist, name))
             .cloned()
             .collect(),
+        replaced_custom_style_count: current.custom_styles.len(),
+        replaced_glossary_count: current_glossaries.lists.len(),
+        retention_shortened_to: (incoming.history_retention_days < current.history_retention_days)
+            .then_some(incoming.history_retention_days),
+        proxy_change: (current.proxy_mode != incoming.proxy_mode
+            || current.proxy_url.trim() != incoming.proxy_url.trim())
+        .then(|| {
+            if incoming.proxy_mode == "custom" {
+                incoming.proxy_url.trim().to_string()
+            } else {
+                incoming.proxy_mode.clone()
+            }
+        }),
+        hotkeys_changed: current.hotkeys() != incoming.hotkeys(),
     }
 }
 
@@ -213,7 +239,13 @@ pub fn prepare_import(
     settings.prepare_for_save(current)?;
     let mut glossaries = bundle.glossaries;
     keep_local_unknown_fields(&mut glossaries.extra, &current_glossaries.extra);
-    let summary = summarize(current, &settings, &glossaries, bundle.version);
+    let summary = summarize(
+        current,
+        current_glossaries,
+        &settings,
+        &glossaries,
+        bundle.version,
+    );
     Ok(PreparedImport {
         settings,
         glossaries,
@@ -487,7 +519,13 @@ mod tests {
         incoming.provider_base_urls.remove("azure");
         incoming.selection_blacklist = vec!["1PASSWORD".to_string(), "Notes".to_string()];
 
-        let summary = summarize(&current, &incoming, &Glossaries::default(), BUNDLE_VERSION);
+        let summary = summarize(
+            &current,
+            &Glossaries::default(),
+            &incoming,
+            &Glossaries::default(),
+            BUNDLE_VERSION,
+        );
         assert_eq!(
             summary.endpoint_changes,
             vec![
@@ -506,9 +544,61 @@ mod tests {
     #[test]
     fn an_identical_import_reports_no_sensitive_changes() {
         let current = Settings::default();
-        let summary = summarize(&current, &current, &Glossaries::default(), BUNDLE_VERSION);
+        let none = Glossaries::default();
+        let summary = summarize(&current, &none, &current, &none, BUNDLE_VERSION);
         assert!(summary.endpoint_changes.is_empty());
         assert!(summary.blacklist_added.is_empty());
         assert!(summary.blacklist_removed.is_empty());
+        assert_eq!(summary.retention_shortened_to, None);
+        assert_eq!(summary.proxy_change, None);
+        assert!(!summary.hotkeys_changed);
+    }
+
+    #[test]
+    fn the_summary_shows_what_the_import_overwrites_and_its_side_effects() {
+        // 摘要是应用前的确认单：整份替换掉的本地数据、当场删历史、换代理、换快捷键都要看得见。
+        let current = Settings {
+            custom_styles: vec![serde_json::json!({ "id": "mine" })],
+            ..Settings::default()
+        };
+        let local = Glossaries {
+            lists: vec![
+                serde_json::json!({ "id": "a" }),
+                serde_json::json!({ "id": "b" }),
+            ],
+            ..Glossaries::default()
+        };
+        let mut incoming = current.clone();
+        incoming.custom_styles = Vec::new();
+        incoming.history_retention_days = 7;
+        incoming.proxy_mode = "custom".to_string();
+        incoming.proxy_url = " http://127.0.0.1:7890 ".to_string();
+        incoming.compose_hotkey = "Alt+Shift+A".to_string();
+
+        let summary = summarize(
+            &current,
+            &local,
+            &incoming,
+            &Glossaries::default(),
+            BUNDLE_VERSION,
+        );
+        assert_eq!(summary.replaced_custom_style_count, 1);
+        assert_eq!(summary.replaced_glossary_count, 2);
+        assert_eq!(summary.retention_shortened_to, Some(7));
+        assert_eq!(
+            summary.proxy_change.as_deref(),
+            Some("http://127.0.0.1:7890")
+        );
+        assert!(summary.hotkeys_changed);
+
+        incoming.history_retention_days = current.history_retention_days + 30;
+        let longer = summarize(
+            &current,
+            &local,
+            &incoming,
+            &Glossaries::default(),
+            BUNDLE_VERSION,
+        );
+        assert_eq!(longer.retention_shortened_to, None, "改长不删任何东西");
     }
 }

@@ -287,9 +287,10 @@ struct PlainTextEditor: NSViewRepresentable {
 /// 确认按钮标成破坏性；回车落在「取消」上，免得顺手一按就删了。
 @MainActor
 enum PrefConfirm {
-    static func ask(_ message: String, confirm: String, cancel: String) async -> Bool {
+    static func ask(_ message: String, detail: String? = nil, confirm: String, cancel: String) async -> Bool {
         let alert = NSAlert()
         alert.messageText = message
+        if let detail { alert.informativeText = detail }
         alert.alertStyle = .warning
         let destructive = alert.addButton(withTitle: confirm)
         destructive.hasDestructiveAction = true

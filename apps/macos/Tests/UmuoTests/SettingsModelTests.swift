@@ -73,16 +73,31 @@ private final class FakeBackend: SettingsBackend {
     func setHotkeyRecording(_ active: Bool) { recording.append(active) }
     func exportConfig() async throws -> String { "/tmp/umuo-config.json" }
 
-    func importConfig(_: String) async throws -> ImportResult {
+    func previewImport(_ path: String) async throws -> PendingImport {
+        calls.append("preview:\(path)")
+        return PendingImport(contents: "contents-of:\(path)", summary: summary(retention: 7))
+    }
+
+    func importConfig(_ contents: String) async throws -> ImportResult {
+        calls.append("import:\(contents)")
         stored["theme"] = .string("dark")
-        return ImportResult(providerId: "openai", targetLang: "en", customStyleCount: 0, glossaryCount: 0, bundleVersion: 1,
-                            endpointChanges: [], blacklistAdded: [], blacklistRemoved: [],
-                            settingsJson: JSONValue.json(stored), hotkeysChanged: false)
+        return ImportResult(summary: summary(), settingsJson: JSONValue.json(stored), hotkeysChanged: false)
     }
 
     func openHistory() { calls.append("history") }
     func openOnboarding() { calls.append("onboarding") }
     var appVersion: String? { nil }
+}
+
+func summary(styles: UInt32 = 0, glossaries: UInt32 = 0, version: UInt32 = 1,
+             endpoints: [EndpointChange] = [], added: [String] = [], removed: [String] = [],
+             replacedStyles: UInt32 = 0, replacedGlossaries: UInt32 = 0, retention: UInt32? = nil,
+             proxy: String? = nil, hotkeys: Bool = false) -> ImportSummary
+{
+    ImportSummary(providerId: "openai", targetLang: "en", customStyleCount: styles, glossaryCount: glossaries,
+                  bundleVersion: version, endpointChanges: endpoints, blacklistAdded: added, blacklistRemoved: removed,
+                  replacedCustomStyleCount: replacedStyles, replacedGlossaryCount: replacedGlossaries,
+                  retentionShortenedTo: retention, proxyChange: proxy, hotkeysDiffer: hotkeys)
 }
 
 private let base: SettingsValues = [
@@ -255,10 +270,27 @@ struct SettingsModelTests {
     @Test func 导入配置后整页跟上新设置() async {
         let backend = FakeBackend(base)
         let model = await loaded(backend)
+        var asked: [String] = []
+        model.general.confirmImport = { _, detail in asked.append(detail); return true }
         model.general.configPath = " /tmp/a.json "
         await model.general.importConfig()
         #expect(model.values["theme"] == .string("dark"))
         #expect(model.general.configNotice?.isEmpty == false)
+        #expect(backend.calls.suffix(2) == ["preview:/tmp/a.json", "import:contents-of:/tmp/a.json"], "应用的是预览时读到的那份内容")
+        #expect(asked.count == 1)
+        #expect(asked.first?.contains(model.t("prefs.general.importRetention", ["days": "7"])) == true, "确认框里说清楚会删历史")
+    }
+
+    @Test func 取消导入什么都不写() async {
+        let backend = FakeBackend(base)
+        let model = await loaded(backend)
+        model.general.confirmImport = { _, _ in false }
+        model.general.configPath = "/tmp/a.json"
+        await model.general.importConfig()
+        #expect(backend.calls.contains("preview:/tmp/a.json"))
+        #expect(!backend.calls.contains { $0.hasPrefix("import:") })
+        #expect(model.values["theme"] == .string("system"))
+        #expect(model.general.configNotice == nil)
     }
 
     @Test func 导出的结果只显示在导出那一行并记下文件位置() async {
@@ -306,6 +338,7 @@ struct SettingsModelTests {
         // 导入配置换了首选也一样
         model.engine.apiKey = "sk-typed-for-deepseek"
         backend.stored["providerId"] = .string("openai")
+        model.general.confirmImport = { _, _ in true }
         model.general.configPath = "/tmp/a.json"
         await model.general.importConfig()
         #expect(model.providerId == "openai")
