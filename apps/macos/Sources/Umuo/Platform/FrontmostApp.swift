@@ -31,6 +31,34 @@ final class FrontmostApp: Sendable {
     /// 缓存里的前台应用名。只取锁，可以在任何线程上调。
     func currentName() -> String? { name.withLock { $0 } }
 
+    /// 静默翻译写回守卫用的控件身份：同一个 AX 元素（`CFEqual`）始终换到同一个不透明令牌，不同元素的令牌不同，
+    /// 所以同一应用里换了输入框也会被拒绝。
+    ///
+    /// 用登记表而不是只记「上一个元素」：只记一个时，取词之后只要有人对别的元素取过令牌，
+    /// 用户回到原来的输入框也会换成新令牌，写回被误拒（ABA）。表按最近使用排序，只留 `focusIdentityCapacity` 个；
+    /// 被挤出去的元素再来会拿到新令牌——只会多拒，不会误放。
+    // AX 引用可跨线程使用，表由下方的锁保护。
+    private struct FocusIdentities: @unchecked Sendable {
+        var entries: [(element: AXUIElement, token: String)] = []
+    }
+    static let focusIdentityCapacity = 32
+    private static let focusIdentities = OSAllocatedUnfairLock(initialState: FocusIdentities())
+
+    static func focusToken(_ element: AXUIElement?) -> String? {
+        guard let element else { return nil }
+        return focusIdentities.withLockUnchecked { state in
+            if let index = state.entries.firstIndex(where: { CFEqual($0.element, element) }) {
+                let entry = state.entries.remove(at: index)
+                state.entries.append(entry)
+                return entry.token
+            }
+            let token = UUID().uuidString
+            state.entries.append((element, token))
+            if state.entries.count > focusIdentityCapacity { state.entries.removeFirst() }
+            return token
+        }
+    }
+
     /// 现查前台应用的 pid（十进制字符串，与 `PanelController.ownToken` 同一口径）。
     /// 拿不到（没有辅助功能权限、没有前台应用）时为 nil。AX 是线程安全的 C API，工作线程上直接调。
     static func liveToken() -> String? {

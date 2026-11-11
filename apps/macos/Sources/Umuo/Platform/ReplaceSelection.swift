@@ -43,7 +43,25 @@ enum ReplaceSelection {
         // 首选仍是 AX：直接改写选区，不碰剪贴板。
         if let element, probe.write(text, to: element, name) { return }
 
-        try pasteFallback(text, owner: owner, paster: paster, frontmost: frontmost)
+        try pasteFallback(text, owner: owner, paster: paster, frontmost: frontmost, validate: {
+            finalCheck(element, original: original, probe: probe)
+        })
+    }
+
+    /// 按 ⌘V 前的最后一道核对（拿着剪贴板锁、用户剪贴板还没动）：聚焦的还是开头查到的那个元素、
+    /// 不是密码框、选区仍是原文。返回拒绝理由，nil = 放行。
+    ///
+    /// 开头就没查到聚焦元素（Electron、部分网页视图，原文靠 ⌘C 取到）：没有可比的身份，
+    /// 只拦密码框 / 安全输入，前台应用由 `frontmost` 核对——与加身份守卫之前一样，⌘V 兜底照常可用。
+    static func finalCheck(_ element: AXUIElement?, original: String, probe: FocusedTextProbing) -> UserText? {
+        let current = probe.focusedElement()
+        if probe.secureInput(current) { return UserText("error.secureInput") }
+        guard let element else { return nil }
+        guard let current, CFEqual(element, current) else { return UserText("error.targetChanged") }
+        do {
+            try checkSelectionUnchanged(current: probe.string(current, kAXSelectedTextAttribute), original: original)
+        } catch { return error.text }
+        return nil
     }
 
     /// 兜底：受控粘贴（`ControlledPaste`，与语音交付同一套）。只留给 AX 通道不通的 App（Electron 等）。
@@ -51,12 +69,23 @@ enum ReplaceSelection {
     /// 快照用户剪贴板 → 写译文 → ⌘V → 等目标应用读完 → 剪贴板没被别人动过才恢复；整个事务拿着 `Pasteboard.exclusive`，
     /// 中间插不进 ⌘C 取词降级。剪贴板与按键可注入：测试换成私有剪贴板与假的粘贴。
     static func pasteFallback(_ text: String, owner: String, paster: ControlledPaste = ControlledPaste(),
-                              frontmost: () -> String? = FrontmostApp.liveToken) throws(AXWriteBack.Refused)
+                              frontmost: () -> String? = FrontmostApp.liveToken,
+                              validate: () -> UserText? = { nil }) throws(AXWriteBack.Refused)
     {
-        // 等剪贴板锁（最长约 1 秒）期间用户可能切走了：⌘V 发往前台，按下前最后核对一次
-        switch paster.run(text, proceed: { frontmost() == owner }) {
+        // 等剪贴板锁（最长约 1 秒）期间用户可能切走了：⌘V 发往前台，按下前最后核对一次。
+        // 没过的理由如实上报（进了密码框、选区变了），不笼统说「目标已切换」。
+        var refusal = UserText("error.targetChanged")
+        let outcome = paster.run(text, proceed: {
+            guard frontmost() == owner else { return false }
+            if let reason = validate() {
+                refusal = reason
+                return false
+            }
+            return true
+        })
+        switch outcome {
         case .pasted: return
-        case .skipped: throw AXWriteBack.Refused("error.targetChanged")
+        case .skipped: throw AXWriteBack.Refused(refusal)
         case let .failed(text): throw AXWriteBack.Refused(text)
         }
     }

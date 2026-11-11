@@ -2,8 +2,9 @@
 //!
 //! SwiftUI 客户端经 `umuo-ffi` 调用这份规则，避免在视图层重复实现。
 //!
-//! 标识（token）一律是前台应用的 pid 十进制字符串，与 `Host::frontmost_app_token` 同一口径；
-//! `own` 是本应用自己的 pid。浮窗归属是 `own` 表示「没有源应用」（截图 OCR）。
+//! 标识（token）一律是前台应用的 pid 十进制字符串（Swift 端 `FrontmostApp.liveToken`）；
+//! `own` 是本应用自己的 pid。**不要**传 `Host::frontmost_app_token`：那是静默翻译用的控件身份，口径不同，
+//! 混用会让每次比较都不相等。浮窗归属是 `own` 表示「没有源应用」（截图 OCR）。
 
 use umuo_core::error::CoreError;
 

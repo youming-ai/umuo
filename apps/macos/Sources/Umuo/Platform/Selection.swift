@@ -7,6 +7,7 @@ import UmuoCore
 struct FocusText: Equatable {
     let text: String
     let source: FocusSource
+    var guardToken: String? = nil
 }
 
 /// 取词失败。给用户看的话是文案键（`text`），由浮窗按界面语言取成句子。
@@ -60,7 +61,7 @@ enum Selection {
            !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         {
             try checkWritable(.selection, element)
-            return FocusText(text: text, source: .selection)
+            return FocusText(text: text, source: .selection, guardToken: FrontmostApp.focusToken(element))
         }
 
         // 没选中就是「把整个输入框翻一遍」。**先确认整框可写再读**：终端的 AXValue 是整段滚动缓冲区，
@@ -69,7 +70,7 @@ enum Selection {
         guard let text = element.flatMap({ AX.string($0, kAXValueAttribute as CFString) }),
               !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         else { throw .noSelection }
-        return FocusText(text: text, source: .wholeField)
+        return FocusText(text: text, source: .wholeField, guardToken: FrontmostApp.focusToken(element))
     }
 
     private static func checkWritable(_ source: FocusSource, _ element: AXUIElement?) throws(SelectionError) {
