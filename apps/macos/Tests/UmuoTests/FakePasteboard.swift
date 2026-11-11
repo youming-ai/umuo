@@ -42,6 +42,8 @@ final class FakePasteboard: PasteboardAccess, @unchecked Sendable {
 
     /// 每取一种类型的数据前调一次（模拟源应用当场生成延迟提供的格式）。
     var onData: (@Sendable () -> Void)?
+    /// 已声明但数据提供失败的类型。
+    var unavailableTypes: Set<String> = []
     /// 取过多少次数据。
     private(set) var dataReads = 0
 
@@ -51,6 +53,7 @@ final class FakePasteboard: PasteboardAccess, @unchecked Sendable {
         onData?()
         return lock.withLock {
             dataReads += 1
+            guard !unavailableTypes.contains(type) else { return nil }
             guard items.indices.contains(item) else { return nil }
             return items[item].first { $0.type == type }?.data
         }

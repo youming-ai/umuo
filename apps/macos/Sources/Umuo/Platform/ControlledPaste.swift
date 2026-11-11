@@ -38,15 +38,21 @@ struct ControlledPaste: @unchecked Sendable {
         /// 剪贴板上的内容大到快照超出预算：什么都没做，剪贴板原封不动。
         /// 与 `failed` 分开：调用方不能再「把结果留在剪贴板上」，那会盖掉刚保住的内容。
         case clipboardTooLarge
+        /// 快照或最终核验期间用户又复制了内容；调用方也不能再写入剪贴板。
+        case clipboardChanged
     }
 
     func run(_ text: String, proceed: () -> Bool) -> Outcome {
         Pasteboard.exclusive.lock()
         defer { Pasteboard.exclusive.unlock() }
+        let original = pasteboard.changeCount
         guard let snapshot = Pasteboard.Snapshot.take(pasteboard, budget: snapshotBudget) else {
-            return .clipboardTooLarge
+            return pasteboard.changeCount == original ? .clipboardTooLarge : .clipboardChanged
         }
-        guard proceed() else { return .skipped }
+        let shouldProceed = proceed()
+        // proceed 可能阻塞在 AX；返回 false 时也得先识别新复制，避免撰写窗的 skipped 兜底覆盖它。
+        guard pasteboard.changeCount == original else { return .clipboardChanged }
+        guard shouldProceed else { return .skipped }
         pasteboard.clearContents()
         guard pasteboard.setString(text, forType: .string) else {
             snapshot.restore(pasteboard)

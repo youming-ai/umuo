@@ -153,6 +153,33 @@ struct VoiceDeliveryRulesTests {
 }
 
 struct ControlledPasteTests {
+    @Test func 快照期间从图片换成文本_不粘贴也不清掉新内容() {
+        let rig = PasteRig()
+        let board = rig.pasteboard
+        board.writeItems([[.init(type: "public.tiff", data: Data([1, 2, 3]))]])
+        board.onData = { board.setString("新复制的文本", forType: .string) }
+
+        #expect(rig.paster().run("译文") { true } == .clipboardChanged)
+        #expect(rig.pastes == 0)
+        #expect(board.string(forType: .string) == "新复制的文本")
+        #expect(board.changeCount == 2, "只有初始化和用户复制，事务没有写入或恢复")
+    }
+
+    @Test(arguments: [true, false])
+    func 最终核验期间复制了新内容_无论核验结果都保留它(_ allowed: Bool) {
+        let rig = PasteRig()
+        rig.pasteboard.setString("旧内容", forType: .string)
+        let count = rig.pasteboard.changeCount
+        let outcome = rig.paster().run("译文") {
+            rig.pasteboard.setString("新内容", forType: .string)
+            return allowed
+        }
+        #expect(outcome == .clipboardChanged)
+        #expect(rig.pastes == 0)
+        #expect(rig.pasteboard.string(forType: .string) == "新内容")
+        #expect(rig.pasteboard.changeCount == count + 1)
+    }
+
     @Test func 剪贴板内容太大时不动剪贴板也不按键() {
         let rig = PasteRig()
         rig.pasteboard.writeItems([[
@@ -366,5 +393,40 @@ struct PasteboardSnapshotBudgetTests {
         budget.maxDuration = .milliseconds(10)
         #expect(Pasteboard.Snapshot.take(pasteboard, budget: budget) == nil)
         #expect(pasteboard.dataReads == 1)
+    }
+
+    @Test func 数据提供失败也受时间预算限制_不再读取后续类型() {
+        let pasteboard = board()
+        pasteboard.unavailableTypes = ["public.utf8-plain-text"]
+        pasteboard.onData = { Thread.sleep(forTimeInterval: 0.02) }
+        var budget = Pasteboard.Snapshot.Budget()
+        budget.maxDuration = .milliseconds(10)
+
+        #expect(Pasteboard.Snapshot.take(pasteboard, budget: budget) == nil)
+        #expect(pasteboard.dataReads == 1)
+    }
+
+    @Test func 预算内失败的类型跳过_其余内容仍完整保存() {
+        let pasteboard = board()
+        pasteboard.unavailableTypes = ["public.utf8-plain-text"]
+        let snapshot = Pasteboard.Snapshot.take(pasteboard)
+        #expect(snapshot?.items.map { $0.map(\.type) } == [["public.tiff"], ["com.adobe.pdf"]])
+        #expect(pasteboard.dataReads == 3)
+    }
+
+    @Test func 时间预算已过_不开始读取数据() {
+        let pasteboard = board()
+        var budget = Pasteboard.Snapshot.Budget()
+        budget.maxDuration = .zero
+        #expect(Pasteboard.Snapshot.take(pasteboard, budget: budget) == nil)
+        #expect(pasteboard.dataReads == 0)
+    }
+
+    @Test func 读取时即使类型未变_也不能把新旧数据拼成快照() {
+        let pasteboard = board()
+        pasteboard.onData = { pasteboard.setString("新文本", forType: .string) }
+        #expect(Pasteboard.Snapshot.take(pasteboard) == nil)
+        #expect(pasteboard.dataReads == 1)
+        #expect(pasteboard.string(forType: .string) == "新文本")
     }
 }

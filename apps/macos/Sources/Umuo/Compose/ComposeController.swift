@@ -168,6 +168,7 @@ final class ComposeController: ComposeBackend {
         case .skipped: return keepOnClipboard(text, paster.pasteboard) ?? ComposeRules.pasteNotBack
         // 不能把译文留在剪贴板上：那正好盖掉刚才为它放弃粘贴的那份大内容
         case .clipboardTooLarge: return UserText(Pasteboard.tooLarge)
+        case .clipboardChanged: return UserText(Pasteboard.changed)
         case let .failed(reason):
             _ = keepOnClipboard(text, paster.pasteboard)
             return reason

@@ -11,7 +11,7 @@
 
 | 编号 | PRD | 要求 | 状态 | 实现证据与剩余验收 |
 | --- | --- | --- | --- | --- |
-| T1 | §5.2 | AX 取词、复制降级与剪贴板保护 | ✅ | `Platform/Selection.swift`、`Pasteboard.swift`；Swift 规则/selftest 已有，真实应用兼容继续走查 |
+| T1 | §5.2 | AX 取词、复制降级与剪贴板保护 | ✅ | `Platform/Selection.swift`、`Pasteboard.swift`、`ControlledPaste.swift`；2026-11-11 补齐快照与最终核验期间的 `changeCount` 检查，变化则停止借用，撰写窗不再以失败复制兜底覆盖新内容；读取格式返回 nil 也检查时间预算，超时不继续读取后续格式；`VoiceDeliveryTests` / `PasteBackTests` 使用假剪贴板覆盖。Swift 规则/selftest 已有，真实应用兼容继续走查 |
 | T2 | §5.1–5.2 | 非激活流式浮窗、复制/朗读/钉住/拖动/缩放 | 🟡 | `Panel/`、`Platform/Speech.swift`；#107 通过 `FloatingPanelChrome` 使用非激活系统面板，顶部拖动、四边缩放；macOS 26 使用 `floatingSurface` Liquid Glass，14–15 回落系统材质；#116 输入法组字中按 Esc 只取消组字、不关浮窗不取消翻译，原文超过三行可展开/收起、新翻译开始时收回；2026-11-06 修复 v0.2.14 显示划词浮窗时 `NSHostingView.windowDidLayout` 反复增高窗口导致的 `NSGenericException`，改由 AppKit 容器持有尺寸；`PanelLayoutSelfTest` 在完整 SwiftUI 事件循环覆盖显示、长原文、流式更新、缩放、报错重开与共用外壳的撰写窗，接入 `verify.sh selftest`；焦点、拖动、外观与多显示器仍需真机验收 |
 | T3 | §5.3 | 简单输入翻译窗 | 🟡 | `Compose/`：第四批已移除回译与临时换模型，保留源/目标语言、自动翻译、复制与复制粘贴；#107 共用系统面板外壳与按系统版本切换的材质；#116 记下发出翻译时的原文与语言，只有与当前输入一致时才可提交，旧译文不会被提交；关掉自动翻译时页头给出「翻译」按钮，⌘T 同效；直接输入、粘贴回原应用与外观仍待真机验收 |
 | T4 | §5.4 | 选区或整框原地翻译，失败不改原文 | 🟡 | `Platform/AXWriteBack.swift`、`umuo-app/src/translate/`；取词时保留 AX 控件身份凭据，写回前通过 Host 复核，避免同应用相同文本的其他输入框被覆盖；`FocusIdentityTests` 覆盖身份区分及粘贴前校验失败恢复剪贴板；浮窗粘贴获得锁后重新核验控件与安全输入；真实应用与同应用焦点变化待验 |
@@ -73,6 +73,11 @@
 | R5 | §12 | 官网直装与 Homebrew | 🟡 | 官网直装经 GitHub Releases 已打通（未公证）；Homebrew Cask 未建立。旧 Tauri 用户桥接不适用：没有旧 Tauri 用户，相关代码与脚本已删除 |
 
 ## 精简与验证
+
+2026-11-11：PR #21 的剪贴板快照审查修复已在本机按 `verify` 各阶段验证通过：
+锁文件版本 Biome、类型检查、19 项工具测试、Rust fmt / clippy / 全量测试；
+426 项 Swift Testing（新增 7 个回归用例）、原生自检与窗口布局自检、ad-hoc 打包冒烟；
+包内自检 74 项通过、7 项因权限或交互条件跳过。快照期间再次复制、核验期间复制与 nil 数据超时均使用假剪贴板验证，真实应用走查仍待完成。
 
 阶段 A 五批精简的内容、兼容处理与入口清单只记在 [开发计划](IMPLEMENTATION-PLAN.md)「入口与依赖清单及批次进度」，这里不重复。
 各批次与各次合入的门禁数字（2026-10-23 至 11-02）归档在 [archive/VERIFICATION-LOG-2026-10.md](archive/VERIFICATION-LOG-2026-10.md)。

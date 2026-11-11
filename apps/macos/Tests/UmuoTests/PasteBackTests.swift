@@ -53,6 +53,18 @@ struct ReplaceSelectionPasteTests {
 }
 
 struct ComposePasteBackTests {
+    @Test func 最终核验时用户又复制_不走失败复制兜底覆盖它() {
+        let board = Board("旧内容")
+        let failure = ComposeController.pasteBack("Hello", owner: "7", paster: board.paster(),
+                                                  refocus: { _ in }, frontmost: {
+                                                      board.pasteboard.setString("新内容", forType: .string)
+                                                      return "9"
+                                                  })
+        #expect(failure == UserText(Pasteboard.changed))
+        #expect(board.pasted.isEmpty)
+        #expect(board.current == "新内容")
+    }
+
     @Test func 原应用回到前台_粘贴后恢复用户剪贴板() {
         let board = Board("用户原来复制的")
         let failure = ComposeController.pasteBack("Hello", owner: "7", paster: board.paster(),

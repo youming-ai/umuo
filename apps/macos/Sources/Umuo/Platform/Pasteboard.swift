@@ -51,6 +51,9 @@ enum Pasteboard {
     /// 快照超出预算时给用户看的话（文案键）。
     static let tooLarge = "error.clipboardTooLarge"
 
+    /// 借用之前剪贴板已变化：保留新内容，请用户重试。
+    static let changed = "error.clipboardChanged"
+
     /// 复制文本（浮窗、撰写窗、历史、快捷面板与语音结果的「复制」共用）；失败返回原因（文案键）。
     /// 要拿 `exclusive`：⌘C 取词降级的事务可能正在另一个线程上跑，不互斥的话复制的内容要么被它的恢复盖掉，
     /// 要么被它当成用户原内容存下来。会等锁，不要在主线程上调。
@@ -90,23 +93,32 @@ enum Pasteboard {
             static let standard = Budget()
         }
 
-        /// 取快照；超出预算返回 nil（这时剪贴板还没动过）。
+        /// 取快照；超出预算或期间剪贴板变化都返回 nil（这时剪贴板还没动过）。
         static func take(_ pasteboard: PasteboardAccess, budget: Budget = .standard) -> Snapshot? {
             let clock = ContinuousClock()
             let started = clock.now
+            let original = pasteboard.changeCount
+            // 进程内的锁拦不住其他应用复制；列类型、读取数据都必须属于同一版剪贴板。
+            func valid() -> Bool {
+                pasteboard.changeCount == original && clock.now - started <= budget.maxDuration
+            }
             var bytes = 0
             var items: [[Entry]] = []
             for (index, types) in pasteboard.itemTypes().enumerated() {
                 var entries: [Entry] = []
                 for type in types {
-                    guard let data = pasteboard.data(item: index, type: type) else { continue }
+                    guard valid() else { return nil }
+                    let data = pasteboard.data(item: index, type: type)
+                    // 读取失败也花了时间：不能让 nil 绕过预算和版本检查。
+                    guard valid() else { return nil }
+                    guard let data else { continue }
                     bytes += data.count
-                    guard bytes <= budget.maxBytes, clock.now - started <= budget.maxDuration else { return nil }
+                    guard bytes <= budget.maxBytes else { return nil }
                     entries.append(Entry(type: type, data: data))
                 }
                 items.append(entries)
             }
-            return Snapshot(items: items)
+            return valid() ? Snapshot(items: items) : nil
         }
 
         /// 原样写回。原来是空的就清空——否则这次复制到的选中文本会留在剪贴板上。
