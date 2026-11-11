@@ -9,15 +9,15 @@ import type { Env } from './env'
  *
  * 语言清单与默认语言与 apps/web/src/config.ts 的 LOCALES、DEFAULT_LOCALE 保持一致（locale.test.ts 会比对）。
  */
-export const LOCALES = ['zh-cn', 'zh-tw', 'en', 'ja', 'ko'] as const
+export const LOCALES = ['en', 'zh-cn', 'zh-tw', 'ja', 'ko'] as const
 export type Locale = (typeof LOCALES)[number]
 export const DEFAULT_LOCALE: Locale = 'zh-cn'
 
 /** 各语言写在 404 页 `<html lang>` 上的 BCP-47 标记，与 apps/web/src/config.ts 的 HTML_LANG 一致（locale.test.ts 会比对） */
 export const HTML_LANG: Record<Locale, string> = {
+  en: 'en',
   'zh-cn': 'zh-Hans',
   'zh-tw': 'zh-Hant',
-  en: 'en',
   ja: 'ja',
   ko: 'ko',
 }
