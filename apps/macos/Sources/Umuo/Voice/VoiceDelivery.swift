@@ -231,11 +231,22 @@ final class FocusedFieldDelivery: VoiceDelivering {
                 lastCheck = .appChanged
                 return false
             }
+            // 等锁与快照可能耗时数秒：同一应用里换框、变只读或进入安全输入也要拒绝。
+            if case let .refuse(reason) = VoiceDeliveryRules.route(probe.check(target)) {
+                lastCheck = reason
+                return false
+            }
+            if isCancelled() {
+                lastCheck = .failed
+                return false
+            }
             return true
         }
         switch outcome {
         case .pasted: return nil
         case .skipped: return lastCheck ?? .failed
+        // 没交付出去：结果照常留在浮层上可复制
+        case .clipboardTooLarge, .clipboardChanged: return .failed
         case .failed: return .failed
         }
     }

@@ -9,6 +9,8 @@ import os
 /// 在无脚本权限的环境里会静默失败。合成键盘事件本身也要辅助功能权限——
 /// 它不是「避开权限」的办法，而是「AX 读不到选区时」的替代数据通路。
 enum KeyEvent {
+    /// 取词事务的临时监听据此区分自己的合成键与新的用户输入。
+    static let ownEventTag: Int64 = 0x756d_756f
     /// `kVK_ANSI_C`：布局里找不到 c 时的退路。
     static let keyC: CGKeyCode = 8
     /// `kVK_ANSI_V`：布局里找不到 v 时的退路。
@@ -70,6 +72,7 @@ enum KeyEvent {
             throw .other(UserText("error.keyEventFailed"))
         }
         event.flags = .maskCommand
+        event.setIntegerValueField(.eventSourceUserData, value: ownEventTag)
         return event
     }
 

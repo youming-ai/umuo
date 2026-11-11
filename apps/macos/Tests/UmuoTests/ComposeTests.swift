@@ -13,6 +13,7 @@ private final class FakeBackend: ComposeBackend {
     var commitFailure: String?
     var hidden = 0
     var spoken: [String] = []
+    var recorded: [UInt64] = []
 
     func translate(_ request: TranslateRequest) -> String? {
         translated.append(request)
@@ -25,6 +26,7 @@ private final class FakeBackend: ComposeBackend {
     }
 
     func hideCompose() { hidden += 1 }
+    func recordCommitted(_ requestId: UInt64) { recorded.append(requestId) }
     func speak(_ text: String) { spoken.append(text) }
 }
 
@@ -246,6 +248,7 @@ struct ComposeSessionTests {
         await settle()
         #expect(backend.translated.isEmpty)
         #expect(backend.commits.isEmpty)
+        #expect(backend.recorded.isEmpty, "没提交成的不进历史")
     }
 
     @Test func 提交带上唤出时记下的目标并说明结果() async {
@@ -258,6 +261,7 @@ struct ComposeSessionTests {
         #expect(backend.commits.first?.text == "Hello")
         #expect(backend.commits.first?.paste == true)
         #expect(backend.commits.first?.owner == "7")
+        #expect(backend.recorded == [1], "提交的这一版才记历史")
         #expect(session.notice == "已复制并粘贴")
         session.commit(paste: false)
         await settle()
@@ -278,6 +282,7 @@ struct ComposeSessionTests {
         session.commit(paste: false)
         await settle()
         #expect(backend.commits.isEmpty)
+        #expect(backend.recorded.isEmpty)
         // 改回同一版原文（只差首尾空白）又能提交
         session.input = " 你好 "
         #expect(session.settled)

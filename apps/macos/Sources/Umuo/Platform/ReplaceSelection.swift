@@ -86,6 +86,8 @@ enum ReplaceSelection {
         switch outcome {
         case .pasted: return
         case .skipped: throw AXWriteBack.Refused(refusal)
+        case .clipboardTooLarge: throw AXWriteBack.Refused(Pasteboard.tooLarge)
+        case .clipboardChanged: throw AXWriteBack.Refused(Pasteboard.changed)
         case let .failed(text): throw AXWriteBack.Refused(text)
         }
     }

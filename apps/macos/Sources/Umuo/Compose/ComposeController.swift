@@ -118,6 +118,12 @@ final class ComposeController: ComposeBackend {
         return nil
     }
 
+    /// 写历史库，不占主线程。粘贴没成功也记：译文已经留在剪贴板上交给用户了。
+    func recordCommitted(_ requestId: UInt64) {
+        guard let engine = app.engine else { return }
+        Task.detached { engine.commitCompose(requestId: requestId) }
+    }
+
     /// 语言由 Rust 从文本推断，与浮窗同一个发音人；朗读器全应用共用一个（「停上一段再念」）。
     func speak(_ text: String) {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -160,6 +166,9 @@ final class ComposeController: ComposeBackend {
         switch paster.run(text, proceed: { frontmost() == owner }) {
         case .pasted: return nil
         case .skipped: return keepOnClipboard(text, paster.pasteboard) ?? ComposeRules.pasteNotBack
+        // 不能把译文留在剪贴板上：那正好盖掉刚才为它放弃粘贴的那份大内容
+        case .clipboardTooLarge: return UserText(Pasteboard.tooLarge)
+        case .clipboardChanged: return UserText(Pasteboard.changed)
         case let .failed(reason):
             _ = keepOnClipboard(text, paster.pasteboard)
             return reason

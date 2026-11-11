@@ -16,10 +16,12 @@ extension PanelController {
         let wakeStarted = ContinuousClock.now
         // 取完时不再是最新的按键（之后又按了一次、按了 Esc、浮窗换成了截图翻译）：什么都不做
         let sequence = triggers.begin()
+        // 按下快捷键就顶掉浮窗上一次的请求：哪怕这次取词失败，旧译文也不该继续流进来。
+        // 取词成功后也用这张凭据翻译（`startTranslation(ticketId:)`），先按的键不会因为取词慢而后来居上。
+        // 在主线程上按按键顺序登记（只是加锁改一张表，不等 IO）：放进各自的后台任务，连按两次时
+        // 登记顺序可能颠倒，后按的那次拿到小 id、被判成已顶掉，浮窗就停在加载上。
+        let id = engine.beginRequest(surface: Self.surface)
         Task.detached {
-            // 按下快捷键就顶掉浮窗上一次的请求：哪怕这次取词失败，旧译文也不该继续流进来。
-            // 取词成功后也用这张凭据翻译（`startTranslation(ticketId:)`），先按的键不会因为取词慢而后来居上。
-            let id = engine.beginRequest(surface: Self.surface)
 
             // PRD §7.3 的取词黑名单：密码管理器等应用**在读取之前**就拦下，并用浮窗说清楚。
             if let notice = Self.blockNotice(engine) {

@@ -32,6 +32,9 @@ pub struct AppCore {
     /// 每个窗口当前那次请求的 id 与取消标志（用户按 Esc、或新请求顶掉旧请求）。
     pub requests: Requests,
     pub host: Arc<dyn Host>,
+    /// 撰写窗最近一次完成、还没提交的结果（请求 id + 待记的历史）。撰写窗边打边翻，
+    /// 每次完成都记会把半截草稿逐条写进历史；只有用户提交的那一版才记（[`crate::history::commit_compose`]）。
+    pub(crate) pending_compose: Mutex<Option<(u64, crate::history::Draft)>>,
 }
 
 impl AppCore {
@@ -79,6 +82,7 @@ impl AppCore {
             client,
             requests: Requests::default(),
             host,
+            pending_compose: Mutex::new(None),
         })
     }
 }

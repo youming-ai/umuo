@@ -53,6 +53,18 @@ struct ReplaceSelectionPasteTests {
 }
 
 struct ComposePasteBackTests {
+    @Test func 最终核验时用户又复制_不走失败复制兜底覆盖它() {
+        let board = Board("旧内容")
+        let failure = ComposeController.pasteBack("Hello", owner: "7", paster: board.paster(),
+                                                  refocus: { _ in }, frontmost: {
+                                                      board.pasteboard.setString("新内容", forType: .string)
+                                                      return "9"
+                                                  })
+        #expect(failure == UserText(Pasteboard.changed))
+        #expect(board.pasted.isEmpty)
+        #expect(board.current == "新内容")
+    }
+
     @Test func 原应用回到前台_粘贴后恢复用户剪贴板() {
         let board = Board("用户原来复制的")
         let failure = ComposeController.pasteBack("Hello", owner: "7", paster: board.paster(),
@@ -69,6 +81,17 @@ struct ComposePasteBackTests {
         #expect(failure != nil)
         #expect(board.pasted.isEmpty, "不往不知道是谁的窗口里 ⌘V")
         #expect(board.current == "Hello", "提示说「已复制到剪贴板，可以手动 ⌘V」，就得真在剪贴板上")
+    }
+
+    @Test func 剪贴板内容太大_不粘贴也不把译文盖上去() {
+        let board = Board("用户原来复制的大表格")
+        var paster = board.paster()
+        paster.snapshotBudget.maxBytes = 1
+        let failure = ComposeController.pasteBack("Hello", owner: "7", paster: paster,
+                                                  refocus: { _ in }, frontmost: { "7" })
+        #expect(failure == UserText(Pasteboard.tooLarge))
+        #expect(board.pasted.isEmpty)
+        #expect(board.current == "用户原来复制的大表格", "为保住它才放弃粘贴，不能再拿译文盖掉")
     }
 
     @Test func 没有粘贴目标_译文留在剪贴板() {

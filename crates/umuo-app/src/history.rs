@@ -34,6 +34,33 @@ pub struct Draft {
     pub estimated: bool,
 }
 
+/// 撰写窗的一次结果：先暂存，等用户提交（[`commit_compose`]）才记。新的一次顶掉旧的。
+pub(crate) fn hold_compose(core: &AppCore, request_id: u64, draft: Draft) {
+    *core.pending_compose.lock().expect("撰写暂存锁不应中毒") = Some((request_id, draft));
+}
+
+/// 撰写窗发出新请求：上一次的暂存作废（截断、出错的这次不会再暂存，免得提交时记成旧的）。
+pub(crate) fn forget_compose(core: &AppCore) {
+    *core.pending_compose.lock().expect("撰写暂存锁不应中毒") = None;
+}
+
+/// 用户提交了撰写窗里 `request_id` 那次的译文：把暂存的那条记进历史。
+///
+/// id 对不上（提交的不是最近完成的那次）、或已经记过（连按两次提交）就什么都不做。
+/// 关闭记录与隐私模式照常由 [`record`] 在提交这一刻判断。
+pub fn commit_compose(core: &AppCore, request_id: u64) {
+    let held = {
+        let mut pending = core.pending_compose.lock().expect("撰写暂存锁不应中毒");
+        match pending.as_ref() {
+            Some((id, _)) if *id == request_id => pending.take(),
+            _ => None,
+        }
+    };
+    if let Some((_, draft)) = held {
+        record(core, draft);
+    }
+}
+
 /// 记录一次翻译进历史。任何失败都只写 stderr。
 pub fn record(core: &AppCore, draft: Draft) {
     let created_at = now_unix();

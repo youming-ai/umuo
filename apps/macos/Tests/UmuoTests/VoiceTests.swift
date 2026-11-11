@@ -646,9 +646,58 @@ struct VoiceControllerTests {
     }
 }
 
+private actor ChecksumGate {
+    private var continuation: CheckedContinuation<String, Never>?
+    var waiting: Bool { continuation != nil }
+    func checksum(_: URL) async -> String {
+        await withCheckedContinuation { continuation = $0 }
+    }
+    func finish(_ digest: String) {
+        continuation?.resume(returning: digest)
+        continuation = nil
+    }
+}
+
 @MainActor
 struct VoiceModelStoreTests {
     let payload = Data((0 ..< 1000).map { UInt8($0 % 251) })
+
+    @Test func 校验期间取消_保留完整断点且不安装或预热_之后可重试() async throws {
+        let dir = scratch("cancel-verification")
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let spec = makeSpec(in: dir, payload: payload)
+        let fetcher = StubFetcher(payload: payload)
+        let gate = ChecksumGate()
+        let store = VoiceModelStore(spec: spec, fetcher: fetcher, checksum: { await gate.checksum($0) })
+        var warmed = 0
+        store.onReady = { warmed += 1 }
+        store.download()
+        for _ in 0 ..< 2000 {
+            if await gate.waiting { break }
+            await Task.yield()
+        }
+        try #require(await gate.waiting)
+        #expect(store.state == .verifying)
+        store.cancel()
+        await gate.finish(spec.sha256)
+        await store.wait()
+        #expect(store.state == .missing)
+        #expect(warmed == 0)
+        #expect(!FileManager.default.fileExists(atPath: spec.path.path))
+        #expect(FileManager.default.contents(atPath: spec.partialPath.path) == payload)
+
+        store.download()
+        for _ in 0 ..< 2000 {
+            if await gate.waiting { break }
+            await Task.yield()
+        }
+        try #require(await gate.waiting)
+        await gate.finish(spec.sha256)
+        await store.wait()
+        #expect(store.state == .ready)
+        #expect(warmed == 1)
+        #expect(fetcher.offsets == [0], "完整断点只需重新校验")
+    }
 
     @Test func 下载校验通过后才出现在最终路径() async {
         let dir = scratch("ok")
