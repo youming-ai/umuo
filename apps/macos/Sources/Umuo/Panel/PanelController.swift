@@ -171,32 +171,32 @@ final class PanelController: PanelBackend {
 
     // MARK: - 翻译与提示
 
-    /// 开始一次浮窗的翻译。`Engine.translate` 是同步方法（登记请求、交给运行时），在后台调；
+    /// 开始一次浮窗的翻译。`Engine.translateWithTicket` 是同步方法（核对凭据、交给运行时），在后台调；
     /// 事件按顺序进这次请求自己的 `AsyncStream`，在 MainActor 上逐个交给 session（它按 requestId 丢旧事件）。
     ///
     /// `ticketId`：划词与原地替换按下快捷键时 `beginRequest` 登记的那一次。带上它就沿用这张凭据
     /// （`translateWithTicket`），不再登记新的——取词慢的旧按键否则会后登记、拿到更大的 id，旧译文反而赢；
-    /// 已被更新的请求顶掉时什么都不跑。重试、重译、截图翻译不带，照常登记新请求。
+    /// 已被更新的请求顶掉时什么都不跑。重试、重译、截图翻译不带，在这里（主线程上、按调用顺序）登记新请求。
+    ///
+    /// 登记与取消（`cancelTranslation`）都在主线程上同步做：它们只是加锁改一张表。放进各自的后台任务就没有先后，
+    /// Esc 之后立刻重试时，迟到的取消可能打掉新请求；连着两次重译，旧的一次也可能后登记而赢。
     func startTranslation(_ request: TranslateRequest, guardToken: String? = nil, ticketId: UInt64? = nil) {
         guard let engine = app.engine else {
             showNotice(app.engineStatus, permission: nil)
             return
         }
+        let ticketId = ticketId ?? engine.beginRequest(surface: Self.surface)
         let (stream, continuation) = AsyncStream.makeStream(of: PanelStreamSink.Item.self)
         let sink = PanelStreamSink(continuation)
         Task {
             for await item in stream { self.session.apply(route: item.route, event: item.event) }
         }
         Task.detached {
-            if let ticketId {
-                // 被顶掉了：收掉这个流，等事件的那个 Task 才会结束
-                guard let handle = engine.translateWithTicket(request: request, ticketId: ticketId,
-                                                              guardToken: guardToken, sink: sink)
-                else { return sink.finish() }
-                sink.attach(handle)
-            } else {
-                sink.attach(engine.translate(request: request, guardToken: guardToken, sink: sink))
-            }
+            // 被顶掉了：收掉这个流，等事件的那个 Task 才会结束
+            guard let handle = engine.translateWithTicket(request: request, ticketId: ticketId,
+                                                          guardToken: guardToken, sink: sink)
+            else { return sink.finish() }
+            sink.attach(handle)
         }
     }
 
@@ -209,13 +209,10 @@ final class PanelController: PanelBackend {
             showNearCursor()
             return
         }
-        Task.detached {
-            let id = engine.beginRequest(surface: Self.surface)
-            await MainActor.run {
-                self.report(requestId: id, message: message, permission: permission, actions: actions)
-                self.showNearCursor()
-            }
-        }
+        // 同步登记：与 `startTranslation` / `cancelTranslation` 保持按调用顺序
+        let id = engine.beginRequest(surface: Self.surface)
+        report(requestId: id, message: message, permission: permission, actions: actions)
+        showNearCursor()
     }
 
     /// 以给定的请求 id 发一条错误（取词路径：id 是按快捷键时登记的那一次）。
@@ -232,7 +229,8 @@ final class PanelController: PanelBackend {
 
     func cancelTranslation() {
         guard let engine = app.engine else { return }
-        Task.detached { engine.cancelSurface(surface: Self.surface) }
+        // 同步取消：放进后台任务的话，Esc 后立刻重试，迟到的取消可能打掉新登记的请求
+        engine.cancelSurface(surface: Self.surface)
     }
 
     func copy(_ text: String) async -> String? {
