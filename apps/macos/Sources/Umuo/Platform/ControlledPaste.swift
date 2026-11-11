@@ -8,7 +8,9 @@ import AppKit
 /// - 快照存全部 item 的全部类型（图片、文件、富文本都还得回去）。
 /// - ⌘V 之后等 `restoreDelay`（目标应用读剪贴板是异步的），**剪贴板没被别人改过**才恢复；
 ///   期间用户（或别的应用）复制了新内容就不恢复，免得盖掉它。
-/// - 按 ⌘V 前最后问一次 `proceed`（没被取消、前台仍是目标）；不通过就不按，立即恢复。
+/// - 拿到锁、取完快照后、**动剪贴板之前**最后问一次 `proceed`（没被取消、前台仍是目标）；不通过就什么都不做。
+///   放在写剪贴板之前：`proceed` 可能要跟目标应用做几次 AX 往返，应用卡住时每次可达数秒，
+///   这段时间里用户的剪贴板不能是译文。之后到 ⌘V 只隔一次写剪贴板。
 ///
 /// 剪贴板与按键可注入：测试换成私有命名剪贴板与假的粘贴，不碰用户剪贴板、不往别的应用里按键。
 struct ControlledPaste: @unchecked Sendable {
@@ -20,7 +22,7 @@ struct ControlledPaste: @unchecked Sendable {
     enum Outcome: Equatable {
         /// 按了 ⌘V。`restored`：剪贴板已还原（false = 期间被别人改了，没有覆盖）。
         case pasted(restored: Bool)
-        /// 最后一道检查没过，没按 ⌘V，剪贴板已还原。
+        /// 最后一道检查没过，没按 ⌘V，剪贴板没动过。
         case skipped
         /// 写剪贴板或按键失败，已尽量还原。
         case failed(UserText)
@@ -30,16 +32,13 @@ struct ControlledPaste: @unchecked Sendable {
         Pasteboard.exclusive.lock()
         defer { Pasteboard.exclusive.unlock() }
         let snapshot = Pasteboard.Snapshot.take(pasteboard)
+        guard proceed() else { return .skipped }
         pasteboard.clearContents()
         guard pasteboard.setString(text, forType: .string) else {
             snapshot.restore(pasteboard)
             return .failed(UserText("error.clipboardUnavailable"))
         }
         let ours = pasteboard.changeCount
-        guard proceed() else {
-            snapshot.restore(pasteboard)
-            return .skipped
-        }
         do {
             try paste()
         } catch {

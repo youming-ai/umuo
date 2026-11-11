@@ -31,22 +31,31 @@ final class FrontmostApp: Sendable {
     /// 缓存里的前台应用名。只取锁，可以在任何线程上调。
     func currentName() -> String? { name.withLock { $0 } }
 
-    /// 静默翻译用控件身份作守卫；同一应用的不同输入框也必须拒绝。
-    // AX 引用可跨线程调用，所有状态均由下方锁保护。
-    private struct FocusIdentity: @unchecked Sendable {
-        var element: AXUIElement?
-        var token = UUID().uuidString
+    /// 静默翻译写回守卫用的控件身份：同一个 AX 元素（`CFEqual`）始终换到同一个不透明令牌，不同元素的令牌不同，
+    /// 所以同一应用里换了输入框也会被拒绝。
+    ///
+    /// 用登记表而不是只记「上一个元素」：只记一个时，取词之后只要有人对别的元素取过令牌，
+    /// 用户回到原来的输入框也会换成新令牌，写回被误拒（ABA）。表按最近使用排序，只留 `focusIdentityCapacity` 个；
+    /// 被挤出去的元素再来会拿到新令牌——只会多拒，不会误放。
+    // AX 引用可跨线程使用，表由下方的锁保护。
+    private struct FocusIdentities: @unchecked Sendable {
+        var entries: [(element: AXUIElement, token: String)] = []
     }
-    private static let focusIdentity = OSAllocatedUnfairLock(initialState: FocusIdentity())
+    static let focusIdentityCapacity = 32
+    private static let focusIdentities = OSAllocatedUnfairLock(initialState: FocusIdentities())
 
     static func focusToken(_ element: AXUIElement?) -> String? {
         guard let element else { return nil }
-        return focusIdentity.withLockUnchecked { state in
-            if state.element.map({ CFEqual($0, element) }) != true {
-                state.element = element
-                state.token = UUID().uuidString
+        return focusIdentities.withLockUnchecked { state in
+            if let index = state.entries.firstIndex(where: { CFEqual($0.element, element) }) {
+                let entry = state.entries.remove(at: index)
+                state.entries.append(entry)
+                return entry.token
             }
-            return state.token
+            let token = UUID().uuidString
+            state.entries.append((element, token))
+            if state.entries.count > focusIdentityCapacity { state.entries.removeFirst() }
+            return token
         }
     }
 

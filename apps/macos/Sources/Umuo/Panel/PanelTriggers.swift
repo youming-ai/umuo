@@ -31,7 +31,7 @@ extension PanelController {
                 return
             }
 
-            // 写回前要确认目标应用没被换掉，所以先记下它的标识（必须现查，不读缓存）。
+            // 静默翻译写回前要确认还是同一个输入框：读的时候顺手记下它的身份（`FocusText.guardToken`，现查 AX）。
             // 静默翻译：没有选区时读整个输入框，且不做剪贴板降级（写回依赖同一条通道）；来源一路带到写回。
             let read = silent
                 ? Result { () throws(SelectionError) in try Selection.readFocusText() }

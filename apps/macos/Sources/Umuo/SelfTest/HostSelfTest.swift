@@ -35,6 +35,10 @@ enum HostSelfTest {
             // CI 这类无交互会话有辅助功能权限，AX 却查不到聚焦的应用：与上面的名字一样跳过，不算失败
             if let token = host.frontmostAppToken() {
                 check("frontmostAppToken", UUID(uuidString: token) != nil, "控件身份（AX 现查）")
+                // 浮窗替换、自动收起、黑名单、语音交付仍以 pid 为准：这条也得验
+                let pid = FrontmostApp.liveToken()
+                check("FrontmostApp.liveToken", pid.flatMap { Int32($0) }.map { $0 > 0 } ?? false,
+                      "pid=\(pid ?? "nil")（AX 现查）")
             } else {
                 print("- frontmostAppToken: skipped: AX reports no focused application (no interactive session)")
             }

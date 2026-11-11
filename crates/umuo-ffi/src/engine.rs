@@ -245,7 +245,7 @@ impl Engine {
 
     /// 开始一次翻译，立即返回。同一窗口的上一次请求随之取消。
     ///
-    /// `guard_token` 只有静默翻译需要：取词时记下的前台应用标识，写回前与当时的比对。
+    /// `guard_token` 只有静默翻译需要：取词时记下的写回目标身份（与 `Host::frontmost_app_token` 同一口径），写回前与当时的比对。
     pub fn translate(
         &self,
         request: TranslateRequest,
