@@ -44,6 +44,9 @@ pub async fn run(
         request_id: ticket.id,
     };
     let deps = Deps { core, sink };
+    if request.mode == Mode::Compose {
+        crate::history::forget_compose(core);
+    }
     if let Err(error) = translate(&deps, &request, guard.as_deref(), route, &ticket).await {
         emit_core_error(sink, route, &request.text, &error);
     }
@@ -346,24 +349,27 @@ async fn translate(
     // 记历史。放在 done 之前：浮窗显示与落库是同一次成功的两个后果，
     // 而落库失败只打日志、不影响用户看到译文。
     // 截断的不进历史：历史里的译文会被当成完整结果复制、再利用。
+    // 撰写窗边打边翻，这里只暂存，用户提交那一版时才记（`history::commit_compose`）。
     if !outcome.truncated {
-        crate::history::record(
-            deps.core,
-            crate::history::Draft {
-                source_text: text.to_string(),
-                translated_text: history_text,
-                source_lang: source.map(str::to_string),
-                target_lang: target_name.clone(),
-                provider_id: provider.id.to_string(),
-                model: model.clone(),
-                style_id: prompt::DEFAULT_STYLE_ID.to_string(),
-                scene: mode.as_str().to_string(),
-                source_app: app_name,
-                input_tokens: outcome.usage.input_tokens,
-                output_tokens: outcome.usage.output_tokens,
-                estimated: outcome.usage.estimated,
-            },
-        );
+        let draft = crate::history::Draft {
+            source_text: text.to_string(),
+            translated_text: history_text,
+            source_lang: source.map(str::to_string),
+            target_lang: target_name.clone(),
+            provider_id: provider.id.to_string(),
+            model: model.clone(),
+            style_id: prompt::DEFAULT_STYLE_ID.to_string(),
+            scene: mode.as_str().to_string(),
+            source_app: app_name,
+            input_tokens: outcome.usage.input_tokens,
+            output_tokens: outcome.usage.output_tokens,
+            estimated: outcome.usage.estimated,
+        };
+        if mode == Mode::Compose {
+            crate::history::hold_compose(deps.core, route.request_id, draft);
+        } else {
+            crate::history::record(deps.core, draft);
+        }
     }
 
     send(

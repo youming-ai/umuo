@@ -305,6 +305,12 @@ impl Engine {
         ops::history_delete(&self.core, id).map_err(failed)
     }
 
+    /// 用户提交了撰写窗里 `request_id` 那次的译文（⌘↩ / ⌘⇧↩）：这时才把它记进历史。
+    /// 撰写窗边打边翻，每次完成只暂存；id 不是最近完成的那次、或已经记过，就什么都不做。
+    pub fn commit_compose(&self, request_id: u64) {
+        umuo_app::history::commit_compose(&self.core, request_id);
+    }
+
     /// 清空历史，返回清掉的条数。库里的旧收藏与用量账本不受影响。
     pub fn history_clear(&self) -> Result<u32, EngineError> {
         ops::history_clear(&self.core).map(count).map_err(failed)

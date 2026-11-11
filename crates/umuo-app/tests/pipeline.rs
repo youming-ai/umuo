@@ -1063,3 +1063,84 @@ async fn per_app_target_ignores_blank_overrides_and_trims_valid_ones() {
         Some("ja")
     );
 }
+
+// ---------------------------------------------------------------- 撰写窗的历史
+
+/// 撰写窗按自己的窗口登记请求，返回这次的请求 id（提交时要用）。
+async fn compose(env: &Env, text: &str) -> u64 {
+    let (tx, mut rx) = mpsc::unbounded_channel();
+    let ticket = env.core.requests.begin(translate::Mode::Compose.surface());
+    let id = ticket.id;
+    let request = Request::with_overrides(
+        text,
+        translate::Mode::Compose,
+        translate::Overrides::default(),
+    );
+    translate::run(&env.core, &Recorder(tx), request, None, ticket).await;
+    drain(&mut rx);
+    id
+}
+
+#[tokio::test]
+async fn compose_records_only_the_version_the_user_commits() {
+    // 边打边翻：每停顿一次完成一次，都记就是一串半截草稿。
+    let env = Env::new(|_| sse(&["译文"])).await;
+    let _ = compose(&env, "The quick").await;
+    let _ = compose(&env, "The quick brown fox").await;
+    let last = compose(&env, SENTENCE).await;
+    assert_eq!(env.history_count(), 0, "没提交的一条都不记");
+
+    umuo_app::history::commit_compose(&env.core, last);
+    let records = umuo_app::history::with_store(&env.core, |store| store.recent(10, 0)).unwrap();
+    assert_eq!(records.len(), 1);
+    assert_eq!(records[0].entry.source_text, SENTENCE);
+    assert_eq!(records[0].entry.scene, "compose");
+
+    umuo_app::history::commit_compose(&env.core, last);
+    assert_eq!(env.history_count(), 1, "连按两次提交只记一条");
+}
+
+#[tokio::test]
+async fn committing_an_older_compose_result_records_nothing() {
+    let env = Env::new(|_| sse(&["译文"])).await;
+    let old = compose(&env, "The quick").await;
+    let _ = compose(&env, SENTENCE).await;
+    umuo_app::history::commit_compose(&env.core, old);
+    assert_eq!(env.history_count(), 0);
+}
+
+#[tokio::test]
+async fn a_failed_compose_request_drops_the_previous_unsubmitted_result() {
+    // 第一次成功、第二次失败：译文区显示的是错误，提交不了；拿旧 id 提交也不能记成旧的那条。
+    let calls = Arc::new(AtomicUsize::new(0));
+    let counter = calls.clone();
+    let env = Env::new(move |_| {
+        if counter.fetch_add(1, Ordering::SeqCst) == 0 {
+            sse(&["译文"])
+        } else {
+            server_error()
+        }
+    })
+    .await;
+    let first = compose(&env, "The quick").await;
+    let _ = compose(&env, SENTENCE).await;
+    umuo_app::history::commit_compose(&env.core, first);
+    assert_eq!(env.history_count(), 0);
+}
+
+#[tokio::test]
+async fn a_compose_commit_respects_privacy_mode_and_disabled_history() {
+    let env = Env::new(|_| sse(&["译文"])).await;
+    let id = compose(&env, SENTENCE).await;
+    env.settings(|s| s.privacy_mode = true);
+    umuo_app::history::commit_compose(&env.core, id);
+    assert_eq!(env.history_count(), 0, "提交那一刻开着隐私模式就不记");
+
+    env.settings(|s| {
+        s.privacy_mode = false;
+        s.history_enabled = false;
+    });
+    let id = compose(&env, SENTENCE).await;
+    umuo_app::history::commit_compose(&env.core, id);
+    assert_eq!(env.history_count(), 0);
+}

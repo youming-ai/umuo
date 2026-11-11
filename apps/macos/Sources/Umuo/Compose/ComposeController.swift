@@ -118,6 +118,12 @@ final class ComposeController: ComposeBackend {
         return nil
     }
 
+    /// 写历史库，不占主线程。粘贴没成功也记：译文已经留在剪贴板上交给用户了。
+    func recordCommitted(_ requestId: UInt64) {
+        guard let engine = app.engine else { return }
+        Task.detached { engine.commitCompose(requestId: requestId) }
+    }
+
     /// 语言由 Rust 从文本推断，与浮窗同一个发音人；朗读器全应用共用一个（「停上一段再念」）。
     func speak(_ text: String) {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)

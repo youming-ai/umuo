@@ -13,6 +13,8 @@ protocol ComposeBackend: AnyObject {
     /// 成功为 nil，失败返回原因。
     func commit(_ text: String, paste: Bool, owner: String?) async -> String?
     func hideCompose()
+    /// 用户提交了第 `requestId` 次的译文：这时才记进历史（边打边翻的中间结果都不记，由 Rust 暂存、按 id 对账）。
+    func recordCommitted(_ requestId: UInt64)
     /// 词卡上的朗读（撰写窗里打一个单词也会出词卡）。
     func speak(_ text: String)
 }
@@ -140,6 +142,7 @@ final class ComposeSession {
     /// ⌘↩ 复制并关闭；⌘⇧↩ 复制并粘贴回唤出撰写窗之前的应用。两种都收起撰写窗（PRD §5.3）。
     func commit(paste: Bool) {
         guard settled, let backend else { return }
+        backend.recordCommitted(state.requestId)
         let text = state.translation
         let owner = owner
         let t = t
