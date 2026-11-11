@@ -105,7 +105,10 @@ struct ClipboardFallback {
     func read() throws(SelectionError) -> String {
         Pasteboard.exclusive.lock()
         defer { Pasteboard.exclusive.unlock() }
-        let snapshot = Pasteboard.Snapshot.take(pasteboard)
+        // 剪贴板上的东西太大，快照会卡很久：不借用剪贴板，如实说取不到
+        guard let snapshot = Pasteboard.Snapshot.take(pasteboard) else {
+            throw .other(UserText(Pasteboard.tooLarge))
+        }
 
         // 先清空再复制。否则当剪贴板内容恰好等于选中内容时，
         // 无法区分「复制成功了」和「复制根本没生效，读到的还是旧内容」。

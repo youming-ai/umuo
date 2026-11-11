@@ -166,6 +166,8 @@ final class ComposeController: ComposeBackend {
         switch paster.run(text, proceed: { frontmost() == owner }) {
         case .pasted: return nil
         case .skipped: return keepOnClipboard(text, paster.pasteboard) ?? ComposeRules.pasteNotBack
+        // 不能把译文留在剪贴板上：那正好盖掉刚才为它放弃粘贴的那份大内容
+        case .clipboardTooLarge: return UserText(Pasteboard.tooLarge)
         case let .failed(reason):
             _ = keepOnClipboard(text, paster.pasteboard)
             return reason

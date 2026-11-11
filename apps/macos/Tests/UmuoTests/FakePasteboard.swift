@@ -40,7 +40,21 @@ final class FakePasteboard: PasteboardAccess, @unchecked Sendable {
         }
     }
 
-    func snapshotItems() -> [[Entry]] { lock.withLock { items } }
+    /// 每取一种类型的数据前调一次（模拟源应用当场生成延迟提供的格式）。
+    var onData: (@Sendable () -> Void)?
+    /// 取过多少次数据。
+    private(set) var dataReads = 0
+
+    func itemTypes() -> [[String]] { lock.withLock { items.map { $0.map(\.type) } } }
+
+    func data(item: Int, type: String) -> Data? {
+        onData?()
+        return lock.withLock {
+            dataReads += 1
+            guard items.indices.contains(item) else { return nil }
+            return items[item].first { $0.type == type }?.data
+        }
+    }
 
     func writeItems(_ new: [[Entry]]) {
         lock.withLock {

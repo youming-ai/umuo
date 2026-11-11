@@ -236,6 +236,8 @@ final class FocusedFieldDelivery: VoiceDelivering {
         switch outcome {
         case .pasted: return nil
         case .skipped: return lastCheck ?? .failed
+        // 没交付出去：结果照常留在浮层上可复制
+        case .clipboardTooLarge: return .failed
         case .failed: return .failed
         }
     }

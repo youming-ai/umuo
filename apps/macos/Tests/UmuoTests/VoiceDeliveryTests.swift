@@ -153,6 +153,21 @@ struct VoiceDeliveryRulesTests {
 }
 
 struct ControlledPasteTests {
+    @Test func 剪贴板内容太大时不动剪贴板也不按键() {
+        let rig = PasteRig()
+        rig.pasteboard.writeItems([[
+            .init(type: NSPasteboard.PasteboardType.string.rawValue, data: Data("用户原来复制的".utf8)),
+            .init(type: "public.tiff", data: Data(count: 64)),
+        ]])
+        let count = rig.pasteboard.changeCount
+        var paster = rig.paster()
+        paster.snapshotBudget.maxBytes = 32
+
+        #expect(paster.run("后天见。") { true } == .clipboardTooLarge)
+        #expect(rig.pastes == 0)
+        #expect(rig.pasteboard.changeCount == count, "清空之前就收手：一次都没写过")
+    }
+
     @Test func 粘贴后剪贴板原样恢复_包括非文本内容() {
         let rig = PasteRig()
         rig.pasteboard.writeItems([[
@@ -317,5 +332,39 @@ struct FocusedFieldDeliveryTests {
         #expect(await pending.value != nil)
         #expect(probe.inner.inserted.isEmpty)
         #expect(rig.pastes == 0)
+    }
+}
+
+struct PasteboardSnapshotBudgetTests {
+    private func board() -> FakePasteboard {
+        let pasteboard = FakePasteboard()
+        pasteboard.writeItems([
+            [.init(type: "public.utf8-plain-text", data: Data("表格".utf8)), .init(type: "public.tiff", data: Data(count: 100))],
+            [.init(type: "com.adobe.pdf", data: Data(count: 100))],
+        ])
+        return pasteboard
+    }
+
+    @Test func 预算之内照常取全() {
+        let pasteboard = board()
+        let snapshot = Pasteboard.Snapshot.take(pasteboard)
+        #expect(snapshot?.items.map { $0.map(\.type) } == [["public.utf8-plain-text", "public.tiff"], ["com.adobe.pdf"]])
+    }
+
+    @Test func 字节超了就放弃_不再往下生成() {
+        let pasteboard = board()
+        var budget = Pasteboard.Snapshot.Budget()
+        budget.maxBytes = 50
+        #expect(Pasteboard.Snapshot.take(pasteboard, budget: budget) == nil)
+        #expect(pasteboard.dataReads == 2, "超了的那一种之后的格式不再逼源应用生成")
+    }
+
+    @Test func 生成太慢也放弃() {
+        let pasteboard = board()
+        pasteboard.onData = { Thread.sleep(forTimeInterval: 0.02) }
+        var budget = Pasteboard.Snapshot.Budget()
+        budget.maxDuration = .milliseconds(10)
+        #expect(Pasteboard.Snapshot.take(pasteboard, budget: budget) == nil)
+        #expect(pasteboard.dataReads == 1)
     }
 }

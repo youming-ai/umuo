@@ -758,6 +758,35 @@
         }
       }
     },
+    "error.clipboardTooLarge": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "剪贴板上的内容太大（比如刚复制的大图或表格），为了不弄丢它，这次没有借用剪贴板"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "剪貼簿上的內容太大（例如剛複製的大圖或表格），為了不弄丟它，這次沒有借用剪貼簿"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The clipboard holds something too large (such as a big image or spreadsheet), so umuo left it untouched this time"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "クリップボードの内容が大きすぎるため（大きな画像や表など）、失わないよう今回はクリップボードを使いませんでした"
+          }
+        }
+      }
+    },
     "error.clipboardUnavailable": {
       "extractionState": "manual",
       "localizations": {
