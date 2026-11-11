@@ -77,7 +77,12 @@ enum SettingsRules {
         if !summary.endpointChanges.isEmpty {
             parts.append(t("prefs.general.importEndpoints", ["list": endpointList(summary, t)]))
         }
-        if let proxy = summary.proxyChange { parts.append(t("prefs.general.importProxy", ["proxy": proxy])) }
+        switch summary.proxyChange {
+        case nil: break
+        case "system": parts.append(t("prefs.general.importProxySystem"))
+        case "none": parts.append(t("prefs.general.importProxyNone"))
+        case let url?: parts.append(t("prefs.general.importProxy", ["proxy": url]))
+        }
         if !summary.blacklistRemoved.isEmpty {
             parts.append(t("prefs.general.importBlacklistRemoved", ["list": summary.blacklistRemoved.joined(separator: ", ")]))
         }

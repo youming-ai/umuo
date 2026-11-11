@@ -64,7 +64,7 @@ pub struct ImportSummary {
     pub replaced_glossary_count: usize,
     /// 历史保留天数被改短时的新值：应用当场就删掉超期的历史。
     pub retention_shortened_to: Option<u32>,
-    /// 代理变了时的新设置（`custom` 时是地址，否则是模式名）。所有请求、连同 Key 都走它。
+    /// 代理变了时的新设置：`custom` 时是地址，否则是模式名（`system` / `none`）。所有请求、连同 Key 都走它。
     pub proxy_change: Option<String>,
     /// 全局快捷键有变化。
     pub hotkeys_changed: bool,

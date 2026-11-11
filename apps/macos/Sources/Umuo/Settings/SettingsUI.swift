@@ -296,7 +296,10 @@ enum PrefConfirm {
         destructive.hasDestructiveAction = true
         destructive.keyEquivalent = ""
         alert.addButton(withTitle: cancel).keyEquivalent = "\r"
-        guard let window = NSApp.keyWindow else { return alert.runModal() == .alertFirstButtonReturn }
+        // 刚关掉的打开面板之类的表单还可能是 key window：附到它的父窗口上，否则表单关闭时这里永远等不到结果。
+        guard let window = NSApp.keyWindow.map({ $0.sheetParent ?? $0 }) else {
+            return alert.runModal() == .alertFirstButtonReturn
+        }
         return await withCheckedContinuation { done in
             alert.beginSheetModal(for: window) { done.resume(returning: $0 == .alertFirstButtonReturn) }
         }

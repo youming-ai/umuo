@@ -6969,6 +6969,64 @@
       },
       "comment": "placeholders: proxy"
     },
+    "prefs.general.importProxyNone": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "改为不使用代理。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "改為不使用代理。"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The proxy will be turned off."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "プロキシを使用しなくなります。"
+          }
+        }
+      }
+    },
+    "prefs.general.importProxySystem": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "代理改为跟随系统设置。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "代理改為跟隨系統設定。"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The proxy will follow the system setting."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "プロキシはシステム設定に従うようになります。"
+          }
+        }
+      }
+    },
     "prefs.general.importReplacesGlossaries": {
       "extractionState": "manual",
       "localizations": {

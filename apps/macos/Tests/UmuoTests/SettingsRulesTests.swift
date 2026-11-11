@@ -250,6 +250,12 @@ struct SettingsRulesTests {
         }
     }
 
+    @Test func 代理改成跟随系统或不使用时不说成地址() {
+        #expect(SettingsRules.importPreview(summary(proxy: "system"), zh).contains(zh("prefs.general.importProxySystem")))
+        #expect(SettingsRules.importPreview(summary(proxy: "none"), zh).contains(zh("prefs.general.importProxyNone")))
+        #expect(!SettingsRules.importPreview(summary(proxy: "none"), zh).contains(zh("prefs.general.importProxy", ["proxy": "none"])))
+    }
+
     @Test func 什么都没变的导入确认框只有一句() {
         #expect(SettingsRules.importPreview(summary(), zh) == zh("prefs.general.importPreview", ["version": "1"]))
     }
