@@ -247,6 +247,50 @@ struct ControlledPasteTests {
 }
 
 struct FocusedFieldDeliveryTests {
+    private enum LateChange: CaseIterable, Sendable {
+        case focus, secure, readOnly, permission
+        var refusal: VoiceDeliveryRefusal {
+            switch self {
+            case .focus: .focusChanged
+            case .secure: .secureInput
+            case .readOnly: .notEditable
+            case .permission: .noPermission
+            }
+        }
+        func apply(_ check: inout VoiceDeliveryCheck) {
+            switch self {
+            case .focus: check.sameElement = false
+            case .secure: check.secureInput = true
+            case .readOnly: check.settable = false
+            case .permission: check.trusted = false
+            }
+        }
+    }
+
+    @Test func 快照期间目标变化_粘贴前重新核验() {
+        for change in LateChange.allCases {
+            let probe = FakeProbe()
+            probe.checkResult.settable = nil
+            let rig = PasteRig()
+            rig.pasteboard.setString("旧内容", forType: .string)
+            rig.pasteboard.onData = { change.apply(&probe.checkResult) }
+            #expect(perform(probe, rig) == change.refusal)
+            #expect(rig.pastes == 0)
+            #expect(rig.pasteboard.string(forType: .string) == "旧内容")
+        }
+    }
+
+    @Test func AX插入失败后目标已换_不再退回粘贴() {
+        let probe = FakeProbe()
+        probe.checkResult.settable = true
+        probe.insertSucceeds = false
+        let rig = PasteRig()
+        rig.pasteboard.setString("旧内容", forType: .string)
+        rig.pasteboard.onData = { probe.checkResult.sameElement = false }
+        #expect(perform(probe, rig) == .focusChanged)
+        #expect(rig.pastes == 0)
+    }
+
     @Test func 可写的原输入框_经AX插入_不碰剪贴板() {
         let probe = FakeProbe()
         probe.checkResult.settable = true

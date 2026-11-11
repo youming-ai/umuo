@@ -33,6 +33,9 @@ private class FakeOnboarding: OnboardingBackend {
     /// 控制 Key 状态返回的时刻，覆盖等待期间结束引导与更换首选的竞争。
     var holdKeyChecks = false
     var waitingKey: CheckedContinuation<Bool, Never>?
+    var holdKeySaves = false
+    var waitingSave: CheckedContinuation<Void, Never>?
+    var keySaveFailure: Error?
 
     init(_ stored: SettingsValues) { self.stored = stored }
 
@@ -70,7 +73,11 @@ private class FakeOnboarding: OnboardingBackend {
         if holdKeyChecks { return await withCheckedContinuation { waitingKey = $0 } }
         return keys[providerId] != nil
     }
-    func saveApiKey(_ providerId: String, _ key: String) async throws { keys[providerId] = key }
+    func saveApiKey(_ providerId: String, _ key: String) async throws {
+        if holdKeySaves { await withCheckedContinuation { waitingSave = $0 } }
+        if let keySaveFailure { throw keySaveFailure }
+        keys[providerId] = key
+    }
 
     func listModels(_ providerId: String) async throws -> [String] {
         listed.append(providerId)
@@ -114,6 +121,67 @@ private func settle() async {
 @MainActor
 @Suite("首次引导视图模型")
 struct OnboardingModelTests {
+    @Test func 保存Key期间换供应商_不清空新草稿或改变首选() async throws {
+        let backend = FakeOnboarding(defaults)
+        let model = await loaded(backend)
+        backend.holdKeySaves = true
+        model.draftKey = "openai-key"
+        let pending = Task { await model.saveKey() }
+        await settle()
+        let gate = try #require(backend.waitingSave)
+        model.draftProvider = "anthropic"
+        model.draftKey = "新草稿"
+        await settle()
+        gate.resume()
+        await pending.value
+        await settle()
+        #expect(backend.keys["openai"] == "openai-key", "已发出的 Keychain 写入仍归原供应商")
+        #expect(model.draftKey == "新草稿")
+        #expect(!model.keyConfigured)
+        #expect(backend.patches.isEmpty)
+    }
+
+    @Test func 同一供应商改了模型草稿_旧Key结果也不覆盖() async throws {
+        let backend = FakeOnboarding(defaults)
+        let model = await loaded(backend)
+        model.draftProvider = "custom"
+        model.draftModel = "旧模型"
+        model.draftKey = "key"
+        backend.holdKeySaves = true
+        let pending = Task { await model.saveKey() }
+        await settle()
+        let gate = try #require(backend.waitingSave)
+        model.draftModel = "新模型"
+        gate.resume()
+        await pending.value
+        await settle()
+        #expect(model.draftKey == "key")
+        #expect(model.draftModel == "新模型")
+        #expect(backend.patches.isEmpty)
+    }
+
+    @Test func 引导结束后保存Key才返回_不再写首选或显示迟到错误() async throws {
+        for fails in [true, false] {
+            let backend = FakeOnboarding(defaults)
+            let model = await loaded(backend)
+            model.draftProvider = "anthropic"
+            model.draftKey = "key"
+            backend.holdKeySaves = true
+            if fails { backend.keySaveFailure = Rejected(message: "迟到错误") }
+            let pending = Task { await model.saveKey() }
+            await settle()
+            let gate = try #require(backend.waitingSave)
+            await model.finish()
+            let notice = model.notice
+            gate.resume()
+            await pending.value
+            await settle()
+            #expect(backend.closed == 1)
+            #expect(backend.patches == [["onboardingDone": .bool(true)]])
+            #expect(model.notice == notice)
+        }
+    }
+
     @Test func 载入后从欢迎页开始且草稿供应商是当前首选() async {
         let model = await loaded(FakeOnboarding(defaults))
         #expect(model.isLoaded)

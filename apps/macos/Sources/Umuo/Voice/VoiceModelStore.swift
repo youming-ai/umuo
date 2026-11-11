@@ -71,12 +71,21 @@ final class VoiceModelStore {
     private(set) var state: State
     private let fetcher: ModelFetching
     @ObservationIgnored private var task: Task<Void, Never>?
+    /// 哈希在后台分块读取；测试可暂停在校验阶段，不需要真实模型或大文件。
+    private let checksum: @Sendable (URL) async throws -> String
     /// 校验通过、模型就位之后调用（预热转写引擎）。
     @ObservationIgnored var onReady: (() -> Void)?
 
-    init(spec: Spec, fetcher: ModelFetching) {
+    init(spec: Spec, fetcher: ModelFetching,
+         checksum: @escaping @Sendable (URL) async throws -> String = { url in
+             let work = Task.detached(priority: .utility) { try VoiceModelStore.sha256(of: url) }
+             return try await withTaskCancellationHandler {
+                 try await work.value
+             } onCancel: { work.cancel() }
+         }) {
         self.spec = spec
         self.fetcher = fetcher
+        self.checksum = checksum
         state = Self.installed(spec) ? .ready : .missing
     }
 
@@ -116,10 +125,14 @@ final class VoiceModelStore {
 
     private func run() async {
         do {
+            try Task.checkCancellation()
             try await fetchToPartial()
+            try Task.checkCancellation()
             state = .verifying
             let spec = spec
-            let digest = try await Task.detached(priority: .utility) { try Self.sha256(of: spec.partialPath) }.value
+            let digest = try await checksum(spec.partialPath)
+            // detached 哈希不会继承外层取消；检查必须先于删除、改名与预热。
+            try Task.checkCancellation()
             guard digest == spec.sha256 else {
                 try? FileManager.default.removeItem(at: spec.partialPath)
                 throw Failure.checksum
@@ -206,6 +219,7 @@ final class VoiceModelStore {
         defer { try? handle.close() }
         var hasher = SHA256()
         while let chunk = try handle.read(upToCount: 4 << 20), !chunk.isEmpty {
+            try Task.checkCancellation()
             hasher.update(data: chunk)
         }
         return hasher.finalize().map { String(format: "%02x", $0) }.joined()

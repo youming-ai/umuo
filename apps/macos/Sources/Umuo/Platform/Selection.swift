@@ -31,7 +31,7 @@ enum SelectionError: UserFacingError, Equatable {
 
 /// 从前台应用取词。
 ///
-/// **都是同步阻塞的，不要在主线程调**：⌘C 降级最长要等约 1 秒（轮询 400ms + 迟到复制观察 600ms）。
+/// **都是同步阻塞的，不要在主线程调**：⌘C 降级轮询最长约 1 秒，之前的快照另有预算。
 /// AX 与 NSPasteboard 在工作线程上调都没问题。
 enum Selection {
     /// 读取当前选中的文本：先走只读的 AX，拿不到（或只有空白）才降级到模拟 ⌘C。
@@ -81,87 +81,69 @@ enum Selection {
     }
 }
 
-/// 模拟 ⌘C 取词：AX 拿不到选区时的兜底。这是**唯一**会借用用户剪贴板的地方，
-/// 所以整段逻辑都围绕「怎么把剪贴板原样还回去」与「怎么不误判」展开：
-///
-/// - 整个事务拿着 `Pasteboard.exclusive`，连按两次不会互相踩。
-/// - 快照存的是所有 item 的所有类型，图片、文件、富文本都原样还回去。
-/// - 合成 ⌘C 失败也先恢复再报错。
-/// - 超时后再盯一会儿，迟到的复制结果盖上来就再恢复一次。
-///
-/// 剪贴板与「按 ⌘C」都可注入：正式路径是 `.general` + `KeyEvent.copy`，selftest 换成私有剪贴板与假的复制动作。
+/// 模拟 ⌘C 取词：与粘贴共用互斥锁，保存全部 item / 类型。
+/// 事务期间若有新的键盘或鼠标操作，当前剪贴板可能属于用户，停止取词且不再恢复旧快照。
+/// 系统不暴露剪贴板写入来源，不能把超时后的任意变化认成「迟到的 ⌘C」再覆盖；
+/// 所以只在一次有界轮询内等结果，不在恢复之后继续写剪贴板。
 struct ClipboardFallback {
-    /// 轮询节奏：20ms × 20 次 ≈ 400ms 上限。再长会让用户觉得「快捷键按下去没反应」，再短则可能在慢 App 里读空。
     static let pollInterval: TimeInterval = 0.02
-    static let pollAttempts = 20
-    /// 超时之后再盯多久：卡顿的应用（Slack、远程桌面）可能在我们恢复剪贴板之后才处理那次 ⌘C，
-    /// 把选中文本盖到刚还回去的内容上。
-    static let lateCopyWindow: TimeInterval = 0.6
-    static let lateCopyPollInterval: TimeInterval = 0.05
+    /// 给慢应用最多约 1 秒；整个等待期间仍在同一次事务内。
+    static let pollAttempts = 50
 
-    var pasteboard: NSPasteboard = .general
+    var pasteboard: PasteboardAccess = NSPasteboard.general
     var copy: () throws(SelectionError) -> Void = { () throws(SelectionError) in try KeyEvent.copy() }
+    var beginWatching: () -> ClipboardCopyWatching? = { ClipboardCopyGuard() }
+    /// 轮询等待可注入：测试不依赖线程调度或真实用户输入。
+    var wait: (TimeInterval) -> Void = { Thread.sleep(forTimeInterval: $0) }
 
     func read() throws(SelectionError) -> String {
         Pasteboard.exclusive.lock()
         defer { Pasteboard.exclusive.unlock() }
-        // 剪贴板上的东西太大，快照会卡很久：不借用剪贴板，如实说取不到
+        // 不能观察用户操作时不借用剪贴板；否则恢复旧快照可能覆盖用户的新复制。
+        guard let watcher = beginWatching() else { throw .other(UserText("error.clipboardUnavailable")) }
+        defer { watcher.stop() }
         let original = pasteboard.changeCount
         guard let snapshot = Pasteboard.Snapshot.take(pasteboard) else {
             throw .other(UserText(pasteboard.changeCount == original ? Pasteboard.tooLarge : Pasteboard.changed))
         }
-
-        // 先清空再复制。否则当剪贴板内容恰好等于选中内容时，
-        // 无法区分「复制成功了」和「复制根本没生效，读到的还是旧内容」。
-        guard pasteboard.changeCount == original else { throw .other(UserText(Pasteboard.changed)) }
+        guard !watcher.wasInterrupted(), pasteboard.changeCount == original else {
+            throw .other(UserText(Pasteboard.changed))
+        }
         let cleared = pasteboard.clearContents()
-        let captured = Result { () throws(SelectionError) in
-            try copy()
-            return pollCopied(cleared)
+        func interrupted() -> SelectionError {
+            // 用户只是按了别的键、尚未复制时，空剪贴板仍是我们清空的，可以还原。
+            if pasteboard.changeCount == cleared { snapshot.restore(pasteboard) }
+            return .other(UserText(Pasteboard.changed))
+        }
+        do { try copy() } catch {
+            // 按键失败并不代表剪贴板没变：只还原仍属于我们的空剪贴板。
+            if pasteboard.changeCount == cleared { snapshot.restore(pasteboard) }
+            throw error
         }
 
-        // 把用户的剪贴板还回去（PRD §5.2）。在传播任何错误之前做。
-        snapshot.restore(pasteboard)
-
-        if let text = try captured.get() { return text }
-        guardAgainstLateCopy(snapshot)
-        throw .noSelection
-    }
-
-    /// 判断「这次复制成功了没有」。看修改计数而不是只看内容：清空之后计数变了，
-    /// 才说明有人（目标应用）写过剪贴板。计数变了但不是文本（复制了图片）或是空串，都不算取到。
-    static func copiedText(cleared: Int, now: Int, text: String?) -> String? {
-        guard now != cleared, let text, !text.isEmpty else { return nil }
-        return text
-    }
-
-    /// 轮询剪贴板，等目标应用写入这次复制的结果。先睡再看：⌘C 刚发出去时还不可能有结果。
-    private func pollCopied(_ cleared: Int) -> String? {
         for _ in 0 ..< Self.pollAttempts {
-            Thread.sleep(forTimeInterval: Self.pollInterval)
-            if let text = Self.copiedText(cleared: cleared, now: pasteboard.changeCount,
-                                          text: Pasteboard.string(pasteboard))
-            {
+            wait(Self.pollInterval)
+            guard !watcher.wasInterrupted() else { throw interrupted() }
+            let count = pasteboard.changeCount
+            let text = Pasteboard.string(pasteboard)
+            // 读取数据也可能触发延迟提供或 XPC，回来后要再核对操作与版本。
+            guard !watcher.wasInterrupted(), pasteboard.changeCount == count else {
+                throw interrupted()
+            }
+            // 应用通常先 clearContents 再写数据：计数变了但文本尚未就位时继续等，
+            // 不能在两步之间恢复快照、打断它正在写入的复制。
+            if let text = Self.copiedText(cleared: cleared, now: count, text: text) {
+                snapshot.restore(pasteboard)
                 return text
             }
         }
-        return nil
+        if watcher.wasInterrupted() { throw interrupted() }
+        if pasteboard.changeCount == cleared { snapshot.restore(pasteboard) }
+        throw .noSelection
     }
 
-    /// 超时之后，那次 ⌘C 仍可能被慢应用处理：剪贴板在观察窗口内被改了，就再恢复一次。
-    ///
-    /// 仍在独占权里做，代价是取词失败时多等一会儿才报「没有检测到选中的文本」；
-    /// 换来的是用户的剪贴板不会在提示出现之后才被悄悄换掉。基准计数取在恢复之后。
-    private func guardAgainstLateCopy(_ snapshot: Pasteboard.Snapshot) {
-        let restored = pasteboard.changeCount
-        var waited: TimeInterval = 0
-        while waited < Self.lateCopyWindow {
-            Thread.sleep(forTimeInterval: Self.lateCopyPollInterval)
-            waited += Self.lateCopyPollInterval
-            if pasteboard.changeCount != restored {
-                snapshot.restore(pasteboard)
-                return
-            }
-        }
+    static func copiedText(cleared: Int, now: Int, text: String?) -> String? {
+        guard now != cleared, let text, !text.isEmpty else { return nil }
+        return text
     }
 }

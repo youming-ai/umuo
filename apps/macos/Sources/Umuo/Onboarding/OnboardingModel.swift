@@ -52,17 +52,24 @@ final class OnboardingModel {
     var draftProvider = "" {
         didSet {
             guard draftProvider != oldValue else { return }
+            draftRevision += 1
             draftKey = ""
             Task { await refreshKeyStatus() }
         }
     }
-    var draftKey = ""
+    var draftKey = "" {
+        didSet { if draftKey != oldValue { draftRevision += 1 } }
+    }
     /// 需要端点的供应商（Azure、自定义端点）要自己填的模型名：自定义端点没有默认模型，Azure 是部署名。
-    var draftModel = ""
+    var draftModel = "" {
+        didSet { if draftModel != oldValue { draftRevision += 1 } }
+    }
 
     var t = Translate(locale: .source)
 
     @ObservationIgnored private var lastSave: Task<Void, Error>?
+    @ObservationIgnored private var draftRevision = 0
+    @ObservationIgnored private var keySave = 0
     /// 引导已经结束（点了「完成」、或窗口被关掉）。之后才回来的探测结果不能再改设置里的首选引擎。
     @ObservationIgnored private var ended = false
     /// 最近一次查 Key 状态的序号：结果回来时下拉可能又换了，只认最后一次。
@@ -168,6 +175,7 @@ final class OnboardingModel {
 
     /// 保存选中供应商的地址，写法与设置的引擎页一致；不合法的地址由内核拒绝，原因显示在提示行。
     func saveEndpoint(_ url: String) -> Task<Void, Error>? {
+        draftRevision += 1
         let url = url.trimmingCharacters(in: .whitespacesAndNewlines)
         if draftProvider == "azure" {
             var urls = values.object("providerBaseUrls")
@@ -187,17 +195,24 @@ final class OnboardingModel {
     /// 存 Key 之后首选换成这家；换了供应商时模型用它的默认模型（`engineForSavedKey`，审查 H6）。
     func saveKey() async {
         let key = draftKey.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !key.isEmpty else { return }
+        guard !key.isEmpty, !ended else { return }
         let providerId = draftProvider
         let detail = draftDetail
+        let revision = draftRevision
+        let typed = draftModel.trimmingCharacters(in: .whitespacesAndNewlines)
+        let needsEndpoint = detail?.requiresBaseUrl ?? false
+        keySave += 1
+        let mine = keySave
         do {
             try await backend.saveApiKey(providerId, key)
+            guard !ended, mine == keySave, revision == draftRevision else { return }
+            // 已发出的 Keychain 写入不能撤回；只有仍属于当前草稿的结果才更新界面与首选。
+            keyCheck += 1
             draftKey = ""
             keyConfigured = true
             // 模型：需要端点的供应商用用户填的；没填时只有**换了供应商**才用新供应商的默认模型（沿用上一家的会 404）。
             // 供应商没变（重新运行引导只换 Key）就不动模型——改过的模型、Azure 部署名不能被默认值冲掉；
             // 没有可写的（Azure、自定义端点没有默认模型）也不写，写进 "" 会让第一次翻译直接报缺模型。
-            let typed = draftModel.trimmingCharacters(in: .whitespacesAndNewlines)
             let fallback = providerId == values.string("providerId") ? nil : detail?.defaultModel
             let chosen = needsEndpoint && !typed.isEmpty ? typed : fallback
             let engine = Onboarding.engineForSavedKey(providerId: providerId, defaultModel: chosen)
@@ -206,6 +221,7 @@ final class OnboardingModel {
             commit(patch)
             notice = t("onboarding.keySaved", ["provider": detail?.label ?? providerId])
         } catch {
+            guard !ended, mine == keySave, revision == draftRevision else { return }
             notice = SettingsRules.message(error)
         }
     }

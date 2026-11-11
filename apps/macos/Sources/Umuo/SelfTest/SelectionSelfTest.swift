@@ -10,6 +10,12 @@ import UmuoCore
 /// 真正的 CGEvent 只造不投递。AX 取词要辅助功能权限，没授权时（未签名的 swift build、CI）断言权限拒绝并打印跳过；
 /// 授权了也只调只读的 `readFocusText`，不打印读到的内容（那是用户正在用的输入框）。
 enum SelectionSelfTest {
+    /// 私有剪贴板测试没有真实用户输入，不创建系统事件监听。
+    private final class QuietCopy: ClipboardCopyWatching {
+        func wasInterrupted() -> Bool { false }
+        func stop() {}
+    }
+
     @MainActor
     static func run(_ check: (String, Bool, String) -> Void) {
         pureChecks(check)
@@ -38,6 +44,7 @@ enum SelectionSelfTest {
                 for down in [true, false] {
                     let event = try KeyEvent.make(key, down: down)
                     ok = ok && event.getIntegerValueField(.keyboardEventKeycode) == Int64(key)
+                        && event.getIntegerValueField(.eventSourceUserData) == KeyEvent.ownEventTag
                         && event.flags.contains(.maskCommand) && (event.type == (down ? .keyDown : .keyUp))
                 }
             }
@@ -68,7 +75,7 @@ enum SelectionSelfTest {
         func attempt(_ copy: @escaping () throws(SelectionError) -> Void) -> (Result<String, SelectionError>, Bool) {
             original.restore(pasteboard)
             let result = Result { () throws(SelectionError) in
-                try ClipboardFallback(pasteboard: pasteboard, copy: copy).read()
+                try ClipboardFallback(pasteboard: pasteboard, copy: copy, beginWatching: { QuietCopy() }).read()
             }
             return (result, Pasteboard.Snapshot.take(pasteboard) == original)
         }
@@ -85,31 +92,15 @@ enum SelectionSelfTest {
         check("ClipboardFallback.synthesisFails", failed == .failure(keyFailed) && restoredAfterFailure,
               "合成 ⌘C 失败：先恢复再报错")
 
-        // 超时（400ms）之后、观察窗口（再 600ms）之内才写进来的复制结果：要再恢复一次。0.7s 两头都留了余量
-        // 慢机器（CI）上那条线程可能落在观察窗口之外：那时这项无从判断，如实跳过而不是报失败
-        let wrote = OSAllocatedUnfairLock(initialState: false)
-        let landedAt = OSAllocatedUnfairLock<TimeInterval?>(initialState: nil)
-        let started = Date()
+        // 慢应用在约 700 ms 后响应：仍在同一次轮询内取到并恢复，不在恢复后覆盖任意新内容。
         let (late, restoredAfterLate) = attempt {
             Thread.detachNewThread {
                 Thread.sleep(forTimeInterval: 0.7)
                 appCopies("迟到的复制", into: NSPasteboard(name: name))
-                landedAt.withLock { $0 = Date().timeIntervalSince(started) }
-                wrote.withLock { $0 = true }
             }
         }
-        // 这项只验「轮询超时之后、观察窗口之内」才到的复制。慢机器（CI）上两头都可能错开，按实际结果判断：
-        // - 读取拿到了它：轮询被拖长，复制在超时前就到了，不是「迟到」；
-        // - 读取结束时它还没到：观察窗口已过。两种都无从判断，如实跳过。
-        // 观察到迟到的复制会立刻恢复并返回，所以落地时刻不会晚于读取结束。
-        let finished = Date().timeIntervalSince(started)
-        let tooEarly = (try? late.get()) == "迟到的复制"
-        if !tooEarly, let landed = landedAt.withLock({ $0 }), landed <= finished {
-            check("ClipboardFallback.lateCopy", late == .failure(.noSelection) && wrote.withLock { $0 } && restoredAfterLate,
-                  "恢复之后才到的复制结果被再恢复一次")
-        } else {
-            print("- ClipboardFallback.lateCopy: skipped: machine too slow, the copy landed outside the observation window")
-        }
+        check("ClipboardFallback.lateCopy", (try? late.get()) == "迟到的复制" && restoredAfterLate,
+              "慢应用在有界轮询内返回，读取后只恢复一次")
 
         // 连按两次：两次事务串行，各自取到自己的文本，最后剪贴板仍是原内容（不会被第一次清空后的空剪贴板盖掉）
         original.restore(pasteboard)
@@ -122,7 +113,7 @@ enum SelectionSelfTest {
                 let text = try? ClipboardFallback(pasteboard: board, copy: {
                     Thread.sleep(forTimeInterval: 0.03)
                     appCopies(label, into: board)
-                }).read()
+                }, beginWatching: { QuietCopy() }).read()
                 results.withLock { $0[label] = text }
                 group.leave()
             }

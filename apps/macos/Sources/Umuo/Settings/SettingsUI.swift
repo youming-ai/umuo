@@ -136,30 +136,43 @@ struct DraftField: NSViewRepresentable {
         var parent: DraftField
         /// 上次同步进框里的外部值：外部值没变时不重设，免得把用户的草稿盖掉。
         var shown: String?
+        /// 用户继续编辑或再次提交后，旧保存的失败不再拥有这个草稿。
+        private var editRevision = 0
 
         init(_ parent: DraftField) { self.parent = parent }
 
         func controlTextDidEndEditing(_ note: Notification) {
             guard let field = note.object as? NSTextField else { return }
-            commit(field.stringValue) { field.stringValue = $0 }
+            commit(field.stringValue, current: { field.stringValue },
+                   editing: { field.currentEditor() != nil }) { field.stringValue = $0 }
         }
+
+        func controlTextDidChange(_: Notification) { editRevision += 1 }
+        func textDidChange(_: Notification) { editRevision += 1 }
 
         /// 从下拉里挑中：此时 `stringValue` 还是旧值，要读选中的那一项。
         func comboBoxSelectionDidChange(_ note: Notification) {
             guard let box = note.object as? NSComboBox, let picked = box.objectValueOfSelectedItem as? String else { return }
             box.stringValue = picked
-            commit(picked) { box.stringValue = $0 }
+            commit(picked, current: { box.stringValue },
+                   editing: { box.currentEditor() != nil }) { box.stringValue = $0 }
         }
 
         func textDidEndEditing(_ note: Notification) {
             guard let view = note.object as? NSTextView else { return }
-            commit(view.string) { view.string = $0 }
+            commit(view.string, current: { view.string },
+                   editing: { view.window?.firstResponder === view }) { view.string = $0 }
         }
 
-        private func commit(_ next: String, revert: @escaping @MainActor (String) -> Void) {
+        private func commit(_ next: String, current: @escaping @MainActor () -> String,
+                            editing: @escaping @MainActor () -> Bool,
+                            revert: @escaping @MainActor (String) -> Void) {
             guard next != parent.value, let pending = parent.onCommit(next) else { return }
+            editRevision += 1
+            let mine = editRevision
             Task { @MainActor in
                 if (try? await pending.value) == nil {
+                    guard self.editRevision == mine, current() == next, !editing() else { return }
                     revert(self.parent.value)
                     self.shown = self.parent.value
                 }
