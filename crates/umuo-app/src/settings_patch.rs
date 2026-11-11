@@ -160,16 +160,14 @@ fn latest_settings(path: &Path, current: &Settings, mtime: Option<SystemTime>) -
     };
     let merged: serde_json::Map<_, _> = fields
         .into_iter()
-        .map(|(key, value)| {
+        .filter_map(|(key, value)| {
             let single = serde_json::json!({ key.as_str(): value });
             if serde_json::from_value::<Settings>(single).is_ok() {
-                (key, value)
+                Some((key, value))
             } else {
-                let fallback = live.get(&key).cloned().unwrap_or(serde_json::Value::Null);
-                (key, fallback)
+                live.get(&key).cloned().map(|fallback| (key, fallback))
             }
         })
-        .filter(|(_, value)| !value.is_null())
         .collect();
     Latest {
         settings: serde_json::from_value(serde_json::Value::Object(merged))
@@ -430,7 +428,7 @@ mod tests {
             &json!({ "theme": "light", "locale": "en", "historyRetentionDays": 30 }),
         );
         let path = Settings::path_in(&core.config_dir);
-        let edited = json!({ "theme": "dark", "locale": "en", "targetLang": "ja", "historyRetentionDays": "90" })
+        let edited = json!({ "theme": "dark", "locale": "en", "targetLang": "ja", "historyRetentionDays": "90", "futureField": null })
             .to_string();
         std::fs::write(&path, &edited).unwrap();
         let later = modified(&path).unwrap() + Duration::from_secs(2);
@@ -447,6 +445,11 @@ mod tests {
         assert_eq!(saved.theme, "dark", "手改的主题保留");
         assert_eq!(saved.target_lang, "ja", "手改的目标语言保留");
         assert_eq!(saved.locale, "ja");
+        assert_eq!(
+            saved.extra.get("futureField"),
+            Some(&serde_json::Value::Null),
+            "读得懂的键原样保留，值是 null 也一样"
+        );
         assert_eq!(
             saved.history_retention_days, 30,
             "类型不对的字段沿用当前值，不回落默认值（默认 90 天以外的值会被改掉、当场清历史）"
