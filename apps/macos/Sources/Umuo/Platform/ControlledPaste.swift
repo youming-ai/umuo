@@ -16,8 +16,14 @@ import AppKit
 struct ControlledPaste: @unchecked Sendable {
     var pasteboard: PasteboardAccess = NSPasteboard.general
     var paste: () throws(SelectionError) -> Void = { () throws(SelectionError) in try KeyEvent.paste() }
-    /// ⌘V 之后等多久再恢复。太短会让慢应用粘到旧内容，太长则用户剪贴板「消失」得久一点。
-    var restoreDelay: TimeInterval = 0.35
+    /// ⌘V 之后等多久再恢复。宁长勿短，两边的代价不对称：
+    /// - 太短：远程桌面、虚拟机、卡住的 Electron 应用晚于这个时间才读剪贴板，粘进去的是**用户原来的剪贴板**
+    ///   （可能是刚从密码管理器复制的密码），而且这里会报 `restored: true`，谁也不知道。
+    /// - 太长：译文在剪贴板上多留一会儿，调用方（语音浮层、替换提示）晚一点收到结果，期间别的剪贴板事务等锁。
+    ///
+    /// 没有办法确认「目标应用已经读过」：剪贴板管理器每次变化都会读，读过的信号说明不了什么。
+    /// 原来是 0.35 秒，审查认为对慢应用太短。
+    var restoreDelay: TimeInterval = 1.0
 
     enum Outcome: Equatable {
         /// 按了 ⌘V。`restored`：剪贴板已还原（false = 期间被别人改了，没有覆盖）。
