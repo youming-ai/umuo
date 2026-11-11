@@ -31,7 +31,7 @@ Vite + Void 负责开发和构建。Worker 没有任何 secret 或变量。
 
 ## 官网的硬约束
 
-- **文案只有一个来源**：`apps/web/src/content/<locale>.ts`，五种语言（zh-cn / zh-tw / en / ja / ko）结构一致；新增文案五种语言都要写，
+- **文案只有一个来源**：`apps/web/src/content/<locale>.ts`，五种语言（en / zh-cn / zh-tw / ja / ko，语言切换器按这个顺序）结构一致；新增文案五种语言都要写，
   `content.test.ts` 会拦空串与漏翻。组件不写死句子。
 - **预渲染必须能 hydrate**：渲染期不读 `window`、不用随机数和计时器，副作用放进 effect（`hydration.test.tsx` 守着）。
 - **不放假下载链接**：`MACOS_DOWNLOAD_URL` 指向 Worker 的 `/download/macos`（Worker 读 GitHub `releases/latest` 的跳转拿到最新 tag，再 302 到 `umuo-v<版本>.dmg`，缓存 5 分钟）；设回 `null` 时下载按钮变为不可点。官网不显示版本号，也不在页面里调 GitHub API。

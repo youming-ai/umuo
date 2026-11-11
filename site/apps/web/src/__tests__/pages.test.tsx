@@ -139,9 +139,9 @@ describe('首页一屏', () => {
     click('footer button[aria-expanded]')
     const options = host.querySelectorAll('footer ul a')
     expect([...options].map((option) => option.textContent)).toEqual([
+      'English',
       '简体中文',
       '繁體中文',
-      'English',
       '日本語',
       '한국어',
     ])

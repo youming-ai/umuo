@@ -33,26 +33,26 @@ export const SOURCE_URL = 'https://github.com/youming-ai/umuo'
  */
 export const SOURCE_PUBLIC: boolean = true
 
-/** 语言切换顺序（PRD §11.4） */
-export const LOCALES = ['zh-cn', 'zh-tw', 'en', 'ja', 'ko'] as const
+/** 语言切换顺序：English 在最前（PRD §11.4） */
+export const LOCALES = ['en', 'zh-cn', 'zh-tw', 'ja', 'ko'] as const
 
 /** 默认语言：Worker 协商不出时、预渲染的根路径兜底页都用它（worker/src/locale.ts 另有一份，locale.test.ts 比对） */
 export const DEFAULT_LOCALE: Locale = 'zh-cn'
 
 /** 各语言的 `<html lang>`（BCP-47，简繁用 Hans / Hant 区分） */
 export const HTML_LANG: Record<string, string> = {
+  en: 'en',
   'zh-cn': 'zh-Hans',
   'zh-tw': 'zh-Hant',
-  en: 'en',
   ja: 'ja',
   ko: 'ko',
 }
 
 /** 语言切换器里显示的名字（各语言写法固定，不进内容模型） */
 export const LOCALE_LABEL: Record<string, string> = {
+  en: 'English',
   'zh-cn': '简体中文',
   'zh-tw': '繁體中文',
-  en: 'English',
   ja: '日本語',
   ko: '한국어',
 }

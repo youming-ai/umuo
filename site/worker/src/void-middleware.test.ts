@@ -17,7 +17,7 @@ import { resetLatestTagCache } from './releases'
 
 // ---------- 假的静态资源层：按 Cloudflare 的 html_handling = auto-trailing-slash 回 ----------
 
-const LOCALES = ['zh-cn', 'zh-tw', 'en', 'ja', 'ko']
+const LOCALES = ['en', 'zh-cn', 'zh-tw', 'ja', 'ko']
 const FILES: Record<string, string> = {
   '/index.html': '<html data-locale="zh-cn">root',
   '/favicon.svg': '<svg/>',
