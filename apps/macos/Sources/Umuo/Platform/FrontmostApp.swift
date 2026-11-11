@@ -31,6 +31,25 @@ final class FrontmostApp: Sendable {
     /// 缓存里的前台应用名。只取锁，可以在任何线程上调。
     func currentName() -> String? { name.withLock { $0 } }
 
+    /// 静默翻译用控件身份作守卫；同一应用的不同输入框也必须拒绝。
+    // AX 引用可跨线程调用，所有状态均由下方锁保护。
+    private struct FocusIdentity: @unchecked Sendable {
+        var element: AXUIElement?
+        var token = UUID().uuidString
+    }
+    private static let focusIdentity = OSAllocatedUnfairLock(initialState: FocusIdentity())
+
+    static func focusToken(_ element: AXUIElement?) -> String? {
+        guard let element else { return nil }
+        return focusIdentity.withLockUnchecked { state in
+            if state.element.map({ CFEqual($0, element) }) != true {
+                state.element = element
+                state.token = UUID().uuidString
+            }
+            return state.token
+        }
+    }
+
     /// 现查前台应用的 pid（十进制字符串，与 `PanelController.ownToken` 同一口径）。
     /// 拿不到（没有辅助功能权限、没有前台应用）时为 nil。AX 是线程安全的 C API，工作线程上直接调。
     static func liveToken() -> String? {

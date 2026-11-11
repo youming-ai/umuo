@@ -43,7 +43,14 @@ enum ReplaceSelection {
         // 首选仍是 AX：直接改写选区，不碰剪贴板。
         if let element, probe.write(text, to: element, name) { return }
 
-        try pasteFallback(text, owner: owner, paster: paster, frontmost: frontmost)
+        try pasteFallback(text, owner: owner, paster: paster, frontmost: frontmost, validate: {
+            guard let element, let current = probe.focusedElement(),
+                  CFEqual(element, current), !probe.secureInput(current) else { return false }
+            do {
+                try checkSelectionUnchanged(current: probe.string(current, name), original: original)
+                return true
+            } catch { return false }
+        })
     }
 
     /// 兜底：受控粘贴（`ControlledPaste`，与语音交付同一套）。只留给 AX 通道不通的 App（Electron 等）。
@@ -51,10 +58,11 @@ enum ReplaceSelection {
     /// 快照用户剪贴板 → 写译文 → ⌘V → 等目标应用读完 → 剪贴板没被别人动过才恢复；整个事务拿着 `Pasteboard.exclusive`，
     /// 中间插不进 ⌘C 取词降级。剪贴板与按键可注入：测试换成私有剪贴板与假的粘贴。
     static func pasteFallback(_ text: String, owner: String, paster: ControlledPaste = ControlledPaste(),
-                              frontmost: () -> String? = FrontmostApp.liveToken) throws(AXWriteBack.Refused)
+                              frontmost: () -> String? = FrontmostApp.liveToken,
+                              validate: () -> Bool = { true }) throws(AXWriteBack.Refused)
     {
         // 等剪贴板锁（最长约 1 秒）期间用户可能切走了：⌘V 发往前台，按下前最后核对一次
-        switch paster.run(text, proceed: { frontmost() == owner }) {
+        switch paster.run(text, proceed: { frontmost() == owner && validate() }) {
         case .pasted: return
         case .skipped: throw AXWriteBack.Refused("error.targetChanged")
         case let .failed(text): throw AXWriteBack.Refused(text)

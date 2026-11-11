@@ -32,7 +32,6 @@ extension PanelController {
             }
 
             // 写回前要确认目标应用没被换掉，所以先记下它的标识（必须现查，不读缓存）。
-            let guardToken = silent ? FrontmostApp.liveToken() : nil
             // 静默翻译：没有选区时读整个输入框，且不做剪贴板降级（写回依赖同一条通道）；来源一路带到写回。
             let read = silent
                 ? Result { () throws(SelectionError) in try Selection.readFocusText() }
@@ -54,7 +53,7 @@ extension PanelController {
                         TranslateRequest(text: focus.text, mode: silent ? .silentReplace : .selection,
                                          targetOverride: nil, sourceOverride: nil,
                                          focusSource: silent ? focus.source : nil),
-                        guardToken: guardToken, ticketId: id
+                        guardToken: focus.guardToken, ticketId: id
                     )
                 }
             }

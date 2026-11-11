@@ -34,7 +34,7 @@ enum HostSelfTest {
         if trusted {
             // CI 这类无交互会话有辅助功能权限，AX 却查不到聚焦的应用：与上面的名字一样跳过，不算失败
             if let token = host.frontmostAppToken() {
-                check("frontmostAppToken", Int32(token).map { $0 > 0 } ?? false, "pid=\(token)（AX 现查）")
+                check("frontmostAppToken", UUID(uuidString: token) != nil, "控件身份（AX 现查）")
             } else {
                 print("- frontmostAppToken: skipped: AX reports no focused application (no interactive session)")
             }

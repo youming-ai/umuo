@@ -21,7 +21,7 @@ pub trait Host: Send + Sync {
     /// 要便宜：每次翻译发起时调一次。
     fn frontmost_app_name(&self) -> Option<String>;
 
-    /// 当前前台应用的标识（macOS 上是 pid）。写回守卫拿它与取词时记下的比对。
+    /// 当前写回目标的不透明身份（macOS 上包含聚焦控件身份）。写回守卫拿它与取词时记下的比对。
     fn frontmost_app_token(&self) -> Option<String>;
 
     /// 静默翻译的写回：按读取时的来源替换选区或整个输入框。
