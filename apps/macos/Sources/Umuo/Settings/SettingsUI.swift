@@ -287,15 +287,19 @@ struct PlainTextEditor: NSViewRepresentable {
 /// 确认按钮标成破坏性；回车落在「取消」上，免得顺手一按就删了。
 @MainActor
 enum PrefConfirm {
-    static func ask(_ message: String, confirm: String, cancel: String) async -> Bool {
+    static func ask(_ message: String, detail: String? = nil, confirm: String, cancel: String) async -> Bool {
         let alert = NSAlert()
         alert.messageText = message
+        if let detail { alert.informativeText = detail }
         alert.alertStyle = .warning
         let destructive = alert.addButton(withTitle: confirm)
         destructive.hasDestructiveAction = true
         destructive.keyEquivalent = ""
         alert.addButton(withTitle: cancel).keyEquivalent = "\r"
-        guard let window = NSApp.keyWindow else { return alert.runModal() == .alertFirstButtonReturn }
+        // 刚关掉的打开面板之类的表单还可能是 key window：附到它的父窗口上，否则表单关闭时这里永远等不到结果。
+        guard let window = NSApp.keyWindow.map({ $0.sheetParent ?? $0 }) else {
+            return alert.runModal() == .alertFirstButtonReturn
+        }
         return await withCheckedContinuation { done in
             alert.beginSheetModal(for: window) { done.resume(returning: $0 == .alertFirstButtonReturn) }
         }

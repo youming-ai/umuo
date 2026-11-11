@@ -487,8 +487,16 @@ final class GeneralEditor {
     /// 导入的结果（摘要或失败原因），显示在「导入」那一行。
     var configNotice: String?
     var autostartError: String?
+    /// 导入前请用户确认（标题、说明），返回是否导入。默认是附在设置窗上的系统警告框；测试换成直接回答。
+    @ObservationIgnored var confirmImport: @MainActor (_ title: String, _ detail: String) async -> Bool
 
-    init(_ model: SettingsModel) { self.model = model }
+    init(_ model: SettingsModel) {
+        self.model = model
+        confirmImport = { [unowned model] title, detail in
+            await PrefConfirm.ask(title, detail: detail, confirm: model.t("prefs.general.importConfirmAction"),
+                                  cancel: model.t("common.cancel"))
+        }
+    }
 
     func reset() {
         configPath = ""
@@ -510,13 +518,20 @@ final class GeneralEditor {
 
     var canImport: Bool { !configPath.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
 
+    /// 先预览、请用户确认，确认了才应用；取消什么都不写，也不留提示。
     func importConfig() async {
         let path = configPath.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !path.isEmpty else { return }
         do {
-            let result = try await model.backend.importConfig(path)
+            let pending = try await model.backend.previewImport(path)
+            let detail = SettingsRules.importPreview(pending.summary, model.t)
+            guard await confirmImport(model.t("prefs.general.importConfirmTitle"), detail) else {
+                configNotice = nil
+                return
+            }
+            let result = try await model.backend.importConfig(pending.contents)
             await model.imported(result)
-            configNotice = SettingsRules.importNotice(result, model.t)
+            configNotice = SettingsRules.importNotice(result.summary, model.t)
         } catch {
             configNotice = SettingsRules.message(error)
         }

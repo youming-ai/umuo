@@ -3,12 +3,17 @@
 //! Swift 保存队列经 FFI 每次只交自己改的键。规则：
 //!
 //! 1. **先看文件有没有被别人改过**：mtime 与上次读写时记下的不同就先重载——
-//!    外部修改配置时，缩小互相覆盖的窗口。重载读不动、解析不了就沿用内存值，
-//!    **不走** `load_or_backup`：那条路会把文件挪走并回落默认值，保存途中这么做等于清空用户的配置。
+//!    外部修改配置时，缩小互相覆盖的窗口。重载逐字段容错：个别字段类型不对的沿用当前值，
+//!    用户手改的其余内容照样生效；有字段读不懂、或整份读不动沿用内存值时，**真要写盘前**
+//!    先把原文复制一份 `.corrupt-<时间戳>`——这次保存会覆盖它，手改的原文必须找得回来。
+//!    复制失败就拒绝保存。**不走** `load_or_backup`：那条路会把文件挪走并回落默认值，
+//!    保存途中这么做等于清空用户的配置。
 //! 2. **顶层逐键覆盖**，嵌套对象整体替换、不做深合并。
 //! 3. 失败（patch 解析不了、`prepare_for_save` 不通过、写盘失败）时**内存和文件都不变**。
 
 use std::path::Path;
+
+use serde::Deserialize;
 use std::time::SystemTime;
 
 use crate::settings::Settings;
@@ -53,7 +58,10 @@ impl AppCore {
         let mut mtime = self.settings_mtime.lock().expect("设置时间戳锁不应中毒");
 
         let path = Settings::path_in(&self.config_dir);
-        let latest = latest_settings(&path, &current, *mtime);
+        let Latest {
+            settings: latest,
+            backup,
+        } = latest_settings(&path, &current, *mtime);
 
         let mut merged = serde_json::to_value(&latest).expect("设置结构体一定可序列化");
         let fields = merged.as_object_mut().expect("设置序列化成 JSON 对象");
@@ -63,6 +71,9 @@ impl AppCore {
         let mut next: Settings =
             serde_json::from_value(merged).map_err(|e| format!("设置格式不对：{e}"))?;
         next.prepare_for_save(&latest)?;
+        if backup {
+            keep_aside(&path)?;
+        }
         let rollback = before_save()?;
         if let Err(error) = next.save(&self.config_dir) {
             rollback();
@@ -90,8 +101,14 @@ impl AppCore {
         let mut current = self.settings.lock().expect("设置锁不应中毒");
         let mut mtime = self.settings_mtime.lock().expect("设置时间戳锁不应中毒");
         let path = Settings::path_in(&self.config_dir);
-        let mut next = latest_settings(&path, &current, *mtime);
-        if !change(&mut next) || next.save(&self.config_dir).is_err() {
+        let Latest {
+            settings: mut next,
+            backup,
+        } = latest_settings(&path, &current, *mtime);
+        if !change(&mut next) || (backup && keep_aside(&path).is_err()) {
+            return false;
+        }
+        if next.save(&self.config_dir).is_err() {
             return false;
         }
         *mtime = modified(&path);
@@ -100,24 +117,75 @@ impl AppCore {
     }
 }
 
-/// 别处改过文件（mtime 与上次读写时不同）就以文件为准；读不动沿用内存。
-fn latest_settings(path: &Path, current: &Settings, mtime: Option<SystemTime>) -> Settings {
-    if modified(path) != mtime {
-        read_strict(path).unwrap_or_else(|| current.clone())
-    } else {
-        current.clone()
+/// 重载的结果：最新设置，以及写盘前要不要先备份原文。
+struct Latest {
+    settings: Settings,
+    /// 文件被外部改过、且有读不懂的内容：这次保存会盖掉它，写盘**之前**先复制一份。
+    /// 不在重载时就备份——校验不通过、没有改动时根本不写，重试一次就多一份备份。
+    backup: bool,
+}
+
+/// 别处改过文件（mtime 与上次读写时不同）就以文件为准；文件没了沿用内存。
+///
+/// 逐字段容错：整份解析得了就照用；解析不了时，读得懂的顶层键用文件里的，
+/// 类型不对的键沿用**内存里的当前值**（不是默认值：保留期回落成默认会当场清掉历史，
+/// 黑名单回落成默认会让排除过的应用又能取词），并要求写盘前备份原文。
+/// 整份读不动、不是 JSON 对象时沿用内存，同样要求备份。
+fn latest_settings(path: &Path, current: &Settings, mtime: Option<SystemTime>) -> Latest {
+    let keep = |backup| Latest {
+        settings: current.clone(),
+        backup,
+    };
+    if modified(path) == mtime {
+        return keep(false);
     }
+    let raw = match std::fs::read(path) {
+        Ok(raw) => raw,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return keep(false),
+        Err(_) => return keep(true),
+    };
+    let Ok(serde_json::Value::Object(fields)) = serde_json::from_slice(&raw) else {
+        return keep(true);
+    };
+    if let Ok(settings) = Settings::deserialize(&fields) {
+        return Latest {
+            settings,
+            backup: false,
+        };
+    }
+    let serde_json::Value::Object(live) =
+        serde_json::to_value(current).expect("设置结构体一定可序列化")
+    else {
+        unreachable!("设置序列化成 JSON 对象");
+    };
+    let merged: serde_json::Map<_, _> = fields
+        .into_iter()
+        .filter_map(|(key, value)| {
+            let single = serde_json::json!({ key.as_str(): value });
+            if serde_json::from_value::<Settings>(single).is_ok() {
+                Some((key, value))
+            } else {
+                live.get(&key).cloned().map(|fallback| (key, fallback))
+            }
+        })
+        .collect();
+    Latest {
+        settings: serde_json::from_value(serde_json::Value::Object(merged))
+            .unwrap_or_else(|_| current.clone()),
+        backup: true,
+    }
+}
+
+/// 覆盖前把外部改过的原文复制一份；复制不了就不让保存把它盖掉。
+fn keep_aside(path: &Path) -> Result<(), String> {
+    crate::persist::copy_aside(path).map_err(|e| {
+        format!("设置文件被外部改过且有内容读不懂，备份原文失败（{e}），这次没有保存，以免覆盖手改的内容")
+    })
 }
 
 /// 设置文件的修改时间；文件不存在或系统不给就是 `None`。
 pub(crate) fn modified(path: &Path) -> Option<SystemTime> {
     std::fs::metadata(path).and_then(|m| m.modified()).ok()
-}
-
-/// 重载用：读不动或解析不了就返回 `None`，**不备份、不回落默认值**（理由见模块文档）。
-fn read_strict(path: &Path) -> Option<Settings> {
-    let raw = std::fs::read_to_string(path).ok()?;
-    serde_json::from_str(&raw).ok()
 }
 
 #[cfg(test)]
@@ -160,6 +228,43 @@ mod tests {
 
     fn file_bytes(core: &AppCore) -> Vec<u8> {
         std::fs::read(Settings::path_in(&core.config_dir)).unwrap()
+    }
+
+    fn edit_elsewhere(core: &AppCore, contents: &str) {
+        let path = Settings::path_in(&core.config_dir);
+        std::fs::write(&path, contents).unwrap();
+        let later = modified(&path).unwrap() + Duration::from_secs(2);
+        std::fs::File::options()
+            .write(true)
+            .open(&path)
+            .unwrap()
+            .set_modified(later)
+            .unwrap();
+    }
+
+    #[test]
+    fn nothing_written_means_no_backup_however_often_it_is_retried() {
+        // 备份只在真要写盘时做：校验不通过、程序内小改动没改什么，都不该每试一次多一份。
+        let core = open_in("reload-no-write", &json!({ "theme": "light" }));
+        edit_elsewhere(
+            &core,
+            r#"{ "theme": "dark", "historyRetentionDays": "90" }"#,
+        );
+        for _ in 0..3 {
+            assert!(core
+                .apply_settings_patch(json!({ "proxyMode": "custom", "proxyUrl": "not a url" }))
+                .is_err());
+            assert!(!core.update_settings(|_| false));
+        }
+        assert!(crate::persist::corrupt_backups(&core.config_dir, "settings.json").is_empty());
+
+        core.apply_settings_patch(json!({ "locale": "ja" }))
+            .unwrap();
+        assert_eq!(
+            crate::persist::corrupt_backups(&core.config_dir, "settings.json").len(),
+            1,
+            "真正写盘时备份一次"
+        );
     }
 
     #[test]
@@ -309,6 +414,67 @@ mod tests {
             .apply_settings_patch(json!({ "locale": "ja" }))
             .unwrap();
         assert_eq!(saved.theme, "dark", "坏文件不能让设置回落成默认值");
+        let backups = crate::persist::corrupt_backups(&core.config_dir, "settings.json");
+        assert_eq!(backups.len(), 1, "这次保存会盖掉手改的原文，先备份");
+        assert_eq!(std::fs::read_to_string(&backups[0]).unwrap(), "{ 半截");
+    }
+
+    #[test]
+    fn a_hand_edit_with_one_bad_field_keeps_the_other_edits_and_backs_up_the_original() {
+        // 手改时把 historyRetentionDays 写成了字符串：以前整份重载失败、退回内存，
+        // 这次保存就把同时改的主题、语言一起盖掉。现在只丢那一个字段，原文另存一份。
+        let core = open_in(
+            "reload-one-bad",
+            &json!({ "theme": "light", "locale": "en", "historyRetentionDays": 30 }),
+        );
+        let path = Settings::path_in(&core.config_dir);
+        let edited = json!({ "theme": "dark", "locale": "en", "targetLang": "ja", "historyRetentionDays": "90", "futureField": null })
+            .to_string();
+        std::fs::write(&path, &edited).unwrap();
+        let later = modified(&path).unwrap() + Duration::from_secs(2);
+        std::fs::File::options()
+            .write(true)
+            .open(&path)
+            .unwrap()
+            .set_modified(later)
+            .unwrap();
+
+        let (saved, _) = core
+            .apply_settings_patch(json!({ "locale": "ja" }))
+            .unwrap();
+        assert_eq!(saved.theme, "dark", "手改的主题保留");
+        assert_eq!(saved.target_lang, "ja", "手改的目标语言保留");
+        assert_eq!(saved.locale, "ja");
+        assert_eq!(
+            saved.extra.get("futureField"),
+            Some(&serde_json::Value::Null),
+            "读得懂的键原样保留，值是 null 也一样"
+        );
+        assert_eq!(
+            saved.history_retention_days, 30,
+            "类型不对的字段沿用当前值，不回落默认值（默认 90 天以外的值会被改掉、当场清历史）"
+        );
+        let backups = crate::persist::corrupt_backups(&core.config_dir, "settings.json");
+        assert_eq!(backups.len(), 1);
+        assert_eq!(std::fs::read_to_string(&backups[0]).unwrap(), edited);
+    }
+
+    #[test]
+    fn a_clean_external_edit_is_reloaded_without_a_backup() {
+        let core = open_in("reload-clean", &json!({ "theme": "light" }));
+        let path = Settings::path_in(&core.config_dir);
+        std::fs::write(&path, json!({ "theme": "dark" }).to_string()).unwrap();
+        let later = modified(&path).unwrap() + Duration::from_secs(2);
+        std::fs::File::options()
+            .write(true)
+            .open(&path)
+            .unwrap()
+            .set_modified(later)
+            .unwrap();
+
+        core.apply_settings_patch(json!({ "locale": "ja" }))
+            .unwrap();
+        assert!(crate::persist::corrupt_backups(&core.config_dir, "settings.json").is_empty());
     }
 
     #[test]

@@ -69,10 +69,46 @@ enum SettingsRules {
         return next == savedMode ? .unchanged : .commit(next)
     }
 
-    /// 导入结果的说明。端点与取词黑名单的变化单独列出：前者决定 API Key 发往哪里，
-    /// 后者决定哪些应用里的选中内容会被读取——一份别人分享的配置不该悄悄改掉它们。
+    /// 导入前的确认说明：应用之前把会覆盖掉的、有副作用的都摆出来，用户点了「导入」才写。
+    /// 端点决定 API Key 发往哪里，黑名单决定哪些应用里的选中内容会被读取，代理经手所有请求，
+    /// 保留期改短会当场删历史——一份别人分享的配置不该悄悄改掉这些。没变化的项不提。
+    static func importPreview(_ summary: ImportSummary, _ t: Translate) -> String {
+        var parts = [t("prefs.general.importPreview", ["version": String(summary.bundleVersion)])]
+        if !summary.endpointChanges.isEmpty {
+            parts.append(t("prefs.general.importEndpoints", ["list": endpointList(summary, t)]))
+        }
+        switch summary.proxyChange {
+        case nil: break
+        case "system": parts.append(t("prefs.general.importProxySystem"))
+        case "none": parts.append(t("prefs.general.importProxyNone"))
+        case let url?: parts.append(t("prefs.general.importProxy", ["proxy": url]))
+        }
+        if !summary.blacklistRemoved.isEmpty {
+            parts.append(t("prefs.general.importBlacklistRemoved", ["list": summary.blacklistRemoved.joined(separator: ", ")]))
+        }
+        if !summary.blacklistAdded.isEmpty {
+            parts.append(t("prefs.general.importBlacklistAdded", ["list": summary.blacklistAdded.joined(separator: ", ")]))
+        }
+        if let days = summary.retentionShortenedTo { parts.append(t("prefs.general.importRetention", ["days": String(days)])) }
+        if summary.hotkeysDiffer { parts.append(t("prefs.general.importHotkeys")) }
+        if summary.replacedCustomStyleCount > 0 {
+            parts.append(t("prefs.general.importReplacesStyles", ["count": String(summary.replacedCustomStyleCount)]))
+        }
+        if summary.replacedGlossaryCount > 0 {
+            parts.append(t("prefs.general.importReplacesGlossaries", ["count": String(summary.replacedGlossaryCount)]))
+        }
+        return parts.joined(separator: "\n\n")
+    }
+
+    private static func endpointList(_ summary: ImportSummary, _ t: Translate) -> String {
+        summary.endpointChanges
+            .map { "\($0.providerId) → \($0.url.isEmpty ? t("prefs.general.importedEndpointDefault") : $0.url)" }
+            .joined(separator: ", ")
+    }
+
+    /// 导入之后的说明（显示在「导入」那一行）。端点与取词黑名单的变化仍单独列出，确认框关掉之后也查得到。
     /// 旧风格与术语表只保留数据、不参与翻译，条数为 0 时不提。
-    static func importNotice(_ result: ImportResult, _ t: Translate) -> String {
+    static func importNotice(_ result: ImportSummary, _ t: Translate) -> String {
         var parts = [t("prefs.general.imported", ["version": String(result.bundleVersion)])]
         if result.customStyleCount > 0 {
             parts.append(t("prefs.general.importedStyles", ["count": String(result.customStyleCount)]))
@@ -81,10 +117,7 @@ enum SettingsRules {
             parts.append(t("prefs.general.importedGlossaries", ["count": String(result.glossaryCount)]))
         }
         if !result.endpointChanges.isEmpty {
-            let list = result.endpointChanges
-                .map { "\($0.providerId) → \($0.url.isEmpty ? t("prefs.general.importedEndpointDefault") : $0.url)" }
-                .joined(separator: ", ")
-            parts.append(t("prefs.general.importedEndpoints", ["list": list]))
+            parts.append(t("prefs.general.importedEndpoints", ["list": endpointList(result, t)]))
         }
         if !result.blacklistAdded.isEmpty {
             parts.append(t("prefs.general.importedBlacklistAdded", ["list": result.blacklistAdded.joined(separator: ", ")]))

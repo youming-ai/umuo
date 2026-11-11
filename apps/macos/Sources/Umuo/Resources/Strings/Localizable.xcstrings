@@ -6674,6 +6674,66 @@
         }
       }
     },
+    "prefs.general.importBlacklistAdded": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "取词黑名单将新增：%1$@。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "取詞黑名單將新增：%1$@。"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Will be added to the selection blocklist: %1$@."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "取得しないアプリに追加されます：%1$@。"
+          }
+        }
+      },
+      "comment": "placeholders: list"
+    },
+    "prefs.general.importBlacklistRemoved": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "取词黑名单将移除：%1$@。这些应用里选中的文字以后会被读取并发给翻译服务。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "取詞黑名單將移除：%1$@。這些應用程式裡選取的文字之後會被讀取並送到翻譯服務。"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Will be removed from the selection blocklist: %1$@. Text selected in these apps will then be read and sent for translation."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "取得しないアプリから削除されます：%1$@。これらのアプリで選択したテキストは今後読み取られ、翻訳サービスへ送られます。"
+          }
+        }
+      },
+      "comment": "placeholders: list"
+    },
     "prefs.general.importChoose": {
       "extractionState": "manual",
       "localizations": {
@@ -6703,6 +6763,94 @@
         }
       }
     },
+    "prefs.general.importConfirmAction": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "导入"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "匯入"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Import"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "読み込む"
+          }
+        }
+      }
+    },
+    "prefs.general.importConfirmTitle": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "导入这份配置？"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "匯入這份設定？"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Import these settings?"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "この設定を読み込みますか？"
+          }
+        }
+      }
+    },
+    "prefs.general.importEndpoints": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "请求地址将改为（API Key 会发到这里）：%1$@。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "請求位址將改為（API Key 會送到這裡）：%1$@。"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Request addresses will change (your API keys are sent here): %1$@."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "リクエスト先が変わります（API キーはここへ送られます）：%1$@。"
+          }
+        }
+      },
+      "comment": "placeholders: list"
+    },
     "prefs.general.importHint": {
       "extractionState": "manual",
       "localizations": {
@@ -6728,6 +6876,272 @@
           "stringUnit": {
             "state": "translated",
             "value": "書き出したファイルを選びます。読み込み後は API キーを入力し直してください。"
+          }
+        }
+      }
+    },
+    "prefs.general.importHotkeys": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "全局快捷键会改变。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "全域快速鍵會改變。"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Global shortcuts will change."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "グローバルショートカットが変わります。"
+          }
+        }
+      }
+    },
+    "prefs.general.importPreview": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "将用文件里的设置替换当前设置（格式 v%1$@）。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "將用檔案裡的設定取代目前設定（格式 v%1$@）。"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your current settings will be replaced by the ones in this file (format v%1$@)."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "現在の設定をこのファイルの内容で置き換えます（形式 v%1$@）。"
+          }
+        }
+      },
+      "comment": "placeholders: version"
+    },
+    "prefs.general.importProxy": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "代理改为：%1$@。所有请求（含 API Key）都会经过它。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "代理改為：%1$@。所有請求（含 API Key）都會經過它。"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The proxy changes to %1$@. All requests, including your API keys, go through it."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "プロキシが %1$@ に変わります。API キーを含むすべてのリクエストがここを経由します。"
+          }
+        }
+      },
+      "comment": "placeholders: proxy"
+    },
+    "prefs.general.importProxyNone": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "改为不使用代理。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "改為不使用代理。"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The proxy will be turned off."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "プロキシを使用しなくなります。"
+          }
+        }
+      }
+    },
+    "prefs.general.importProxySystem": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "代理改为跟随系统设置。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "代理改為跟隨系統設定。"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The proxy will follow the system setting."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "プロキシはシステム設定に従うようになります。"
+          }
+        }
+      }
+    },
+    "prefs.general.importReplacesGlossaries": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "本机现有的术语表 %1$@ 个会被替换。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "本機現有的詞彙表 %1$@ 個會被取代。"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The %1$@ glossaries on this Mac will be replaced."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "この Mac の用語集 %1$@ 件は置き換えられます。"
+          }
+        }
+      },
+      "comment": "placeholders: count"
+    },
+    "prefs.general.importReplacesStyles": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "本机现有的旧风格 %1$@ 条会被替换。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "本機現有的舊風格 %1$@ 條會被取代。"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The %1$@ legacy styles on this Mac will be replaced."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "この Mac の旧スタイル %1$@ 件は置き換えられます。"
+          }
+        }
+      },
+      "comment": "placeholders: count"
+    },
+    "prefs.general.importRetention": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "历史只保留 %1$@ 天：更早的记录导入后立刻删除。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "歷史只保留 %1$@ 天：更早的紀錄匯入後立即刪除。"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "History will be kept for only %1$@ days: older entries are deleted as soon as you import."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "履歴の保存期間が %1$@ 日になり、それより古い記録は読み込み直後に削除されます。"
+          }
+        }
+      },
+      "comment": "placeholders: days"
+    },
+    "prefs.general.importUnreadable": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "读不了这个文件：它不存在、没有权限，或不是文本。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "讀不了這個檔案：它不存在、沒有權限，或不是文字。"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Couldn't read this file: it is missing, not accessible, or not text."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "このファイルを読み込めません。存在しないか、アクセス権がないか、テキストではありません。"
           }
         }
       }

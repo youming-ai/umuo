@@ -2,6 +2,12 @@ import AppKit
 import ApplicationServices
 import UmuoCore
 
+/// 读出来、预览过、等用户确认的一份配置包。
+struct PendingImport: Sendable {
+    let contents: String
+    let summary: ImportSummary
+}
+
 /// 本应用里系统权限的此刻状态。nil = 没读出来。
 struct PermissionStatus: Equatable, Sendable {
     var accessibility: Bool?
@@ -37,8 +43,11 @@ protocol SettingsBackend: AnyObject {
     func setHotkeyRecording(_ active: Bool)
 
     func exportConfig() async throws -> String
-    /// 导入后的新设置由实现负责交给应用（快捷键重注册、浮窗的主题语言）。
-    func importConfig(_ path: String) async throws -> ImportResult
+    /// 读配置文件并预览，**什么都不写**。文件只读这一次：确认后用同一份内容 `importConfig`，
+    /// 确认期间文件被换掉也不会应用一份没看过的配置。
+    func previewImport(_ path: String) async throws -> PendingImport
+    /// 应用预览过的那份内容。导入后的新设置由实现负责交给应用（快捷键重注册、浮窗的主题语言）。
+    func importConfig(_ contents: String) async throws -> ImportResult
 
     func openHistory()
     func openOnboarding()
@@ -167,9 +176,21 @@ final class EngineSettingsBackend: SettingsBackend {
         return try await Task.detached { try engine.exportConfig() }.value
     }
 
-    func importConfig(_ path: String) async throws -> ImportResult {
+    func previewImport(_ path: String) async throws -> PendingImport {
         let engine = try engine()
-        let result = try await Task.detached { try engine.importConfig(path: path) }.value
+        let unreadable = app.t("prefs.general.importUnreadable")
+        return try await Task.detached {
+            let contents: String
+            do { contents = try String(contentsOfFile: path, encoding: .utf8) } catch {
+                throw EngineError.Failed(message: unreadable)
+            }
+            return PendingImport(contents: contents, summary: try engine.previewImport(contents: contents))
+        }.value
+    }
+
+    func importConfig(_ contents: String) async throws -> ImportResult {
+        let engine = try engine()
+        let result = try await Task.detached { try engine.importConfig(contents: contents) }.value
         app.settingsApplied(settingsJson: result.settingsJson, hotkeysChanged: result.hotkeysChanged)
         return result
     }

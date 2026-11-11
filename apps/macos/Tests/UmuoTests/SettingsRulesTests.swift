@@ -213,11 +213,9 @@ struct SettingsRulesTests {
     }
 
     @Test func 导入说明单独列出端点与黑名单的变化() {
-        let result = ImportResult(
-            providerId: "openai", targetLang: "en", customStyleCount: 1, glossaryCount: 2, bundleVersion: 1,
-            endpointChanges: [EndpointChange(providerId: "custom", url: ""), EndpointChange(providerId: "azure", url: "https://x")],
-            blacklistAdded: ["Slack"], blacklistRemoved: [], settingsJson: "{}", hotkeysChanged: false
-        )
+        let result = summary(styles: 1, glossaries: 2,
+                             endpoints: [EndpointChange(providerId: "custom", url: ""), EndpointChange(providerId: "azure", url: "https://x")],
+                             added: ["Slack"])
         let notice = SettingsRules.importNotice(result, zh)
         #expect(notice.contains("custom → \(zh("prefs.general.importedEndpointDefault"))"))
         #expect(notice.contains("azure → https://x"))
@@ -228,11 +226,38 @@ struct SettingsRulesTests {
     }
 
     @Test func 导入说明里旧风格与术语表为零时不提() {
-        let result = ImportResult(
-            providerId: "openai", targetLang: "en", customStyleCount: 0, glossaryCount: 0, bundleVersion: 2,
-            endpointChanges: [], blacklistAdded: [], blacklistRemoved: [], settingsJson: "{}", hotkeysChanged: false
-        )
+        let result = summary(version: 2)
         #expect(SettingsRules.importNotice(result, zh) == zh("prefs.general.imported", ["version": "2"]))
+    }
+
+    @Test func 导入确认框列出会覆盖的和有副作用的改动() {
+        let preview = SettingsRules.importPreview(
+            summary(endpoints: [EndpointChange(providerId: "openai", url: "https://relay")], removed: ["1Password"],
+                    replacedStyles: 1, replacedGlossaries: 3, retention: 7, proxy: "http://127.0.0.1:7890", hotkeys: true),
+            zh
+        )
+        for line in [
+            zh("prefs.general.importPreview", ["version": "1"]),
+            zh("prefs.general.importEndpoints", ["list": "openai → https://relay"]),
+            zh("prefs.general.importProxy", ["proxy": "http://127.0.0.1:7890"]),
+            zh("prefs.general.importBlacklistRemoved", ["list": "1Password"]),
+            zh("prefs.general.importRetention", ["days": "7"]),
+            zh("prefs.general.importHotkeys"),
+            zh("prefs.general.importReplacesStyles", ["count": "1"]),
+            zh("prefs.general.importReplacesGlossaries", ["count": "3"]),
+        ] {
+            #expect(preview.contains(line), "\(line)")
+        }
+    }
+
+    @Test func 代理改成跟随系统或不使用时不说成地址() {
+        #expect(SettingsRules.importPreview(summary(proxy: "system"), zh).contains(zh("prefs.general.importProxySystem")))
+        #expect(SettingsRules.importPreview(summary(proxy: "none"), zh).contains(zh("prefs.general.importProxyNone")))
+        #expect(!SettingsRules.importPreview(summary(proxy: "none"), zh).contains(zh("prefs.general.importProxy", ["proxy": "none"])))
+    }
+
+    @Test func 什么都没变的导入确认框只有一句() {
+        #expect(SettingsRules.importPreview(summary(), zh) == zh("prefs.general.importPreview", ["version": "1"]))
     }
 
     @Test func 错误只显示信息不带枚举名() {

@@ -76,7 +76,7 @@ struct GeneralPage: View {
         }
     }
 
-    /// 选一个导出过的配置文件就直接导入：系统的打开面板，以表单附在设置窗上。
+    /// 选一个导出过的配置文件：系统的打开面板，以表单附在设置窗上；选好后先预览、确认了才导入。
     private func chooseAndImport() {
         let panel = NSOpenPanel()
         panel.canChooseFiles = true

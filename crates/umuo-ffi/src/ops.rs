@@ -164,15 +164,15 @@ pub struct QuickRecord {
 }
 
 /// 导入改动了的一个端点：`provider_id`（自定义端点是 `custom`）→ 新地址（空串 = 删掉覆盖）。
-#[derive(Debug, Clone, uniffi::Record)]
+#[derive(Debug, Clone, PartialEq, uniffi::Record)]
 pub struct EndpointChange {
     pub provider_id: String,
     pub url: String,
 }
 
-/// 一次导入的结果：给界面的摘要，以及让设置当场生效所需的新设置与「快捷键变了没有」。
-#[derive(Debug, Clone, uniffi::Record)]
-pub struct ImportResult {
+/// 导入摘要（`umuo_app::config_io::ImportSummary`）：应用前给用户确认，应用后也作提示。
+#[derive(Debug, Clone, PartialEq, uniffi::Record)]
+pub struct ImportSummary {
     pub provider_id: String,
     pub target_lang: String,
     pub custom_style_count: u32,
@@ -181,6 +181,58 @@ pub struct ImportResult {
     pub endpoint_changes: Vec<EndpointChange>,
     pub blacklist_added: Vec<String>,
     pub blacklist_removed: Vec<String>,
+    /// 本机现有、会被整份替换掉的自建风格与术语表条数。
+    pub replaced_custom_style_count: u32,
+    pub replaced_glossary_count: u32,
+    /// 历史保留天数被改短时的新值：应用当场就删掉超期的历史。
+    pub retention_shortened_to: Option<u32>,
+    /// 代理变了时的新设置（自定义时是地址，否则是模式名）。
+    pub proxy_change: Option<String>,
+    pub hotkeys_differ: bool,
+}
+
+impl From<umuo_app::config_io::ImportSummary> for ImportSummary {
+    fn from(summary: umuo_app::config_io::ImportSummary) -> Self {
+        let umuo_app::config_io::ImportSummary {
+            provider_id,
+            target_lang,
+            custom_style_count,
+            glossary_count,
+            bundle_version,
+            endpoint_changes,
+            blacklist_added,
+            blacklist_removed,
+            replaced_custom_style_count,
+            replaced_glossary_count,
+            retention_shortened_to,
+            proxy_change,
+            hotkeys_changed,
+        } = summary;
+        Self {
+            provider_id,
+            target_lang,
+            custom_style_count: count(custom_style_count),
+            glossary_count: count(glossary_count),
+            bundle_version,
+            endpoint_changes: endpoint_changes
+                .into_iter()
+                .map(|(provider_id, url)| EndpointChange { provider_id, url })
+                .collect(),
+            blacklist_added,
+            blacklist_removed,
+            replaced_custom_style_count: count(replaced_custom_style_count),
+            replaced_glossary_count: count(replaced_glossary_count),
+            retention_shortened_to,
+            proxy_change,
+            hotkeys_differ: hotkeys_changed,
+        }
+    }
+}
+
+/// 一次导入的结果：摘要，以及让设置当场生效所需的新设置与「快捷键变了没有」。
+#[derive(Debug, Clone, uniffi::Record)]
+pub struct ImportResult {
+    pub summary: ImportSummary,
     /// 规范化之后的整份设置（JSON，同 `SettingsUpdate.settings_json`）。
     pub settings_json: String,
     /// 快捷键改了：Swift 要当场重注册。
@@ -267,36 +319,23 @@ impl Engine {
         ops::export_config(&self.core, Path::new(&home)).map_err(failed)
     }
 
-    /// 从文件导入配置与术语表。整份包先校验，不合法就一个文件都不写；不碰 Keychain。
-    pub fn import_config(&self, path: String) -> Result<ImportResult, EngineError> {
+    /// 预览配置包的**内容**：校验并给出摘要，什么都不写。界面请用户确认后，用同一份内容调 `import_config`。
+    pub fn preview_import(&self, contents: String) -> Result<ImportSummary, EngineError> {
+        ops::preview_import(&self.core, &contents)
+            .map(ImportSummary::from)
+            .map_err(failed)
+    }
+
+    /// 应用配置包的**内容**（与预览的是同一份）：配置与术语表。整份包先校验，不合法就一个文件都不写；不碰 Keychain。
+    pub fn import_config(&self, contents: String) -> Result<ImportResult, EngineError> {
         let ops::Imported {
             summary,
             settings,
             effects,
-        } = ops::import_config(&self.core, Path::new(&path)).map_err(failed)?;
-        let umuo_app::config_io::ImportSummary {
-            provider_id,
-            target_lang,
-            custom_style_count,
-            glossary_count,
-            bundle_version,
-            endpoint_changes,
-            blacklist_added,
-            blacklist_removed,
-        } = summary;
+        } = ops::import_config(&self.core, &contents).map_err(failed)?;
         let umuo_app::settings_patch::SettingsEffects { hotkeys } = effects;
         Ok(ImportResult {
-            provider_id,
-            target_lang,
-            custom_style_count: count(custom_style_count),
-            glossary_count: count(glossary_count),
-            bundle_version,
-            endpoint_changes: endpoint_changes
-                .into_iter()
-                .map(|(provider_id, url)| EndpointChange { provider_id, url })
-                .collect(),
-            blacklist_added,
-            blacklist_removed,
+            summary: summary.into(),
             settings_json: serde_json::to_string(&settings).expect("设置结构体一定可序列化"),
             hotkeys_changed: hotkeys,
         })
@@ -430,14 +469,15 @@ mod tests {
         .unwrap();
 
         let other = open();
-        let imported = other
-            .import_config(bundle.to_string_lossy().into_owned())
-            .unwrap();
+        let contents = std::fs::read_to_string(&bundle).unwrap();
+        let preview = other.preview_import(contents.clone()).unwrap();
+        assert!(preview.hotkeys_differ);
+        let imported = other.import_config(contents).unwrap();
+        assert_eq!(imported.summary, preview, "应用的就是预览过的那份");
         assert!(imported.hotkeys_changed);
         let json: Value = serde_json::from_str(&imported.settings_json).unwrap();
         assert_eq!(json["composeHotkey"], "Alt+Shift+A");
-        assert!(other
-            .import_config("/nonexistent/umuo.json".into())
-            .is_err());
+        assert!(other.preview_import("不是 JSON".into()).is_err());
+        assert!(other.import_config("不是 JSON".into()).is_err());
     }
 }

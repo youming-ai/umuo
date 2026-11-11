@@ -288,17 +288,26 @@ pub struct Imported {
     pub effects: SettingsEffects,
 }
 
-/// 从文件导入配置与术语表。
+/// 预览一份配置包：校验并生成摘要，**什么都不写**。界面拿摘要请用户确认后再 [`import_config`]。
+///
+/// 参数是文件**内容**而不是路径：宿主只读一次文件，预览与应用用同一份，
+/// 用户确认之后文件被换掉也不会应用一份没看过的配置。
+pub fn preview_import(core: &AppCore, raw: &str) -> Result<config_io::ImportSummary, String> {
+    let current = core.settings.lock().expect("设置锁不应中毒").clone();
+    let glossaries = Glossaries::load(&core.config_dir);
+    config_io::prepare_import(raw, &current, &glossaries).map(|prepared| prepared.summary)
+}
+
+/// 应用一份配置包（内容，见 [`preview_import`]）：配置与术语表。
 ///
 /// **不碰 Keychain**：导入的包里没有 Key，用户的 Key 保持原样。
 /// 设置走与保存相同的 [`AppCore::apply_settings_patch`]（整份作 patch），不绕过任何一条校验。
-pub fn import_config(core: &AppCore, path: &Path) -> Result<Imported, String> {
-    let raw = std::fs::read_to_string(path).map_err(|e| format!("读取失败：{e}"))?;
+pub fn import_config(core: &AppCore, raw: &str) -> Result<Imported, String> {
     // 先在内存里把整份包校验一遍，**任何一个文件都还没写**：不合法的包整份拒绝，
     // 不会因为设置校验失败而只导进来术语表。
     let current = core.settings.lock().expect("设置锁不应中毒").clone();
     let glossaries = Glossaries::load(&core.config_dir);
-    let prepared = config_io::prepare_import(&raw, &current, &glossaries)?;
+    let prepared = config_io::prepare_import(raw, &current, &glossaries)?;
     // 术语表在设置**校验通过之后、落盘之前**写：保存时对着最新文件再校验一次，
     // 那次不通过也不能让术语表已经被覆盖。设置写盘失败时把术语表恢复成导入前的字节
     // （原本没有就删掉），不会只导进来一半。
@@ -436,7 +445,16 @@ mod tests {
         let path = export_config(&core, &home).unwrap();
 
         let other = open_in("import");
-        let imported = import_config(&other, Path::new(&path)).unwrap();
+        let raw = std::fs::read_to_string(&path).unwrap();
+        let preview = preview_import(&other, &raw).unwrap();
+        assert!(preview.hotkeys_changed);
+        assert_eq!(
+            *other.settings.lock().unwrap(),
+            Settings::load(&other.config_dir),
+            "预览不写设置文件"
+        );
+        assert_ne!(other.settings.lock().unwrap().theme, "dark", "预览不改内存");
+        let imported = import_config(&other, &raw).unwrap();
         assert_eq!(imported.settings.theme, "dark");
         assert!(imported.effects.hotkeys);
         assert_eq!(*other.settings.lock().unwrap(), imported.settings);
@@ -472,7 +490,7 @@ mod tests {
         let glossary_bytes = std::fs::read(&glossaries).unwrap();
         let settings_bytes = std::fs::read(Settings::path_in(&core.config_dir)).unwrap();
 
-        assert!(import_config(&core, &path).is_err());
+        assert!(import_config(&core, &std::fs::read_to_string(&path).unwrap()).is_err());
         assert_eq!(
             std::fs::read(&glossaries).unwrap(),
             glossary_bytes,
@@ -516,7 +534,7 @@ mod tests {
             std::fs::create_dir_all(&tmp).unwrap();
             let memory = core.settings.lock().unwrap().clone();
 
-            assert!(import_config(&core, &path).is_err());
+            assert!(import_config(&core, &std::fs::read_to_string(&path).unwrap()).is_err());
             assert_eq!(
                 std::fs::read(&glossaries).ok(),
                 before,

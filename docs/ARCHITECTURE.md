@@ -147,12 +147,14 @@ Swift 处理事件更新界面。
 
 保存设置与导入配置走同一个 `AppCore::apply_settings_patch`（`crates/umuo-app/src/settings_patch.rs`）：
 JSON 顶层逐键覆盖在最新设置上，mtime 变了先重载；嵌套对象整体替换，不做深合并。
+重载逐字段容错：类型不对的键沿用当前值，其余手改照样生效；有读不懂的内容时，真要写盘前先复制原文到 `.corrupt-<时间戳>`，复制失败就不保存。
 `Settings::prepare_for_save` 做规范化、代理与端点校验；失败时内存和文件都不变。
 Swift 经 `Engine.applySettingsPatch` 只交自己改的键，不自己解析配置文件。
 快捷键重注册、外观与界面语言由 Swift 宿主应用。
 **自定义端点与需要 Key 的供应商覆盖只接受 `https://`**（`localhost` / `127.0.0.1` / `[::1]` 例外）：这些地址会收到明文的 Bearer Key。本机模型类供应商（Ollama / LM Studio）不发 Key，局域网 http 地址也放行。
 只校验这次改动了的端点，老配置里已有的局域网 `http://` 地址不会让用户从此改不了任何设置。
-导入先在内存里校验整份设置，不合法就整份拒绝、一个文件都不写；摘要列出端点与取词黑名单的变化。
+导入分两步：Swift 只读一次文件，`Engine.previewImport` 校验并给出摘要、什么都不写；用户在确认框里看过才用**同一份内容**调 `Engine.importConfig`。
+不合法就整份拒绝、一个文件都不写；摘要列出端点、代理、取词黑名单、快捷键的变化，保留期改短（应用时当场删历史），以及会被整份替换的本地旧风格与术语表。
 
 **本版本不认识的字段原样保留**（`umuo_core::UnknownFields`，`#[serde(flatten)] extra`）：设置与导出包保留未知字段。
 退役的 `customStyles` 及 `glossaries.json` 的列表使用完整 JSON Value 保存，不解释、规范化或重建条目。
