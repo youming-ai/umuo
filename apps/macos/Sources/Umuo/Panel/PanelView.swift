@@ -1,13 +1,8 @@
 import SwiftUI
 import UmuoCore
 
-/// 划词翻译浮窗的界面：布局、文案、按钮的显示条件逐条一致。
-///
-/// 它不做任何决策——语言、模型都来自 Engine 推来的事件；这里只把状态画出来，
-/// 把「用户想干什么」交给 `PanelSession`。
-///
-/// 不用 `@State`：只装 Command Line Tools 时 SwiftUI 的宏插件不在，编不过；窗口状态全在 `PanelSession` 里（也因此能测）。
-/// 控件、颜色与底板都用系统的：按钮是标准的小号按钮，底板与圆角、阴影由窗口外壳负责（`FloatingPanelChrome`）。
+/// 翻译浮窗：原文、译文与操作分区，状态留在各自的内容区域。
+/// 窗口行为由 AppKit 外壳负责，操作与请求归属仍由 `PanelSession` 决定。
 struct PanelView: View {
     @Bindable var session: PanelSession
 
@@ -17,11 +12,11 @@ struct PanelView: View {
     var body: some View {
         VStack(spacing: 0) {
             header
-            ViewThatFits(in: .vertical) {
-                content
-                ScrollView { content }
-            }
-            .frame(maxHeight: .infinity, alignment: .top)
+            Divider()
+            ScrollView { content }
+                .scrollBounceBehavior(.basedOnSize)
+                .frame(maxHeight: .infinity, alignment: .top)
+                .background(Color(nsColor: .textBackgroundColor))
             notices
             toolbar
         }
@@ -48,18 +43,15 @@ struct PanelView: View {
         }
     }
 
-    // MARK: - header：状态行 + 复制 / 钉住 / 设置 / 收起
+    // MARK: - 顶栏：标题与窗口操作
 
     private var header: some View {
-        HStack(spacing: 6) {
-            Text(state.statusLine(t))
-                .font(.callout).foregroundStyle(.secondary)
-                .lineLimit(1).truncationMode(.tail)
+        HStack(spacing: 8) {
+            Label(t("panel.title"), systemImage: "character.bubble")
+                .font(.callout.weight(.medium))
+                .foregroundStyle(.secondary)
                 .allowsHitTesting(false)
             Spacer(minLength: 0)
-            if session.canCopy {
-                PanelButton(t("panel.copy"), systemImage: "doc.on.doc") { session.copy() }
-            }
             PanelButton(session.pinned ? t("panel.pinned") : t("panel.pin"),
                         systemImage: session.pinned ? "pin.fill" : "pin",
                         tint: session.pinned ? .accentColor : nil) { session.togglePin() }
@@ -67,7 +59,7 @@ struct PanelView: View {
             PanelButton(t("panel.settings"), systemImage: "gearshape") { session.openSettings() }
             PanelButton(t("panel.collapseAria"), systemImage: "xmark") { session.close() }
         }
-        .padding(.horizontal, 12).padding(.top, 10).padding(.bottom, 4)
+        .padding(.horizontal, 14).padding(.vertical, 8)
         // 拖动区垫在底下：只有直接按在空白处才拖窗口，按钮照常可点
         .background(WindowDragHandle())
     }
@@ -75,32 +67,52 @@ struct PanelView: View {
     // MARK: - 正文：原文、译文或词卡、出错块
 
     private var content: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 0) {
             if !state.source.isEmpty {
-                if session.editableSource { ocrEditor } else { sourceText }
+                VStack(alignment: .leading, spacing: 10) {
+                    TranslationSectionTitle(title: t("panel.source"))
+                    if session.editableSource { ocrEditor } else { sourceText }
+                }
+                .padding(16)
+                Divider().padding(.horizontal, 16)
             }
-            if state.status == .streaming, state.translation.isEmpty {
-                Text(t("panel.translating")).font(.body).foregroundStyle(Color.secondary)
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(spacing: 8) {
+                    TranslationSectionTitle(title: state.targetLang.isEmpty ? t("panel.translation") : state.targetLang)
+                    Spacer(minLength: 0)
+                    if state.status == .streaming {
+                        ProgressView().controlSize(.mini).accessibilityLabel(t("panel.translating"))
+                    }
+                    if !state.provider.isEmpty {
+                        Text(state.provider).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                            .help(state.statusLine(t))
+                    }
+                }
+                if state.status == .streaming, state.translation.isEmpty {
+                    Text(t("panel.translating")).font(.body).foregroundStyle(.secondary)
+                }
+                if let card = state.card {
+                    WordCardView(card: card, t: t) { session.speak(card.word) }
+                } else if !state.translation.isEmpty {
+                    Text(state.translation)
+                        .font(.body).foregroundStyle(.primary)
+                        .lineSpacing(5)
+                        .textSelection(.enabled)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                if let error = session.errorText { errorBlock(error) }
             }
-            if let card = state.card {
-                WordCardView(card: card, t: t) { session.speak(card.word) }
-            } else if !state.translation.isEmpty {
-                Text(state.translation)
-                    .font(.body).foregroundStyle(Color.primary)
-                    .textSelection(.enabled)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            if let error = session.errorText { errorBlock(error) }
+            .padding(16)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.horizontal, 12).padding(.vertical, 8)
     }
 
     /// 只读原文：默认三行，放不下时给「展开原文 / 收起原文」。
     private var sourceText: some View {
         VStack(alignment: .leading, spacing: 2) {
             Text(state.source)
-                .font(.callout).foregroundStyle(Color.secondary)
+                .font(.callout).foregroundStyle(Color.primary)
+                .lineSpacing(3)
                 .lineLimit(session.sourceExpanded ? nil : 3)
                 .textSelection(.enabled)
                 // 实测是否被截断：同宽下完整原文能装进这块高度就选第一个分支，否则落到第二个
@@ -153,7 +165,7 @@ struct PanelView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    // MARK: - 底部工具栏：朗读、替换、撰写；右边是计量
+    // MARK: - 底部工具栏：内容操作与复制；计量收在详情提示里
 
     private var toolbar: some View {
         HStack(spacing: 6) {
@@ -183,11 +195,16 @@ struct PanelView: View {
             }
             Spacer(minLength: 4)
             if let metrics = metricsLine(state.metrics, t) {
-                Text(metrics).font(.caption).foregroundStyle(.tertiary)
-                    .lineLimit(1).truncationMode(.middle)
+                Image(systemName: "info.circle")
+                    .foregroundStyle(.secondary)
+                    .help(metrics)
+                    .accessibilityLabel(metrics)
+            }
+            if session.canCopy {
+                PanelButton(t("panel.copy"), systemImage: "doc.on.doc") { session.copy() }
             }
         }
-        .padding(.horizontal, 10).padding(.vertical, 6)
+        .padding(.horizontal, 14).padding(.vertical, 8)
         .overlay(alignment: .top) { if session.hasContent || state.metrics != nil { Divider() } }
     }
 }
@@ -248,7 +265,7 @@ struct PanelButton: View {
     var body: some View {
         let button = Button(action: action) {
             if let systemImage {
-                Label(title, systemImage: systemImage).labelStyle(.iconOnly).frame(width: 20, height: 18)
+                Label(title, systemImage: systemImage).labelStyle(.iconOnly).frame(width: 24, height: 22).contentShape(Rectangle())
             } else {
                 Text(title).lineLimit(1)
             }
@@ -262,5 +279,16 @@ struct PanelButton: View {
         } else {
             button.buttonStyle(.borderless).foregroundStyle(tint ?? .secondary)
         }
+    }
+}
+
+/// 原文与译文的分区标题：使用系统文字层级，供两个翻译窗口共用。
+struct TranslationSectionTitle: View {
+    let title: String
+
+    var body: some View {
+        Text(title).font(.caption.weight(.medium)).foregroundStyle(.secondary)
+            .lineLimit(1)
+            .accessibilityAddTraits(.isHeader)
     }
 }

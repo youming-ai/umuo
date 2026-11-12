@@ -410,59 +410,85 @@
       }
     },
     "compose.copy": {
-      "extractionState": "manual",
       "localizations": {
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "复制译文 ⌘↵"
+            "value": "复制译文"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "複製譯文 ⌘↵"
+            "value": "複製譯文"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Copy translation ⌘↵"
+            "value": "Copy translation"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "訳文をコピー ⌘↵"
+            "value": "訳文をコピー"
           }
         }
       }
     },
     "compose.copyPaste": {
-      "extractionState": "manual",
       "localizations": {
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "复制并粘贴 ⌘⇧↵"
+            "value": "复制并粘贴"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "複製並貼上 ⌘⇧↵"
+            "value": "複製並貼上"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Copy & paste ⌘⇧↵"
+            "value": "Copy and paste"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "コピーして貼り付け ⌘⇧↵"
+            "value": "コピーしてペースト"
+          }
+        }
+      }
+    },
+    "compose.emptyResult": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "译文将显示在这里"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "譯文將顯示在這裡"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your translation will appear here"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "翻訳結果がここに表示されます"
           }
         }
       }
@@ -497,30 +523,29 @@
       }
     },
     "compose.placeholder": {
-      "extractionState": "manual",
       "localizations": {
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "在这里用母语写，停下来就会出译文…"
+            "value": "输入或粘贴要翻译的文字…"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "在這裡用母語寫，停下來就會出譯文…"
+            "value": "輸入或貼上要翻譯的文字…"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Write in your language here; the translation appears when you pause…"
+            "value": "Type or paste text to translate…"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "ここに母語で書いてください。止まると訳文が出ます…"
+            "value": "翻訳するテキストを入力またはペースト…"
           }
         }
       }
@@ -643,30 +668,29 @@
       }
     },
     "compose.title": {
-      "extractionState": "manual",
       "localizations": {
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "撰写窗"
+            "value": "输入翻译"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "撰寫視窗"
+            "value": "輸入翻譯"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Compose"
+            "value": "Text Translation"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "作成ウィンドウ"
+            "value": "テキスト翻訳"
           }
         }
       }
@@ -4840,6 +4864,34 @@
         }
       }
     },
+    "panel.source": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "原文"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "原文"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Source"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "原文"
+          }
+        }
+      }
+    },
     "panel.sourceReplaced": {
       "extractionState": "manual",
       "localizations": {
@@ -4956,6 +5008,34 @@
         }
       }
     },
+    "panel.title": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "翻译"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "翻譯"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Translate"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "翻訳"
+          }
+        }
+      }
+    },
     "panel.tokens": {
       "extractionState": "manual",
       "localizations": {
@@ -5011,6 +5091,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "翻訳中…"
+          }
+        }
+      }
+    },
+    "panel.translation": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "译文"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "譯文"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Translation"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "訳文"
           }
         }
       }
@@ -7709,25 +7817,25 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "跟随系统，或固定为浅色、深色、高对比度。"
+            "value": "跟随系统，或固定为浅色、深色。"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "跟隨系統，或固定為淺色、深色、高對比度。"
+            "value": "跟隨系統，或固定為淺色、深色。"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Follow the system, or always use light, dark or high contrast."
+            "value": "Follow the system appearance, or choose light or dark."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "システムに合わせるか、ライト・ダーク・ハイコントラストに固定します。"
+            "value": "システムに合わせるか、ライト・ダークを選択します。"
           }
         }
       }

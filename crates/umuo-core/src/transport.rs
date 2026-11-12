@@ -299,7 +299,7 @@ pub async fn stream_chat(
         }
         let retry_after = parse_retry_after(response.headers());
         // 错误体可能很长，但分类需要完整文本；截断只发生在进入 UI 之前。
-        let body = read_error_body(response).await;
+        let body = cancellable(options.cancel, read_error_body(response)).await?;
         if !attempt.omit_temperature && is_temperature_rejection(status.as_u16(), &body) {
             attempt = attempt.without_temperature();
             continue;
@@ -705,6 +705,118 @@ mod tests {
         assert_eq!(cancellable(None, async { 7 }).await, Ok(7));
         let flag = AtomicBool::new(false);
         assert_eq!(cancellable(Some(&flag), async { 8 }).await, Ok(8));
+    }
+
+    /// 本地桩读完请求再挂起响应；EOF 必须返回，不能在断开的连接上无限空读。
+    fn read_stub_request(reader: &mut impl std::io::BufRead) -> std::io::Result<()> {
+        use std::io::{Error, ErrorKind};
+
+        let mut length = 0;
+        loop {
+            let mut line = String::new();
+            if reader.read_line(&mut line)? == 0 {
+                return Err(Error::new(
+                    ErrorKind::UnexpectedEof,
+                    "请求头未读完连接已关闭",
+                ));
+            }
+            if line == "\r\n" {
+                break;
+            }
+            if let Some(value) = line.to_ascii_lowercase().strip_prefix("content-length:") {
+                length = value
+                    .trim()
+                    .parse::<usize>()
+                    .map_err(|error| Error::new(ErrorKind::InvalidData, error))?;
+            }
+        }
+        reader.read_exact(&mut vec![0; length])
+    }
+
+    #[test]
+    fn a_disconnected_stub_client_returns_instead_of_spinning_on_eof() {
+        for request in [
+            "POST / HTTP/1.1\r\nContent-Length: 5\r\n",
+            "POST / HTTP/1.1\r\nContent-Length: 5\r\n\r\nabc",
+        ] {
+            let error = read_stub_request(&mut std::io::Cursor::new(request)).unwrap_err();
+            assert_eq!(error.kind(), std::io::ErrorKind::UnexpectedEof);
+        }
+    }
+
+    #[tokio::test]
+    async fn cancellation_interrupts_a_stalled_http_error_body() {
+        use std::io::{BufReader, ErrorKind, Write};
+
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        listener.set_nonblocking(true).unwrap();
+        let base_url = format!("http://{}/v1", listener.local_addr().unwrap());
+        let (headers_sent, headers_received) = tokio::sync::oneshot::channel();
+        let (release, hold) = std::sync::mpsc::channel::<()>();
+        let server = std::thread::spawn(move || -> std::io::Result<()> {
+            // 不只限制响应正文：连接未到、请求未发完或客户端先断开时，清理同样有界。
+            let limit = Duration::from_secs(3);
+            let deadline = Instant::now() + limit;
+            let stream = loop {
+                match listener.accept() {
+                    Ok((stream, _)) => break stream,
+                    Err(error)
+                        if error.kind() == ErrorKind::WouldBlock && Instant::now() < deadline =>
+                    {
+                        std::thread::sleep(Duration::from_millis(5));
+                    }
+                    Err(error) => return Err(error),
+                }
+            };
+            stream.set_nonblocking(false)?;
+            stream.set_read_timeout(Some(limit))?;
+            stream.set_write_timeout(Some(limit))?;
+            let mut reader = BufReader::new(stream);
+            read_stub_request(&mut reader)?;
+            let mut stream = reader.into_inner();
+            // 供应商已经报错，但错误正文一直不发完；取消仍应及时生效。
+            stream.write_all(b"HTTP/1.1 429 Too Many Requests\r\nContent-Length: 100\r\n\r\n")?;
+            stream.flush()?;
+            let _ = headers_sent.send(());
+            let _ = hold.recv_timeout(limit);
+            Ok(())
+        });
+
+        let flag = AtomicBool::new(false);
+        let client = build_client_with(&crate::proxy::ProxyChoice::Direct).unwrap();
+        let chat = ChatRequest::new("system", "原文");
+        let target = ChatTarget {
+            provider: crate::provider::find_provider("openai").unwrap(),
+            base_url: Some(&base_url),
+            model: "test",
+            api_key: "sk-test",
+            chat: &chat,
+        };
+        let options = StreamOptions {
+            cancel: Some(&flag),
+            ..StreamOptions::default()
+        };
+        let mut sink = |_: &str| {};
+        let request = stream_chat(&client, &target, &options, &mut sink);
+        let cancel = async {
+            headers_received.await.unwrap();
+            tokio::time::sleep(Duration::from_millis(50)).await;
+            flag.store(true, Ordering::Relaxed);
+        };
+        let result = tokio::time::timeout(Duration::from_secs(1), async {
+            let (result, ()) = tokio::join!(request, cancel);
+            result
+        })
+        .await;
+        let _ = release.send(());
+        server
+            .join()
+            .unwrap()
+            .expect("本地桩应完整读完请求并返回错误响应头");
+        assert_eq!(
+            result.expect("读错误正文时也必须响应取消"),
+            Err(CoreError::Cancelled)
+        );
     }
 
     #[test]

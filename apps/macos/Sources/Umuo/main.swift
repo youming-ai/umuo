@@ -9,4 +9,8 @@ if CommandLine.arguments.contains("--selftest-panel-layout") {
     PanelLayoutSelfTest.main()
     exit(0)
 }
+if CommandLine.arguments.contains("--preview-ui") {
+    UIPreview.main()
+    exit(0)
+}
 UmuoApp.main()

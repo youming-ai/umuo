@@ -2,8 +2,7 @@ import AppKit
 import Observation
 import SwiftUI
 
-/// 设置窗的一个分区：系统的分组表单。分区切换由窗口顶部的偏好设置工具栏负责（`SettingsPaneController`），
-/// 与 macOS 自带应用、TablePro 的设置窗同一种样式。状态全在 `SettingsModel` 里。
+/// 设置详情：系统分组表单与固定标题，导航由左侧边栏负责。状态全在 `SettingsModel` 里。
 struct SettingsPane: View {
     @Bindable var model: SettingsModel
     let tab: SettingsTab
@@ -12,7 +11,10 @@ struct SettingsPane: View {
     private var t: Translate { model.t }
 
     var body: some View {
-        Group {
+        VStack(alignment: .leading, spacing: 0) {
+            Text(t(tab.titleKey)).font(.title2.weight(.semibold))
+                .accessibilityAddTraits(.isHeader)
+                .padding(.horizontal, 24).padding(.top, 22).padding(.bottom, 4)
             if model.isLoaded {
                 Form {
                     if let error = model.saveError {
@@ -36,7 +38,7 @@ struct SettingsPane: View {
                 loading
             }
         }
-        .frame(minWidth: SettingsPaneController.paneSize.width, minHeight: SettingsPaneController.paneSize.height)
+        .frame(minWidth: SettingsPaneController.detailMinSize.width, minHeight: SettingsPaneController.detailMinSize.height)
     }
 
     private var loading: some View {
@@ -53,14 +55,17 @@ struct SettingsPane: View {
     }
 }
 
-/// 设置窗的分区切换：`NSTabViewController` 的工具栏样式（窗口设成 `.preference` 工具栏）。
-/// 选中哪一页与 `SettingsModel.tab` 双向同步：点工具栏改模型，模型里改分区（例如「翻译」页的「管理引擎」）切页。
+/// 原生分栏设置窗：侧栏始终可见，右侧复用各分区视图，避免切页丢掉正在编辑的草稿。
 @MainActor
-final class SettingsPaneController: NSTabViewController {
-    static let paneSize = NSSize(width: 640, height: 480)
+final class SettingsPaneController: NSSplitViewController {
+    static let detailMinSize = NSSize(width: 560, height: 480)
+    static let paneSize = NSSize(width: 760, height: 480)
 
     private let model: SettingsModel
     private let updater: AppUpdater?
+    private let pages = NSTabViewController()
+    var tabViewItems: [NSTabViewItem] { pages.tabViewItems }
+    var selectedTabViewItemIndex: Int { pages.selectedTabViewItemIndex }
 
     init(model: SettingsModel, updater: AppUpdater?) {
         self.model = model
@@ -73,29 +78,34 @@ final class SettingsPaneController: NSTabViewController {
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        tabStyle = .toolbar
+        pages.tabStyle = .unspecified
         for tab in SettingsTab.allCases {
             let host = NSHostingController(rootView: SettingsPane(model: model, tab: tab, updater: updater))
-            // 分区不向窗口报尺寸：窗口大小由用户决定，最小值是 `paneSize`
             host.sizingOptions = []
-            host.title = model.t(tab.titleKey)
             let item = NSTabViewItem(viewController: host)
-            item.label = model.t(tab.titleKey)
-            item.image = NSImage(systemSymbolName: tab.symbol, accessibilityDescription: item.label)
             item.identifier = tab.rawValue
-            addTabViewItem(item)
+            pages.addTabViewItem(item)
         }
+        let sidebar = NSHostingController(rootView: SettingsSidebar(model: model))
+        sidebar.sizingOptions = []
+        let navigation = NSSplitViewItem(sidebarWithViewController: sidebar)
+        navigation.minimumThickness = 180
+        navigation.maximumThickness = 220
+        navigation.canCollapse = false
+        addSplitViewItem(navigation)
+        let detail = NSSplitViewItem(viewController: pages)
+        detail.minimumThickness = Self.detailMinSize.width
+        addSplitViewItem(detail)
         model.onTabChange = { [weak self] tab in self?.show(tab) }
         show(model.tab)
         observeLocale()
     }
 
-    /// AppKit 的标题不参与 SwiftUI 更新；载入、切换语言、保存回滚或外部刷新后都要重新同步。
+    /// AppKit 的窗口与分区标题不参与 SwiftUI 更新，语言变化后重新同步。
     private func observeLocale() {
         let t = withObservationTracking {
             model.t
         } onChange: { [weak self] in
-            // Observation 在值写入前通知，回到主线程下一轮再读最终值并续订。
             Task { @MainActor [weak self] in self?.observeLocale() }
         }
         for (tab, item) in zip(SettingsTab.allCases, tabViewItems) {
@@ -104,20 +114,39 @@ final class SettingsPaneController: NSTabViewController {
             item.label = label
             item.image = NSImage(systemSymbolName: tab.symbol, accessibilityDescription: label)
         }
-        if let item = tabView.selectedTabViewItem { view.window?.title = item.label }
-    }
-
-    override func tabView(_ tabView: NSTabView, didSelect item: NSTabViewItem?) {
-        super.tabView(tabView, didSelect: item)
-        // 还没载入完（tab 为 nil）时添加第一项也会触发选中，那不是用户的选择
-        guard model.tab != nil, let id = item?.identifier as? String, let tab = SettingsTab(rawValue: id),
-              model.tab != tab else { return }
-        model.tab = tab
+        updateTitle()
     }
 
     private func show(_ tab: SettingsTab?) {
-        guard isViewLoaded, let tab, let index = SettingsTab.allCases.firstIndex(of: tab),
-              selectedTabViewItemIndex != index else { return }
-        selectedTabViewItemIndex = index
+        guard isViewLoaded, let tab, let index = SettingsTab.allCases.firstIndex(of: tab) else { return }
+        pages.selectedTabViewItemIndex = index
+        updateTitle()
+    }
+
+    private func updateTitle() {
+        guard let tab = model.tab else { return }
+        title = model.t(tab.titleKey)
+        view.window?.title = title ?? "umuo"
+    }
+}
+
+/// 系统侧栏列表保留原生选中、方向键导航与 VoiceOver 行语义。
+private struct SettingsSidebar: View {
+    @Bindable var model: SettingsModel
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Label("umuo", systemImage: "character.bubble")
+                .font(.title3.weight(.semibold))
+                .padding(.horizontal, 18).padding(.top, 22)
+            List(selection: Binding(get: { model.tab }, set: { if let tab = $0 { model.tab = tab } })) {
+                ForEach(SettingsTab.allCases, id: \.self) { tab in
+                    Label(model.t(tab.titleKey), systemImage: tab.symbol)
+                        .padding(.vertical, 5)
+                        .tag(tab)
+                }
+            }
+            .listStyle(.sidebar)
+        }
     }
 }
