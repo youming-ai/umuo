@@ -1,10 +1,8 @@
 import SwiftUI
 import UmuoCore
 
-/// 撰写窗的界面：上面是源 / 目标语言两个下拉，下面依次是状态行、输入框、译文区与底部按钮。
-///
-/// 它不做任何决策：调度、提交都在 `ComposeSession` 里（也因此能测）。不用 `@State`：只装 CLT 时编不过。
-/// 控件用系统的；底板、圆角与阴影由窗口外壳负责（`FloatingPanelChrome`）。
+/// 输入翻译：单行语言工具栏、输入区、译文区与提交栏。
+/// 内容调度与提交守卫仍由 `ComposeSession` 负责。
 struct ComposeView: View {
     @Bindable var session: ComposeSession
 
@@ -14,11 +12,17 @@ struct ComposeView: View {
     var body: some View {
         VStack(spacing: 0) {
             pickers
-            header
-            editor
+            VStack(alignment: .leading, spacing: 8) {
+                TranslationSectionTitle(title: t("panel.source")).padding(.horizontal, 16).padding(.top, 12)
+                editor
+            }
+            .frame(minHeight: 116, maxHeight: .infinity)
+            .background(Color(nsColor: .textBackgroundColor))
             divider
             ScrollView { translation }
+                .scrollBounceBehavior(.basedOnSize)
                 .frame(minHeight: 112, maxHeight: .infinity)
+                .background(Color(nsColor: .textBackgroundColor))
             divider
             footer
         }
@@ -26,7 +30,7 @@ struct ComposeView: View {
 
     // MARK: - 源语言 / 目标语言（PRD §5.3）
 
-    /// 放在头部上方而不是塞进头部：头部已经有开关与按钮。
+    /// 语言选择与窗口关闭同排，翻译选项留在底部操作栏。
     private var pickers: some View {
         HStack(spacing: 8) {
             picker($session.overrides.sourceLang, hint: t("compose.sourceLangHint"),
@@ -35,8 +39,11 @@ struct ComposeView: View {
             picker($session.overrides.targetLang, hint: t("compose.targetLangHint"),
                    none: t("compose.bySettings"), options: Languages.all.map { ($0.code, $0.label) })
             Spacer(minLength: 0)
+            PanelButton(t("compose.close"), systemImage: "xmark") { session.escape() }
+                .accessibilityIdentifier("compose.close")
+                .anchorPreference(key: ComposeControlBounds.self, value: .bounds) { ["compose.close": $0] }
         }
-        .padding(.horizontal, 12).padding(.vertical, 6)
+        .padding(.horizontal, 14).padding(.vertical, 10)
         .background(WindowDragHandle())
         .overlay(alignment: .bottom) { divider }
     }
@@ -56,33 +63,6 @@ struct ComposeView: View {
         .help(hint)
     }
 
-    // MARK: - 状态行 + 自动翻译 + 收起
-
-    private var header: some View {
-        HStack(spacing: 8) {
-            Text(state.statusLine(t).isEmpty ? t("compose.title") : state.statusLine(t))
-                .font(.callout).foregroundStyle(Color.secondary)
-                .lineLimit(1).truncationMode(.tail)
-                .allowsHitTesting(false)
-            Spacer(minLength: 0)
-            Toggle(t("compose.autoTranslate"), isOn: $session.autoTranslate)
-                .toggleStyle(.checkbox)
-                .fixedSize()
-            // 关掉自动翻译时的翻译入口（⌘T 同效，由窗口的按键监听处理）
-            if !session.autoTranslate {
-                PanelButton(t("compose.translate"), bordered: true) { session.translateNow() }
-                    .disabled(session.input.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                    .help("\(t("compose.translate")) (⌘T)")
-                    .fixedSize()
-            }
-            PanelButton(t("compose.close"), systemImage: "xmark") { session.escape() }
-                .fixedSize()
-        }
-        .padding(.horizontal, 12).padding(.vertical, 8)
-        .background(WindowDragHandle())
-        .overlay(alignment: .bottom) { divider }
-    }
-
     // MARK: - 输入框
 
     private var editor: some View {
@@ -91,13 +71,13 @@ struct ComposeView: View {
             .scrollContentBackground(.hidden)
             .autocorrectionDisabled()
             .accessibilityLabel(t("compose.placeholder"))
-            .padding(.horizontal, 8).padding(.vertical, 6)
-            .frame(minHeight: 112, maxHeight: .infinity)
+            .padding(.horizontal, 12).padding(.bottom, 12)
+            .frame(minHeight: 80, maxHeight: .infinity)
             .overlay(alignment: .topLeading) {
                 if session.input.isEmpty {
                     Text(t("compose.placeholder"))
                         .font(.body).foregroundStyle(Color.secondary)
-                        .padding(.horizontal, 13).padding(.vertical, 6)
+                        .padding(.horizontal, 17).padding(.top, 0)
                         .allowsHitTesting(false)
                 }
             }
@@ -106,7 +86,25 @@ struct ComposeView: View {
     // MARK: - 译文区
 
     private var translation: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 12) {
+            if let notice = session.notice {
+                NoticeLine(text: notice, systemImage: nil)
+                    .textSelection(.enabled)
+            }
+            HStack(spacing: 8) {
+                TranslationSectionTitle(title: state.targetLang.isEmpty ? t("panel.translation") : state.targetLang)
+                Spacer(minLength: 0)
+                if state.status == .streaming {
+                    ProgressView().controlSize(.mini).accessibilityLabel(t("compose.translating"))
+                }
+                if !state.provider.isEmpty {
+                    Text(state.provider).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                        .help(state.statusLine(t))
+                }
+            }
+            if state.status == .idle {
+                Text(t("compose.emptyResult")).font(.callout).foregroundStyle(.tertiary)
+            }
             if state.status == .streaming, state.translation.isEmpty {
                 Text(t("compose.translating")).font(.body).foregroundStyle(Color.secondary)
             }
@@ -116,6 +114,7 @@ struct ComposeView: View {
             } else if !state.translation.isEmpty {
                 Text(state.translation)
                     .font(.body).foregroundStyle(Color.primary)
+                    .lineSpacing(5)
                     .textSelection(.enabled)
                     .fixedSize(horizontal: false, vertical: true)
             }
@@ -125,7 +124,7 @@ struct ComposeView: View {
             if state.status == .error { errorBlock(state.error ?? "") }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.horizontal, 12).padding(.vertical, 8)
+        .padding(16)
     }
 
     private func errorBlock(_ message: String) -> some View {
@@ -142,23 +141,39 @@ struct ComposeView: View {
 
     /// 「复制」是 ⌘↩ 对应的默认操作，用系统的强调按钮；⌘↩ 由窗口的按键监听处理（输入法组字时不误触），这里不再挂快捷键。
     private var footer: some View {
-        HStack(spacing: 4) {
-            PanelButton(t("compose.copy"), prominent: true) {
-                session.commit(paste: false)
+        HStack(spacing: 10) {
+            Toggle(t("compose.autoTranslate"), isOn: $session.autoTranslate)
+                .toggleStyle(.checkbox).font(.callout).fixedSize()
+            if !session.autoTranslate {
+                PanelButton(t("compose.translate"), bordered: true) { session.translateNow() }
+                    .accessibilityIdentifier("compose.translate")
+                    .anchorPreference(key: ComposeControlBounds.self, value: .bounds) { ["compose.translate": $0] }
+                    .disabled(session.input.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    .help("\(t("compose.translate")) (⌘T)")
             }
-            .disabled(!session.settled)
-            PanelButton(t("compose.copyPaste"), bordered: true) {
-                session.commit(paste: true)
-            }
-            .disabled(!session.settled)
-            Spacer(minLength: 8)
-            if let notice = session.notice {
-                Text(notice).font(.callout).foregroundStyle(Color.secondary)
-                    .lineLimit(1).truncationMode(.tail)
-            }
+            Spacer(minLength: 0)
+            PanelButton(t("compose.copyPaste"), bordered: true) { session.commit(paste: true) }
+                .accessibilityIdentifier("compose.copyPaste")
+                .anchorPreference(key: ComposeControlBounds.self, value: .bounds) { ["compose.copyPaste": $0] }
+                .disabled(!session.settled)
+                .help("\(t("compose.copyPaste")) (⌘⇧↵)")
+            PanelButton(t("compose.copy"), prominent: true) { session.commit(paste: false) }
+                .accessibilityIdentifier("compose.copy")
+                .anchorPreference(key: ComposeControlBounds.self, value: .bounds) { ["compose.copy": $0] }
+                .disabled(!session.settled)
+                .help("\(t("compose.copy")) (⌘↵)")
         }
-        .padding(.horizontal, 12).padding(.vertical, 8)
+        .padding(.horizontal, 16).padding(.vertical, 10)
     }
 
     private var divider: some View { Divider() }
+}
+
+/// 操作控件在真实布局中的边界；窗口自检消费这些锚点，避免只检查窗口大小而漏掉内容裁切。
+struct ComposeControlBounds: PreferenceKey {
+    static var defaultValue: [String: Anchor<CGRect>] { [:] }
+
+    static func reduce(value: inout [String: Anchor<CGRect>], nextValue: () -> [String: Anchor<CGRect>]) {
+        value.merge(nextValue()) { _, next in next }
+    }
 }

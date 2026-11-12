@@ -50,18 +50,66 @@ struct PanelLayoutSelfTest: App {
         print("\(resizeStable && fillsWindow ? "✓" : "✗") PanelWindow.resizedLayout: 缩放、展开、报错与重开保持用户尺寸，内容铺满窗口")
 
         // 撰写窗复用同一外壳，也不能由 SwiftUI 布局反过来修改窗口尺寸。
-        let compose = ComposeWindow(rootView: Text("输入翻译").frame(maxWidth: .infinity, maxHeight: .infinity))
+        let composeSession = ComposeSession()
+        composeSession.locale = .en
+        composeSession.autoTranslate = false
+        composeSession.input = "Design should make expression easier."
+        let probe = ComposeFrameProbe()
+        let compose = ComposeWindow(rootView: ComposeLayoutFixture(session: composeSession, probe: probe))
         defer { compose.close() }
         let composeSize = compose.frame.size
         compose.orderFrontRegardless()
         await settle()
-        let composeStable = compose.frame.size == composeSize
-        print("\(composeStable ? "✓" : "✗") ComposeWindow.layout: 共用外壳保持撰写窗尺寸")
-        exit(stable && resizeStable && fillsWindow && composeStable ? 0 : 1)
+        let initialComposeStable = compose.frame.size == composeSize
+        compose.setContentSize(ComposeWindow.minSize)
+        let compactSize = compose.frame.size
+        await settle()
+        let composeStable = initialComposeStable && compose.frame.size == compactSize
+        print("\(composeStable ? "✓" : "✗") ComposeWindow.layout: 真实输入翻译界面在初始和最小尺寸下保持窗口尺寸")
+        // 窗口尺寸不变不代表内容没有越界；从真实控件布局锚点核验内容边界。
+        var controlsFit = true
+        for locale in AppLocale.allCases {
+            composeSession.locale = locale
+            let t = composeSession.t
+            composeSession.notice = t("compose.submitFailed", ["reason": t("compose.pasteNotBack")])
+            await settle()
+            for identifier in ["compose.close", "compose.translate", "compose.copy", "compose.copyPaste"] {
+                let frame = probe.frames[identifier]
+                let fits = frame.map { !$0.isEmpty && NSRect(origin: .zero, size: compactSize).insetBy(dx: -1, dy: -1).contains($0) } ?? false
+                controlsFit = controlsFit && fits
+                if !fits { print("✗ ComposeWindow.controls: \(locale.rawValue) / \(identifier) / \(String(describing: frame))") }
+            }
+        }
+        print("\(controlsFit ? "✓" : "✗") ComposeWindow.noticeLayout: 四语言长提交提示下，最小窗口的关闭、翻译与提交按钮均在窗口内")
+        exit(stable && resizeStable && fillsWindow && composeStable && controlsFit ? 0 : 1)
     }
 
     private static func settle() async {
         // 让真实显示周期跑完；同步 layoutSubtreeIfNeeded 不会经过 SwiftUI 的 windowDidLayout 回调。
         try? await Task.sleep(for: .milliseconds(200))
+    }
+}
+
+/// 不通过系统 AX 取值：SwiftUI 在未启用辅助功能时可能不生成虚拟元素，CI 也要能检查边界。
+@MainActor
+private final class ComposeFrameProbe {
+    var frames: [String: CGRect] = [:]
+}
+
+private struct ComposeLayoutFixture: View {
+    let session: ComposeSession
+    let probe: ComposeFrameProbe
+
+    var body: some View {
+        ComposeView(session: session)
+            .overlayPreferenceValue(ComposeControlBounds.self) { anchors in
+                GeometryReader { geometry in
+                    let frames = anchors.mapValues { geometry[$0] }
+                    Color.clear
+                        .onChange(of: frames, initial: true) { _, frames in probe.frames = frames }
+                }
+                .allowsHitTesting(false)
+                .accessibilityHidden(true)
+            }
     }
 }

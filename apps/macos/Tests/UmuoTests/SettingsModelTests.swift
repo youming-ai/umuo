@@ -540,10 +540,10 @@ struct SettingsViewRenderTests {
     }
 }
 
-@Suite("设置工具栏语言同步", .serialized)
+@Suite("设置侧栏与详情语言同步", .serialized)
 @MainActor
 struct SettingsPaneLocalizationTests {
-    @Test func 首次载入已保存语言后刷新工具栏() async {
+    @Test func 首次载入已保存语言后刷新分区标题() async {
         _ = NSApplication.shared
         let backend = FakeBackend(base)
         let model = SettingsModel(backend: backend)
@@ -589,6 +589,10 @@ struct SettingsPaneLocalizationTests {
             #expect(item.image?.accessibilityDescription == label)
         }
         if let tab = model.tab { #expect(window.title == model.t(tab.titleKey)) }
-        #expect(window.toolbar?.items.map(\.label) == SettingsTab.allCases.map { model.t($0.titleKey) })
+        #expect(controller.splitViewItems.count == 2)
+        #expect(controller.splitViewItems.first?.canCollapse == false)
+        if let tab = model.tab {
+            #expect(controller.selectedTabViewItemIndex == SettingsTab.allCases.firstIndex(of: tab))
+        }
     }
 }

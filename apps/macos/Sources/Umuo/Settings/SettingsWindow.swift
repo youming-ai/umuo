@@ -56,12 +56,11 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
     }
 
     private func makeWindow(_ model: SettingsModel) -> NSWindow {
-        // 偏好设置样式：顶部图标工具栏切分区，窗口标题跟着当前分区走（`NSTabViewController` 负责）
+        // 原生侧栏导航，窗口标题跟随当前分区。
         let window = NSWindow(contentViewController: SettingsPaneController(model: model, updater: app.updater))
         window.styleMask = [.titled, .closable, .miniaturizable, .resizable]
-        window.toolbarStyle = .preference
         window.contentMinSize = SettingsPaneController.paneSize
-        window.setContentSize(NSSize(width: 680, height: 560))
+        window.setContentSize(NSSize(width: 820, height: 600))
         window.isReleasedWhenClosed = false
         window.delegate = self
         window.center()
