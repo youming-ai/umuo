@@ -205,8 +205,8 @@ components:
 | --- | --- | --- |
 | `--dur-fast` | 120ms | 颜色、底色、边框这类状态变化；按钮的抬起与下沉 |
 | `--dur-base` | 180ms | 出现与消失、图标交叉淡化、缩放按压、箭头转向、菜单展开、场景切换 |
-| `--dur-enter` | 520ms | 首屏进场（每块） |
-| `--stagger` | 70ms | 首屏进场相邻两块的间隔 |
+| `--dur-enter` | 520ms | 进场（每块）：首屏、下载后的「接下来」三步 |
+| `--stagger` | 70ms | 进场时相邻两块的间隔 |
 | `--ease-out` | `cubic-bezier(0.2, 0, 0, 1)` | 默认缓动，所有状态过渡 |
 | `--ease-enter` | `cubic-bezier(0.16, 1, 0.3, 1)` | 进场：起步快、收尾长 |
 
@@ -220,7 +220,7 @@ components:
 
 ### 访客触发的动效
 - **下载按钮**：厚底抬起 / 下沉（见 Buttons）；悬停时下载箭头下探 2px。
-- **「接下来」三步**：点了下载后标题先到，三步各隔 60ms 跟上（淡入 + 上移 6px，360ms）。
+- **「接下来」三步**：点了下载后标题先到，三步各隔 70ms 跟上（淡入 + 上移 6px）。这是一次小进场，用进场那组令牌（`--dur-enter`、`--stagger`、`--ease-enter`）。
 - **复制网址**：按下缩到 0.97；成功后图标由「复制」交叉淡化成对勾（缩放 0.5 → 1 + 2px 模糊），文字淡入换成「已复制」，2 秒后回到原样。按钮宽度取两种文案里较长的一种，不跳。
 - **语言菜单**：从触发按钮一侧展开（淡入 + 4px 位移 + 0.97 缩放，180ms），箭头转 180°；收起不做动画，立即消失。
 - **切换主题 / 语言**：View Transitions 整页交叉淡化 180ms（`lib/transition.ts`）；不支持的浏览器直接切换。
@@ -230,7 +230,7 @@ components:
 ### Named Rules
 **The Composite-Only Rule.** 只动 `opacity`、`transform`、`filter`，不动会引起重排的属性（厚底按钮的 `border-bottom-width` 是唯一例外，它被同步的位移抵消，外框不动）。进场不占位、不改尺寸，首屏不产生布局跳动。
 **The Once Rule.** 自发动效只在加载时演一次，不循环、不随滚动重播；光标闪 6 下就停。
-**The 200ms Rule.** 访客触发的反馈在 200ms 内给出结果；只有进场可以更长。
+**The 200ms Rule.** 悬停、按下、展开、切换这类状态反馈在 200ms 内完成（`--dur-fast` / `--dur-base`）；只有新内容进场（首屏、「接下来」三步）用 `--dur-enter`。
 **The Hover-Is-Color Rule.** 悬停只换颜色，位移留给按下。例外只有厚底下载按钮（抬起 1px）和它的箭头。
 **The Instant Focus Rule.** 焦点框立即出现，不做过渡。
 **The Reduced Motion Rule.** `prefers-reduced-motion: reduce` 时所有 animation 与 transition 关闭，位移、缩放、模糊一并去掉，整页淡化也跳过（CSS 与 JS 各守一道）；状态变化照常发生，只是瞬时完成。
