@@ -20,10 +20,11 @@ target="${CARGO_TARGET_DIR:-$root/target}"
 # Sources/UmuoCore 里只有生成物（被 gitignore），新检出的仓库里这个目录不存在
 mkdir -p "$here/.core/lib" "$here/.core/bindings" "$here/Sources/UmuoCore"
 
+# 只编 `-p umuo-ffi`：`--workspace` 会把 umuo-bindgen 开的 uniffi `cli` feature 合并进来，bindgen 一套依赖就混进了发布的静态库。
 if [ "$profile" = release ]; then cargo build -p umuo-ffi --release; else cargo build -p umuo-ffi; fi
 out="$target/$profile"
 cp "$out/libumuo_ffi.a" "$here/.core/lib/"
-cargo run -q -p umuo-ffi --bin uniffi-bindgen -- generate \
+cargo run -q -p umuo-bindgen --bin uniffi-bindgen -- generate \
   --library "$out/libumuo_ffi.dylib" --language swift --out-dir "$here/.core/bindings"
 
 cp "$here/.core/bindings/umuo_ffiFFI.h" "$here/Sources/umuo_ffiFFI/include/"

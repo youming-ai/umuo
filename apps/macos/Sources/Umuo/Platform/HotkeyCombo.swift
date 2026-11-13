@@ -1,8 +1,9 @@
 import Carbon
+import UmuoCore
 
 /// 普通组合键（`Alt+D`）→ Carbon 的虚拟键码与修饰位。
 ///
-/// 写法沿用旧版客户端（`global-hotkey` 0.8 的 `parse_hotkey` 与 macOS 的 `key_to_scancode`）：设置窗录下来的、
+/// 写法沿用 `global-hotkey` 0.8 的 `parse_hotkey` 与 macOS 的 `key_to_scancode`，是已发布版本 `settings.json` 的格式：设置窗录下来的、
 /// 老用户 `settings.json` 里手写的字符串必须解析成同一个键——否则升级后某个快捷键会静默回落到默认键位。
 /// 只按修饰键的连按（`Ctrl Ctrl`）不经过这里，由 Rust 的 `parseHotkey` 先分流出去。
 struct HotkeyCombo: Equatable, Hashable, CustomStringConvertible {
@@ -13,37 +14,26 @@ struct HotkeyCombo: Equatable, Hashable, CustomStringConvertible {
 
     /// 解析不了返回 nil（调用方回落到这一行的默认组合键）。
     ///
+    /// 语法（别名、空白、`Ctrl++D` / `Ctrl+C+A` 不合法）由 Rust 的 `parseCombo` 决定（`umuo_core::hotkey::parse_combo`），
+    /// 这里只把 W3C code 名换成 Carbon 键码与修饰位。
     /// 没有虚拟键码的键（Pause、ScrollLock、F21–F24、媒体键）与 `global-hotkey` 一样算解析成功、不回落，
     /// 返回 `.unsupported`，由调用方记成这一行注册失败。唯一的出入是媒体键：`global-hotkey` 另开一个
     /// 事件监听去接它们，这里不支持（设置窗的录键器本来就录不出媒体键）。
+    /// 设置里的一个值按注册时的同一条路解析：先经 `parseHotkey` 整体修剪、分流掉连按，再解析组合键。
+    /// 连按或认不出都返回 nil。判断「这个值注册时会不会回落默认键」的地方都用它，免得各自少走一步。
+    static func resolve(_ value: String) -> Parsed? {
+        guard case let .combo(combo) = parseHotkey(value: value) else { return nil }
+        return parse(combo)
+    }
+
     static func parse(_ value: String) -> Parsed? {
-        let tokens = value.split(separator: "+", omittingEmptySubsequences: false).map(String.init)
+        guard let combo = parseCombo(value: value) else { return nil }
         var modifiers: UInt32 = 0
-        var key: String?
-        if tokens.count == 1 {
-            // 单个键不 trim：与 global-hotkey 相同（Rust 那边交过来之前已经整体 trim 过）
-            key = parseKey(tokens[0])
-            guard key != nil else { return nil }
-        } else {
-            for raw in tokens {
-                let token = raw.trimmingCharacters(in: .whitespaces)
-                // 空 token（`Ctrl++D`）、主键之后还有东西（`Ctrl+C+A`、`Ctrl+C+Shift`）都不合法
-                if token.isEmpty || key != nil { return nil }
-                switch token.uppercased() {
-                case "OPTION", "ALT": modifiers |= UInt32(optionKey)
-                case "CONTROL", "CTRL": modifiers |= UInt32(controlKey)
-                case "COMMAND", "CMD", "SUPER": modifiers |= UInt32(cmdKey)
-                case "SHIFT": modifiers |= UInt32(shiftKey)
-                // macOS 上 CommandOrControl 就是 ⌘
-                case "COMMANDORCONTROL", "COMMANDORCTRL", "CMDORCTRL", "CMDORCONTROL": modifiers |= UInt32(cmdKey)
-                default:
-                    guard let parsed = parseKey(token) else { return nil }
-                    key = parsed
-                }
-            }
-        }
-        guard let key else { return nil }
-        guard let keyCode = scancodes[key] else { return .unsupported(key) }
+        if combo.ctrl { modifiers |= UInt32(controlKey) }
+        if combo.alt { modifiers |= UInt32(optionKey) }
+        if combo.shift { modifiers |= UInt32(shiftKey) }
+        if combo.cmd { modifiers |= UInt32(cmdKey) }
+        guard let keyCode = scancodes[combo.code] else { return .unsupported(combo.code) }
         return .combo(HotkeyCombo(keyCode: keyCode, modifiers: modifiers))
     }
 
@@ -62,62 +52,6 @@ struct HotkeyCombo: Equatable, Hashable, CustomStringConvertible {
         let name = Self.scancodes.first { $0.value == keyCode }?.key ?? "0x\(String(keyCode, radix: 16))"
         return (parts + [name]).joined(separator: "+")
     }
-
-    /// `global-hotkey` 的 `parse_key`：别名 → W3C `Code` 名。不认识的返回 nil。
-    static func parseKey(_ token: String) -> String? {
-        let upper = token.uppercased()
-        if let code = keyAliases[upper] { return code }
-        // KeyA…KeyZ / A…Z
-        if upper.count == 1, let c = upper.unicodeScalars.first, ("A"..."Z").contains(c) { return "Key\(upper)" }
-        if upper.count == 4, upper.hasPrefix("KEY"), let c = upper.unicodeScalars.last, ("A"..."Z").contains(c) {
-            return "Key\(c)"
-        }
-        // Digit0…9 / 0…9
-        if upper.count == 1, let c = upper.unicodeScalars.first, ("0"..."9").contains(c) { return "Digit\(upper)" }
-        if upper.count == 6, upper.hasPrefix("DIGIT"), let c = upper.unicodeScalars.last, ("0"..."9").contains(c) {
-            return "Digit\(c)"
-        }
-        // Numpad0…9 / Num0…9
-        for prefix in ["NUMPAD", "NUM"] where upper.count == prefix.count + 1 && upper.hasPrefix(prefix) {
-            if let c = upper.unicodeScalars.last, ("0"..."9").contains(c) { return "Numpad\(c)" }
-        }
-        // F1…F24
-        if upper.hasPrefix("F"), let n = Int(upper.dropFirst()), (1...24).contains(n), !upper.dropFirst().hasPrefix("0") {
-            return "F\(n)"
-        }
-        return nil
-    }
-
-    private static let keyAliases: [String: String] = {
-        let table: [(String, [String])] = [
-            ("Backquote", ["BACKQUOTE", "`"]), ("Backslash", ["BACKSLASH", "\\"]),
-            ("BracketLeft", ["BRACKETLEFT", "["]), ("BracketRight", ["BRACKETRIGHT", "]"]),
-            ("Pause", ["PAUSE", "PAUSEBREAK"]), ("Comma", ["COMMA", ","]), ("Equal", ["EQUAL", "="]),
-            ("Minus", ["MINUS", "-"]), ("Period", ["PERIOD", "."]), ("Quote", ["QUOTE", "'"]),
-            ("Semicolon", ["SEMICOLON", ";"]), ("Slash", ["SLASH", "/"]),
-            ("Backspace", ["BACKSPACE"]), ("CapsLock", ["CAPSLOCK"]), ("Enter", ["ENTER"]),
-            ("Space", ["SPACE"]), ("Tab", ["TAB"]), ("Delete", ["DELETE"]), ("End", ["END"]),
-            ("Home", ["HOME"]), ("Insert", ["INSERT"]), ("PageDown", ["PAGEDOWN"]), ("PageUp", ["PAGEUP"]),
-            ("PrintScreen", ["PRINTSCREEN"]), ("ScrollLock", ["SCROLLLOCK"]),
-            ("ArrowDown", ["ARROWDOWN", "DOWN"]), ("ArrowLeft", ["ARROWLEFT", "LEFT"]),
-            ("ArrowRight", ["ARROWRIGHT", "RIGHT"]), ("ArrowUp", ["ARROWUP", "UP"]),
-            ("NumLock", ["NUMLOCK"]),
-            ("NumpadAdd", ["NUMPADADD", "NUMADD", "NUMPADPLUS", "NUMPLUS"]),
-            ("NumpadDecimal", ["NUMPADDECIMAL", "NUMDECIMAL"]), ("NumpadDivide", ["NUMPADDIVIDE", "NUMDIVIDE"]),
-            ("NumpadEnter", ["NUMPADENTER", "NUMENTER"]), ("NumpadEqual", ["NUMPADEQUAL", "NUMEQUAL"]),
-            ("NumpadMultiply", ["NUMPADMULTIPLY", "NUMMULTIPLY"]),
-            ("NumpadSubtract", ["NUMPADSUBTRACT", "NUMSUBTRACT"]),
-            ("Escape", ["ESCAPE", "ESC"]),
-            ("AudioVolumeDown", ["AUDIOVOLUMEDOWN", "VOLUMEDOWN"]), ("AudioVolumeUp", ["AUDIOVOLUMEUP", "VOLUMEUP"]),
-            ("AudioVolumeMute", ["AUDIOVOLUMEMUTE", "VOLUMEMUTE"]),
-            ("MediaPlay", ["MEDIAPLAY"]), ("MediaPause", ["MEDIAPAUSE"]), ("MediaPlayPause", ["MEDIAPLAYPAUSE"]),
-            ("MediaStop", ["MEDIASTOP"]), ("MediaTrackNext", ["MEDIATRACKNEXT"]),
-            ("MediaTrackPrevious", ["MEDIATRACKPREV", "MEDIATRACKPREVIOUS"]),
-        ]
-        var map: [String: String] = [:]
-        for (code, aliases) in table { for alias in aliases { map[alias] = code } }
-        return map
-    }()
 
     /// `global-hotkey` macOS 的 `key_to_scancode`（即 `kVK_*`）。媒体键、Pause、ScrollLock 不在表里。
     static let scancodes: [String: UInt32] = [

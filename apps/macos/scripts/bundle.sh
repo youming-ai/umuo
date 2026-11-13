@@ -183,6 +183,17 @@ transcribe_license="$(find "$here/.build" -path '*/TranscribeCpp.xcframework/LIC
 [ -n "$transcribe_license" ] || fail "找不到 TranscribeCpp.xcframework 的 LICENSE"
 mkdir -p "$app/Contents/Resources/Licenses/transcribe.cpp"
 cp "$(dirname "$transcribe_license")"/LICENSE* "$app/Contents/Resources/Licenses/transcribe.cpp/"
+# Sparkle 的 LICENSE（含 bsdiff、ed25519 等外部组件的许可）同样在 xcframework 同级，不在 framework 里。
+# 取本次构建所用 scratch 目录（冒烟是 .build，正式组装是 .build/bundle-arm64）解出的二进制包；没有再取同一版本的源码检出
+if [ "$quick" = 1 ]; then scratch="$here/.build"; else scratch="$here/.build/bundle-arm64"; fi
+sparkle_license="$(find "$scratch/artifacts" -path '*/sparkle/Sparkle/LICENSE' -print -quit 2>/dev/null || true)"
+[ -n "$sparkle_license" ] || sparkle_license="$scratch/checkouts/Sparkle/LICENSE"
+[ -f "$sparkle_license" ] || fail "在 $scratch 下找不到 Sparkle 的 LICENSE"
+mkdir -p "$app/Contents/Resources/Licenses/Sparkle"
+cp "$sparkle_license" "$app/Contents/Resources/Licenses/Sparkle/LICENSE"
+# Rust 内核静态链接的第三方 crate（含 uniffi 的 MPL-2.0 与 bundled SQLite 说明），清单与原文由脚本按 Cargo.lock 生成
+bun "$here/../../scripts/third-party-licenses.ts" "$app/Contents/Resources/Licenses/rust-crates.txt" ||
+  fail "生成 Rust 依赖许可声明失败"
 if [ "$quick" = 0 ]; then
   plutil -insert SUFeedURL -string 'https://github.com/youming-ai/umuo/releases/latest/download/appcast.xml' "$app/Contents/Info.plist"
   plutil -insert SUPublicEDKey -string "$SPARKLE_PUBLIC_ED_KEY" "$app/Contents/Info.plist"
@@ -263,6 +274,8 @@ done
 for f in LICENSE LICENSE.ggml LICENSE.silero_vad LICENSE.miniz; do
   [ -f "$app/Contents/Resources/Licenses/transcribe.cpp/$f" ] || fail "transcribe.cpp 的 $f 没随包"
 done
+[ -s "$app/Contents/Resources/Licenses/Sparkle/LICENSE" ] || fail "Sparkle 的 LICENSE 没随包"
+grep -q '^- uniffi 0\.' "$app/Contents/Resources/Licenses/rust-crates.txt" || fail "Rust 依赖许可声明缺 uniffi"
 # 资源包在组装时已统一成标准结构（见上）；后面从 .app 里跑的 --selftest 会确认真的从 .app 里加载
 for f in Strings/Localizable.xcstrings Tray; do
   [ -e "$bundle_dest/Contents/Resources/$f" ] || fail "Contents/Resources/Umuo_Umuo.bundle/Contents/Resources/$f 缺了"

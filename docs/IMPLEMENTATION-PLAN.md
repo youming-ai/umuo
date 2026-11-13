@@ -1,7 +1,7 @@
 # umuo 首版开发计划
 
-2026-11-02 · 阶段 A–F 的代码都已完成（F 只剩第三方许可核查）；仓库已以 MIT 公开，客户端改动合入 main 自动发 GitHub Releases（未公证）。
-剩下的是真机走查、第三方许可核查、Developer ID 公证与 Homebrew，见文末「待办」。
+2026-11-02 · 阶段 A–F 的代码都已完成；仓库已以 MIT 公开，客户端改动合入 main 自动发 GitHub Releases（未公证）。
+剩下的是真机走查、Developer ID 公证与 Homebrew，见文末「待办」。
 
 目标：在 macOS 上交付文字翻译、OCR 截图翻译、语音输入后润色/翻译，免费、MIT 开源、纯 BYOK。
 需求见 [PRD](PRD.md)，逐项进度见 [验收清单](PRD-CONFORMANCE.md)，技术参考见 [Handy 研究](research/handy-voice-analysis.md)。
@@ -133,7 +133,7 @@
 - [x] 删除客户端 `License/`、试用门控、设置许可证页与 `umuo://activate` 深链接。
 - [x] 删除 Worker 收费与许可证路由、Waffo 依赖与 KV 绑定；官网删除购买/激活，改为免费开源说明；官网只留首页（条款与隐私页已删除）。
 - [x] 仓库公开：整个仓库（含 `site/`）MIT；历史整理脱敏后重建公开仓库 github.com/youming-ai/umuo；官网 `SOURCE_PUBLIC` 打开（2026-11-02）。
-- [ ] 逐项核查第三方依赖许可并补全 `THIRD_PARTY_NOTICES`。
+- [x] 逐项核查第三方依赖许可并补全 `THIRD_PARTY_NOTICES`；随包许可原文由 `scripts/third-party-licenses.ts` 生成（2026-11-12）。
 
 完成条件：客户端与官网不再有任何收费、许可证或试用路径；根 verify 与 site verify 通过。
 
@@ -164,6 +164,5 @@ arm64 release 自签名打包通过，包内自检 75 项通过、9 项因 TCC �
 代码侧已无未完成的阶段；剩下这些都需要人或外部账号，完成后在 [验收清单](PRD-CONFORMANCE.md) 记证据：
 
 1. **真机走查**：按 [NATIVE-WALKTHROUGH.md](NATIVE-WALKTHROUGH.md) 走文字 / 截图基线与语音全流程（各类输入框交付），并测原生 release 性能（阶段 A、C–E、G）。
-2. **第三方许可核查**：逐项核对 Cargo / Swift 依赖与随包二进制的许可，补全 `THIRD_PARTY_NOTICES`（阶段 F）。
-3. **Developer ID 签名与公证**：需要 Apple 开发者账号；接入步骤见 [SWIFTUI-MIGRATION.md](SWIFTUI-MIGRATION.md)，之后验 N → N+1 更新（阶段 G）。
-4. **Homebrew Cask**（阶段 G）。
+2. **Developer ID 签名与公证**：需要 Apple 开发者账号；接入步骤见 [SWIFTUI-MIGRATION.md](SWIFTUI-MIGRATION.md)，之后验 N → N+1 更新（阶段 G）。
+3. **Homebrew Cask**（阶段 G）。

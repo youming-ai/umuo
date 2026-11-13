@@ -153,6 +153,26 @@ Release 构建前调用 `.github/scripts/import-signing-identity.sh`，使用随
 接入时将 Release 的自签名导入步骤替换为 Developer ID `.p12` 导入，再安全写入 App Store Connect `.p8` 并传上述变量。
 完成后才能移除 Release 说明的未公证提示，并按阶段 G 验收 Gatekeeper、DMG 拖装及升级后的 TCC/Keychain。
 
+### 为什么要尽快接：自签名包关闭了库校验
+
+无 Team ID 的自签名与 ad-hoc 包由 `bundle.sh` 加上 `com.apple.security.cs.disable-library-validation`，
+否则嵌套框架加载不了；而 umuo 同时持有辅助功能、输入监控、屏幕录制与麦克风授权。
+现有缓解是删掉指向构建机的绝对 rpath（组装与自检两处都查），hardened runtime 也不允许 DYLD 环境变量注入；
+但只有 Developer ID 签名才能重新打开库校验。这一项在接入前不改，也不要为省事把 Developer ID 路径的库校验关掉。
+
+### 换签名身份时的 Key 迁移
+
+API Key 在旧的文件 Keychain，访问控制列表（ACL）按签名身份认程序。从自签名换成 Developer ID 后，
+`SwiftHost.apiKey` 的不弹框读取会得到 `errSecAuthFailed` / `errSecInteractionNotAllowed`，界面提示用户在设置里重新保存 Key。
+按代码推断，**预计每个已安装 v0.2.x 的用户都会遇到一次**（首次身份迁移尚未实测，见验收表 R1），Release 说明与首次启动提示要事先写清楚。
+
+借这次必然的重新输入，可以评估改用 Data Protection Keychain（[TN3137](https://developer.apple.com/documentation/technotes/tn3137-on-mac-keychains)）。
+前提：它的访问组来自 `keychain-access-groups` / `application-identifier` 签名权利，这些权利必须由 provisioning profile 授权，
+所以除了 Developer ID 证书，还要为 `app.umuo.desktop` 生成并嵌入 Developer ID provisioning profile（`Contents/embedded.provisionprofile`）。
+自签名与 ad-hoc 构建没有 Team ID，拿不到这些权利，所以在此之前不能切换。
+切换时先读 Data Protection Keychain，读不到再尝试旧的文件 Keychain，成功后写入新位置；
+同时保证 CI 与 `--quick` 的 ad-hoc 包仍能走旧路径或明确跳过，`--selftest` 的 Keychain 项相应调整。
+
 ## 必须守住的兼容性
 
 - Bundle ID 保持 `app.umuo.desktop`，Keychain service 同名、account 为供应商 id；读取旧文件 Keychain，不能切到另一套存储后让 Key 消失。

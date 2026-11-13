@@ -1,4 +1,5 @@
-//! 快捷键的纯规则导出：`parse_hotkey` 与连按两下修饰键的判定器（`umuo_core::hotkey`）。
+//! 快捷键的纯规则导出（`umuo_core::hotkey`）：`parse_hotkey` 分流、组合键语法 `parse_combo` / `normalize_combo`，
+//! 以及连按两下修饰键的判定器。
 //!
 //! 只做换型。修饰键事件的来源（CGEventTap）与组合键的注册（Carbon）是平台能力，留在 Swift 里；
 //! 「是不是连按了两下」是内核的状态机，有测试，Swift 不重写一份。
@@ -150,6 +151,47 @@ pub fn parse_hotkey(value: String) -> HotkeySpec {
     }
 }
 
+/// 普通组合键解析出来的修饰键与主键（W3C `code` 名）。换算成 Carbon 键码由 Swift 做。
+#[derive(Debug, Clone, PartialEq, Eq, uniffi::Record)]
+pub struct Combo {
+    pub ctrl: bool,
+    pub alt: bool,
+    pub shift: bool,
+    pub cmd: bool,
+    pub code: String,
+}
+
+impl From<core::Combo> for Combo {
+    fn from(combo: core::Combo) -> Self {
+        let core::Combo {
+            ctrl,
+            alt,
+            shift,
+            cmd,
+            code,
+        } = combo;
+        Self {
+            ctrl,
+            alt,
+            shift,
+            cmd,
+            code,
+        }
+    }
+}
+
+/// 解析普通组合键（`Alt+D`）；不合法返回空。语法见 `umuo_core::hotkey::parse_combo`。
+#[uniffi::export]
+pub fn parse_combo(value: String) -> Option<Combo> {
+    core::parse_combo(&value).map(Into::into)
+}
+
+/// 冲突检查用的规范写法（`umuo_core::hotkey::normalize_combo`）。
+#[uniffi::export]
+pub fn normalize_combo(value: String) -> String {
+    core::normalize_combo(&value)
+}
+
 /// 这一次连按（落在某个物理键上）是否触发这条快捷键。
 #[uniffi::export]
 pub fn double_tap_matches(tap: DoubleTap, key: ModKey) -> bool {
@@ -215,6 +257,22 @@ mod tests {
             },
             LCTRL
         ));
+    }
+
+    #[test]
+    fn combos_match_the_core() {
+        assert_eq!(
+            parse_combo("Option+Shift+Up".into()),
+            Some(Combo {
+                ctrl: false,
+                alt: true,
+                shift: true,
+                cmd: false,
+                code: "ArrowUp".into()
+            })
+        );
+        assert_eq!(parse_combo("Ctrl++D".into()), None);
+        assert_eq!(normalize_combo(" Cmd+Option+Esc ".into()), "alt+cmd+escape");
     }
 
     #[test]

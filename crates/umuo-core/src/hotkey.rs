@@ -85,6 +85,183 @@ pub fn parse_hotkey(value: &str) -> HotkeySpec {
     HotkeySpec::Combo(value.trim().to_string())
 }
 
+/// 普通组合键（`Alt+D`）解析出来的修饰键与主键。主键是 W3C `KeyboardEvent.code` 名（`KeyD`、`ArrowUp`），
+/// 换成平台键码（macOS 的 `kVK_*`）与「这个键注册不了」的判断留给平台层。
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct Combo {
+    /// Control（`Ctrl` / `Control`）。
+    pub ctrl: bool,
+    /// Option（`Alt` / `Option`）。
+    pub alt: bool,
+    /// Shift。
+    pub shift: bool,
+    /// Command（`Cmd` / `Command` / `Super`，以及 `CommandOrControl` 一族）。
+    pub cmd: bool,
+    /// 主键的 W3C `code` 名（`KeyD`、`ArrowUp`、`F5`）。
+    pub code: String,
+}
+
+/// Swift `CharacterSet.whitespaces` 的范围：制表符与 Unicode Zs 类空白（不含换行）。
+/// 组合键语法从 Swift 版本迁过来，修剪规则要逐字一致。
+fn is_inline_space(c: char) -> bool {
+    matches!(
+        c,
+        '\t' | ' ' | '\u{00A0}' | '\u{1680}' | '\u{2000}'
+            ..='\u{200A}' | '\u{202F}' | '\u{205F}' | '\u{3000}'
+    )
+}
+
+/// 组合键语法：沿用 `global-hotkey` 0.8 的 `parse_hotkey`，是已发布版本 `settings.json` 与录键器的存储格式。
+///
+/// - 以 `+` 分隔，各段去掉首尾空白；修饰键别名不分大小写，macOS 上 `CommandOrControl` 就是 ⌘。
+/// - 恰好一个主键，且主键之后不能再有任何段：`Ctrl+C+A`、`Ctrl+C+Shift` 不合法。
+/// - 空段（`Ctrl++D`、`Ctrl+`）、只有修饰键（`Alt`）、认不出的键（`Alt+Foo`）不合法。
+/// - 只有一段时**不修剪**（与 `global-hotkey` 相同；整条值在 [`parse_hotkey`] 已经整体修剪过）。
+pub fn parse_combo(value: &str) -> Option<Combo> {
+    let tokens: Vec<&str> = value.split('+').collect();
+    if let [single] = tokens.as_slice() {
+        return parse_key(single).map(|code| Combo {
+            code,
+            ..Combo::default()
+        });
+    }
+    let mut combo = Combo::default();
+    let mut key: Option<String> = None;
+    for raw in tokens {
+        let token = raw.trim_matches(is_inline_space);
+        if token.is_empty() || key.is_some() {
+            return None;
+        }
+        match token.to_uppercase().as_str() {
+            "OPTION" | "ALT" => combo.alt = true,
+            "CONTROL" | "CTRL" => combo.ctrl = true,
+            "COMMAND" | "CMD" | "SUPER" => combo.cmd = true,
+            "SHIFT" => combo.shift = true,
+            "COMMANDORCONTROL" | "COMMANDORCTRL" | "CMDORCTRL" | "CMDORCONTROL" => combo.cmd = true,
+            _ => key = Some(parse_key(token)?),
+        }
+    }
+    combo.code = key?;
+    Some(combo)
+}
+
+/// 主键别名 → W3C `code` 名（`global-hotkey` 的 `parse_key`）。认不出的返回 `None`。
+fn parse_key(token: &str) -> Option<String> {
+    let upper = token.to_uppercase();
+    if let Some(code) = key_alias(&upper) {
+        return Some(code.to_string());
+    }
+    let chars: Vec<char> = upper.chars().collect();
+    let last = chars.last().copied();
+    // KeyA…KeyZ / A…Z
+    if let [c @ 'A'..='Z'] = chars.as_slice() {
+        return Some(format!("Key{c}"));
+    }
+    if chars.len() == 4 && upper.starts_with("KEY") && matches!(last, Some('A'..='Z')) {
+        return Some(format!("Key{}", last?));
+    }
+    // Digit0…9 / 0…9
+    if let [c @ '0'..='9'] = chars.as_slice() {
+        return Some(format!("Digit{c}"));
+    }
+    if chars.len() == 6 && upper.starts_with("DIGIT") && matches!(last, Some('0'..='9')) {
+        return Some(format!("Digit{}", last?));
+    }
+    // Numpad0…9 / Num0…9
+    for prefix in ["NUMPAD", "NUM"] {
+        if chars.len() == prefix.len() + 1
+            && upper.starts_with(prefix)
+            && matches!(last, Some('0'..='9'))
+        {
+            return Some(format!("Numpad{}", last?));
+        }
+    }
+    // F1…F24（不收 F01 这类前导零；与 Swift 的 `Int(_:)` 一样接受前导 `+`）
+    if let Some(rest) = upper.strip_prefix('F') {
+        if !rest.starts_with('0') {
+            if let Ok(n @ 1..=24) = rest.parse::<i64>() {
+                return Some(format!("F{n}"));
+            }
+        }
+    }
+    None
+}
+
+fn key_alias(upper: &str) -> Option<&'static str> {
+    Some(match upper {
+        "BACKQUOTE" | "`" => "Backquote",
+        "BACKSLASH" | "\\" => "Backslash",
+        "BRACKETLEFT" | "[" => "BracketLeft",
+        "BRACKETRIGHT" | "]" => "BracketRight",
+        "PAUSE" | "PAUSEBREAK" => "Pause",
+        "COMMA" | "," => "Comma",
+        "EQUAL" | "=" => "Equal",
+        "MINUS" | "-" => "Minus",
+        "PERIOD" | "." => "Period",
+        "QUOTE" | "'" => "Quote",
+        "SEMICOLON" | ";" => "Semicolon",
+        "SLASH" | "/" => "Slash",
+        "BACKSPACE" => "Backspace",
+        "CAPSLOCK" => "CapsLock",
+        "ENTER" => "Enter",
+        "SPACE" => "Space",
+        "TAB" => "Tab",
+        "DELETE" => "Delete",
+        "END" => "End",
+        "HOME" => "Home",
+        "INSERT" => "Insert",
+        "PAGEDOWN" => "PageDown",
+        "PAGEUP" => "PageUp",
+        "PRINTSCREEN" => "PrintScreen",
+        "SCROLLLOCK" => "ScrollLock",
+        "ARROWDOWN" | "DOWN" => "ArrowDown",
+        "ARROWLEFT" | "LEFT" => "ArrowLeft",
+        "ARROWRIGHT" | "RIGHT" => "ArrowRight",
+        "ARROWUP" | "UP" => "ArrowUp",
+        "NUMLOCK" => "NumLock",
+        "NUMPADADD" | "NUMADD" | "NUMPADPLUS" | "NUMPLUS" => "NumpadAdd",
+        "NUMPADDECIMAL" | "NUMDECIMAL" => "NumpadDecimal",
+        "NUMPADDIVIDE" | "NUMDIVIDE" => "NumpadDivide",
+        "NUMPADENTER" | "NUMENTER" => "NumpadEnter",
+        "NUMPADEQUAL" | "NUMEQUAL" => "NumpadEqual",
+        "NUMPADMULTIPLY" | "NUMMULTIPLY" => "NumpadMultiply",
+        "NUMPADSUBTRACT" | "NUMSUBTRACT" => "NumpadSubtract",
+        "ESCAPE" | "ESC" => "Escape",
+        "AUDIOVOLUMEDOWN" | "VOLUMEDOWN" => "AudioVolumeDown",
+        "AUDIOVOLUMEUP" | "VOLUMEUP" => "AudioVolumeUp",
+        "AUDIOVOLUMEMUTE" | "VOLUMEMUTE" => "AudioVolumeMute",
+        "MEDIAPLAY" => "MediaPlay",
+        "MEDIAPAUSE" => "MediaPause",
+        "MEDIAPLAYPAUSE" => "MediaPlayPause",
+        "MEDIASTOP" => "MediaStop",
+        "MEDIATRACKNEXT" => "MediaTrackNext",
+        "MEDIATRACKPREV" | "MEDIATRACKPREVIOUS" => "MediaTrackPrevious",
+        _ => return None,
+    })
+}
+
+/// 冲突检查用的规范写法：解析得了就是 `ctrl+alt+shift+cmd+<code>`（修饰键固定顺序、全小写），
+/// 写法不同但注册出来是同一个键的值（`Option+D` / `alt+KeyD`）得到同一个结果。
+/// 解析不了的值注册时会回落到默认键位，这里只去掉首尾空白并小写，不再猜它「本来想写什么」。
+pub fn normalize_combo(value: &str) -> String {
+    let value = value.trim_matches(is_inline_space);
+    let Some(combo) = parse_combo(value) else {
+        return value.to_lowercase();
+    };
+    let mut parts: Vec<String> = [
+        (combo.ctrl, "ctrl"),
+        (combo.alt, "alt"),
+        (combo.shift, "shift"),
+        (combo.cmd, "cmd"),
+    ]
+    .into_iter()
+    .filter(|(on, _)| *on)
+    .map(|(_, name)| name.to_string())
+    .collect();
+    parts.push(combo.code.to_lowercase());
+    parts.join("+")
+}
+
 /// 平台层喂给判定器的事件。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TapInput {
@@ -180,6 +357,97 @@ impl DoubleTapDetector {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn combo(ctrl: bool, alt: bool, shift: bool, cmd: bool, code: &str) -> Option<Combo> {
+        Some(Combo {
+            ctrl,
+            alt,
+            shift,
+            cmd,
+            code: code.into(),
+        })
+    }
+
+    /// 与 Swift `HotkeySelfTest.combos` 的表一致（迁移前那份 Swift 解析器的行为）。
+    #[test]
+    fn combos_follow_the_global_hotkey_syntax() {
+        let cases = [
+            ("Alt+D", combo(false, true, false, false, "KeyD")),
+            ("alt + cmd + a", combo(false, true, false, true, "KeyA")),
+            (
+                "CommandOrControl+Shift+KeyT",
+                combo(false, false, true, true, "KeyT"),
+            ),
+            (
+                "Control+Option+Digit1",
+                combo(true, true, false, false, "Digit1"),
+            ),
+            ("Super+Esc", combo(false, false, false, true, "Escape")),
+            ("F5", combo(false, false, false, false, "F5")),
+            ("Alt+F24", combo(false, true, false, false, "F24")),
+            ("Alt+Pause", combo(false, true, false, false, "Pause")),
+            ("Ctrl+Num5", combo(true, false, false, false, "Numpad5")),
+            ("Ctrl+NumPad0", combo(true, false, false, false, "Numpad0")),
+            ("Ctrl+Up", combo(true, false, false, false, "ArrowUp")),
+            ("Ctrl+`", combo(true, false, false, false, "Backquote")),
+            ("Cmd+-", combo(false, false, false, true, "Minus")),
+            ("Ctrl+\u{3000}D\t", combo(true, false, false, false, "KeyD")),
+        ];
+        for (value, expected) in cases {
+            assert_eq!(parse_combo(value), expected, "{value}");
+        }
+        for value in [
+            "Ctrl+",
+            "Ctrl++D",
+            "Ctrl+C+A",
+            "Ctrl+C+Shift",
+            "Alt",
+            "Alt+Foo",
+            "",
+            "Alt+F0",
+            "Alt+F01",
+            "Alt+F25",
+            "Alt+KeyAB",
+            "Meta+D",
+            "Opt+D",
+            "D+Alt",
+        ] {
+            assert_eq!(parse_combo(value), None, "{value:?} 应该解析不了");
+        }
+        // 只有一段时不修剪（与 global-hotkey 相同），整条值在 parse_hotkey 已整体修剪过
+        assert_eq!(parse_combo(" D"), None);
+        // 修剪不含换行（Swift 的 whitespaces 不含换行）
+        assert_eq!(parse_combo("Ctrl+D\n"), None);
+    }
+
+    #[test]
+    fn function_keys_accept_a_leading_plus_but_not_zero_padding() {
+        assert_eq!(parse_key("f12").as_deref(), Some("F12"));
+        assert_eq!(parse_key("F+5").as_deref(), Some("F5"));
+        assert_eq!(parse_key("F05"), None);
+        assert_eq!(
+            parse_key("F").as_deref(),
+            Some("KeyF"),
+            "单个字母 F 是字母键"
+        );
+        assert_eq!(parse_key("F-1"), None);
+    }
+
+    #[test]
+    fn normalized_combos_ignore_aliases_order_and_spacing() {
+        assert_eq!(normalize_combo("Option+D"), "alt+keyd");
+        assert_eq!(normalize_combo("alt+d"), "alt+keyd");
+        assert_eq!(normalize_combo("Command+Shift+T"), "shift+cmd+keyt");
+        assert_eq!(normalize_combo("Shift+Cmd+T"), "shift+cmd+keyt");
+        assert_eq!(normalize_combo("  Option + D  "), "alt+keyd");
+        assert_eq!(normalize_combo("Ctrl+Up"), normalize_combo("Ctrl+ArrowUp"));
+        assert_eq!(normalize_combo("cmd+option+esc"), "alt+cmd+escape");
+        assert_eq!(normalize_combo(""), "");
+        assert_eq!(normalize_combo("   "), "");
+        // 注册不了的值不猜：原样小写，不会被当成别的键的重复
+        assert_eq!(normalize_combo(" Meta+D "), "meta+d");
+        assert_ne!(normalize_combo("Meta+D"), normalize_combo("Cmd+D"));
+    }
 
     const LCTRL: ModKey = ModKey {
         kind: ModKind::Ctrl,

@@ -14,16 +14,44 @@ umuo 客户端以 MIT 许可证开源；它依赖的第三方开源成果仍按�
 （Provider 目录、流式协议、Prompt 引擎、路由、计量）全部为本仓库原创实现。
 如果后续搬运，会在此处逐文件登记。
 
+2026-11-12 复核：在 `crates/`、`apps/macos/`、`scripts/` 的受版本控制文件里检索外来版权头
+（Copyright / SPDX-License / Licensed under），没有命中，上述结论仍然成立。
+`scripts/licenses/MPL-2.0.txt` 是 MPL-2.0 的标准许可原文（供下文回落使用），不是代码。
+
 ## 依赖
 
-第三方 crate 与 npm 包由 `Cargo.lock` / `bun.lock` 锁定，各自的许可证见其发布包；
-第三方依赖保持各自许可。Rust 静态库及 Sparkle 等随客户端分发时，须附带相应版权/许可声明，并履行适用的源码提供义务。
+第三方 crate 与 npm 包由 `Cargo.lock` / `bun.lock` 锁定，第三方依赖保持各自许可。
+
+### 随客户端分发的 Rust crate
+
+2026-11-12 核查范围：`cargo tree -p umuo-ffi -e normal,no-proc-macro --target aarch64-apple-darwin`，
+即编进 `libumuo_ffi.a` 并静态链接进 `umuo-desktop` 的 111 个第三方 crate（dev / build 依赖与 proc-macro
+只在编译期运行，不进二进制）。依据各 crate 声明的 SPDX 许可与发布包内的许可文件，不是逐行审阅源码。
+
+| 许可 | crate 数 | 说明 |
+| --- | --- | --- |
+| MIT、Apache-2.0 及二者的选择组合 | 81 | 宽松许可，随包附原文 |
+| Unicode-3.0 | 15 | icu4x 系列（经 `url` / `idna` 引入），随包附原文 |
+| MPL-2.0 | 3 | `uniffi`、`uniffi_core`、`uniffi_pipeline` 0.32.2，见下 |
+| ISC 及含 ISC 的组合 | 5 | `rustls`、`rustls-webpki`、`hyper-rustls`、`untrusted`、`ring`（`Apache-2.0 AND ISC`，另带 BoringSSL 与 other-bits 两份原文） |
+| 其余宽松许可 | 各 1 | `subtle`（BSD-3-Clause）、`webpki-roots`（CDLA-Permissive-2.0，证书数据）、`ryu`（Apache-2.0 OR BSL-1.0）、`memchr`（Unlicense OR MIT）、`zerocopy`（BSD-2-Clause / Apache-2.0 / MIT）、`rustix`（含 LLVM-exception）、`sync_wrapper`（Apache-2.0） |
+
+- **MPL-2.0（uniffi）**：唯一链进包的文件级 copyleft 依赖。umuo 未修改其任何文件，按 crates.io 发布包原样使用，
+  源码见 <https://github.com/mozilla/uniffi-rs> 与 <https://crates.io/crates/uniffi/0.32.2>。这几个 crate 的发布包未附许可文件，
+  随包声明回落到 MPL-2.0 标准原文。绑定生成工具（`uniffi` 的 `cli` 特性，含 `uniffi_bindgen`、clap 等）
+  独立在 `crates/umuo-bindgen`，只在构建时运行，不进正式包。`apps/macos/Sources/UmuoCore/umuo_ffi.swift` 是构建时生成、不入库的绑定。
+- **SQLite**：`rusqlite` 开启 `bundled`，`libsqlite3-sys` 0.30.1 把 SQLite 3.46.0 的 C 源码编进二进制。
+  crate 元数据只写 MIT，SQLite 本身属于公有领域（<https://www.sqlite.org/copyright.html>），随包声明里单独注明。
+
+全部 crate 的清单与许可原文（同一份原文只印一次）由 `scripts/third-party-licenses.ts` 按 `Cargo.lock` 生成，
+打包时写到 `umuo.app/Contents/Resources/Licenses/rust-crates.txt`。依赖升级后无需手改本表的清单，但许可类别有变化时应更新上表。
 
 ## 随应用分发的二进制与运行时下载的模型
 
 | 组件 | 版本与来源 | 许可 | 分发方式 |
 | --- | --- | --- | --- |
 | transcribe.cpp（`TranscribeCpp.xcframework` 内的 `CTranscribe.framework`） | v0.4.1，[官方发布页](https://github.com/handy-computer/transcribe.cpp/releases/tag/v0.4.1)，zip SHA-256 `fb5646e5…d35126` | MIT；内含 ggml（MIT）、Silero VAD（MIT）、miniz（MIT） | 打进 `umuo.app/Contents/Frameworks`；四份许可原文由 `apps/macos/scripts/bundle.sh` 拷到 `Contents/Resources/Licenses/transcribe.cpp/` |
+| Sparkle（`Sparkle.framework`） | 2.10.0，SwiftPM 精确版本，[sparkle-project/Sparkle](https://github.com/sparkle-project/Sparkle) | MIT；`LICENSE` 内另列 bsdiff（BSD-2-Clause）、ed25519 等外部组件许可 | 打进 `umuo.app/Contents/Frameworks`；整份 `LICENSE` 由 `bundle.sh` 拷到 `Contents/Resources/Licenses/Sparkle/` |
 | Qwen3-ASR-0.6B（GGUF，`Qwen3-ASR-0.6B-Q4_K_M.gguf`） | `handy-computer/Qwen3-ASR-0.6B-gguf` @ `7e7c69a5`，上游 [Qwen/Qwen3-ASR-0.6B](https://huggingface.co/Qwen/Qwen3-ASR-0.6B)，已转换为 GGUF | Apache-2.0 | **不随安装包分发**：用户首次使用语音时从 Hugging Face 下载并按 SHA-256 校验 |
 
 ## 参考过的项目（未复制代码）

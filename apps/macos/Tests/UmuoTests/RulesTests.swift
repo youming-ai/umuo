@@ -19,6 +19,21 @@ struct HotkeyConflictTests {
         #expect(HotkeyConflict.normalize("   ") == "")
     }
 
+    @Test func 冲突检查与注册认同一套别名() {
+        // 注册认 CommandOrControl（macOS 上即 ⌘），冲突检查也必须认：否则它占了 Spotlight 也不提示
+        #expect(HotkeyConflict.check("CommandOrControl+Space", others: [])?.subject == "prefs.hotkey.sys.spotlight")
+        // 注册不认的写法会回落默认键位：直接说认不出来，不当成 Cmd+D 的重复，也不报「缺修饰键」
+        #expect(HotkeyConflict.check("Meta+D", others: [(label: "划词翻译", value: "Cmd+D")])?.kind == .unrecognized)
+        #expect(HotkeyConflict.check("D+Alt", others: [])?.kind == .unrecognized)
+        #expect(HotkeyConflict.check("Ctrl++D", others: [])?.kind == .unrecognized)
+        // 首尾空白与注册一样先整体修剪：单键 F5 照样认得
+        #expect(HotkeyConflict.check(" F5 ", others: [])?.kind != .unrecognized)
+        // 解析得了但这台机器没有键码的键（F24）不算认不出来：那是注册失败，由 HotkeyCenter.failures 报
+        #expect(HotkeyConflict.check("Alt+F24", others: [])?.kind != .unrecognized)
+        let zh = Translate(locale: .zhCN)
+        #expect(HotkeyEditor.warning(.init(kind: .unrecognized), zh)?.contains("默认快捷键") == true)
+    }
+
     @Test func Alt与Option写法不同也认作同一个修饰键() {
         // 别名表要认 `alt`：否则 `Alt+Shift+T` 与 `Option+Shift+T` 归一化后不相等。
         #expect(HotkeyConflict.normalize("Alt+Shift+T") == HotkeyConflict.normalize("Option+Shift+T"))
@@ -69,7 +84,7 @@ struct HotkeyConflictTests {
     }
 
     @Test func 手写的键名别名与录键器的写法认作同一个键() {
-        // settings.json 可以手写：`Up` / `Esc` 与 `ArrowUp` / `Escape` 解析成同一个键（HotkeyCombo.parseKey）
+        // settings.json 可以手写：`Up` / `Esc` 与 `ArrowUp` / `Escape` 解析成同一个键（Rust 的 normalizeCombo）
         #expect(HotkeyConflict.check("Ctrl+Up", others: [])?.subject == "prefs.hotkey.sys.missionControl")
         #expect(HotkeyConflict.check("Cmd+Alt+Escape", others: [])?.subject == "prefs.hotkey.sys.forceQuit")
         #expect(HotkeyConflict.check("Alt+Up", others: [(label: "划词翻译", value: "Alt+ArrowUp")])?.kind == .duplicate)

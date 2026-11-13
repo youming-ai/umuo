@@ -8,16 +8,13 @@ description = "umuo-app / umuo-core 给 SwiftUI 客户端的 UniFFI 导出层（
 
 [lib]
 name = "umuo_ffi"
-# staticlib 给 Swift 链接；cdylib 只给 uniffi-bindgen 读元数据生成绑定；lib 让 cargo test 能跑
+# staticlib 给 Swift 链接；cdylib 只给 uniffi-bindgen（crates/umuo-bindgen）读元数据生成绑定；lib 让 cargo test 能跑
 crate-type = ["staticlib", "cdylib", "lib"]
-
-[[bin]]
-name = "uniffi-bindgen"
-path = "uniffi-bindgen.rs"
 
 [dependencies]
 umuo-core = { path = "../umuo-core" }
-uniffi = { version = "0.32", features = ["cli"] }
+# 不开 `cli`：绑定生成工具在 crates/umuo-bindgen，别把 clap 等带进正式包
+uniffi = "0.32"
 umuo-app = { path = "../umuo-app" }
 # 自建的多线程运行时跑流式请求。**不开 uniffi 的 `tokio` feature**：导出的流式方法都是同步启动，
 # 用不到它；开了反而多一套运行时上下文（迁移计划 §4）。

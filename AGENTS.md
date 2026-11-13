@@ -37,6 +37,7 @@ CI：PR 跑完整 `ci.yml`；main 上客户端改动由 `release.yml` 调用同�
 - `crates/umuo-core/`：翻译协议、Prompt、计量与传输。
 - `crates/umuo-ffi/`：只做类型转换与导出，不写业务逻辑。
 - `crates/umuo-store/`：SQLite 历史；旧收藏与用量账本的表与迁移保留，程序不再读写。
+- `crates/umuo-bindgen/`：只生成 Swift 绑定的构建工具（`uniffi` 的 `cli` 特性），不被任何库依赖，不进 `umuo.app`。
 - `scripts/`：图标生成与发布工具；`site/` 独立维护。
 
 `umuo-core` 与 `umuo-app` 不得依赖平台 API、Tauri 或 UniFFI，必须可在 Linux 编译测试。
