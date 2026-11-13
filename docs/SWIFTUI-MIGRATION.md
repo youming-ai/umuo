@@ -59,7 +59,7 @@ git push origin --delete v0.2.N              # 只剩 tag、没有 Release 时
 - 组装后自检：codesign、Info.plist 关键值、主程序为 arm64、框架含 arm64 切片、资源包与许可文件位置，再从 `.app` 里跑 `--selftest`。
 - `--quick` 复用 `verify.sh` 刚编好的 debug 产物，只做 ad-hoc、不公证、不打 `.dmg`，是 `bun run verify` 里的打包冒烟。
 
-产物在 `apps/macos/dist`：`umuo.app`、`umuo-vX.Y.Z.dmg`、`umuo.app.tar.gz`；再跑 `bun scripts/sparkle-appcast.ts "$PWD/apps/macos/dist" X.Y.Z`
+产物在 `apps/macos/dist`：`umuo.app`、`umuo-vX.Y.Z.dmg`、`umuo.app.tar.gz`；再跑 `bun scripts/sparkle-appcast.ts "$PWD/apps/macos/dist.noindex" X.Y.Z`
 生成 `appcast.xml`。正常发布走 release.yml；本机产物只用于自测。
 
 ## Sparkle 原生应用内更新

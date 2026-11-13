@@ -12,7 +12,7 @@
 #   APPLE_API_KEY / APPLE_API_ISSUER / APPLE_API_KEY_PATH
 #                            三个都设了才公证（notarytool --wait）并 staple
 #   SPARKLE_PUBLIC_ED_KEY    Sparkle Ed25519 公钥（正式构建必填，generate_keys --account app.umuo.desktop 生成）
-#   OUT_DIR                  产物目录，默认 apps/macos/dist（--quick 时 .build/bundle-smoke）
+#   OUT_DIR                  产物目录，默认 apps/macos/dist.noindex（--quick 时 .build/bundle-smoke）
 #
 # 产物：$OUT_DIR/umuo.app、umuo-v<版本>.dmg、umuo.app.tar.gz，GitHub Release 原样上传。
 # 安装包带版本号，下载下来一看就知道是哪一版（官网 /download/macos 由 Worker 查最新 tag 后跳过去）；
@@ -93,7 +93,9 @@ fi
 if [ "$quick" = 1 ]; then
   OUT_DIR="${OUT_DIR:-$here/.build/bundle-smoke}"
 else
-  OUT_DIR="${OUT_DIR:-$here/dist}"
+  # 目录名带 .noindex：本机打出的包与安装版同一个 Bundle ID，被 Spotlight 收录的话会搜出两个 umuo、可能误开旧包。
+  # （.metadata_never_index 标记文件对普通目录已不生效，实测只认这个后缀。）
+  OUT_DIR="${OUT_DIR:-$here/dist.noindex}"
 fi
 mkdir -p "$OUT_DIR"
 # 换成绝对路径：下面会 cd 到 apps/macos，从仓库根传来的相对路径会落到别处

@@ -3,6 +3,7 @@ node_modules/
 
 # 构建产物
 dist/
+*.noindex/
 # 官网预渲染用的服务端 bundle（构建末尾会删除，失败时可能残留）
 dist-ssr/
 target/

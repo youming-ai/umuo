@@ -135,16 +135,16 @@ jobs:
           trap 'rm -f "$sparkle_key"' EXIT
           chmod 600 "$sparkle_key"
           printf '%s' "$SPARKLE_PRIVATE_KEY" > "$sparkle_key"
-          SPARKLE_PRIVATE_KEY_PATH="$sparkle_key" bun scripts/sparkle-appcast.ts "$PWD/apps/macos/dist" "$VERSION"
+          SPARKLE_PRIVATE_KEY_PATH="$sparkle_key" bun scripts/sparkle-appcast.ts "$PWD/apps/macos/dist.noindex" "$VERSION"
 
       - name: Keep native release artifacts
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: umuo-${{ env.VERSION }}-arm64
           path: |
-            apps/macos/dist/umuo-v${{ env.VERSION }}.dmg
-            apps/macos/dist/umuo.app.tar.gz
-            apps/macos/dist/appcast.xml
+            apps/macos/dist.noindex/umuo-v${{ env.VERSION }}.dmg
+            apps/macos/dist.noindex/umuo.app.tar.gz
+            apps/macos/dist.noindex/appcast.xml
           retention-days: 14
 
       - name: Publish GitHub release
@@ -165,4 +165,4 @@ jobs:
           set -- --target "$GITHUB_SHA" --latest --generate-notes --notes-file "$notes" --title "umuo $VERSION"
           [ -n "$previous" ] && set -- "$@" --notes-start-tag "$previous"
           gh release create "v$VERSION" "$@" \
-            "apps/macos/dist/umuo-v$VERSION.dmg" apps/macos/dist/umuo.app.tar.gz apps/macos/dist/appcast.xml
+            "apps/macos/dist.noindex/umuo-v$VERSION.dmg" apps/macos/dist.noindex/umuo.app.tar.gz apps/macos/dist.noindex/appcast.xml
