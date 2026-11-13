@@ -31,7 +31,7 @@ final class VoicePanelController: VoiceOverlayPresenting {
         panel.becomesKeyOnlyIfNeeded = true
         panel.isReleasedWhenClosed = false
         panel.animationBehavior = .utilityWindow
-        hosting = FloatingPanelChrome.apply(to: panel, rootView: VoiceOverlayView(model: model))
+        hosting = FloatingPanelChrome.apply(to: panel, rootView: VoiceOverlayView(model: model), sizesToContent: true)
         return panel
     }()
 
@@ -98,35 +98,40 @@ final class VoicePanelController: VoiceOverlayPresenting {
 /// 浮层内容。全部用系统控件、语义颜色与文字样式。
 struct VoiceOverlayView: View {
     @Bindable var model: VoiceOverlayModel
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private var t: Translate { model.t }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 14) {
             header
-            content
+            VStack(alignment: .leading, spacing: 12) { content }
+                .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .padding(14)
+        .padding(16)
         .frame(width: VoicePanelController.width, alignment: .leading)
         .fixedSize(horizontal: false, vertical: true)
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel(title)
     }
 
     private var header: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: 10) {
             Image(systemName: symbol)
-                .foregroundStyle(symbolStyle)
-                .symbolEffect(.pulse, isActive: isRecording)
+                .font(.title3)
+                .foregroundStyle(isRecording ? Color.accentColor : Color.primary)
+                .frame(width: 36, height: 36)
+                .background(.fill.tertiary, in: Circle())
+                .symbolEffect(.pulse, isActive: isRecording && !reduceMotion)
                 .accessibilityHidden(true)
-            Text(title).font(.headline)
-            Spacer()
-            Button {
-                model.onCancel?()
-            } label: {
-                Image(systemName: "xmark.circle.fill").foregroundStyle(.secondary)
+            Text(title).font(.headline).fixedSize(horizontal: false, vertical: true)
+                .accessibilityAddTraits(.isHeader)
+            Spacer(minLength: 0)
+            if isProcessing {
+                ProgressView().controlSize(.small).accessibilityLabel(title)
             }
-            .buttonStyle(.plain)
-            .help(t("voice.close"))
-            .accessibilityLabel(t("voice.close"))
+            PanelButton(t("voice.close"), systemImage: "xmark") { model.onCancel?() }
+                .floatingControl("voice.close")
         }
     }
 
@@ -138,23 +143,23 @@ struct VoiceOverlayView: View {
         case .needsModel:
             VoiceModelSection(model: model)
         case .starting, .recording:
-            HStack {
+            VStack(alignment: .leading, spacing: 8) {
                 if case .recording = model.phase, let since = model.recordingSince {
                     TimelineView(.periodic(from: since, by: 1)) { context in
-                        Text(Self.elapsed(from: since, to: context.date)).monospacedDigit()
+                        Text(Self.elapsed(from: since, to: context.date))
+                            .font(.title2.monospacedDigit())
                     }
                 }
-                Text(t("voice.recordingHint", ["hotkey": model.hotkeyLabel])).foregroundStyle(.secondary)
+                Text(t("voice.recordingHint", ["hotkey": model.hotkeyLabel]))
+                    .foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
             }
             .font(.callout)
         case .transcribing:
-            ProgressView().controlSize(.small).progressViewStyle(.linear)
             if model.preparingEngine {
                 Text(t("voice.preparingEngine")).font(.callout).foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
         case let .postProcessing(transcript):
-            ProgressView().controlSize(.small).progressViewStyle(.linear)
             ResultText(text: transcript).foregroundStyle(.secondary)
         case let .delivering(text, _):
             ResultText(text: text)
@@ -163,7 +168,7 @@ struct VoiceOverlayView: View {
                 .fixedSize(horizontal: false, vertical: true)
             ResultText(text: text)
             HStack {
-                Button(model.copied ? t("voice.copied") : t("voice.copy")) { model.onCopy?(text) }
+                copyButton(text)
                 Spacer()
                 Text(t("voice.escHint")).font(.callout).foregroundStyle(.secondary)
             }
@@ -174,26 +179,25 @@ struct VoiceOverlayView: View {
             }
             ResultText(text: text)
             HStack {
-                Button(model.copied ? t("voice.copied") : t("voice.copy")) { model.onCopy?(text) }
+                copyButton(text)
                 if truncated {
-                    Button(t("voice.retry")) { model.onRetry?() }
+                    PanelButton(t("voice.retry"), bordered: true) { model.onRetry?() }
                 }
                 Spacer()
                 Text(t("voice.escHint")).font(.callout).foregroundStyle(.secondary)
             }
         case let .failed(failure, transcript):
-            Text(t(Self.messageKey(failure.kind))).fixedSize(horizontal: false, vertical: true)
+            ErrorLine(message: t(Self.messageKey(failure.kind)))
             if failure.kind == .postProcess, !failure.detail.isEmpty {
                 // Rust 给的具体原因（Key、网络、供应商……）
-                Text(failure.detail).font(.callout).foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true).textSelection(.enabled)
+                ResultText(text: failure.detail).font(.callout).foregroundStyle(.secondary)
             }
             if let transcript {
                 ResultText(text: transcript).foregroundStyle(.secondary)
                 HStack {
-                    Button(model.copied ? t("voice.copied") : t("voice.copyTranscript")) { model.onCopy?(transcript) }
+                    copyButton(transcript, title: t("voice.copyTranscript"))
                     if failure.kind == .postProcess {
-                        Button(t("voice.retry")) { model.onRetry?() }
+                        PanelButton(t("voice.retry"), bordered: true) { model.onRetry?() }
                     }
                 }
             }
@@ -205,6 +209,21 @@ struct VoiceOverlayView: View {
 
     private var isRecording: Bool {
         if case .recording = model.phase { true } else { false }
+    }
+
+    private var isProcessing: Bool {
+        switch model.phase {
+        case .starting, .transcribing, .postProcessing, .delivering: true
+        default: false
+        }
+    }
+
+    private func copyButton(_ text: String, title: String? = nil) -> some View {
+        PanelButton(model.copied ? t("voice.copied") : (title ?? t("voice.copy")),
+                    systemImage: model.copied ? "checkmark" : "doc.on.doc", iconOnly: false, prominent: true) {
+            model.onCopy?(text)
+        }
+        .floatingControl("voice.copy")
     }
 
     private var title: String {
@@ -230,13 +249,6 @@ struct VoiceOverlayView: View {
         case .undelivered: "doc.on.clipboard"
         case .failed: "exclamationmark.triangle"
         case .idle, .cancelled: "mic"
-        }
-    }
-
-    private var symbolStyle: HierarchicalShapeStyle {
-        switch model.phase {
-        case .failed: .secondary
-        default: .primary
         }
     }
 
@@ -281,11 +293,15 @@ private struct ResultText: View {
     var body: some View {
         ScrollView {
             Text(text)
+                .font(.body).lineSpacing(4)
                 .textSelection(.enabled)
                 .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(12)
         }
+        .scrollBounceBehavior(.basedOnSize)
         .frame(maxHeight: 160)
         .fixedSize(horizontal: false, vertical: true)
+        .readingSurface()
     }
 }
 

@@ -68,6 +68,7 @@
 只检查布局时，先 `bun run build`，再运行 `apps/macos/.build/debug/Umuo --preview-ui`。
 它使用固定文本和内存中的假设置，不访问用户配置、Keychain 或供应商，不注册快捷键、不向其他应用写入。
 默认显示设置窗；`--preview-window=panel` / `--preview-window=compose` 分别显示翻译浮窗和输入翻译窗，
+`--preview-window=voice` 显示语音浮层，`--preview-voice=result` / `processing` / `model` / `error` 切语音结果、处理中、模型提示与失败状态；
 `--preview-dark` 切深色，`--preview-locale=en` / `zh-TW` / `ja` 切界面语言。
 此入口只验证视觉，真实焦点、剪贴板和输入交付仍按下面的真机清单验证。
 

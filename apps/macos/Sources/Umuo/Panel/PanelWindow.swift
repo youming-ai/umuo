@@ -63,7 +63,7 @@ enum FloatingPanelChrome {
 
     /// 返回承载 SwiftUI 内容的视图：按内容定高的面板（语音浮层）拿它的 `fittingSize` 调窗口大小。
     @discardableResult
-    static func apply(to window: NSPanel, rootView: some View) -> NSView {
+    static func apply(to window: NSPanel, rootView: some View, sizesToContent: Bool = false) -> NSView {
         window.titlebarAppearsTransparent = true
         window.titleVisibility = .hidden
         window.titlebarSeparatorStyle = .none
@@ -73,7 +73,8 @@ enum FloatingPanelChrome {
         window.isMovableByWindowBackground = false
 
         let hosting = NSHostingView(rootView: rootView.floatingSurface())
-        hosting.sizingOptions = []
+        // 固定尺寸窗口不反向协商大小；语音浮层按内容定高，需要保留真实的 fittingSize。
+        hosting.sizingOptions = sizesToContent ? [.intrinsicContentSize] : []
         // 标题栏是透明的、内容从窗口顶边开始：不要标题栏高度的安全区，否则顶上空出一条
         hosting.safeAreaRegions = []
         let surface: NSView
