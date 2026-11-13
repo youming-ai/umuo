@@ -99,3 +99,31 @@ enum FloatingPanelChrome {
         return hosting
     }
 }
+
+// MARK: - 三个浮窗共用的内容部件（划词/OCR 浮窗、输入翻译窗、语音浮层）
+
+extension View {
+    /// 玻璃外壳里的阅读区：系统文本底色（语义色，随深浅色变化），文字不随桌面背景失去对比度。
+    /// 只做内嵌圆角，不叠第二层玻璃、描边或阴影。是一个共用部件，不是设计令牌——颜色与字号都来自系统。
+    func readingSurface() -> some View {
+        background(Color(nsColor: .textBackgroundColor), in: RoundedRectangle(cornerRadius: 12))
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+    }
+
+    /// 标出一个浮窗控件，供窗口自检（`PanelLayoutSelfTest`）核验它在最小尺寸、各语言下都还在窗口内。
+    func floatingControl(_ identifier: String) -> some View {
+        accessibilityIdentifier(identifier)
+            .transformAnchorPreference(key: FloatingControlBounds.self, value: .bounds) { value, anchor in
+                value[identifier] = anchor
+            }
+    }
+}
+
+/// `floatingControl` 收集的控件布局边界。
+struct FloatingControlBounds: PreferenceKey {
+    static var defaultValue: [String: Anchor<CGRect>] { [:] }
+
+    static func reduce(value: inout [String: Anchor<CGRect>], nextValue: () -> [String: Anchor<CGRect>]) {
+        value.merge(nextValue()) { _, next in next }
+    }
+}

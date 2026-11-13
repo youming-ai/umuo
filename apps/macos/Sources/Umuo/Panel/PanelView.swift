@@ -60,7 +60,6 @@ struct PanelView: View {
                         systemImage: session.pinned ? "pin.fill" : "pin",
                         tint: session.pinned ? .accentColor : nil) { session.togglePin() }
                 .help(t("panel.pinHint"))
-                .accessibilityValue(session.pinned ? t("panel.pinned") : t("panel.pin"))
             PanelButton(t("panel.settings"), systemImage: "gearshape") { session.openSettings() }
             PanelButton(t("panel.collapseAria"), systemImage: "xmark") { session.close() }
                 .floatingControl("panel.close")

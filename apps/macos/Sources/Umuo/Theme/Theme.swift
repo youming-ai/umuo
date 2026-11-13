@@ -29,13 +29,6 @@ enum ThemeChoice: String, CaseIterable, Sendable {
 }
 
 extension View {
-    /// 玻璃外壳内的阅读区使用系统文本底色，文字不会随桌面背景失去对比度。
-    /// 只在内容层做内嵌圆角，不叠加第二层玻璃、描边或阴影。
-    func readingSurface() -> some View {
-        background(Color(nsColor: .textBackgroundColor), in: RoundedRectangle(cornerRadius: 12))
-            .clipShape(RoundedRectangle(cornerRadius: 12))
-    }
-
     /// 浮动面板的底板：macOS 26 使用 Liquid Glass，更早系统由 `FloatingPanelChrome` 提供材质。
     /// 内容铺满窗口，圆角与裁切交给系统窗口外壳，避免再叠一套不匹配的圆角。
     @ViewBuilder
@@ -45,23 +38,5 @@ extension View {
         } else {
             self
         }
-    }
-}
-
-/// 浮窗控件的真实布局边界，由窗口自检核验最小尺寸与多语言下的可操作性。
-struct FloatingControlBounds: PreferenceKey {
-    static var defaultValue: [String: Anchor<CGRect>] { [:] }
-
-    static func reduce(value: inout [String: Anchor<CGRect>], nextValue: () -> [String: Anchor<CGRect>]) {
-        value.merge(nextValue()) { _, next in next }
-    }
-}
-
-extension View {
-    func floatingControl(_ identifier: String) -> some View {
-        accessibilityIdentifier(identifier)
-            .transformAnchorPreference(key: FloatingControlBounds.self, value: .bounds) { value, anchor in
-                value[identifier] = anchor
-            }
     }
 }

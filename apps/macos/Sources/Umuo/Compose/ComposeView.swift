@@ -42,7 +42,7 @@ struct ComposeView: View {
             Spacer(minLength: 0)
             PanelButton(t("compose.close"), systemImage: "xmark") { session.escape() }
                 .accessibilityIdentifier("compose.close")
-                .anchorPreference(key: FloatingControlBounds.self, value: .bounds) { ["compose.close": $0] }
+                .floatingControl("compose.close")
         }
         .padding(.horizontal, 14).padding(.vertical, 10)
         .background(WindowDragHandle())
@@ -167,7 +167,7 @@ struct ComposeView: View {
         if !session.autoTranslate {
             PanelButton(t("compose.translate"), bordered: true) { session.translateNow() }
                 .accessibilityIdentifier("compose.translate")
-                .anchorPreference(key: FloatingControlBounds.self, value: .bounds) { ["compose.translate": $0] }
+                .floatingControl("compose.translate")
                 .disabled(session.input.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 .help("\(t("compose.translate")) (⌘T)")
         }
@@ -177,12 +177,12 @@ struct ComposeView: View {
         HStack(spacing: 8) {
             PanelButton(t("compose.copyPaste"), bordered: true) { session.commit(paste: true) }
                 .accessibilityIdentifier("compose.copyPaste")
-                .anchorPreference(key: FloatingControlBounds.self, value: .bounds) { ["compose.copyPaste": $0] }
+                .floatingControl("compose.copyPaste")
                 .disabled(!session.settled)
                 .help("\(t("compose.copyPaste")) (⌘⇧↵)")
             PanelButton(t("compose.copy"), systemImage: "doc.on.doc", iconOnly: false, prominent: true) { session.commit(paste: false) }
                 .accessibilityIdentifier("compose.copy")
-                .anchorPreference(key: FloatingControlBounds.self, value: .bounds) { ["compose.copy": $0] }
+                .floatingControl("compose.copy")
                 .disabled(!session.settled)
                 .help("\(t("compose.copy")) (⌘↵)")
         }

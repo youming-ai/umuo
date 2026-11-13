@@ -103,9 +103,7 @@ struct PanelLayoutSelfTest: App {
 
         let voice = VoicePreviewFixture.makeModel()
         let voiceProbe = ControlFrameProbe()
-        let voiceWindow = NSPanel(contentRect: NSRect(x: 80, y: 420, width: VoicePanelController.width, height: 120),
-                                  styleMask: [.titled, .fullSizeContentView, .nonactivatingPanel],
-                                  backing: .buffered, defer: true)
+        let voiceWindow = VoicePanelController.makePanel(origin: CGPoint(x: 80, y: 420))
         let voiceHosting = FloatingPanelChrome.apply(to: voiceWindow,
             rootView: ControlLayoutFixture(content: VoiceOverlayView(model: voice), probe: voiceProbe), sizesToContent: true)
         defer { voiceWindow.close() }
@@ -122,8 +120,9 @@ struct PanelLayoutSelfTest: App {
             for phase in phases {
                 voice.phase = phase
                 await settle()
-                voiceWindow.setContentSize(NSSize(width: VoicePanelController.width,
-                                                  height: max(60, voiceHosting.fittingSize.height)))
+                // 与正式浮层同一个定高函数（`VoicePanelController.fit`）
+                let fitted = VoicePanelController.fittedHeight(voiceHosting)
+                voiceWindow.setContentSize(NSSize(width: VoicePanelController.width, height: fitted))
                 await settle()
                 var identifiers = ["voice.close"]
                 switch phase {
@@ -132,6 +131,11 @@ struct PanelLayoutSelfTest: App {
                 }
                 voiceControlsFit = checkControls(in: voiceWindow, probe: voiceProbe, identifiers: identifiers) && voiceControlsFit
                 voiceControlsFit = voiceControlsFit && voiceWindow.frame.height < 600
+                // 长结果必须撑开窗口：外壳若关掉尺寸测量，fittingSize 为 0、窗口会被压到下限 60pt
+                switch phase {
+                case .done, .undelivered, .failed: voiceControlsFit = voiceControlsFit && fitted > 160
+                default: break
+                }
             }
         }
         print("\(voiceControlsFit ? "✓" : "✗") VoicePanel.layout: 四语言录音、处理、下载、长结果与失败状态的操作均在窗口内")

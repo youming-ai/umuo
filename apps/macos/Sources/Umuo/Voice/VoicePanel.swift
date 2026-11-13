@@ -20,10 +20,21 @@ final class VoicePanelController: VoiceOverlayPresenting {
     private var observation: Task<Void, Never>?
     var locale: () -> AppLocale = { .source }
 
+    /// 语音浮层的窗口。正式浮层、静态预览与布局自检共用，免得三处各写一份样式与尺寸。
+    static func makePanel(origin: CGPoint = .zero) -> NSPanel {
+        NSPanel(contentRect: NSRect(origin: origin, size: CGSize(width: width, height: 120)),
+                styleMask: [.titled, .fullSizeContentView, .nonactivatingPanel],
+                backing: .buffered, defer: true)
+    }
+
+    /// 按内容定高：量 SwiftUI 内容的 `fittingSize`（宿主须以 `sizesToContent: true` 接入外壳，否则恒为 0 而被压成下限）。
+    static func fittedHeight(_ hosting: NSView?) -> CGFloat {
+        hosting?.layoutSubtreeIfNeeded()
+        return max(hosting?.fittingSize.height ?? 120, 60)
+    }
+
     private lazy var panel: NSPanel = {
-        let panel = NSPanel(contentRect: NSRect(x: 0, y: 0, width: Self.width, height: 120),
-                            styleMask: [.titled, .fullSizeContentView, .nonactivatingPanel],
-                            backing: .buffered, defer: true)
+        let panel = Self.makePanel()
         panel.isFloatingPanel = true
         panel.level = .floating
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .ignoresCycle]
@@ -80,8 +91,7 @@ final class VoicePanelController: VoiceOverlayPresenting {
     }
 
     private func fit(reposition: Bool) {
-        hosting?.layoutSubtreeIfNeeded()
-        let height = max(hosting?.fittingSize.height ?? 120, 60)
+        let height = Self.fittedHeight(hosting)
         var frame = panel.frame
         if reposition {
             let mouse = NSEvent.mouseLocation
@@ -112,7 +122,6 @@ struct VoiceOverlayView: View {
         .frame(width: VoicePanelController.width, alignment: .leading)
         .fixedSize(horizontal: false, vertical: true)
         .accessibilityElement(children: .contain)
-        .accessibilityLabel(title)
     }
 
     private var header: some View {
@@ -128,7 +137,7 @@ struct VoiceOverlayView: View {
                 .accessibilityAddTraits(.isHeader)
             Spacer(minLength: 0)
             if isProcessing {
-                ProgressView().controlSize(.small).accessibilityLabel(title)
+                ProgressView().controlSize(.small).accessibilityHidden(true) // 状态已由标题朗读
             }
             PanelButton(t("voice.close"), systemImage: "xmark") { model.onCancel?() }
                 .floatingControl("voice.close")
@@ -187,10 +196,12 @@ struct VoiceOverlayView: View {
                 Text(t("voice.escHint")).font(.callout).foregroundStyle(.secondary)
             }
         case let .failed(failure, transcript):
-            ErrorLine(message: t(Self.messageKey(failure.kind)))
+            // 页头已是警告图标，这里只放说明文字，不再叠一个红色警告符号
+            Text(t(Self.messageKey(failure.kind))).font(.callout)
+                .textSelection(.enabled).fixedSize(horizontal: false, vertical: true)
             if failure.kind == .postProcess, !failure.detail.isEmpty {
                 // Rust 给的具体原因（Key、网络、供应商……）
-                ResultText(text: failure.detail).font(.callout).foregroundStyle(.secondary)
+                ResultText(text: failure.detail, font: .callout).foregroundStyle(.secondary)
             }
             if let transcript {
                 ResultText(text: transcript).foregroundStyle(.secondary)
@@ -289,11 +300,12 @@ struct VoiceOverlayView: View {
 /// 可选中、可滚动的结果文本。
 private struct ResultText: View {
     let text: String
+    var font: Font = .body
 
     var body: some View {
         ScrollView {
             Text(text)
-                .font(.body).lineSpacing(4)
+                .font(font).lineSpacing(4)
                 .textSelection(.enabled)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(12)

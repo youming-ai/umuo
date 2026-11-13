@@ -60,12 +60,11 @@ private enum PreviewWindows {
             voiceModel.phase = .failed(failure: VoiceFailure(kind: .postProcess, detail: "请检查模型连接后重试。"), transcript: voiceText)
         default: voiceModel.phase = .recording
         }
-        let voice = NSPanel(contentRect: NSRect(x: 40, y: 80, width: VoicePanelController.width, height: 120),
-                            styleMask: [.titled, .fullSizeContentView, .nonactivatingPanel], backing: .buffered, defer: true)
+        let voice = VoicePanelController.makePanel(origin: CGPoint(x: 40, y: 80))
         let voiceHosting = FloatingPanelChrome.apply(to: voice, rootView: VoiceOverlayView(model: voiceModel), sizesToContent: true)
         voice.isReleasedWhenClosed = false
         voiceModel.onCancel = { [weak voice] in voice?.orderOut(nil) }
-        voice.setContentSize(NSSize(width: VoicePanelController.width, height: max(60, voiceHosting.fittingSize.height)))
+        voice.setContentSize(NSSize(width: VoicePanelController.width, height: VoicePanelController.fittedHeight(voiceHosting)))
 
         let model = SettingsModel(backend: backend)
         await model.load()
