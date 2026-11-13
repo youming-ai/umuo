@@ -15,13 +15,15 @@ on:
       # 只认进二进制的部分：crates/*/tests 与文档只跑 CI，不给全体用户推一次零改动的更新
       - 'crates/*/src/**'
       - 'crates/*/Cargo.toml'
-      - 'crates/umuo-ffi/uniffi-bindgen.rs'
       - 'Cargo.toml'
       - 'Cargo.lock'
       - 'rust-toolchain.toml'
       - 'package.json'
       - 'bun.lock'
       - 'scripts/sparkle-appcast.ts'
+      # 随包许可声明由它生成（bundle.sh 调用），变了包内容也变
+      - 'scripts/third-party-licenses.ts'
+      - 'scripts/licenses/**'
       - '.github/scripts/**'
       - '.github/workflows/release.yml'
       - '!**.md'

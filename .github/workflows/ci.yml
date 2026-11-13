@@ -26,13 +26,15 @@ on:
       - 'apps/macos/scripts/**'
       - 'crates/*/src/**'
       - 'crates/*/Cargo.toml'
-      - 'crates/umuo-ffi/uniffi-bindgen.rs'
       - 'Cargo.toml'
       - 'Cargo.lock'
       - 'rust-toolchain.toml'
       - 'package.json'
       - 'bun.lock'
       - 'scripts/sparkle-appcast.ts'
+      # 随包许可声明由它生成（bundle.sh 调用），变了包内容也变
+      - 'scripts/third-party-licenses.ts'
+      - 'scripts/licenses/**'
       - '.github/scripts/**'
       - '.github/workflows/release.yml'
   pull_request:

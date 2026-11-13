@@ -23,7 +23,7 @@ mkdir -p "$here/.core/lib" "$here/.core/bindings" "$here/Sources/UmuoCore"
 if [ "$profile" = release ]; then cargo build -p umuo-ffi --release; else cargo build -p umuo-ffi; fi
 out="$target/$profile"
 cp "$out/libumuo_ffi.a" "$here/.core/lib/"
-cargo run -q -p umuo-ffi --bin uniffi-bindgen -- generate \
+cargo run -q -p umuo-bindgen --bin uniffi-bindgen -- generate \
   --library "$out/libumuo_ffi.dylib" --language swift --out-dir "$here/.core/bindings"
 
 cp "$here/.core/bindings/umuo_ffiFFI.h" "$here/Sources/umuo_ffiFFI/include/"

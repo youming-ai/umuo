@@ -1,0 +1,16 @@
+[package]
+name = "umuo-bindgen"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+description = "生成 umuo-ffi 的 Swift 绑定（构建工具，不进 umuo.app）"
+
+# 独立成 crate：uniffi 的 `cli` 特性会带进 clap / askama / goblin / uniffi_bindgen，
+# 只有这个工具要用。放在 umuo-ffi 里时，它们会混进正式包静态库的依赖图（与随包许可清单）。
+[[bin]]
+name = "uniffi-bindgen"
+path = "src/main.rs"
+
+[dependencies]
+uniffi = { version = "0.32", features = ["cli"] }

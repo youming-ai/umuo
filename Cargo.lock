@@ -1508,6 +1508,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "umuo-bindgen"
+version = "0.2.0"
+dependencies = [
+ "uniffi",
+]
+
+[[package]]
 name = "umuo-core"
 version = "0.2.0"
 dependencies = [
