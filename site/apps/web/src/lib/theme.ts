@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { withViewTransition } from './transition'
 
 /**
  * 主题只切换 `<html data-theme>`，颜色全部来自 apps/web/src/styles/app.css 的令牌，
@@ -33,7 +34,11 @@ export function useTheme(): { theme: Theme; toggleTheme: () => void } {
 
   const toggleTheme = () => {
     const next: Theme = theme === 'dark' ? 'light' : 'dark'
-    setTheme(next)
+    // 两套配色之间做一次短交叉淡化；<html data-theme> 在过渡回调里直接写，不等 effect
+    withViewTransition(() => {
+      document.documentElement.dataset.theme = next
+      setTheme(next)
+    })
     try {
       window.localStorage.setItem(STORAGE_KEY, next)
     } catch {

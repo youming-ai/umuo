@@ -22,7 +22,7 @@ export function Nav() {
             href={SOURCE_URL}
             aria-label="GitHub"
             title="GitHub"
-            className="-me-2.5 ms-auto inline-flex h-11 w-11 items-center justify-center rounded-full text-text-secondary transition-colors hover:text-text-primary"
+            className="-me-2.5 ms-auto inline-flex h-11 w-11 items-center justify-center nav-icon-link rounded-full text-text-secondary hover:text-text-primary"
           >
             <GitHubIcon className="h-6 w-6" />
           </a>

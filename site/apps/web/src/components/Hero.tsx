@@ -6,6 +6,7 @@ import {
   useState,
 } from 'react'
 import type { DemoMode, DemoModeId, SiteContent } from '../content/types'
+import { enterIndex } from '../lib/motion'
 import { DownloadPanel } from './DownloadButton'
 
 /**
@@ -23,11 +24,14 @@ export function Hero({ content }: { content: SiteContent }) {
     <section id="download" aria-labelledby={headingId} className="hero-stage">
       <div className="hero container-page">
         <div className="hero-copy">
-          <h1 id={headingId} className="hero-title">
+          {/* --enter-i：首屏进场的错开序号（标题 0、导读 1、下载区 2、演示面板 3），间隔在 app.css */}
+          <h1 id={headingId} className="hero-title" style={enterIndex(0)}>
             {hero.title}
           </h1>
-          <p className="lead hero-gap">{hero.subtitle}</p>
-          <div className="hero-gap-lg">
+          <p className="lead hero-gap" style={enterIndex(1)}>
+            {hero.subtitle}
+          </p>
+          <div className="hero-gap-lg" style={enterIndex(2)}>
             <DownloadPanel platform={hero.platform} />
           </div>
         </div>
@@ -36,6 +40,13 @@ export function Hero({ content }: { content: SiteContent }) {
     </section>
   )
 }
+
+/**
+ * 首次流出要等首屏进场收完。时刻由 app.css 的 `--stream-start` 从进场令牌算出来
+ * （最后一块的序号 × `--stagger` + `--dur-enter` + 停顿），这里不再手算一个毫秒数。
+ * 下面 `--enter-i` 的最大序号（演示面板 = 3）变了的话，同步改 `--stream-start` 里的倍数。
+ */
+const FIRST_STREAM_DELAY = 'var(--stream-start)'
 
 function HeroDemo({ demo }: { demo: SiteContent['hero']['demo'] }) {
   const [modeId, setModeId] = useState<DemoModeId>(demo.modes[0].id)
@@ -118,7 +129,7 @@ function HeroDemo({ demo }: { demo: SiteContent['hero']['demo'] }) {
   }
 
   return (
-    <figure aria-label={demo.label} className="hero-demo">
+    <figure aria-label={demo.label} className="hero-demo" style={enterIndex(3)}>
       {/* 书签式选项卡：当前一页是白页、和下面的舞台连成一体，其余退到纸背 */}
       <div className="demo-tabs" role="tablist" aria-label={demo.label}>
         {demo.modes.map((item, index) => {
@@ -168,7 +179,7 @@ function HeroDemo({ demo }: { demo: SiteContent['hero']['demo'] }) {
               data-mode={item.id}
               data-active="true"
             >
-              <DemoStage mode={item} delay={run > 0 ? 250 : 700} />
+              <DemoStage mode={item} delay={run > 0 ? 250 : FIRST_STREAM_DELAY} />
             </div>
           ) : (
             <div key={item.id} className="demo-scene" data-mode={item.id} aria-hidden="true">
@@ -186,7 +197,7 @@ function HeroDemo({ demo }: { demo: SiteContent['hero']['demo'] }) {
  * 演示的上半部分：上一行经快捷键变成下一行。四种模式同一套记号：奶油选区或截图虚线框、灰色原话、墨色结果。
  * 不带 delay 时是占位用的静态场景（只撑高度，不流式）。
  */
-function DemoStage({ mode, delay }: { mode: DemoMode; delay?: number }) {
+function DemoStage({ mode, delay }: { mode: DemoMode; delay?: StreamDelay }) {
   const result = delay === undefined ? mode.after : <Stream text={mode.after} delay={delay} />
   const note = mode.note ? <p className="demo-note">{mode.note}</p> : null
 
@@ -240,15 +251,19 @@ function DemoStage({ mode, delay }: { mode: DemoMode; delay?: number }) {
   )
 }
 
+/** 流出的起始延迟：毫秒数，或一个 CSS 时间表达式（首次用令牌算出的 `--stream-start`） */
+type StreamDelay = number | string
+
 /** 「说」的声波条高度（百分比）。写死而不是随机，预渲染与 hydration 才一致 */
 const WAVE = [30, 55, 80, 45, 95, 60, 35, 70, 50, 85, 40, 65, 25, 75, 45, 30, 60, 40]
 
 /** 逐字流出。读屏只读整句；减少动态效果时直接显示全文。 */
-function Stream({ text, delay }: { text: string; delay: number }) {
+function Stream({ text, delay }: { text: string; delay: StreamDelay }) {
+  const start = typeof delay === 'number' ? `${delay}ms` : delay
   return (
     <>
       <span className="sr-only">{text}</span>
-      <span aria-hidden="true" style={{ '--d': `${delay}ms` } as CSSProperties}>
+      <span aria-hidden="true" style={{ '--d': start } as CSSProperties}>
         {[...text].map((char, index) => (
           // biome-ignore lint/suspicious/noArrayIndexKey: 字符序列固定，下标就是身份
           <span key={index} className="stream-char" style={{ '--i': index } as CSSProperties}>
