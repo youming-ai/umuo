@@ -8,6 +8,8 @@ A free, open-source macOS translator: translate in place, select-to-translate, s
 
 macOS 14+ · Apple Silicon · Swift + SwiftUI + AppKit · Rust 共享核心 · 纯 BYOK · MIT 开源
 
+**简体中文** · [English](README.en.md) · [繁體中文](README.zh-TW.md) · [日本語](README.ja.md) · [한국어](README.ko.md)
+
 [官网](https://umuo.app) · [下载（Apple Silicon）](https://umuo.app/download/macos) · [所有版本](https://github.com/youming-ai/umuo/releases) · [贡献指南](CONTRIBUTING.md)
 
 [![Release](https://img.shields.io/github/v/release/youming-ai/umuo?label=release)](https://github.com/youming-ai/umuo/releases/latest)
@@ -37,16 +39,17 @@ umuo 完全免费、以 MIT 许可证开源，纯 BYOK：用户自带模型 Key�
 ## 下载与安装
 
 从 [umuo.app/download/macos](https://umuo.app/download/macos) 下载（macOS 14+，仅 Apple Silicon），
-它会跳到 [GitHub Releases](https://github.com/youming-ai/umuo/releases) 最新版的安装包（如 `umuo-v0.2.5.dmg`）；每次客户端改动合入 `main` 都会自动发布一个新的正式版（标为 Latest），
+它会跳到 [GitHub Releases](https://github.com/youming-ai/umuo/releases) 最新版的安装包（`umuo-v<版本>.dmg`）；每次客户端改动合入 `main` 都会自动发布一个新的正式版（标为 Latest），
 已安装的应用可在「设置 › 关于」里检查更新。
 安装包尚未经 Apple 公证：首次打开如被拦截，到**系统设置 → 隐私与安全性**点「仍要打开」。
-也可以按下方「从源码构建」自己编译。
+也可以按下方「从源码构建」自己编译。暂不提供 Homebrew 安装（见 [开发计划](docs/IMPLEMENTATION-PLAN.md)「待办」）。
 
 ## 当前状态与开发入口
 
-2026-11-02：原生客户端、Sparkle 自动更新与语音输入（录音、本机转写、整理/翻译、写回输入框）已完成，
-客户端改动合入 `main` 即自动发布到 GitHub Releases（`v0.2.<序号>`，正式版，安装包 `umuo-v<版本>.dmg`，未经 Apple 公证）；
-真机验收与 Developer ID 签名公证待做。为收敛首版，多模型对比、风格与术语管理、费用预算、收藏等旧功能已移除（旧数据保留）。
+2026-11-13：原生客户端、Sparkle 自动更新与语音输入（录音、本机转写、整理/翻译、写回输入框）已完成，
+客户端改动合入 `main` 即自动发布到 GitHub Releases（`v0.2.<序号>`，正式版，安装包 `umuo-v<版本>.dmg`）。
+正式包用固定的自签名证书签名、**未经 Apple 公证**；Developer ID 签名与公证需要付费的 Apple 开发者账号，目前暂缓。
+真机验收待做。为收敛首版，多模型对比、风格与术语管理、费用预算、收藏等旧功能已移除（旧数据保留）。
 
 - [产品需求](docs/PRD.md)：当前功能与商业边界。
 - [首版开发计划](docs/IMPLEMENTATION-PLAN.md)：精简、语音、开源与发布的次序和完成条件。
@@ -55,6 +58,7 @@ umuo 完全免费、以 MIT 许可证开源，纯 BYOK：用户自带模型 Key�
 - [发布与 Sparkle 密钥](docs/SWIFTUI-MIGRATION.md)：GitHub Releases 自动发版、失败清理、密钥与以后接公证的步骤。
 - [真机走查](docs/NATIVE-WALKTHROUGH.md)：文字、截图、语音的真机验收表与性能测量口径。
 - [贡献指南](CONTRIBUTING.md)：许可、开发前须知与 PR 要求。
+- [安全策略](SECURITY.md)：如何私下报告安全漏洞。
 
 官网 [umuo.app](https://umuo.app)（单页首页）与 Worker 在 [site/](site/)，合入 `main` 后由 Cloudflare Workers Builds 自动部署。
 
@@ -87,7 +91,7 @@ bun run dev:macos    # 编 Rust 绑定与 SwiftUI 客户端后启动（macOS 14+
 
 ### 跑通划词翻译需要一次系统授权
 
-启动客户端后，先在**设置 → 模型**里填一个供应商的 API Key，然后到
+启动客户端后，先在**设置 → 引擎**里填一个供应商的 API Key，然后到
 **系统设置 → 隐私与安全性 → 辅助功能**里勾上 `umuo`（开发模式下是运行它的终端或 IDE）。
 没有这个权限，客户端读不到你选中的文字——浮窗会直接告诉你这件事，而不是静默失败。
 
@@ -107,13 +111,14 @@ apps/macos/          Swift + SwiftUI + AppKit 原生客户端（SwiftPM）
   Tests/UmuoTests/   Swift Testing：视图模型与纯规则
   packaging/         Info.plist、图标与签名权限
   scripts/           Rust 绑定构建、原生开发、验证与打包
-crates/umuo-ffi/     UniFFI 导出与类型转换
+crates/umuo-ffi/     UniFFI 导出与类型转换（链接进 App 的静态库）
+crates/umuo-bindgen/ 生成 Swift 绑定的 uniffi-bindgen（只在构建时用，不进发布产物）
 crates/umuo-app/     共享应用逻辑：设置、翻译流水线、语音会话与后处理、历史
   tests/             本地 SSE 流水线回归与事件兼容快照
 crates/umuo-core/    平台无关翻译内核：Provider、Prompt、流式解析、计量
 crates/umuo-store/   本地 SQLite：历史（旧收藏与用量表只保留数据）
 site/               官网与 Worker，独立 Bun 项目
-scripts/            图标生成与原生发布工具
+scripts/            图标生成、第三方许可核查与原生发布工具
 docs/              PRD、架构、发布、真机走查与验收清单
 ```
 
@@ -134,7 +139,7 @@ docs/              PRD、架构、发布、真机走查与验收清单
 
 ## 参与贡献
 
-欢迎提 Issue 与 Pull Request。开发前先读 [AGENTS.md](AGENTS.md)（分层规则、命令与测试约定，人和 agent 共用）与 [CONTRIBUTING.md](CONTRIBUTING.md)；
+欢迎提 Issue 与 Pull Request（Issue 与 PR 都有模板；**不要在任何地方贴出你的 API Key**）。安全漏洞请按 [SECURITY.md](SECURITY.md) 私下报告，不要开公开 Issue。开发前先读 [AGENTS.md](AGENTS.md)（分层规则、命令与测试约定，人和 agent 共用）与 [CONTRIBUTING.md](CONTRIBUTING.md)；
 提交前在本机跑通 `bun run verify`（改官网时另在 `site/` 跑 `bun run verify`），PR 会由 CI 再跑一遍。
 
 ## 许可

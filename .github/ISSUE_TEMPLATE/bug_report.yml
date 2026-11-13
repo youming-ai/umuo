@@ -1,0 +1,73 @@
+name: 问题报告 · Bug report
+description: 功能出错、崩溃或行为与预期不符
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **不要贴出你的 API Key**（截图、日志里也要打码）。安全漏洞请走 [SECURITY.md](https://github.com/youming-ai/umuo/blob/main/SECURITY.md)，不要开公开 Issue。
+        **Never paste your API key.** Report security issues privately via SECURITY.md.
+  - type: input
+    id: version
+    attributes:
+      label: umuo 版本 · umuo version
+      description: 「设置 › 关于」里的版本号
+      placeholder: 0.2.27
+    validations:
+      required: true
+  - type: input
+    id: macos
+    attributes:
+      label: macOS 版本与芯片 · macOS version and chip
+      placeholder: macOS 26.1, M3
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: 哪个功能 · Feature
+      options:
+        - 划词翻译 · Select to translate (⌃⌃)
+        - 输入翻译 · Compose (⌥⌘A)
+        - 原地替换 · Replace in place (⌥⌥)
+        - 截图翻译 · Screenshot OCR (⌥⌘O)
+        - 语音输入 · Voice input (⌥⌘V / ⌃⌘V)
+        - 设置 / 快捷键 · Settings / hotkeys
+        - 更新 / 安装 · Update / install
+        - 官网 · Website
+        - 其他 · Other
+    validations:
+      required: true
+  - type: input
+    id: provider
+    attributes:
+      label: 模型供应商与模型 · Provider and model
+      description: 只写名称，不要写 Key
+      placeholder: OpenAI gpt-5.1
+  - type: input
+    id: target-app
+    attributes:
+      label: 在哪个 App 里出的问题 · Target app
+      description: 取词、写回这类问题与目标 App 关系很大
+      placeholder: Safari / VS Code / 微信 / Slack
+  - type: textarea
+    id: steps
+    attributes:
+      label: 复现步骤 · Steps to reproduce
+      placeholder: |
+        1.
+        2.
+        3.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: 期望与实际 · Expected vs actual
+    validations:
+      required: true
+  - type: textarea
+    id: extra
+    attributes:
+      label: 补充 · Additional context
+      description: 截图、录屏、浮窗里的错误提示（请打码 Key 与隐私内容）

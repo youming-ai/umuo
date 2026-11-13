@@ -3,7 +3,7 @@
 > 文件名沿用旧的 `SWIFTUI-MIGRATION.md`：源码与官网文档里还有按这个名字（与「必须守住的兼容性」小节）引用它的地方。
 > SwiftUI 迁移本身已完成；迁移阶段的记录在 git 历史里。开发命令见 [README](../README.md)，真机走查见 [NATIVE-WALKTHROUGH.md](NATIVE-WALKTHROUGH.md)。
 
-客户端只发 Apple Silicon（arm64）、macOS 14+ 的包。正式包使用固定的 `umuo Self-Signed` 自签名证书签名、**未经 Apple 公证**；Developer ID 公证、
+客户端只发 Apple Silicon（arm64）、macOS 14+ 的包。正式包使用固定的 `umuo Self-Signed` 自签名证书签名、**未经 Apple 公证**；Developer ID 公证（暂缓：需付费开发者账号）、
 真实 N → N+1 更新实测与 Homebrew Cask 是待办（见 [开发计划](IMPLEMENTATION-PLAN.md) 阶段 G）。
 
 ## 自动发布（`.github/workflows/release.yml`）

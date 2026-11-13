@@ -1,7 +1,7 @@
 # umuo 首版开发计划
 
 2026-11-02 · 阶段 A–F 的代码都已完成；仓库已以 MIT 公开，客户端改动合入 main 自动发 GitHub Releases（未公证）。
-剩下的是真机走查、Developer ID 公证与 Homebrew，见文末「待办」。
+剩下的是真机走查、Developer ID 公证（暂缓）与 Homebrew，见文末「待办」。
 
 目标：在 macOS 上交付文字翻译、OCR 截图翻译、语音输入后润色/翻译，免费、MIT 开源、纯 BYOK。
 需求见 [PRD](PRD.md)，逐项进度见 [验收清单](PRD-CONFORMANCE.md)，技术参考见 [Handy 研究](research/handy-voice-analysis.md)。
@@ -164,5 +164,8 @@ arm64 release 自签名打包通过，包内自检 75 项通过、9 项因 TCC �
 代码侧已无未完成的阶段；剩下这些都需要人或外部账号，完成后在 [验收清单](PRD-CONFORMANCE.md) 记证据：
 
 1. **真机走查**：按 [NATIVE-WALKTHROUGH.md](NATIVE-WALKTHROUGH.md) 走文字 / 截图基线与语音全流程（各类输入框交付），并测原生 release 性能（阶段 A、C–E、G）。
-2. **Developer ID 签名与公证**：需要 Apple 开发者账号；接入步骤见 [SWIFTUI-MIGRATION.md](SWIFTUI-MIGRATION.md)，之后验 N → N+1 更新（阶段 G）。
-3. **Homebrew Cask**（阶段 G）。
+2. **Developer ID 签名与公证**（**暂缓**，2026-11-13）：需要付费的 Apple Developer Program（99 美元/年），目前不开通，发版继续用固定自签名证书。
+   接入步骤见 [SWIFTUI-MIGRATION.md](SWIFTUI-MIGRATION.md)，之后验 N → N+1 更新（阶段 G）。
+3. **Homebrew Cask**（阶段 G）：Homebrew 5.0 起，未签名/未公证的 cask 不再收进官方 `homebrew/cask`（2026-09 起已不能 `brew install`），
+   所以在接入 Developer ID 之前只能走自建 tap（如 `youming-ai/homebrew-tap`，`brew install youming-ai/tap/umuo`）；
+   自建 tap 仍会被 Gatekeeper 拦首次打开，体验与官网直装相同。

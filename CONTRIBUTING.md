@@ -17,6 +17,9 @@ umuo 以 [MIT](LICENSE) 许可证开源（含官网 `site/`）。欢迎提 Issue
 
 ## 提交 PR
 
-- 一个 PR 只做一件事；注释与提交信息用中文（代码标识符用英文），提交信息遵循 conventional commits。
+- 一个 PR 只做一件事；注释与提交信息用中文（代码标识符用英文）。提交标题用一句话说清做了什么（如「修复剪贴板取词降级在源应用写入期间误判放弃」），需要时在正文里写原因与取舍。
 - 提交前在本机跑 `bun run verify` 并全部通过；改了官网时在 `site/` 里另跑 `bun run verify`。在 PR 描述里贴出结果。
+- 改动客户端（`apps/macos/**` 等）的 PR 合入 `main` 后会**自动发布正式版**，请确认它可以直接发给用户。
+- 不要在 Issue、PR、日志或截图里贴 API Key；安全问题按 [SECURITY.md](SECURITY.md) 私下报告。
+- README 有五种语言（与官网一致：简体中文 `README.md` 为准，另有 en / zh-TW / ja / ko）。改 `README.md` 时同步其余四份；做不到就在 PR 里说明，由维护者补。
 - 新功能或修复附带测试；测试不访问真实 Keychain、用户剪贴板、真实模型或投递系统按键。
