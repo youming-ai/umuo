@@ -2,8 +2,8 @@
  * 生成 umuo 的图标资产（应用图标 + 菜单栏图标 + .icns）。
  *
  * 图形与官网 logo 是同一只水獭（umuo 仓库的 site/apps/web/public/favicon.svg，100×100 设计坐标），
- * 这里用几何图元重画。菜单栏图标是现行 logo 的线稿简化版；应用图标（otterTile）画的还是
- * 2026-11 精简之前的那版 logo（水獭偏右下、带胡须），尚未跟进，改它要重新生成 icon.icns。
+ * 这里用几何图元重画：应用图标（otterTile）与 favicon.svg 逐层对应，菜单栏图标是它的线稿简化版。
+ * 改 logo 时两边一起改，再跑一遍本脚本重新生成 icon.icns 与 tray.png。
  *
  * 为什么手写光栅化而不是引一个绘图库：图标只需要「圆、椭圆、多边形、圆头线段」，
  * 为此引入 canvas / sharp 这类依赖，会让 `bun install` 多出几十兆原生二进制，
@@ -131,10 +131,28 @@ function quad(from: Pt, control: Pt, to: Pt, steps = 12): Pt[] {
   return out
 }
 
-const shift = (shape: Shape, dy: number): Shape => ({
-  box: [shape.box[0], shape.box[1] + dy, shape.box[2], shape.box[3] + dy],
-  inside: (x, y) => shape.inside(x, y - dy),
-})
+/** 绕 (cx, cy) 旋转，角度与 SVG 的 rotate() 同向（屏幕坐标系里正值为顺时针） */
+function rotate(shape: Shape, degrees: number, cx: number, cy: number): Shape {
+  const rad = (degrees * Math.PI) / 180
+  const cos = Math.cos(rad)
+  const sin = Math.sin(rad)
+  const [x0, y0, x1, y1] = shape.box
+  const corners: Pt[] = [
+    [x0, y0],
+    [x1, y0],
+    [x1, y1],
+    [x0, y1],
+  ]
+  const turned = corners.map(
+    ([x, y]): Pt => [cx + (x - cx) * cos - (y - cy) * sin, cy + (x - cx) * sin + (y - cy) * cos],
+  )
+  return {
+    box: bounds(turned),
+    // 采样点反向转回去，再问原图形
+    inside: (x, y) =>
+      shape.inside(cx + (x - cx) * cos + (y - cy) * sin, cy - (x - cx) * sin + (y - cy) * cos),
+  }
+}
 
 // ---------------------------------------------------------------- 画布
 
@@ -188,84 +206,70 @@ function paint(canvas: Canvas, view: View, [shape, color, alpha = 1]: Layer, cli
 // ---------------------------------------------------------------- 水獭
 
 /** SVG 的描边居中：白边画成外扩 half 的形状，填充画成内缩 half 的形状 */
-const OUTLINE = 1.75
+const OUTLINE = 2
 
-/** 应用图标：蓝底圆角方块，水獭从水里探出头。画的是 2026-11 精简之前的那版 logo（见文件头）。 */
+/**
+ * 应用图标：蓝底圆角方块，水獭从水里探出头。图层顺序与 favicon.svg 逐层对应；
+ * 头部那一组在 SVG 里整体 rotate(-4 50 58)，这里对每个图元做同样的旋转。
+ */
 function otterTile(): { clip: Shape; layers: Layer[] } {
   const nose = polygon([
-    [53, 68],
-    ...quad([53, 68], [60, 65], [67, 67.5]),
-    ...quad([67, 67.5], [67.5, 72], [60, 74]),
-    ...quad([60, 74], [52.5, 72.5], [53, 68]),
+    [42, 58],
+    ...quad([42, 58], [50, 55], [58, 58]),
+    ...quad([58, 58], [58.5, 63.5], [50, 66]),
+    ...quad([50, 66], [41.5, 63.5], [42, 58]),
   ])
   const mouth: Pt[][] = [
     [
-      [60, 74],
-      [60, 77],
+      [50, 66],
+      [50, 69.5],
     ],
-    [[60, 77], ...quad([60, 77], [56.5, 80.5], [53, 78])],
-    [[60, 77], ...quad([60, 77], [63.5, 80.5], [67, 78])],
+    [[50, 69.5], ...quad([50, 69.5], [46, 74], [41.5, 71])],
+    [[50, 69.5], ...quad([50, 69.5], [54, 74], [58.5, 71])],
   ]
-  const whiskers: Pt[][] = [
-    [
-      [43, 73],
-      [30, 70],
-    ],
-    [
-      [43, 77],
-      [29, 78],
-    ],
-    [
-      [77, 71],
-      [91, 67],
-    ],
-    [
-      [78, 75],
-      [92, 74],
-    ],
-  ]
-  // 水面：M0 89 Q8 84 16 89 T32 89 …，T 是对上一个控制点的镜像，即每段控制点在 y=84 / 94 交替
-  const crest: Pt[] = [[0, 89]]
-  for (let i = 0; i < 7; i++) {
-    const x = i * 16
-    crest.push(...quad([x, 89], [x + 8, i % 2 === 0 ? 84 : 94], [x + 16, 89]))
-  }
-  const water = polygon([...crest, [112, 100], [0, 100]])
   const ring = (cx: number, cy: number, r: number): Layer[] => [
     [ellipse(cx, cy, r + OUTLINE), WHITE],
     [ellipse(cx, cy, r - OUTLINE), FUR],
   ]
+  const head: Layer[] = [
+    ...ring(16, 41, 8),
+    ...ring(84, 41, 8),
+    [ellipse(50, 58, 39 + OUTLINE, 31 + OUTLINE), WHITE],
+    // 耳朵再铺一层，盖住头部白边伸进耳朵里的那一段
+    [ellipse(16, 41, 6), FUR],
+    [ellipse(84, 41, 6), FUR],
+    [ellipse(17, 41.5, 3.4), FUR_DARK],
+    [ellipse(83, 41.5, 3.4), FUR_DARK],
+    [ellipse(50, 58, 37, 29), FUR],
+    [ellipse(50, 67, 29, 18), CREAM],
+    [ellipse(34, 49, 5.2, 6), INK],
+    [ellipse(66, 49, 5.2, 6), INK],
+    [ellipse(35.8, 46.8, 1.9), WHITE],
+    [ellipse(67.8, 46.8, 1.9), WHITE],
+    [nose, INK],
+    ...mouth.map((line): Layer => [stroke(line, 2.6), INK]),
+    [ellipse(24, 60, 5, 3.3), BLUSH, 0.6],
+    [ellipse(76, 60, 5, 3.3), BLUSH, 0.6],
+  ]
+  // 水面：M-2 86 Q10.5 78 23 86 T48 86 …，T 是对上一个控制点的镜像，即每段控制点在 y=78 / 94 交替。
+  // 1024 px 下每个设计单位有 8 px，折线段数取多一些，波峰才不见棱角
+  const crest: Pt[] = [[-2, 86]]
+  for (let i = 0; i < 5; i++) {
+    const x = -2 + i * 25
+    crest.push(...quad([x, 86], [x + 12.5, i % 2 === 0 ? 78 : 94], [x + 25, 86], 32))
+  }
 
   return {
     clip: roundRect(0, 0, 100, 100, 22),
     layers: [
       [roundRect(0, 0, 100, 100, 22), BG],
-      ...ring(27, 52, 7.5),
-      ...ring(95, 47, 7.5),
-      [ellipse(61, 70, 38 + OUTLINE, 33 + OUTLINE), WHITE],
-      [ellipse(61, 70, 38 - OUTLINE, 33 - OUTLINE), FUR],
-      [ellipse(27, 52, 5.8), FUR],
-      [ellipse(95, 47, 5.8), FUR],
-      [ellipse(28, 52, 3), FUR_DARK],
-      [ellipse(94, 47, 3), FUR_DARK],
-      [ellipse(61, 70, 36.2, 31.2), FUR],
-      [ellipse(60, 77, 29, 17), CREAM],
-      [ellipse(45, 61, 4.4, 5), INK],
-      [ellipse(74, 58, 4.4, 5), INK],
-      [ellipse(46.4, 59.3, 1.6), WHITE],
-      [ellipse(75.4, 56.3, 1.6), WHITE],
-      [nose, INK],
-      ...mouth.map((line): Layer => [stroke(line, 1.8), INK]),
-      ...whiskers.map((line): Layer => [stroke(line, 1.4), FUR_DARK]),
-      [ellipse(36, 69, 4.2, 2.8), BLUSH, 0.55],
-      [ellipse(84, 65, 4.2, 2.8), BLUSH, 0.55],
-      // 水面的白边：整片水往上挪半个描边宽度先铺一层白
-      [shift(water, -1.5), WHITE],
-      [shift(water, 1.5), WATER],
-      [ellipse(44, 89, 7 + 1.25, 4.5 + 1.25), WHITE],
-      [ellipse(44, 89, 7 - 1.25, 4.5 - 1.25), FUR],
-      [ellipse(77, 88, 7 + 1.25, 4.5 + 1.25), WHITE],
-      [ellipse(77, 88, 7 - 1.25, 4.5 - 1.25), FUR],
+      ...head.map(([shape, color, alpha]): Layer => [rotate(shape, -4, 50, 58), color, alpha]),
+      [polygon([...crest, [123, 102], [-2, 102]]), WATER],
+      [stroke(crest, 3.5), WHITE],
+      [ellipse(35, 86, 8 + 1.5, 5.2 + 1.5), WHITE],
+      [ellipse(35, 86, 8 - 1.5, 5.2 - 1.5), FUR],
+      [ellipse(65, 85, 8 + 1.5, 5.2 + 1.5), WHITE],
+      [ellipse(65, 85, 8 - 1.5, 5.2 - 1.5), FUR],
     ],
   }
 }
