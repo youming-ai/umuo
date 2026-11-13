@@ -1,6 +1,7 @@
 import { type MouseEvent, type ReactNode, useEffect, useState } from 'react'
 import { DEFAULT_LOCALE, LOCALES } from '../config'
 import type { Locale } from '../content/types'
+import { withViewTransition } from './transition'
 
 /**
  * 极简「路由」：站点只有首页，地址永远是 `/`，语言不进 URL，于是只剩「当前是哪种语言」。
@@ -85,8 +86,11 @@ export function LocaleLink({ locale, children, className, current, onNavigate }:
     if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey)
       return
     event.preventDefault()
-    switchLocale(locale)
-    onNavigate?.()
+    // 换文案与收起菜单放进同一次过渡：五种语言的行长不同，整页短淡化比硬切稳
+    withViewTransition(() => {
+      switchLocale(locale)
+      onNavigate?.()
+    })
   }
 
   return (

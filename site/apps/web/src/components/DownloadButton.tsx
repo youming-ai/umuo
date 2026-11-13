@@ -1,4 +1,4 @@
-import { useId, useState } from 'react'
+import { type ReactNode, useEffect, useId, useState } from 'react'
 import { MACOS_DOWNLOAD_URL, SITE_URL } from '../config'
 import type { PlatformCard } from '../content/types'
 import { DownloadIcon } from './icons'
@@ -60,6 +60,13 @@ export function DownloadPanel({ platform }: { platform: PlatformCard }) {
   const [copy, setCopy] = useState<'idle' | 'copied' | 'failed'>('idle')
   const [started, setStarted] = useState(false)
 
+  // 「已复制」停两秒再回到原样，按钮可以再按；失败提示留着，不自动收起
+  useEffect(() => {
+    if (copy !== 'copied') return
+    const timer = window.setTimeout(() => setCopy('idle'), 2000)
+    return () => window.clearTimeout(timer)
+  }, [copy])
+
   return (
     <div className="download-panel">
       <div className="download-desktop">
@@ -95,7 +102,8 @@ export function DownloadPanel({ platform }: { platform: PlatformCard }) {
         <div className="download-actions">
           <button
             type="button"
-            className="btn-secondary"
+            className="btn-secondary copy-button"
+            data-state={copy}
             onClick={() => {
               const clipboard = navigator.clipboard
               if (!clipboard) return setCopy('failed')
@@ -105,8 +113,15 @@ export function DownloadPanel({ platform }: { platform: PlatformCard }) {
               )
             }}
           >
-            <span aria-live="polite">
-              {copy === 'copied' ? platform.copied : platform.copyLink}
+            <span className="copy-icon" aria-hidden="true">
+              <CopyGlyph className="copy-icon-idle" />
+              <CheckGlyph className="copy-icon-done" />
+            </span>
+            {/* 两种文案由伪元素各占一次位（不可见、不进 DOM 文本），按钮宽度取较长的一种 */}
+            <span className="copy-label" data-idle={platform.copyLink} data-done={platform.copied}>
+              <span className="copy-text" aria-live="polite">
+                {copy === 'copied' ? platform.copied : platform.copyLink}
+              </span>
             </span>
           </button>
         </div>
@@ -117,5 +132,41 @@ export function DownloadPanel({ platform }: { platform: PlatformCard }) {
         ) : null}
       </div>
     </div>
+  )
+}
+
+/** 「复制网址」的两枚图标只在这里用，就地内联：两张叠放，复制成功时交叉淡化 */
+function Glyph({ className, children }: { className: string; children: ReactNode }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      focusable="false"
+    >
+      {children}
+    </svg>
+  )
+}
+
+function CopyGlyph({ className }: { className: string }) {
+  return (
+    <Glyph className={className}>
+      <rect x="9" y="9" width="11" height="11" rx="2" />
+      <path d="M5 15V6a2 2 0 0 1 2-2h9" />
+    </Glyph>
+  )
+}
+
+function CheckGlyph({ className }: { className: string }) {
+  return (
+    <Glyph className={className}>
+      <path d="m5 12.5 4.5 4.5L19 7.5" />
+    </Glyph>
   )
 }

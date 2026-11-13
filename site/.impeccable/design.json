@@ -96,18 +96,28 @@
     "motion": [
       {
         "name": "press",
-        "value": "transform 100ms ease, border-bottom-width 100ms ease；--press-depth 4px / --press-depth-active 1px / --press-lift-hover -1px / --press-lift-active 3px",
+        "value": "transform / border-bottom-width var(--dur-fast) var(--ease-out)；--press-depth 4px / --press-depth-active 1px / --press-lift-hover -1px / --press-lift-active 3px",
         "purpose": "「节拍」厚底可按压：悬停上抬、按下下沉并收窄厚边。"
       },
       {
         "name": "state",
-        "value": "150ms ease",
-        "purpose": "按钮、链接、选项卡的状态过渡。"
+        "value": "--dur-fast 120ms，--ease-out cubic-bezier(0.2, 0, 0, 1)",
+        "purpose": "按钮、链接、选项卡的颜色与底色过渡。"
+      },
+      {
+        "name": "reveal",
+        "value": "--dur-base 180ms，--ease-out / --ease-enter cubic-bezier(0.16, 1, 0.3, 1)",
+        "purpose": "语言菜单展开、复制成功的图标交叉淡化、场景切换、缩放按压，以及切换主题 / 语言的整页淡化。"
+      },
+      {
+        "name": "rise-in",
+        "value": "--dur-enter 520ms，--ease-enter，相邻两块间隔 --stagger 70ms；淡入 + 上移 10px + 4px 模糊",
+        "purpose": "首屏进场：标题、导读、下载区、演示面板依次浮上来，加载时只演一次。"
       },
       {
         "name": "stream-in",
-        "value": "每字 45ms，起始延迟 600ms",
-        "purpose": "首屏译文逐字流出，全站唯一的自发动效。"
+        "value": "每字 45ms，起始延迟 900ms（进场收完之后）",
+        "purpose": "首屏译文逐字流出；与首屏进场是全站仅有的两处自发动效。"
       }
     ],
     "breakpoints": [
@@ -184,7 +194,7 @@
       "暖纸 + 咖啡墨的单色系，靠明度与线条分层，不靠第二种色相",
       "左对齐的文字，居中铺满的页面网格（最宽 76rem）",
       "区块头像书的章首：标题在左，描述在右",
-      "全页只有一处自发动效：首屏译文逐字流出",
+      "自发动效只有两处，都只在加载时演一次：首屏按块进场，随后译文逐字流出",
       "浅色 / 深色 / 高对比三套主题共用同一组语义令牌"
     ],
     "rules": [
@@ -225,7 +235,7 @@
       "**Do** 用真实键位和真实前后对照来展示产品，不用示意插画。",
       "**Do** 用细线和装订线组织信息；标题在左、描述在右，像书的章首。",
       "**Do** 改动首页后在 1280×720 与 390×844（手机另看 375×667）下检查是否仍在一屏内，并抽查日文、韩文：韩文标题与导读用 `keep-all` 按词断行。",
-      "**Do** 让自发动效只保留首屏译文逐字流出这一处，并尊重 `prefers-reduced-motion`。"
+      "**Do** 让自发动效只保留加载时的首屏进场与随后的译文逐字流出，各演一次；其余动效都由访客触发，并尊重 `prefers-reduced-motion`。"
     ],
     "donts": [
       "**Don't** 在界面里用蓝色；`#0A84FF` / `#5FB2FF` 只属于 logo 图。",

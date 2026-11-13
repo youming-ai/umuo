@@ -53,13 +53,14 @@ export function LanguageMenu({
         <span className={placement === 'top' ? undefined : 'hidden sm:inline'}>
           {LOCALE_LABEL[locale]}
         </span>
-        <ChevronDownIcon className={`h-3 w-3 ${open ? 'rotate-180' : ''}`} />
+        <ChevronDownIcon className="lang-chevron h-3 w-3" />
       </button>
       {open ? (
         <ul
           id={panelId}
           aria-label={label}
-          className={`absolute end-0 z-50 min-w-40 rounded-card border border-border bg-surface p-2 shadow-lg ${placement === 'top' ? 'bottom-full mb-2' : 'top-full mt-2'}`}
+          data-placement={placement}
+          className={`lang-menu absolute end-0 z-50 min-w-40 rounded-card border border-border bg-surface p-2 shadow-lg ${placement === 'top' ? 'bottom-full mb-2' : 'top-full mt-2'}`}
         >
           {LOCALES.map((code) => (
             <li key={code}>
@@ -71,7 +72,7 @@ export function LanguageMenu({
                   trigger.current?.focus()
                 }}
                 className={[
-                  'block rounded-control px-3 py-2 text-sm transition-colors',
+                  'lang-item block rounded-control px-3 py-2 text-sm',
                   code === locale
                     ? 'bg-background-tertiary text-text-primary'
                     : 'text-text-secondary hover:bg-background-tertiary hover:text-text-primary',

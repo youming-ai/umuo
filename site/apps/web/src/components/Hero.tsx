@@ -37,6 +37,9 @@ export function Hero({ content }: { content: SiteContent }) {
   )
 }
 
+/** 首次流出要等首屏进场收完（进场最晚在 3 × 70ms + 520ms = 730ms 结束，见 app.css 的 rise-in） */
+const FIRST_STREAM_DELAY = 900
+
 function HeroDemo({ demo }: { demo: SiteContent['hero']['demo'] }) {
   const [modeId, setModeId] = useState<DemoModeId>(demo.modes[0].id)
   // 首次渲染的流式动画要等首屏稳定后再开始；之后每次切换（含再点一次当前模式）立即重新流出
@@ -168,7 +171,7 @@ function HeroDemo({ demo }: { demo: SiteContent['hero']['demo'] }) {
               data-mode={item.id}
               data-active="true"
             >
-              <DemoStage mode={item} delay={run > 0 ? 250 : 700} />
+              <DemoStage mode={item} delay={run > 0 ? 250 : FIRST_STREAM_DELAY} />
             </div>
           ) : (
             <div key={item.id} className="demo-scene" data-mode={item.id} aria-hidden="true">
