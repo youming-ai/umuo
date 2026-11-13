@@ -76,6 +76,9 @@
     --dur-base: 180ms;
     --dur-enter: 520ms;
     --stagger: 70ms;
+    /* 首屏译文开始流出的时刻：最后一块（演示面板，序号 3）进场收完，再停 170ms。
+       Hero.tsx 首次流出用的就是它；改进场的块数、时长或间隔时这里跟着变，不用另外对数 */
+    --stream-start: calc(var(--stagger) * 3 + var(--dur-enter) + 170ms);
     --ease-out: cubic-bezier(0.2, 0, 0, 1);
     --ease-enter: cubic-bezier(0.16, 1, 0.3, 1);
   }
@@ -307,8 +310,22 @@
     filter: blur(2px);
   }
 
-  .copy-button[data-state="copied"] .copy-text {
+  /* 对勾与「已复制」用 keyframes 进场：已复制时再按一次，组件给这两个节点换 key，动画重播 */
+  .copy-button[data-state="copied"] .copy-icon-done {
+    animation: check-in var(--dur-base) var(--ease-out) backwards;
+  }
+
+  .copy-button[data-state="copied"] .copy-text-run {
+    display: inline-block;
     animation: swap-in var(--dur-base) var(--ease-out) backwards;
+  }
+
+  @keyframes check-in {
+    from {
+      opacity: 0;
+      transform: scale(0.5);
+      filter: blur(2px);
+    }
   }
 
   @keyframes swap-in {
@@ -570,24 +587,17 @@
   }
 
   /* —— 首屏进场：加载时只演一次，标题 → 导读 → 下载区 → 演示面板依次浮上来 ——
-     只动 opacity / transform / filter，不占位、不改尺寸，首屏不跳；`backwards` 让结束后不留下 transform。
-     预渲染的 HTML 一上屏就开始，hydrate 不会重播。全部在首屏译文流出（900ms）之前收完。 */
+     位移类只动 opacity / transform / filter，不占位、不改尺寸，首屏不跳；`backwards` 让结束后不留下 transform。
+     预渲染的 HTML 一上屏就开始，hydrate 不会重播。全部在首屏译文流出（`--stream-start`）之前收完。 */
   .hero-copy > *,
   .hero-demo {
     animation: rise-in var(--dur-enter) var(--ease-enter) backwards;
-  }
-
-  .hero-copy > :nth-child(2) {
-    animation-delay: var(--stagger);
-  }
-
-  .hero-copy > :nth-child(3) {
-    animation-delay: calc(var(--stagger) * 2);
+    /* 错开的序号 --enter-i 由组件写在元素上（Hero.tsx、DownloadButton.tsx），这里只乘间隔 */
+    animation-delay: calc(var(--enter-i, 0) * var(--stagger));
   }
 
   .hero-demo {
     animation-name: rise-in-panel;
-    animation-delay: calc(var(--stagger) * 3);
   }
 
   @keyframes rise-in {
@@ -646,18 +656,7 @@
   .download-next-title,
   .download-next li {
     animation: step-in var(--dur-enter) var(--ease-enter) backwards;
-  }
-
-  .download-next li:nth-child(1) {
-    animation-delay: var(--stagger);
-  }
-
-  .download-next li:nth-child(2) {
-    animation-delay: calc(var(--stagger) * 2);
-  }
-
-  .download-next li:nth-child(3) {
-    animation-delay: calc(var(--stagger) * 3);
+    animation-delay: calc(var(--enter-i, 0) * var(--stagger));
   }
 
   @keyframes step-in {
@@ -1173,11 +1172,14 @@
   }
 }
 
-/* 切换主题 / 语言：整页短交叉淡化（lib/transition.ts 发起）。过渡期间页面不响应点击，所以压在 200ms 以内 */
+/* 切换主题 / 语言：整页短交叉淡化（lib/transition.ts 发起）。过渡期间页面不响应点击，所以压在 200ms 以内。
+   view-transition 伪元素挂在 <html> 下，继承得到 :root 上的令牌。
+   group 也要一起设：它的默认时长是 250ms，不设的话淡化 180ms 完了过渡还要再占 70ms */
+::view-transition-group(root),
 ::view-transition-old(root),
 ::view-transition-new(root) {
-  animation-duration: 180ms;
-  animation-timing-function: cubic-bezier(0.2, 0, 0, 1);
+  animation-duration: var(--dur-base);
+  animation-timing-function: var(--ease-out);
 }
 
 @media (prefers-reduced-motion: reduce) {

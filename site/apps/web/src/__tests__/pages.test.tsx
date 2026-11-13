@@ -246,6 +246,33 @@ describe('手机端只留文字与一个按钮', () => {
   })
 })
 
+describe('复制网址：已复制时再按一次', () => {
+  it('重新复制，两秒从头算，对勾与文字换节点重播', async () => {
+    vi.useFakeTimers()
+    try {
+      const button = () => host.querySelector<HTMLButtonElement>('.download-touch button')
+      const check = () => host.querySelector('.copy-icon-done')
+      const writeText = vi.fn().mockResolvedValue(undefined)
+      vi.stubGlobal('navigator', { clipboard: { writeText } })
+      await act(async () => button()?.click())
+      expect(button()?.dataset.state).toBe('copied')
+      const firstCheck = check()
+      await act(async () => vi.advanceTimersByTime(1500))
+      await act(async () => button()?.click())
+      expect(writeText).toHaveBeenCalledTimes(2)
+      expect(check()).not.toBe(firstCheck)
+      // 第一次的两秒已过，但计时从第二次重新算
+      await act(async () => vi.advanceTimersByTime(1500))
+      expect(button()?.textContent).toBe('已复制')
+      await act(async () => vi.advanceTimersByTime(600))
+      expect(button()?.dataset.state).toBe('idle')
+      expect(button()?.textContent).toBe('复制网址')
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+})
+
 describe('已删除的页面', () => {
   it('页面上没有条款、隐私与激活页的链接（旧地址由 Worker 回 404）', () => {
     expect(

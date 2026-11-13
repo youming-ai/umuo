@@ -53,4 +53,4 @@ Vite + Void 负责开发和构建。Worker 没有任何 secret 或变量。
 - 字体只用自托管或系统字体，不引 Google Fonts 等外部服务（大陆访问不稳且阻塞首屏）。
 - **不要加回**：深色光晕 / 渐变、胶囊形 eyebrow 标签、标题里单个渐变词、`A · B · C` 式中间点、千篇一律的圆角卡片墙、无意义的 01/02/03 编号。
 - 自发动效只有两处，都只在加载时演一次：首屏按块进场，随后译文逐字流式出现（尊重 reduced-motion）；切换演示模式时重新流出，属于访客触发。
-  时长、缓动与原则见 `DESIGN.md` 的 Motion 一节：只引用 `--dur-*` / `--ease-*` 令牌，只动 `opacity` / `transform` / `filter`，不引入动画库。
+  时长、缓动与原则见 `DESIGN.md` 的 Motion 一节：只引用 `--dur-*` / `--ease-*` 令牌；位移类只动 `opacity` / `transform` / `filter`，颜色类状态变化可过渡 `color` / `background-color` / `border-color`；不引入动画库。
