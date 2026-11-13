@@ -1,5 +1,6 @@
 import AppKit
 import SwiftUI
+import UmuoCore
 
 /// 在完整 SwiftUI 应用事件循环中显示固定夹具，不读配置、不取词、不注册快捷键、不调用供应商。
 /// 普通 --selftest 的 RunLoop 不会启动 SwiftUI 的窗口尺寸协商，无法复现 windowDidLayout 的布局循环。
@@ -18,7 +19,8 @@ struct PanelLayoutSelfTest: App {
     private static func run() async {
         NSApp.setActivationPolicy(.accessory)
         let session = PanelSession()
-        let window = PanelWindow(rootView: PanelView(session: session))
+        let panelProbe = ControlFrameProbe()
+        let window = PanelWindow(rootView: ControlLayoutFixture(content: PanelView(session: session), probe: panelProbe))
         defer { window.close() }
         window.setFrameOrigin(NSPoint(x: 80, y: 80))
         let initial = window.frame.size
@@ -54,8 +56,8 @@ struct PanelLayoutSelfTest: App {
         composeSession.locale = .en
         composeSession.autoTranslate = false
         composeSession.input = "Design should make expression easier."
-        let probe = ComposeFrameProbe()
-        let compose = ComposeWindow(rootView: ComposeLayoutFixture(session: composeSession, probe: probe))
+        let probe = ControlFrameProbe()
+        let compose = ComposeWindow(rootView: ControlLayoutFixture(content: ComposeView(session: composeSession), probe: probe))
         defer { compose.close() }
         let composeSize = compose.frame.size
         compose.orderFrontRegardless()
@@ -81,7 +83,74 @@ struct PanelLayoutSelfTest: App {
             }
         }
         print("\(controlsFit ? "✓" : "✗") ComposeWindow.noticeLayout: 四语言长提交提示下，最小窗口的关闭、翻译与提交按钮均在窗口内")
-        exit(stable && resizeStable && fillsWindow && composeStable && controlsFit ? 0 : 1)
+        // 长提示必须留在滚动内容里，最小划词窗口也始终能关闭、复制。
+        var panelControlsFit = true
+        window.setContentSize(PanelRules.minSize)
+        for locale in AppLocale.allCases {
+            session.locale = locale
+            session.apply(.start(PanelStart(requestId: 2, text: "A short source.", provider: "openai",
+                                            model: "test", targetLang: "zh-CN", wordMode: false, mode: .selection)))
+            session.apply(.delta(requestId: 2, text: "保持文字清晰，让操作轻盈。"))
+            session.apply(.done(PanelDone(requestId: 2, model: "test", inputTokens: 1, outputTokens: 1,
+                                          estimated: false, firstTokenMs: nil, totalMs: 1, replaced: false,
+                                          warning: String(repeating: "Long warning. ", count: 80))))
+            session.actionNotice = String(repeating: "Long action notice. ", count: 80)
+            await settle()
+            panelControlsFit = checkControls(in: window, probe: panelProbe,
+                                          identifiers: ["panel.close", "panel.copy", "panel.actions"]) && panelControlsFit
+        }
+        print("\(panelControlsFit ? "✓" : "✗") PanelWindow.noticeLayout: 四语言长提示不挤出最小窗口的关闭与复制操作")
+
+        let voice = VoicePreviewFixture.makeModel()
+        let voiceProbe = ControlFrameProbe()
+        let voiceWindow = VoicePanelController.makePanel(origin: CGPoint(x: 80, y: 420))
+        let voiceHosting = FloatingPanelChrome.apply(to: voiceWindow,
+            rootView: ControlLayoutFixture(content: VoiceOverlayView(model: voice), probe: voiceProbe), sizesToContent: true)
+        defer { voiceWindow.close() }
+        voiceWindow.orderFrontRegardless()
+        let longText = String(repeating: "保留原意与数字，结果可以复制。 ", count: 60)
+        let phases: [VoicePhase] = [.needsModel, .recording, .transcribing,
+            .postProcessing(transcript: longText),
+            .done(text: longText, transcript: longText, truncated: true),
+            .undelivered(text: longText, transcript: longText, reason: .focusChanged),
+            .failed(failure: VoiceFailure(kind: .postProcess, detail: "连接失败，请检查模型设置。"), transcript: longText)]
+        var voiceControlsFit = true
+        for locale in AppLocale.allCases {
+            voice.t = Translate(locale: locale)
+            for phase in phases {
+                voice.phase = phase
+                await settle()
+                // 与正式浮层同一个定高函数（`VoicePanelController.fit`）
+                let fitted = VoicePanelController.fittedHeight(voiceHosting)
+                voiceWindow.setContentSize(NSSize(width: VoicePanelController.width, height: fitted))
+                await settle()
+                var identifiers = ["voice.close"]
+                switch phase {
+                case .done, .undelivered, .failed: identifiers.append("voice.copy")
+                default: break
+                }
+                voiceControlsFit = checkControls(in: voiceWindow, probe: voiceProbe, identifiers: identifiers) && voiceControlsFit
+                voiceControlsFit = voiceControlsFit && voiceWindow.frame.height < 600
+                // 长结果必须撑开窗口：外壳若关掉尺寸测量，fittingSize 为 0、窗口会被压到下限 60pt
+                switch phase {
+                case .done, .undelivered, .failed: voiceControlsFit = voiceControlsFit && fitted > 160
+                default: break
+                }
+            }
+        }
+        print("\(voiceControlsFit ? "✓" : "✗") VoicePanel.layout: 四语言录音、处理、下载、长结果与失败状态的操作均在窗口内")
+
+        exit(stable && resizeStable && fillsWindow && composeStable && controlsFit && panelControlsFit && voiceControlsFit ? 0 : 1)
+    }
+
+    private static func checkControls(in window: NSWindow, probe: ControlFrameProbe, identifiers: [String]) -> Bool {
+        let bounds = NSRect(origin: .zero, size: window.contentView?.bounds.size ?? .zero).insetBy(dx: -1, dy: -1)
+        return identifiers.allSatisfy { identifier in
+            let frame = probe.frames[identifier]
+            let fits = frame.map { !$0.isEmpty && bounds.contains($0) } ?? false
+            if !fits { print("✗ \(identifier): \(String(describing: frame)), bounds: \(bounds)") }
+            return fits
+        }
     }
 
     private static func settle() async {
@@ -92,17 +161,17 @@ struct PanelLayoutSelfTest: App {
 
 /// 不通过系统 AX 取值：SwiftUI 在未启用辅助功能时可能不生成虚拟元素，CI 也要能检查边界。
 @MainActor
-private final class ComposeFrameProbe {
+private final class ControlFrameProbe {
     var frames: [String: CGRect] = [:]
 }
 
-private struct ComposeLayoutFixture: View {
-    let session: ComposeSession
-    let probe: ComposeFrameProbe
+private struct ControlLayoutFixture<Content: View>: View {
+    let content: Content
+    let probe: ControlFrameProbe
 
     var body: some View {
-        ComposeView(session: session)
-            .overlayPreferenceValue(ComposeControlBounds.self) { anchors in
+        content
+            .overlayPreferenceValue(FloatingControlBounds.self) { anchors in
                 GeometryReader { geometry in
                     let frames = anchors.mapValues { geometry[$0] }
                     Color.clear

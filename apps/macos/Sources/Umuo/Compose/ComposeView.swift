@@ -12,18 +12,19 @@ struct ComposeView: View {
     var body: some View {
         VStack(spacing: 0) {
             pickers
-            VStack(alignment: .leading, spacing: 8) {
-                TranslationSectionTitle(title: t("panel.source")).padding(.horizontal, 16).padding(.top, 12)
-                editor
+            VStack(spacing: 0) {
+                VStack(alignment: .leading, spacing: 8) {
+                    TranslationSectionTitle(title: t("panel.source")).padding(.horizontal, 16).padding(.top, 12)
+                    editor
+                }
+                .frame(minHeight: 100, maxHeight: .infinity)
+                Divider().padding(.horizontal, 16)
+                ScrollView { translation }
+                    .scrollBounceBehavior(.basedOnSize)
+                    .frame(minHeight: 80, maxHeight: .infinity)
             }
-            .frame(minHeight: 116, maxHeight: .infinity)
-            .background(Color(nsColor: .textBackgroundColor))
-            divider
-            ScrollView { translation }
-                .scrollBounceBehavior(.basedOnSize)
-                .frame(minHeight: 112, maxHeight: .infinity)
-                .background(Color(nsColor: .textBackgroundColor))
-            divider
+            .readingSurface()
+            .padding(.horizontal, 10)
             footer
         }
     }
@@ -41,11 +42,10 @@ struct ComposeView: View {
             Spacer(minLength: 0)
             PanelButton(t("compose.close"), systemImage: "xmark") { session.escape() }
                 .accessibilityIdentifier("compose.close")
-                .anchorPreference(key: ComposeControlBounds.self, value: .bounds) { ["compose.close": $0] }
+                .floatingControl("compose.close")
         }
         .padding(.horizontal, 14).padding(.vertical, 10)
         .background(WindowDragHandle())
-        .overlay(alignment: .bottom) { divider }
     }
 
     private func picker(_ selection: Binding<String>, hint: String, none: String,
@@ -92,7 +92,7 @@ struct ComposeView: View {
                     .textSelection(.enabled)
             }
             HStack(spacing: 8) {
-                TranslationSectionTitle(title: state.targetLang.isEmpty ? t("panel.translation") : state.targetLang)
+                TranslationSectionTitle(title: state.targetLang.isEmpty ? t("panel.translation") : Languages.label(state.targetLang))
                 Spacer(minLength: 0)
                 if state.status == .streaming {
                     ProgressView().controlSize(.mini).accessibilityLabel(t("compose.translating"))
@@ -141,39 +141,51 @@ struct ComposeView: View {
 
     /// 「复制」是 ⌘↩ 对应的默认操作，用系统的强调按钮；⌘↩ 由窗口的按键监听处理（输入法组字时不误触），这里不再挂快捷键。
     private var footer: some View {
-        HStack(spacing: 10) {
-            Toggle(t("compose.autoTranslate"), isOn: $session.autoTranslate)
-                .toggleStyle(.checkbox).font(.callout).fixedSize()
-            if !session.autoTranslate {
-                PanelButton(t("compose.translate"), bordered: true) { session.translateNow() }
-                    .accessibilityIdentifier("compose.translate")
-                    .anchorPreference(key: ComposeControlBounds.self, value: .bounds) { ["compose.translate": $0] }
-                    .disabled(session.input.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                    .help("\(t("compose.translate")) (⌘T)")
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: 12) {
+                translationOptions
+                Spacer(minLength: 12)
+                submitActions
             }
-            Spacer(minLength: 0)
-            PanelButton(t("compose.copyPaste"), bordered: true) { session.commit(paste: true) }
-                .accessibilityIdentifier("compose.copyPaste")
-                .anchorPreference(key: ComposeControlBounds.self, value: .bounds) { ["compose.copyPaste": $0] }
-                .disabled(!session.settled)
-                .help("\(t("compose.copyPaste")) (⌘⇧↵)")
-            PanelButton(t("compose.copy"), prominent: true) { session.commit(paste: false) }
-                .accessibilityIdentifier("compose.copy")
-                .anchorPreference(key: ComposeControlBounds.self, value: .bounds) { ["compose.copy": $0] }
-                .disabled(!session.settled)
-                .help("\(t("compose.copy")) (⌘↵)")
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(spacing: 12) {
+                    translationOptions
+                    Spacer(minLength: 0)
+                }
+                HStack {
+                    Spacer(minLength: 0)
+                    submitActions
+                }
+            }
         }
         .padding(.horizontal, 16).padding(.vertical, 10)
     }
 
-    private var divider: some View { Divider() }
-}
+    @ViewBuilder private var translationOptions: some View {
+        Toggle(t("compose.autoTranslate"), isOn: $session.autoTranslate)
+            .toggleStyle(.checkbox).font(.callout).fixedSize()
+        if !session.autoTranslate {
+            PanelButton(t("compose.translate"), bordered: true) { session.translateNow() }
+                .accessibilityIdentifier("compose.translate")
+                .floatingControl("compose.translate")
+                .disabled(session.input.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                .help("\(t("compose.translate")) (⌘T)")
+        }
+    }
 
-/// 操作控件在真实布局中的边界；窗口自检消费这些锚点，避免只检查窗口大小而漏掉内容裁切。
-struct ComposeControlBounds: PreferenceKey {
-    static var defaultValue: [String: Anchor<CGRect>] { [:] }
-
-    static func reduce(value: inout [String: Anchor<CGRect>], nextValue: () -> [String: Anchor<CGRect>]) {
-        value.merge(nextValue()) { _, next in next }
+    private var submitActions: some View {
+        HStack(spacing: 8) {
+            PanelButton(t("compose.copyPaste"), bordered: true) { session.commit(paste: true) }
+                .accessibilityIdentifier("compose.copyPaste")
+                .floatingControl("compose.copyPaste")
+                .disabled(!session.settled)
+                .help("\(t("compose.copyPaste")) (⌘⇧↵)")
+            PanelButton(t("compose.copy"), systemImage: "doc.on.doc", iconOnly: false, prominent: true) { session.commit(paste: false) }
+                .accessibilityIdentifier("compose.copy")
+                .floatingControl("compose.copy")
+                .disabled(!session.settled)
+                .help("\(t("compose.copy")) (⌘↵)")
+        }
+        .fixedSize()
     }
 }

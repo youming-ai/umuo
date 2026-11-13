@@ -63,7 +63,7 @@ enum FloatingPanelChrome {
 
     /// 返回承载 SwiftUI 内容的视图：按内容定高的面板（语音浮层）拿它的 `fittingSize` 调窗口大小。
     @discardableResult
-    static func apply(to window: NSPanel, rootView: some View) -> NSView {
+    static func apply(to window: NSPanel, rootView: some View, sizesToContent: Bool = false) -> NSView {
         window.titlebarAppearsTransparent = true
         window.titleVisibility = .hidden
         window.titlebarSeparatorStyle = .none
@@ -73,7 +73,8 @@ enum FloatingPanelChrome {
         window.isMovableByWindowBackground = false
 
         let hosting = NSHostingView(rootView: rootView.floatingSurface())
-        hosting.sizingOptions = []
+        // 固定尺寸窗口不反向协商大小；语音浮层按内容定高，需要保留真实的 fittingSize。
+        hosting.sizingOptions = sizesToContent ? [.intrinsicContentSize] : []
         // 标题栏是透明的、内容从窗口顶边开始：不要标题栏高度的安全区，否则顶上空出一条
         hosting.safeAreaRegions = []
         let surface: NSView
@@ -96,5 +97,33 @@ enum FloatingPanelChrome {
         hosting.autoresizingMask = [.width, .height]
         surface.addSubview(hosting)
         return hosting
+    }
+}
+
+// MARK: - 三个浮窗共用的内容部件（划词/OCR 浮窗、输入翻译窗、语音浮层）
+
+extension View {
+    /// 玻璃外壳里的阅读区：系统文本底色（语义色，随深浅色变化），文字不随桌面背景失去对比度。
+    /// 只做内嵌圆角，不叠第二层玻璃、描边或阴影。是一个共用部件，不是设计令牌——颜色与字号都来自系统。
+    func readingSurface() -> some View {
+        background(Color(nsColor: .textBackgroundColor), in: RoundedRectangle(cornerRadius: 12))
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+    }
+
+    /// 标出一个浮窗控件，供窗口自检（`PanelLayoutSelfTest`）核验它在最小尺寸、各语言下都还在窗口内。
+    func floatingControl(_ identifier: String) -> some View {
+        accessibilityIdentifier(identifier)
+            .transformAnchorPreference(key: FloatingControlBounds.self, value: .bounds) { value, anchor in
+                value[identifier] = anchor
+            }
+    }
+}
+
+/// `floatingControl` 收集的控件布局边界。
+struct FloatingControlBounds: PreferenceKey {
+    static var defaultValue: [String: Anchor<CGRect>] { [:] }
+
+    static func reduce(value: inout [String: Anchor<CGRect>], nextValue: () -> [String: Anchor<CGRect>]) {
+        value.merge(nextValue()) { _, next in next }
     }
 }

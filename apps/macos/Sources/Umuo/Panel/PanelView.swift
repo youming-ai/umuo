@@ -12,12 +12,16 @@ struct PanelView: View {
     var body: some View {
         VStack(spacing: 0) {
             header
-            Divider()
-            ScrollView { content }
+            ScrollView {
+                VStack(alignment: .leading, spacing: 0) {
+                    content
+                    notices
+                }
+            }
                 .scrollBounceBehavior(.basedOnSize)
                 .frame(maxHeight: .infinity, alignment: .top)
-                .background(Color(nsColor: .textBackgroundColor))
-            notices
+                .readingSurface()
+                .padding(.horizontal, 10)
             toolbar
         }
         .accessibilityElement(children: .contain)
@@ -39,7 +43,7 @@ struct PanelView: View {
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal, 12).padding(.bottom, 6)
+            .padding(.horizontal, 16).padding(.bottom, 12)
         }
     }
 
@@ -48,8 +52,8 @@ struct PanelView: View {
     private var header: some View {
         HStack(spacing: 8) {
             Label(t("panel.title"), systemImage: "character.bubble")
-                .font(.callout.weight(.medium))
-                .foregroundStyle(.secondary)
+                .font(.headline)
+                .lineLimit(1)
                 .allowsHitTesting(false)
             Spacer(minLength: 0)
             PanelButton(session.pinned ? t("panel.pinned") : t("panel.pin"),
@@ -58,6 +62,7 @@ struct PanelView: View {
                 .help(t("panel.pinHint"))
             PanelButton(t("panel.settings"), systemImage: "gearshape") { session.openSettings() }
             PanelButton(t("panel.collapseAria"), systemImage: "xmark") { session.close() }
+                .floatingControl("panel.close")
         }
         .padding(.horizontal, 14).padding(.vertical, 8)
         // 拖动区垫在底下：只有直接按在空白处才拖窗口，按钮照常可点
@@ -78,7 +83,8 @@ struct PanelView: View {
             }
             VStack(alignment: .leading, spacing: 12) {
                 HStack(spacing: 8) {
-                    TranslationSectionTitle(title: state.targetLang.isEmpty ? t("panel.translation") : state.targetLang)
+                    TranslationSectionTitle(title: state.targetLang.isEmpty ? t("panel.translation") : Languages.label(state.targetLang))
+                        .layoutPriority(1)
                     Spacer(minLength: 0)
                     if state.status == .streaming {
                         ProgressView().controlSize(.mini).accessibilityLabel(t("panel.translating"))
@@ -118,7 +124,8 @@ struct PanelView: View {
                 // 实测是否被截断：同宽下完整原文能装进这块高度就选第一个分支，否则落到第二个
                 .background {
                     ViewThatFits(in: .vertical) {
-                        Text(state.source).font(.callout).fixedSize(horizontal: false, vertical: true).hidden()
+                        Text(state.source).font(.callout).lineSpacing(3)
+                            .fixedSize(horizontal: false, vertical: true).hidden()
                             .onAppear { session.sourceTruncated = false }
                         Color.clear.onAppear { session.sourceTruncated = true }
                     }
@@ -136,7 +143,7 @@ struct PanelView: View {
         VStack(alignment: .leading, spacing: 4) {
             // 系统文本视图（带边框的 NSTextView），与设置里的多行输入同一个控件；可编辑的文字用主色
             PlainTextEditor(text: session.draft, height: 64, label: t("panel.ocrEditAria")) { session.draft = $0 }
-            HStack(spacing: 8) {
+            VStack(alignment: .leading, spacing: 8) {
                 Text(t("panel.ocrEditHint")).font(.callout).foregroundStyle(Color.secondary)
                 if session.canRetranslateDraft {
                     PanelButton(t("panel.retranslate"), prominent: true) { session.retranslateDraft() }
@@ -186,6 +193,7 @@ struct PanelView: View {
                     if !state.translation.isEmpty { session.speak(state.translation) } else { session.speak(state.source) }
                 }
                 .menuStyle(.borderlessButton).labelStyle(.iconOnly).fixedSize()
+                .frame(minWidth: 28, minHeight: 28)
                 .help(t("panel.speakTranslation"))
                 if session.canReplace {
                     PanelButton(t("panel.replace"), systemImage: "arrow.left.arrow.right") { session.replace() }
@@ -201,11 +209,12 @@ struct PanelView: View {
                     .accessibilityLabel(metrics)
             }
             if session.canCopy {
-                PanelButton(t("panel.copy"), systemImage: "doc.on.doc") { session.copy() }
+                PanelButton(t("panel.copy"), systemImage: "doc.on.doc", iconOnly: false, prominent: true) { session.copy() }
+                    .floatingControl("panel.copy")
             }
         }
         .padding(.horizontal, 14).padding(.vertical, 8)
-        .overlay(alignment: .top) { if session.hasContent || state.metrics != nil { Divider() } }
+        .floatingControl("panel.actions")
     }
 }
 
@@ -241,21 +250,23 @@ struct ErrorLine: View {
     }
 }
 
-/// 浮窗里的按钮：系统的小号按钮。给了 `systemImage` 就只显示图标（文字作为悬停提示与读屏标签），
+/// 浮窗里的按钮：使用系统按钮样式与控件尺寸。给了 `systemImage` 就只显示图标（文字作为悬停提示与读屏标签），
 /// 否则是文字按钮（出错块里的「重试」等用带边框款）。`tint` 只给「已钉住」这类状态着色。
 struct PanelButton: View {
     let title: String
     var systemImage: String?
+    var iconOnly = true
     var tint: Color?
     var bordered = false
     var prominent = false
     let action: () -> Void
 
-    init(_ title: String, systemImage: String? = nil, tint: Color? = nil, bordered: Bool = false,
+    init(_ title: String, systemImage: String? = nil, iconOnly: Bool = true, tint: Color? = nil, bordered: Bool = false,
          prominent: Bool = false, action: @escaping () -> Void)
     {
         self.title = title
         self.systemImage = systemImage
+        self.iconOnly = iconOnly
         self.tint = tint
         self.bordered = bordered
         self.prominent = prominent
@@ -264,13 +275,16 @@ struct PanelButton: View {
 
     var body: some View {
         let button = Button(action: action) {
-            if let systemImage {
-                Label(title, systemImage: systemImage).labelStyle(.iconOnly).frame(width: 24, height: 22).contentShape(Rectangle())
+            if let systemImage, iconOnly {
+                Label(title, systemImage: systemImage).labelStyle(.iconOnly)
+                    .frame(width: 28, height: 28).contentShape(Rectangle())
+            } else if let systemImage {
+                Label(title, systemImage: systemImage).lineLimit(1).fixedSize()
             } else {
                 Text(title).lineLimit(1)
             }
         }
-        .controlSize(.small).tint(tint)
+        .controlSize(.regular).tint(tint)
         .help(systemImage == nil ? "" : title)
         if prominent {
             button.buttonStyle(.borderedProminent)

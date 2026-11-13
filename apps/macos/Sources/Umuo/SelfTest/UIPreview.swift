@@ -49,6 +49,23 @@ private enum PreviewWindows {
         input.setFrameOrigin(NSPoint(x: 480, y: 100))
         input.orderFrontRegardless()
 
+        let voiceModel = VoicePreviewFixture.makeModel()
+        voiceModel.t = Translate(locale: locale)
+        let voiceText = "好的设计，让你专注于真正重要的事。"
+        switch CommandLine.arguments.first(where: { $0.hasPrefix("--preview-voice=") }) {
+        case "--preview-voice=result": voiceModel.phase = .undelivered(text: voiceText, transcript: voiceText, reason: .focusChanged)
+        case "--preview-voice=processing": voiceModel.phase = .postProcessing(transcript: voiceText)
+        case "--preview-voice=model": voiceModel.phase = .needsModel
+        case "--preview-voice=error":
+            voiceModel.phase = .failed(failure: VoiceFailure(kind: .postProcess, detail: "请检查模型连接后重试。"), transcript: voiceText)
+        default: voiceModel.phase = .recording
+        }
+        let voice = VoicePanelController.makePanel(origin: CGPoint(x: 40, y: 80))
+        let voiceHosting = FloatingPanelChrome.apply(to: voice, rootView: VoiceOverlayView(model: voiceModel), sizesToContent: true)
+        voice.isReleasedWhenClosed = false
+        voiceModel.onCancel = { [weak voice] in voice?.orderOut(nil) }
+        voice.setContentSize(NSSize(width: VoicePanelController.width, height: VoicePanelController.fittedHeight(voiceHosting)))
+
         let model = SettingsModel(backend: backend)
         await model.load()
         model.tab = .general
@@ -58,7 +75,7 @@ private enum PreviewWindows {
         settings.setContentSize(NSSize(width: 820, height: 600))
         settings.isReleasedWhenClosed = false
         settings.center()
-        windows = [result, input, settings]
+        windows = [result, input, voice, settings]
         NSApp.activate(ignoringOtherApps: true)
         switch CommandLine.arguments.first(where: { $0.hasPrefix("--preview-window=") }) {
         case "--preview-window=panel":
@@ -69,6 +86,11 @@ private enum PreviewWindows {
             result.orderOut(nil)
             input.center()
             input.makeKeyAndOrderFront(nil)
+        case "--preview-window=voice":
+            result.orderOut(nil)
+            input.orderOut(nil)
+            voice.center()
+            voice.makeKeyAndOrderFront(nil)
         default:
             result.orderOut(nil)
             input.orderOut(nil)
@@ -115,4 +137,23 @@ private final class PreviewSettingsBackend: SettingsBackend {
     func openHistory() {}
     func openOnboarding() {}
     var appVersion: String? { "预览" }
+}
+
+/// 语音预览与布局自检共用固定模型，不下载、不读真实模型目录。
+@MainActor
+enum VoicePreviewFixture {
+    static func makeModel() -> VoiceOverlayModel {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        let spec = VoiceModelStore.Spec(url: URL(string: "https://example.invalid/model")!, sizeBytes: 589_560_480,
+                                       sha256: "fixture", path: directory.appendingPathComponent("model"),
+                                       partialPath: directory.appendingPathComponent("partial"))
+        let model = VoiceOverlayModel(models: VoiceModelStore(spec: spec, fetcher: PreviewModelFetcher()))
+        model.hotkeyLabels = [.tidy: "⌥⌘V", .translate: "⌃⌘V"]
+        model.recordingSince = Date().addingTimeInterval(-8)
+        return model
+    }
+}
+
+private struct PreviewModelFetcher: ModelFetching {
+    func fetch(_: URL, from _: Int64) async throws -> ModelFetchResponse { throw CancellationError() }
 }
