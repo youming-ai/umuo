@@ -4,7 +4,7 @@ import os
 
 /// 本地转写：`transcribe.cpp` v0.4.1（`TranscribeCpp.xcframework`）+ 默认模型 `Qwen3-ASR-0.6B-Q4_K_M`。
 ///
-/// 阶段 B 定案的资源策略（`docs/research/local-transcription-engines.md`）：
+/// 阶段 B 定案的资源策略（实测见 `docs/archive/VERIFICATION-LOG-2026-10.md`）：
 /// - **宿主进程内加载**、默认 `mmap`：权重映射成文件页，推理峰值 `phys_footprint` 约 333 MB；
 /// - **空闲自动卸载**：最后一次使用 `idleUnload` 秒后 `session_free` + `model_free`，实测立即回落约 224 MB；
 /// - 引擎的 abort 回调做取消（实测 0.04 ms 返回 `ABORTED`，同会话重试结果一致），空采样 / NaN 安全返回错误码。

@@ -56,7 +56,6 @@ umuo 完全免費、以 MIT 授權條款開源，純 BYOK：使用者自備模�
 - [產品需求](docs/PRD.md)：目前的功能與商業邊界。
 - [首版開發計畫](docs/IMPLEMENTATION-PLAN.md)：精簡、語音、開源與發布的順序及完成條件。
 - [實作與驗收清單](docs/PRD-CONFORMANCE.md)：既有程式碼、新的範圍調整、尚未實作項目與實機驗收。
-- [Handy 語音研究](docs/research/handy-voice-analysis.md)：原始碼佐證與本機引擎的實驗方向。
 - [發布與 Sparkle 金鑰](docs/SWIFTUI-MIGRATION.md)：GitHub Releases 自動發版、失敗後的清理、金鑰，以及日後接上公證的步驟。
 - [實機走查](docs/NATIVE-WALKTHROUGH.md)：文字、截圖、語音的實機驗收表與效能量測口徑。
 - [貢獻指南](CONTRIBUTING.md)：授權、開發前須知與 PR 要求。
