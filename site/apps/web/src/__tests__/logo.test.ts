@@ -4,13 +4,22 @@ import { describe, expect, it } from 'vitest'
 
 const read = (path: string) => readFileSync(new URL(path, import.meta.url), 'utf8')
 
-/** 取出一段 SVG / JSX 里的取景框与全部路径数据 */
-function geometry(source: string) {
-  return {
-    viewBox: source.match(/viewBox="([^"]+)"/)?.[1],
-    paths: [...source.matchAll(/\sd="([^"]+)"/g)].map((match) => match[1]),
-    strokeWidth: source.match(/stroke-?[wW]idth="([^"]+)"/)?.[1],
-  }
+/**
+ * 取出一段 SVG / JSX 里的全部图形元素，属性名归一化（stroke-width 与 strokeWidth 视为同一个）。
+ * clipPath 的 id 与引用两边写法不同（页面里要避免重名），不参与比较。
+ */
+function shapes(source: string) {
+  return [...source.matchAll(/<(rect|circle|ellipse|path)\b([^>]*?)\/?>/g)].map(
+    ([, tag, attrs]) => ({
+      tag,
+      attrs: Object.fromEntries(
+        [...attrs.matchAll(/([A-Za-z-]+)="([^"]*)"/g)].map(([, name, value]) => [
+          name.replaceAll('-', '').toLowerCase(),
+          value,
+        ]),
+      ),
+    }),
+  )
 }
 
 describe('logo', () => {
@@ -20,9 +29,9 @@ describe('logo', () => {
       icons.indexOf('export function LogoMark'),
       icons.indexOf('export function DownloadIcon'),
     )
-    const favicon = geometry(read('../../public/favicon.svg'))
+    const favicon = shapes(read('../../public/favicon.svg'))
 
-    expect(favicon.paths).toHaveLength(2)
-    expect(geometry(logoMark)).toEqual(favicon)
+    expect(favicon.length).toBeGreaterThan(20)
+    expect(shapes(logoMark)).toEqual(favicon)
   })
 })
