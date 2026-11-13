@@ -41,44 +41,39 @@ export function LogoMark({ className }: { className?: string }) {
       </defs>
       <g clipPath="url(#umuo-logo-tile)">
         <rect width="100" height="100" fill="#0A84FF" />
-        <circle cx="27" cy="52" r="7.5" fill="#A8734D" stroke="#fff" strokeWidth="3.5" />
-        <circle cx="95" cy="47" r="7.5" fill="#A8734D" stroke="#fff" strokeWidth="3.5" />
-        <ellipse cx="61" cy="70" rx="38" ry="33" fill="#A8734D" stroke="#fff" strokeWidth="3.5" />
-        <circle cx="27" cy="52" r="5.8" fill="#A8734D" />
-        <circle cx="95" cy="47" r="5.8" fill="#A8734D" />
-        <circle cx="28" cy="52" r="3" fill="#7E5236" />
-        <circle cx="94" cy="47" r="3" fill="#7E5236" />
-        <ellipse cx="61" cy="70" rx="36.2" ry="31.2" fill="#A8734D" />
-        <ellipse cx="60" cy="77" rx="29" ry="17" fill="#F4E6D2" />
-        <ellipse cx="45" cy="61" rx="4.4" ry="5" fill="#2a1f1a" />
-        <ellipse cx="74" cy="58" rx="4.4" ry="5" fill="#2a1f1a" />
-        <circle cx="46.4" cy="59.3" r="1.6" fill="#fff" />
-        <circle cx="75.4" cy="56.3" r="1.6" fill="#fff" />
-        <path d="M53 68Q60 65 67 67.5Q67.5 72 60 74Q52.5 72.5 53 68Z" fill="#2a1f1a" />
+        <g transform="rotate(-4 50 58)">
+          <circle cx="16" cy="41" r="8" fill="#A8734D" stroke="#fff" strokeWidth="4" />
+          <circle cx="84" cy="41" r="8" fill="#A8734D" stroke="#fff" strokeWidth="4" />
+          <ellipse cx="50" cy="58" rx="39" ry="31" fill="#A8734D" stroke="#fff" strokeWidth="4" />
+          <circle cx="16" cy="41" r="6" fill="#A8734D" />
+          <circle cx="84" cy="41" r="6" fill="#A8734D" />
+          <circle cx="17" cy="41.5" r="3.4" fill="#7E5236" />
+          <circle cx="83" cy="41.5" r="3.4" fill="#7E5236" />
+          <ellipse cx="50" cy="58" rx="37" ry="29" fill="#A8734D" />
+          <ellipse cx="50" cy="67" rx="29" ry="18" fill="#F4E6D2" />
+          <ellipse cx="34" cy="49" rx="5.2" ry="6" fill="#2a1f1a" />
+          <ellipse cx="66" cy="49" rx="5.2" ry="6" fill="#2a1f1a" />
+          <circle cx="35.8" cy="46.8" r="1.9" fill="#fff" />
+          <circle cx="67.8" cy="46.8" r="1.9" fill="#fff" />
+          <path d="M42 58Q50 55 58 58Q58.5 63.5 50 66Q41.5 63.5 42 58Z" fill="#2a1f1a" />
+          <path
+            d="M50 66V69.5M50 69.5Q46 74 41.5 71M50 69.5Q54 74 58.5 71"
+            fill="none"
+            stroke="#2a1f1a"
+            strokeWidth="2.6"
+            strokeLinecap="round"
+          />
+          <ellipse cx="24" cy="60" rx="5" ry="3.3" fill="#ff9fb0" opacity=".6" />
+          <ellipse cx="76" cy="60" rx="5" ry="3.3" fill="#ff9fb0" opacity=".6" />
+        </g>
         <path
-          d="M60 74V77M60 77Q56.5 80.5 53 78M60 77Q63.5 80.5 67 78"
-          fill="none"
-          stroke="#2a1f1a"
-          strokeWidth="1.8"
-          strokeLinecap="round"
-        />
-        <path
-          d="M43 73L30 70M43 77L29 78M77 71L91 67M78 75L92 74"
-          fill="none"
-          stroke="#7E5236"
-          strokeWidth="1.4"
-          strokeLinecap="round"
-        />
-        <ellipse cx="36" cy="69" rx="4.2" ry="2.8" fill="#ff9fb0" opacity=".55" />
-        <ellipse cx="84" cy="65" rx="4.2" ry="2.8" fill="#ff9fb0" opacity=".55" />
-        <path
-          d="M0 89Q8 84 16 89T32 89T48 89T64 89T80 89T96 89T112 89V100H0Z"
+          d="M-2 86Q10.5 78 23 86T48 86T73 86T98 86T123 86V102H-2Z"
           fill="#5FB2FF"
           stroke="#fff"
-          strokeWidth="3"
+          strokeWidth="3.5"
         />
-        <ellipse cx="44" cy="89" rx="7" ry="4.5" fill="#A8734D" stroke="#fff" strokeWidth="2.5" />
-        <ellipse cx="77" cy="88" rx="7" ry="4.5" fill="#A8734D" stroke="#fff" strokeWidth="2.5" />
+        <ellipse cx="35" cy="86" rx="8" ry="5.2" fill="#A8734D" stroke="#fff" strokeWidth="3" />
+        <ellipse cx="65" cy="85" rx="8" ry="5.2" fill="#A8734D" stroke="#fff" strokeWidth="3" />
       </g>
     </svg>
   )

@@ -2,7 +2,8 @@
  * 生成 umuo 的图标资产（应用图标 + 菜单栏图标 + .icns）。
  *
  * 图形与官网 logo 是同一只水獭（umuo 仓库的 site/apps/web/public/favicon.svg，100×100 设计坐标），
- * 这里按同样的图层顺序用几何图元重画一遍。改 logo 时两边一起改。
+ * 这里用几何图元重画。菜单栏图标是现行 logo 的线稿简化版；应用图标（otterTile）画的还是
+ * 2026-11 精简之前的那版 logo（水獭偏右下、带胡须），尚未跟进，改它要重新生成 icon.icns。
  *
  * 为什么手写光栅化而不是引一个绘图库：图标只需要「圆、椭圆、多边形、圆头线段」，
  * 为此引入 canvas / sharp 这类依赖，会让 `bun install` 多出几十兆原生二进制，
@@ -189,7 +190,7 @@ function paint(canvas: Canvas, view: View, [shape, color, alpha = 1]: Layer, cli
 /** SVG 的描边居中：白边画成外扩 half 的形状，填充画成内缩 half 的形状 */
 const OUTLINE = 1.75
 
-/** 应用图标：蓝底圆角方块，水獭从水里探出头。图层顺序与 favicon.svg 逐层对应。 */
+/** 应用图标：蓝底圆角方块，水獭从水里探出头。画的是 2026-11 精简之前的那版 logo（见文件头）。 */
 function otterTile(): { clip: Shape; layers: Layer[] } {
   const nose = polygon([
     [53, 68],
@@ -269,28 +270,59 @@ function otterTile(): { clip: Shape; layers: Layer[] } {
   }
 }
 
-/** 菜单栏下方的一道水波：和应用图标呼应，也让剪影一眼看出是水獭而不是小熊 */
-const TRAY_WAVE: Pt[] = [[4, 91]]
-for (let i = 0; i < 4; i++) {
-  const x = 4 + i * 23
-  TRAY_WAVE.push(...quad([x, 91], [x + 11.5, i % 2 === 0 ? 85 : 97], [x + 23, 91]))
+// ---------------------------------------------------------------- 菜单栏剪影
+//
+// logo 的线稿简化版：扁宽的头、两侧偏低的小耳朵、眼睛和鼻子三个点，下面一道水波，头的下缘
+// 跟着水波裁掉，像刚从水里探出来。设计坐标 0..100 对应整张 20pt 画布（1pt = 5 个单位）：
+// 图形横向占 9.5..90.5（约 16pt），四周各留约 2pt；线宽 1.4pt，与 SF Symbols 常规字重相近。
+
+/** 头部轮廓与水波共用的线宽 */
+const TRAY_LINE = 7
+const TRAY_HEAD = { cx: 50, cy: 50, rx: 31, ry: 22 }
+/** 头部下缘与水波之间留的空隙 */
+const TRAY_GAP = 4.5
+
+/** 水波中心线：两边高、中间低，头正好浮在中间的波谷上 */
+const TRAY_WAVE: Pt[] = [[13, 70]]
+for (let i = 0; i < 3; i++) {
+  const x = 13 + (i * 74) / 3
+  TRAY_WAVE.push(...quad([x, 70], [x + 37 / 3, i % 2 === 0 ? 64 : 76], [x + 74 / 3, 70]))
 }
 
-/**
- * 菜单栏：22pt 里放不下整张图，只画水獭头的剪影——扁宽的头、两侧偏低的小耳朵、
- * 下面一道水波；眼睛和鼻子由 HEAD_HOLES 挖空。设计坐标同样是 0..100。
- */
-function otterHead(): Layer[] {
-  return [
-    [ellipse(9, 38, 8), BLACK],
-    [ellipse(91, 38, 8), BLACK],
-    [ellipse(50, 50, 44, 30), BLACK],
-    [stroke(TRAY_WAVE, 7), BLACK],
-  ]
+/** 水波中心线在 x 处的高度（折线插值） */
+function trayWaveY(x: number): number {
+  for (let i = 1; i < TRAY_WAVE.length; i++) {
+    const [ax, ay] = TRAY_WAVE[i - 1]
+    const [bx, by] = TRAY_WAVE[i]
+    if (x <= bx) return x <= ax ? ay : ay + ((by - ay) * (x - ax)) / (bx - ax)
+  }
+  return TRAY_WAVE[TRAY_WAVE.length - 1][1]
 }
 
-/** 剪影的镂空：眼睛和鼻子挖成透明，模板图由系统着色时也认得出脸 */
-const HEAD_HOLES = [ellipse(34, 46, 6.5, 7), ellipse(66, 46, 6.5, 7), ellipse(50, 59, 10, 6)]
+/** 水面以上：头和耳朵只画这一部分 */
+const ABOVE_WATER: Shape = {
+  box: [0, 0, 100, 100],
+  inside: (x, y) => y <= trayWaveY(x) - TRAY_LINE / 2 - TRAY_GAP,
+}
+
+/** 头的外形：上半是椭圆，中线以下两侧竖直入水（整个椭圆的话下巴会收窄，像悬在水面上） */
+function trayDome(grow: number): Shape {
+  const { cx, cy } = TRAY_HEAD
+  const rx = TRAY_HEAD.rx + grow
+  const ry = TRAY_HEAD.ry + grow
+  return {
+    box: [cx - rx, cy - ry, cx + rx, 100],
+    inside: (x, y) =>
+      y <= cy ? ((x - cx) / rx) ** 2 + ((y - cy) / ry) ** 2 <= 1 : Math.abs(x - cx) <= rx,
+  }
+}
+
+/** 眼睛和鼻子：实心点，@2x 下各约 3px 宽，再小就糊了 */
+const TRAY_FACE = [
+  ellipse(38, 43, 4.2, 4.8),
+  ellipse(62, 43, 4.2, 4.8),
+  ellipse(50, 52.5, 5.8, 3.6),
+]
 
 function punch(canvas: Canvas, view: View, holes: Shape[]): void {
   const S = 4
@@ -327,16 +359,18 @@ function renderAppIcon(size: number): Canvas {
 }
 
 /**
- * 菜单栏模板图：黑色剪影，运行时设 isTemplate，由系统按菜单栏明暗着色（菜单栏图标只有这一种样式）。
+ * 菜单栏模板图：黑色线稿，运行时设 isTemplate，由系统按菜单栏明暗着色（菜单栏图标只有这一种样式）。
  */
 function renderTrayIcon(size: number): Canvas {
   const canvas = createCanvas(size, size)
-  const pad = size * 0.04
-  // 剪影在设计坐标里纵向占 20..98（耳朵到水波），整体上移 9 个单位让它在画布里上下居中
-  const art = size - pad * 2
-  const view = { x: pad, y: pad - art * 0.09, size: art }
-  for (const layer of otterHead()) paint(canvas, view, layer)
-  punch(canvas, view, HEAD_HOLES)
+  const view = { x: 0, y: 0, size }
+  const half = TRAY_LINE / 2
+  // 先铺实心的耳朵和头，再把头的内部挖空，剩下一圈轮廓和露在外面的半个耳朵
+  const solid = [ellipse(19, 38, 6.5), ellipse(81, 38, 6.5), trayDome(half)]
+  for (const shape of solid) paint(canvas, view, [shape, BLACK], ABOVE_WATER)
+  punch(canvas, view, [trayDome(-half)])
+  for (const shape of TRAY_FACE) paint(canvas, view, [shape, BLACK])
+  paint(canvas, view, [stroke(TRAY_WAVE, TRAY_LINE), BLACK])
   return canvas
 }
 
@@ -419,8 +453,8 @@ function preview(canvas: Canvas, byAlpha = false): string {
 if (process.argv.includes('--preview')) {
   process.stdout.write('\n=== 应用图标（32×32）===\n')
   process.stdout.write(`${preview(renderAppIcon(32))}\n`)
-  process.stdout.write('\n=== 菜单栏模板图（22×22）===\n')
-  process.stdout.write(`${preview(renderTrayIcon(22), true)}\n`)
+  process.stdout.write('\n=== 菜单栏模板图（40×40）===\n')
+  process.stdout.write(`${preview(renderTrayIcon(40), true)}\n`)
 }
 
 mkdirSync(ICON_DIR, { recursive: true })
