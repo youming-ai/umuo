@@ -28,53 +28,23 @@ function Svg({ children, className }: { children: ReactNode; className?: string 
 }
 
 /**
- * logo：从水里探出头的小水獭（蓝底），两只爪子搭在水面上。满底色的彩色图标，不随主题变色；
- * 与 public/favicon.svg 是同一张图，改一处要同步另一处。
+ * logo：实心水獭剪影——头、两只耳朵，眼睛和鼻子镂空，下面一道水波。单色，跟随文字颜色（`currentColor`），
+ * 三套主题下都是当前的墨色。与 public/favicon.svg 是同样两条路径（__tests__/logo.test.ts 盯着），改一处要同步另一处。
  */
 export function LogoMark({ className }: { className?: string }) {
   return (
-    <svg viewBox="0 0 100 100" className={className} aria-hidden="true" focusable="false">
-      <defs>
-        <clipPath id="umuo-logo-tile">
-          <rect width="100" height="100" rx="22" />
-        </clipPath>
-      </defs>
-      <g clipPath="url(#umuo-logo-tile)">
-        <rect width="100" height="100" fill="#0A84FF" />
-        <g transform="rotate(-4 50 58)">
-          <circle cx="16" cy="41" r="8" fill="#A8734D" stroke="#fff" strokeWidth="4" />
-          <circle cx="84" cy="41" r="8" fill="#A8734D" stroke="#fff" strokeWidth="4" />
-          <ellipse cx="50" cy="58" rx="39" ry="31" fill="#A8734D" stroke="#fff" strokeWidth="4" />
-          <circle cx="16" cy="41" r="6" fill="#A8734D" />
-          <circle cx="84" cy="41" r="6" fill="#A8734D" />
-          <circle cx="17" cy="41.5" r="3.4" fill="#7E5236" />
-          <circle cx="83" cy="41.5" r="3.4" fill="#7E5236" />
-          <ellipse cx="50" cy="58" rx="37" ry="29" fill="#A8734D" />
-          <ellipse cx="50" cy="67" rx="29" ry="18" fill="#F4E6D2" />
-          <ellipse cx="34" cy="49" rx="5.2" ry="6" fill="#2a1f1a" />
-          <ellipse cx="66" cy="49" rx="5.2" ry="6" fill="#2a1f1a" />
-          <circle cx="35.8" cy="46.8" r="1.9" fill="#fff" />
-          <circle cx="67.8" cy="46.8" r="1.9" fill="#fff" />
-          <path d="M42 58Q50 55 58 58Q58.5 63.5 50 66Q41.5 63.5 42 58Z" fill="#2a1f1a" />
-          <path
-            d="M50 66V69.5M50 69.5Q46 74 41.5 71M50 69.5Q54 74 58.5 71"
-            fill="none"
-            stroke="#2a1f1a"
-            strokeWidth="2.6"
-            strokeLinecap="round"
-          />
-          <ellipse cx="24" cy="60" rx="5" ry="3.3" fill="#ff9fb0" opacity=".6" />
-          <ellipse cx="76" cy="60" rx="5" ry="3.3" fill="#ff9fb0" opacity=".6" />
-        </g>
-        <path
-          d="M-2 86Q10.5 78 23 86T48 86T73 86T98 86T123 86V102H-2Z"
-          fill="#5FB2FF"
-          stroke="#fff"
-          strokeWidth="3.5"
-        />
-        <ellipse cx="35" cy="86" rx="8" ry="5.2" fill="#A8734D" stroke="#fff" strokeWidth="3" />
-        <ellipse cx="65" cy="85" rx="8" ry="5.2" fill="#A8734D" stroke="#fff" strokeWidth="3" />
-      </g>
+    <svg viewBox="-2 6.75 104 104" className={className} aria-hidden="true" focusable="false">
+      <path
+        fill="currentColor"
+        d="M6 50a44 30 0 1 1 88 0a44 30 0 1 1-88 0ZM1 38a8 8 0 1 1 16 0a8 8 0 1 1-16 0ZM83 38a8 8 0 1 1 16 0a8 8 0 1 1-16 0ZM27.5 46a6.5 7 0 1 0 13 0a6.5 7 0 1 0-13 0ZM59.5 46a6.5 7 0 1 0 13 0a6.5 7 0 1 0-13 0ZM40 59a10 6 0 1 0 20 0a10 6 0 1 0-20 0Z"
+      />
+      <path
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="7"
+        strokeLinecap="round"
+        d="M4 91Q15.5 85 27 91T50 91T73 91T96 91"
+      />
     </svg>
   )
 }
