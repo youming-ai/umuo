@@ -89,10 +89,15 @@ pub fn parse_hotkey(value: &str) -> HotkeySpec {
 /// 换成平台键码（macOS 的 `kVK_*`）与「这个键注册不了」的判断留给平台层。
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct Combo {
+    /// Control（`Ctrl` / `Control`）。
     pub ctrl: bool,
+    /// Option（`Alt` / `Option`）。
     pub alt: bool,
+    /// Shift。
     pub shift: bool,
+    /// Command（`Cmd` / `Command` / `Super`，以及 `CommandOrControl` 一族）。
     pub cmd: bool,
+    /// 主键的 W3C `code` 名（`KeyD`、`ArrowUp`、`F5`）。
     pub code: String,
 }
 
@@ -141,7 +146,7 @@ pub fn parse_combo(value: &str) -> Option<Combo> {
 }
 
 /// 主键别名 → W3C `code` 名（`global-hotkey` 的 `parse_key`）。认不出的返回 `None`。
-pub fn parse_key(token: &str) -> Option<String> {
+fn parse_key(token: &str) -> Option<String> {
     let upper = token.to_uppercase();
     if let Some(code) = key_alias(&upper) {
         return Some(code.to_string());
@@ -239,8 +244,9 @@ fn key_alias(upper: &str) -> Option<&'static str> {
 /// 写法不同但注册出来是同一个键的值（`Option+D` / `alt+KeyD`）得到同一个结果。
 /// 解析不了的值注册时会回落到默认键位，这里只去掉首尾空白并小写，不再猜它「本来想写什么」。
 pub fn normalize_combo(value: &str) -> String {
-    let Some(combo) = parse_combo(value.trim_matches(is_inline_space)) else {
-        return value.trim_matches(is_inline_space).to_lowercase();
+    let value = value.trim_matches(is_inline_space);
+    let Some(combo) = parse_combo(value) else {
+        return value.to_lowercase();
     };
     let mut parts: Vec<String> = [
         (combo.ctrl, "ctrl"),

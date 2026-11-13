@@ -100,6 +100,7 @@ export function render(
   const index: string[] = []
   for (const { crate, files } of entries) {
     const label = `${crate.name} ${crate.version}`
+    // 每行以 `- <name> <version>` 开头：bundle.sh 用 `^- uniffi 0\.` 检查这份文件，改格式要一起改。
     index.push(`- ${label} — ${crate.license}${crate.repository ? ` — ${crate.repository}` : ''}`)
     for (const file of files) {
       const text = `${file.text.replace(/\r\n/g, '\n').trimEnd()}\n`
@@ -195,6 +196,11 @@ if (import.meta.main) {
     ]),
   ) as CargoMetadata
   const crates = linkedCrates(meta, parseTree(tree))
+  // bindgen 只该在 umuo-bindgen 里：它出现在链接集合里，说明有人给 umuo-ffi 打开了 uniffi 的 `cli` feature。
+  const leaked = crates.filter((c) => c.name === 'uniffi_bindgen' || c.name === 'clap')
+  if (leaked.length > 0) {
+    throw new Error(`发布产物不该链接 bindgen：${leaked.map((c) => c.name).join('、')}`)
+  }
   writeFileSync(outFile, render(readEntries(crates)))
   console.log(`${crates.length} 个 Rust crate 的许可声明 → ${outFile}`)
 }

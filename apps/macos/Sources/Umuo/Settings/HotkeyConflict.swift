@@ -72,8 +72,8 @@ enum HotkeyConflict {
 
         // 组合键语法认不出来（只可能来自手写的 settings.json）：注册时会回落默认键位，直接说明这一点，
         // 不再拿原串去套「缺修饰键」「重复」这些按键规则——那些结论对一个不会被注册的值没有意义。
-        // 与注册同一条路：先经 parseHotkey 整体修剪，再解析组合键（`HotkeyCenter.plan`）。
-        guard case let .combo(value) = parseHotkey(value: candidate), HotkeyCombo.parse(value) != nil else {
+        // 与注册同一条路（`HotkeyCombo.resolve`）：先整体修剪，再解析组合键。
+        guard HotkeyCombo.resolve(candidate) != nil else {
             return Conflict(kind: .unrecognized)
         }
 

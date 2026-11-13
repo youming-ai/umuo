@@ -891,6 +891,9 @@ struct VoiceRulesTests {
         #expect(labels[.tidy] == "⌃⌥Space" || labels[.tidy]?.hasPrefix("⌃⌥") == true)
         #expect(HotkeyCenter.voiceLabels([:])[.translate] == "⌃⌘V")
         #expect(HotkeyCenter.voiceLabels([HotkeyCenter.voiceField: "Ctrl+Foo"])[.tidy] == "⌥⌘V", "非法值显示实际注册的默认键")
+        // 注册时整体修剪过（`voicePlan`），提示也得认：单键带首尾空白时不能误显示成默认键。
+        #expect(HotkeyCenter.voicePlan(" F5 ", fallback: HotkeyCenter.voiceCombo) == HotkeyCombo.parse("F5"))
+        #expect(HotkeyCenter.voiceLabels([HotkeyCenter.voiceField: " F5 "])[.tidy] != "⌥⌘V", "带空白的单键显示它自己")
     }
 
     @Test func 后处理结果换型_失败带说明() throws {

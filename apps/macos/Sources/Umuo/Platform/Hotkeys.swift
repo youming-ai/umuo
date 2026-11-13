@@ -83,7 +83,7 @@ final class HotkeyCenter {
     nonisolated static func voiceLabels(_ values: [String: String]) -> [VoiceTask: String] {
         voiceTable.reduce(into: [:]) { labels, row in
             let value = values[row.field] ?? ""
-            let effective = if case .combo? = HotkeyCombo.parse(value), case .combo = parseHotkey(value: value) {
+            let effective = if case .combo? = HotkeyCombo.resolve(value) {
                 value
             } else {
                 row.fallback

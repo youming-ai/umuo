@@ -19,6 +19,13 @@ struct HotkeyCombo: Equatable, Hashable, CustomStringConvertible {
     /// 没有虚拟键码的键（Pause、ScrollLock、F21–F24、媒体键）与 `global-hotkey` 一样算解析成功、不回落，
     /// 返回 `.unsupported`，由调用方记成这一行注册失败。唯一的出入是媒体键：`global-hotkey` 另开一个
     /// 事件监听去接它们，这里不支持（设置窗的录键器本来就录不出媒体键）。
+    /// 设置里的一个值按注册时的同一条路解析：先经 `parseHotkey` 整体修剪、分流掉连按，再解析组合键。
+    /// 连按或认不出都返回 nil。判断「这个值注册时会不会回落默认键」的地方都用它，免得各自少走一步。
+    static func resolve(_ value: String) -> Parsed? {
+        guard case let .combo(combo) = parseHotkey(value: value) else { return nil }
+        return parse(combo)
+    }
+
     static func parse(_ value: String) -> Parsed? {
         guard let combo = parseCombo(value: value) else { return nil }
         var modifiers: UInt32 = 0

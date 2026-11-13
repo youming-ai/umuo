@@ -1,4 +1,5 @@
-//! 快捷键的纯规则导出：`parse_hotkey` 与连按两下修饰键的判定器（`umuo_core::hotkey`）。
+//! 快捷键的纯规则导出（`umuo_core::hotkey`）：`parse_hotkey` 分流、组合键语法 `parse_combo` / `normalize_combo`，
+//! 以及连按两下修饰键的判定器。
 //!
 //! 只做换型。修饰键事件的来源（CGEventTap）与组合键的注册（Carbon）是平台能力，留在 Swift 里；
 //! 「是不是连按了两下」是内核的状态机，有测试，Swift 不重写一份。
