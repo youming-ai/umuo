@@ -11,7 +11,7 @@
 
 | 编号 | PRD | 要求 | 状态 | 实现证据与剩余验收 |
 | --- | --- | --- | --- | --- |
-| T1 | §5.2 | AX 取词、复制降级与剪贴板保护 | ✅ | `Platform/Selection.swift`、`Pasteboard.swift`、`ControlledPaste.swift`；2026-11-11 补齐快照与最终核验期间的 `changeCount` 检查，变化则停止借用，撰写窗不再以失败复制兜底覆盖新内容；读取格式返回 nil 也检查时间预算，超时不继续读取后续格式；复制降级使用短时只读事件监听，用户新按键或鼠标操作后保留当前内容；慢复制在同一次有界轮询内处理，恢复后不再覆盖任意变化；`VoiceDeliveryTests` / `PasteBackTests` / `ClipboardFallbackTests` 使用假剪贴板覆盖；无输入事件的外部程序化写入来源仍无法完全区分。Swift 规则/selftest 已有，真实应用兼容继续走查 |
+| T1 | §5.2 | AX 取词、复制降级与剪贴板保护 | ✅ | `Platform/Selection.swift`、`Pasteboard.swift`、`ControlledPaste.swift`；2026-11-11 补齐快照与最终核验期间的 `changeCount` 检查，变化则停止借用，撰写窗不再以失败复制兜底覆盖新内容；读取格式返回 nil 也检查时间预算，超时不继续读取后续格式；复制降级使用短时只读事件监听，用户新按键或鼠标操作后保留当前内容；慢复制在同一次有界轮询内处理，恢复后不再覆盖任意变化；`VoiceDeliveryTests` / `PasteBackTests` / `ClipboardFallbackTests` 使用假剪贴板覆盖；无输入事件的外部程序化写入来源仍无法完全区分；2026-11-13 修复源应用写入落在轮询读取期间时被误判为用户插手、放弃取词且不还原的竞态。Swift 规则/selftest 已有，真实应用兼容继续走查 |
 | T2 | §5.1–5.2 | 非激活流式浮窗、复制/朗读/钉住/拖动/缩放 | 🟡 | `Panel/`、`Platform/Speech.swift`；#107 通过 `FloatingPanelChrome` 使用非激活系统面板，顶部拖动、四边缩放；2026-11-12 参考 Bob 重排为原文、译文与底部操作分区，正文使用系统文本底色、供应商与目标语言独立成行、计量收进详情提示；macOS 26 使用 `floatingSurface` Liquid Glass，14–15 回落系统材质；#116 输入法组字中按 Esc 只取消组字、不关浮窗不取消翻译，原文超过三行可展开/收起、新翻译开始时收回；2026-11-06 修复 v0.2.14 显示划词浮窗时 `NSHostingView.windowDidLayout` 反复增高窗口导致的 `NSGenericException`，改由 AppKit 容器持有尺寸；`PanelLayoutSelfTest` 在完整 SwiftUI 事件循环覆盖显示、长原文、流式更新、缩放、报错重开与共用外壳的撰写窗，接入 `verify.sh selftest`；焦点、拖动、外观与多显示器仍需真机验收 |
 | T3 | §5.3 | 简单输入翻译窗 | 🟡 | `Compose/`：第四批已移除回译与临时换模型，保留源/目标语言、自动翻译、复制与复制粘贴；#107 共用系统面板外壳与按系统版本切换的材质；#116 记下发出翻译时的原文与语言，只有与当前输入一致时才可提交，旧译文不会被提交；关掉自动翻译时页头给出「翻译」按钮，⌘T 同效；2026-11-12 合并语言顶栏、增加原文/译文分区与空态，自动翻译和手动翻译移至底部，复制/粘贴按钮精简快捷键文字为悬停提示；`PanelLayoutSelfTest` 改为真实 `ComposeView` 覆盖初始/最小尺寸；审查修复将提交提示移入滚动内容区，并通过真实控件布局锚点验证四语言长提示下的关闭、翻译与提交按钮不越界；直接输入、粘贴回原应用仍待真机验收 |
 | T4 | §5.4 | 选区或整框原地翻译，失败不改原文 | 🟡 | `Platform/AXWriteBack.swift`、`umuo-app/src/translate/`；取词时保留 AX 控件身份凭据，写回前通过 Host 复核，避免同应用相同文本的其他输入框被覆盖；`FocusIdentityTests` 覆盖身份区分及粘贴前校验失败恢复剪贴板；浮窗粘贴获得锁后重新核验控件与安全输入；真实应用与同应用焦点变化待验 |
@@ -32,7 +32,7 @@
 | 编号 | PRD | 要求 | 状态 | 完成证据要求 |
 | --- | --- | --- | --- | --- |
 | V1 | §5.11、§8 | 本地转写候选、模型与许可验证 | 🟡 | `scripts/asr-fixtures.ts`、`scripts/asr-runner.swift`、`scripts/asr-eval.ts` 及 `asr-eval.test.ts` 已完成 `transcribe.cpp` v0.4.1 与 4 份 GGUF 权重在 Apple M2 Pro 上的实测（见 `research/local-transcription-engines.md`）：选定 `Qwen3-ASR-0.6B-Q4_K_M.gguf`（562.3 MiB，Apache-2.0），16 条合成语音平均误差 0.67%、热推理 142.4 ms（30.6× RT）、峰值 `phys_footprint` 333.1 MB、卸载回落至 108.7 MB；平台范围已确认只针对 Apple Silicon（M 系列）+ macOS 14+；真人麦克风录音样本待阶段 C 补充 |
-| V2 | §5.11、§7.4 | 模型下载、校验、取消/重试、加载/卸载 | 🟡 | `Voice/VoiceModelStore.swift`、`LocalTranscriber.swift`、`voice_session/model.rs`：首次使用才在浮层下载，`.partial` + Range 续传、超长或 SHA-256 不符即删、校验后原子改名；宿主进程内 mmap 加载、串行队列、abort 取消、空闲 300 s 卸载；`Package.swift` 以 binaryTarget 引入 transcribe.cpp v0.4.1 并校验 checksum，`bundle.sh` 拷入并签名框架、附四份许可。2026-11-11 校验任务传递取消，每个哈希块及安装前检查取消，保留完整断点且不触发预热；`VoiceModelStoreTests` 用可控校验覆盖取消与重试。真实 562 MB 下载、HF 重定向后 Range、首推 Metal 初始化时延（约 45 s，尚无单独「初始化」状态）待真机 |
+| V2 | §5.11、§7.4 | 模型下载、校验、取消/重试、加载/卸载 | 🟡 | `Voice/VoiceModelStore.swift`、`LocalTranscriber.swift`、`voice_session/model.rs`：首次使用才在浮层下载，`.partial` + Range 续传、超长或 SHA-256 不符即删、校验后原子改名；宿主进程内 mmap 加载、串行队列、abort 取消、空闲 300 s 卸载；`Package.swift` 以 binaryTarget 引入 transcribe.cpp v0.4.1 并校验 checksum，`bundle.sh` 拷入并签名框架、附四份许可。2026-11-11 校验任务传递取消，每个哈希块及安装前检查取消，保留完整断点且不触发预热；`VoiceModelStoreTests` 用可控校验覆盖取消与重试。真实 562 MB 下载、HF 重定向后 Range、首推 Metal 初始化时延（约 45 s；转写中由 `VoiceOverlayModel.preparingEngine` 显示「正在准备语音引擎」）待真机 |
 | V3 | §5.11、§7.2 | 麦克风、按住录音/松开结束/Esc 取消 | 🟡 | `Voice/SystemVoiceRecorder.swift`（AVAudioEngine 跟随系统默认输入，16 kHz 单声道）、`GlobalHotkeys` 松开事件；两个语音键：`voiceHotkey` 整理（默认 ⌥⌘V）、`voiceTranslateHotkey` 翻译（默认 ⌃⌘V），进设置翻译页「语音输入」分组并参与冲突检查；`Platform/EscapeRouter.swift` 统一全局 Esc，按最近认领的浮层路由、无人认领即注销；`NSMicrophoneUsageDescription` 四语言与 `audio-input` entitlement。授权弹框、拒绝权限、换设备、⌃⌘V 占用情况待真机 |
 | V4 | §5.11、§7.5 | 会话状态与旧结果隔离 | 🟡 | `crates/umuo-app/src/voice_session/`：纯状态机，会话号单调递增，非当前会话结果不改状态，Esc 分阶段丢弃录音/中止转写/取消后处理；`umuo-ffi/src/voice_session.rs` 导出，`VoiceController` 执行副作用；Rust 与 Swift 假音频测试覆盖迁移、重复触发、取消、迟到结果；#10 的 `VoicePostProcessor` 保留运行中旧会话的取消记录，`VoiceTests` 用延迟句柄覆盖新会话开始前后取消旧任务，迟到句柄仍收到取消；真机连按与各阶段 Esc 待验 |
 | V5 | §5.7、§5.11 | 同语言整理与目标语言翻译 | 🟡 | `umuo-core/src/voice.rs`、`umuo-app/src/voice/`；FFI `Engine.start_voice`（同步启动、句柄取消、sink 回一次）经 `VoicePostProcessor.swift` 接入会话，按下的键决定任务、重试沿用；成功且完整的结果写 `voice` 场景历史（尊重关闭记录与隐私模式）；首次引擎加载显示「正在准备语音引擎」。真机质量评估待做 |
@@ -58,7 +58,7 @@
 
 | 编号 | PRD | 要求 | 状态 | 实现证据与剩余验收 |
 | --- | --- | --- | --- | --- |
-| C5 | §5.12、§10 | MIT 许可与开源 | ✅ | 整个仓库（含 `site/`）为标准 MIT 文本（GitHub 可识别），名称与图标说明移至 README；历史压成里程碑并脱敏，2026-11-02 以干净历史重建并公开 github.com/youming-ai/umuo；官网 `SOURCE_PUBLIC` 打开。第三方许可逐项核查仍待做 |
+| C5 | §5.12、§10 | MIT 许可与开源 | ✅ | 整个仓库（含 `site/`）为标准 MIT 文本（GitHub 可识别），名称与图标说明移至 README；历史压成里程碑并脱敏，2026-11-02 以干净历史重建并公开 github.com/youming-ai/umuo；官网 `SOURCE_PUBLIC` 打开。2026-11-12 完成第三方许可核查（基于 crate 声明的 SPDX 元数据与发布包内许可文件）：`THIRD_PARTY_NOTICES` 按类别登记编进二进制的 111 个 Rust crate（绑定生成工具拆到 `crates/umuo-bindgen`，不再进正式包的依赖图）（含 uniffi 的 MPL-2.0 与 bundled SQLite）、Sparkle 2.10.0 与 transcribe.cpp；`scripts/third-party-licenses.ts` 按 `Cargo.lock` 生成全部 crate 的许可原文，`bundle.sh` 随包写入 `Contents/Resources/Licenses/`（`rust-crates.txt`、`Sparkle/LICENSE`、`transcribe.cpp/`）并在冒烟里断言 |
 | C6 | §5.12 | 客户端与服务端无收费路径 | ✅ | 客户端删除 `License/`（7 个文件）与 `LicenseTests`、`ActionRouter.gate`、设置许可证页、引导试用说明、46 个文案 key 与 `umuo://` URL scheme；Worker 删除 checkout/webhook/`/api/license/*`、`billing.ts`、`waffo-setup.ts`、`@waffo/pancake-ts` 与 `LICENSES` KV 绑定。远端 `umuo-licenses` KV、`WAFFO_PRIVATE_KEY` secret 与 Waffo 后台商品待手动清理 |
 | C7 | §11 | 五语言官网免费开源文案；官网只有首页，不再提供条款与隐私页 | 🟡 | 删除 `/activate`、购买按钮、`/pricing`、`/terms` 与 `/privacy`（旧地址返回 404）；页脚只留版权与语言切换；`SOURCE_PUBLIC` 已为 true，页眉显示 GitHub 源码链接；内容测试禁止收费时代表述。首页一屏待人工测量 |
 
@@ -73,6 +73,17 @@
 | R5 | §12 | 官网直装与 Homebrew | 🟡 | 官网直装经 GitHub Releases 已打通（未公证）；Homebrew Cask 未建立。旧 Tauri 用户桥接不适用：没有旧 Tauri 用户，相关代码与脚本已删除 |
 
 ## 精简与验证
+
+2026-11-13：架构审查后的处理。快捷键组合键语法（别名、空白、非法写法）由 Swift 迁入 `umuo_core::hotkey::parse_combo` /
+`normalize_combo`，注册与冲突检查共用这一个解析器，Swift 只换算 Carbon 键码；迁移前用临时差分测试对比旧 Swift 解析器，
+88,345 条输入里只有「字母 + 组合附加符」一类不同（旧实现当成注册失败，新实现回落默认键位），规范写法在可解析的值上一致；
+冲突检查现在认 `CommandOrControl`；注册不了、会回落默认键位的手写值（`Meta+D`、`D+Alt`、`Ctrl++D`）
+改报新的「认不出这个写法，会改用默认快捷键」（四语言），不再套用「缺修饰键」「重复」。绑定生成工具拆到 `crates/umuo-bindgen`，
+正式包依赖从 137 个 crate 降到 111 个。完整 `bun run verify`：Rust fmt / clippy / 全量测试、444 项 Swift Testing、原生自检通过；
+其间包内自检 `ClipboardFallback.lateCopy` 偶发失败一次，查明是取词降级的真实竞态：源应用「先清空、再写数据」的第二步
+恰好落在轮询读取期间时，版本号前后不同，旧逻辑把它当成用户插手而放弃取词、也不还原原剪贴板。现在只有观察器看到用户操作才放弃，
+版本号在读取期间变化就下一轮重读；`ClipboardFallbackTests` 用读取钩子确定性复现（修复前失败、修复后通过）。
+最终完整 `bun run verify` 通过：445 项 Swift Testing、原生自检与包内自检（74 项通过、7 项因权限跳过）、打包冒烟。
 
 2026-11-12：参考 Bob 优化原生界面：设置侧栏、翻译浮窗的原文/译文分区、输入翻译工具栏与提交区、词卡文字层级和快捷面板分组。
 完整 `bun run verify` 通过：19 项工具测试、Rust fmt / clippy / 427 项测试、443 项 Swift Testing、

@@ -127,9 +127,10 @@ struct ClipboardFallback {
             let count = pasteboard.changeCount
             let text = Pasteboard.string(pasteboard)
             // 读取数据也可能触发延迟提供或 XPC，回来后要再核对操作与版本。
-            guard !watcher.wasInterrupted(), pasteboard.changeCount == count else {
-                throw interrupted()
-            }
+            // 用户插手由观察器判断；版本号在读取期间变了而没有用户操作，是源应用还在写
+            // （先 clearContents 再写数据，第二步恰好落在读取时），读到的文本未必属于最新版本，下一轮重读。
+            guard !watcher.wasInterrupted() else { throw interrupted() }
+            guard pasteboard.changeCount == count else { continue }
             // 应用通常先 clearContents 再写数据：计数变了但文本尚未就位时继续等，
             // 不能在两步之间恢复快照、打断它正在写入的复制。
             if let text = Self.copiedText(cleared: cleared, now: count, text: text) {

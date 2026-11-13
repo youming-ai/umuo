@@ -83,6 +83,8 @@ Swift 负责界面、窗口与系统集成；可复用应用逻辑放 `umuo-app`
 ## 3. 一次翻译的链路
 
 全局组合键由 Carbon RegisterEventHotKey 注册，连按修饰键由 CGEventTap 监听，再交给 App 的动作分发。
+快捷键字符串的语法只在 Rust（`umuo_core::hotkey`：`parse_hotkey` 分流连按与组合键，`parse_combo` / `normalize_combo` 解析组合键），
+Swift 只把 W3C code 名换成 Carbon 键码、维护系统快捷键表并注册。
 Swift 先检查取词黑名单与权限，在后台 AX 取词；必要时用串行剪贴板降级、模拟 ⌘C 并恢复原剪贴板。
 复制降级期间用临时只读事件监听观察新的按键或鼠标点击，自己的合成键带标记而被排除；
 观察失败则不借用剪贴板，用户干预后停止取词并保留新内容。结果最多轮询约 1 秒，恢复后不再观察任意变化并二次覆盖。
@@ -104,6 +106,9 @@ Swift 处理事件更新界面。
 
 `ComposeSession` / `ComposeQueue` 处理防抖、最新输入与请求登记，旧增量按 id 丢弃。
 提交只复制，或在确认原应用已回到前台后粘贴；无法确认时只复制并提示，不向其他应用投递按键。
+这套调度有意留在 Swift：防抖跟随输入框的编辑与焦点，提交依赖前台应用与剪贴板，都是宿主的事，
+而翻译本身仍走 Rust 流水线、请求 id 由 Rust 登记。若以后撰写规则变复杂（多段、草稿恢复）或要给第二个客户端用，
+再仿照 `voice_session` 收成 Rust 纯状态机。
 
 ### 3.3 写回守卫
 
@@ -329,6 +334,6 @@ Bundle ID 保持 `app.umuo.desktop`；配置目录、历史库、Keychain 服务
 
 免费、MIT 开源、纯 BYOK，没有许可证或收费路径。客户端只发 Apple Silicon（arm64）、macOS 14+ 的包：
 客户端改动合入 main 由 `release.yml` 发布到 GitHub Releases，应用内更新用 Sparkle（appcast 随 Release 发布），
-当前为 ad-hoc 签名、未经 Apple 公证。Developer ID 公证、真实 N → N+1 更新与 Homebrew Cask 待做，见 `SWIFTUI-MIGRATION.md`。
+正式包用固定的自签名证书签名（PR 门禁与 `--quick` 冒烟为 ad-hoc），未经 Apple 公证；自签名包需关闭库校验，换 Developer ID 时 Key 要重新保存，见 `SWIFTUI-MIGRATION.md`。Developer ID 公证、真实 N → N+1 更新与 Homebrew Cask 待做，见 `SWIFTUI-MIGRATION.md`。
 真机权限、焦点、语音交付与原生 release 性能仍需按 `NATIVE-WALKTHROUGH.md` 验收；旧 Tauri 性能数字只是历史基线。
 浮窗按光标定位，不是精确选区边界；截图采用系统框选，覆盖模式未做。

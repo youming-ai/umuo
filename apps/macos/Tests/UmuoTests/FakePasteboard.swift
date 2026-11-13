@@ -34,8 +34,12 @@ final class FakePasteboard: PasteboardAccess, @unchecked Sendable {
         }
     }
 
+    /// 每读一次文本前调一次（模拟源应用的写入恰好落在读取期间）。
+    var onString: (() -> Void)?
+
     func string(forType dataType: NSPasteboard.PasteboardType) -> String? {
-        lock.withLock {
+        onString?()
+        return lock.withLock {
             items.first?.first { $0.type == dataType.rawValue }.flatMap { String(data: $0.data, encoding: .utf8) }
         }
     }

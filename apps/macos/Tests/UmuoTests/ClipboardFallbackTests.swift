@@ -24,6 +24,25 @@ struct ClipboardFallbackTests {
         #expect(board.string(forType: .string) == "旧内容")
     }
 
+    @Test func 应用的写入恰好落在读取期间_没有用户操作就继续等而不是放弃() throws {
+        // 源应用先 clearContents 再写数据，第二步落在我们读文本的那一刻：版本号在读取前后不同，
+        // 但观察器没看到任何用户操作——这是复制本身还没写完，不是用户插手，应当继续轮询。
+        let board = FakePasteboard("旧内容")
+        let watch = CopyWatch()
+        var reads = 0
+        let fallback = ClipboardFallback(pasteboard: board, copy: { board.clearContents() },
+                                         beginWatching: { watch }, wait: { _ in })
+        board.onString = {
+            reads += 1
+            if reads == 2 { board.setString("选中的文字", forType: .string) }
+        }
+        let text = try fallback.read()
+        board.onString = nil
+        #expect(text == "选中的文字")
+        #expect(board.string(forType: .string) == "旧内容")
+        #expect(watch.stopped)
+    }
+
     @Test func 用户中途复制_不读取为选区也不覆盖新内容() {
         let board = FakePasteboard("旧内容")
         let watch = CopyWatch()
