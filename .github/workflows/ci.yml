@@ -122,6 +122,12 @@ jobs:
 
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
 
+      - name: Set up Bun
+        # bundle.sh 用 bun 跑 scripts/third-party-licenses.ts 生成随包的 Rust 依赖许可声明
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version-file: package.json
+
       - name: Build core, bindings and app
         timeout-minutes: 15
         run: sh apps/macos/scripts/verify.sh build
