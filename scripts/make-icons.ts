@@ -1,9 +1,9 @@
 /**
  * 生成 umuo 的图标资产（应用图标 + 菜单栏图标 + .icns）。
  *
- * 图形与官网 logo 是同一只水獭（umuo 仓库的 site/apps/web/public/favicon.svg，100×100 设计坐标），
- * 这里用几何图元重画：应用图标（otterTile）与 favicon.svg 逐层对应，菜单栏图标是它的线稿简化版。
- * 改 logo 时两边一起改，再跑一遍本脚本重新生成 icon.icns 与 tray.png。
+ * 三处图标是同一只水獭的三种画法：应用图标（otterTile）是蓝底彩色的，菜单栏图标是线稿，
+ * 官网 logo（site/apps/web/public/favicon.svg 与 LogoMark）是手写 SVG 的实心剪影、不由本脚本生成。
+ * 应用图标的坐标沿用官网 2026-11 之前那张彩色 logo（100×100 设计坐标）。
  *
  * 为什么手写光栅化而不是引一个绘图库：图标只需要「圆、椭圆、多边形、圆头线段」，
  * 为此引入 canvas / sharp 这类依赖，会让 `bun install` 多出几十兆原生二进制，
@@ -23,7 +23,7 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const ICON_DIR = join(ROOT, 'apps/macos/packaging')
 const TRAY_DIR = join(ROOT, 'apps/macos/Sources/Umuo/Resources/Tray')
 
-// ---------------------------------------------------------------- 配色（与 favicon.svg 一致）
+// ---------------------------------------------------------------- 配色（应用图标）
 
 const hex = (value: string): RGB => [
   Number.parseInt(value.slice(1, 3), 16),
@@ -209,8 +209,8 @@ function paint(canvas: Canvas, view: View, [shape, color, alpha = 1]: Layer, cli
 const OUTLINE = 2
 
 /**
- * 应用图标：蓝底圆角方块，水獭从水里探出头。图层顺序与 favicon.svg 逐层对应；
- * 头部那一组在 SVG 里整体 rotate(-4 50 58)，这里对每个图元做同样的旋转。
+ * 应用图标：蓝底圆角方块，水獭从水里探出头。图层顺序与官网旧版彩色 logo 的 SVG 逐层对应；
+ * 头部那一组在那张 SVG 里整体 rotate(-4 50 58)，这里对每个图元做同样的旋转。
  */
 function otterTile(): { clip: Shape; layers: Layer[] } {
   const nose = polygon([
@@ -276,7 +276,7 @@ function otterTile(): { clip: Shape; layers: Layer[] } {
 
 // ---------------------------------------------------------------- 菜单栏剪影
 //
-// logo 的线稿简化版：扁宽的头、两侧偏低的小耳朵、眼睛和鼻子三个点，下面一道水波，头的下缘
+// 水獭的线稿版：扁宽的头、两侧偏低的小耳朵、眼睛和鼻子三个点，下面一道水波，头的下缘
 // 跟着水波裁掉，像刚从水里探出来。设计坐标 0..100 对应整张 20pt 画布（1pt = 5 个单位）：
 // 图形横向占 9.5..90.5（约 16pt），四周各留约 2pt；线宽 1.4pt，与 SF Symbols 常规字重相近。
 

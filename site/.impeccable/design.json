@@ -54,10 +54,6 @@
         "role": "neutral",
         "displayName": "脸颊奶油 Cheek Cream"
       },
-      "logo-water": {
-        "role": "tertiary",
-        "displayName": "Logo 水蓝（仅 logo 图）"
-      },
       "otter-coffee-lift": {
         "role": "primary",
         "displayName": "抬起深咖 Otter Coffee Lift"
@@ -134,7 +130,7 @@
       {
         "name": "touch",
         "value": "(hover: none) and (pointer: coarse)",
-        "purpose": "手机（触屏）：只留文字与「复制网址」普通按钮；演示与字符网格由 CSS 隐藏，logo 去投影"
+        "purpose": "手机（触屏）：只留文字与「复制网址」普通按钮；演示与字符网格由 CSS 隐藏"
       }
     ]
   },
@@ -182,14 +178,14 @@
     {
       "name": "Navigation",
       "kind": "nav",
-      "description": "左边 logo + 小写字样「umuo」，右边 GitHub 标志图标（aria-label=\"GitHub\"，SOURCE_PUBLIC 打开时显示，站内唯一的源码入口），高度固定 64px，没有当前页标记。手机（触屏）上 logo 不加投影。",
+      "description": "左边 logo（墨色的水獭剪影，不加底块与投影）+ 小写字样「umuo」，右边 GitHub 标志图标（aria-label=\"GitHub\"，SOURCE_PUBLIC 打开时显示，站内唯一的源码入口），高度固定 64px，没有当前页标记。",
       "html": "<nav class=\"ds-nav\"><span class=\"ds-brand\"><span class=\"ds-logo\"></span>umuo</span><a href=\"#\" aria-label=\"GitHub\">(GitHub 标志)</a></nav>",
-      "css": ".ds-nav{display:flex;align-items:center;justify-content:space-between;height:64px;padding:0 24px;font-family:'Open Sans',-apple-system,sans-serif}.ds-brand{display:flex;align-items:center;gap:10px;font-size:1.25rem;font-weight:600;color:var(--ink,#2a1f1a)}.ds-logo{width:40px;height:40px;border-radius:9px;background:#0a84ff;box-shadow:0 3px 10px -3px rgb(42 31 26/.3)}.ds-nav a{font-size:.9375rem;font-weight:500;color:var(--ink-2,#5c4638);text-decoration:none}.ds-nav a:hover{color:var(--ink,#2a1f1a)}"
+      "css": ".ds-nav{display:flex;align-items:center;justify-content:space-between;height:64px;padding:0 24px;font-family:'Open Sans',-apple-system,sans-serif}.ds-brand{display:flex;align-items:center;gap:10px;font-size:1.25rem;font-weight:600;color:var(--ink,#2a1f1a)}.ds-logo{width:40px;height:26px;border-radius:50%;background:currentColor}.ds-nav a{font-size:.9375rem;font-weight:500;color:var(--ink-2,#5c4638);text-decoration:none}.ds-nav a:hover{color:var(--ink,#2a1f1a)}"
     }
   ],
   "narrative": {
     "northStar": "对照本",
-    "overview": "官网排成一本双语对照本：暖白纸面、咖啡色墨字，原文与译文像左右两页一样并排。产品大部分时间藏在快捷键背后，\n所以页面不靠插画或渐变制造气氛，而是把**真实的键位、真实的选区、真实的前后对照**当作主角。\n\n颜色只取 logo 里那只水獭：皮毛咖啡、耳朵深咖、眼鼻墨色、脸颊奶油。logo 底色的蓝只留在 logo 图里，界面不用蓝。\n组件气质是 **Mac 原生的克制**，只有桌面上的下载按钮例外：沿用「节拍」设计语言的**厚底可按压**（多邻国式）。底部是实心厚边，悬停时微微上抬，按下时下沉，一眼就知道能按。\n键帽像真键盘；分隔靠细线和装订线，不靠卡片墙。\n全站只有首页一屏、不滚动。手机上只留文字与一个按钮。",
+    "overview": "官网排成一本双语对照本：暖白纸面、咖啡色墨字，原文与译文像左右两页一样并排。产品大部分时间藏在快捷键背后，\n所以页面不靠插画或渐变制造气氛，而是把**真实的键位、真实的选区、真实的前后对照**当作主角。\n\n颜色只取水獭的毛色：皮毛咖啡、耳朵深咖、眼鼻墨色、脸颊奶油；界面不用蓝。logo 是单色的水獭剪影，跟着墨色走。\n组件气质是 **Mac 原生的克制**，只有桌面上的下载按钮例外：沿用「节拍」设计语言的**厚底可按压**（多邻国式）。底部是实心厚边，悬停时微微上抬，按下时下沉，一眼就知道能按。\n键帽像真键盘；分隔靠细线和装订线，不靠卡片墙。\n全站只有首页一屏、不滚动。手机上只留文字与一个按钮。",
     "keyCharacteristics": [
       "暖纸 + 咖啡墨的单色系，靠明度与线条分层，不靠第二种色相",
       "左对齐的文字，居中铺满的页面网格（最宽 76rem）",
@@ -200,7 +196,7 @@
     "rules": [
       {
         "name": "The No-Blue Rule",
-        "body": "界面里不出现蓝色。蓝是 logo 的水，不是 umuo 的墨。",
+        "body": "界面任何地方都不出现蓝色，logo 也不例外：它是墨色的剪影。",
         "section": "colors"
       },
       {
@@ -238,7 +234,7 @@
       "**Do** 让自发动效只保留加载时的首屏进场与随后的译文逐字流出，各演一次；其余动效都由访客触发，并尊重 `prefers-reduced-motion`。"
     ],
     "donts": [
-      "**Don't** 在界面里用蓝色；`#0A84FF` / `#5FB2FF` 只属于 logo 图。",
+      "**Don't** 在界面里用蓝色，logo 也不用。",
       "**Don't** 加回深色光晕或渐变、胶囊形眉题标签、标题里单独上色或用渐变的某个词、`A · B · C` 式的中间点分隔。",
       "**Don't** 做千篇一律的圆角卡片墙，也不要加没有信息量的 01 / 02 / 03 编号。",
       "**Don't** 引入外部字体服务，也不要在 Open Sans 之外再加一款展示字体。",

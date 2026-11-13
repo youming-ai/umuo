@@ -45,8 +45,8 @@
 @layer base {
   :root {
     color-scheme: light;
-    /* 配色只取水獭本身：皮毛咖啡 (#A8734D)、耳朵深咖 (#7E5236)、眼鼻墨色 (#2A1F1A)、脸颊奶油 (#F4E6D2)。
-       Logo 底色的蓝只留在 Logo 图里，界面不用蓝。 */
+    /* 配色只取水獭的毛色：皮毛咖啡 (#A8734D)、耳朵深咖 (#7E5236)、眼鼻墨色 (#2A1F1A)、脸颊奶油 (#F4E6D2)。
+       界面不用蓝；logo 是单色剪影，跟着墨色走。 */
     --paper: #fcf9f5;
     --paper-2: #f4ece1;
     --paper-elevated: #ffffff;
@@ -455,11 +455,6 @@
     transition:
       background-color var(--dur-fast) var(--ease-out),
       color var(--dur-fast) var(--ease-out);
-  }
-
-  .site-nav svg {
-    border-radius: 9px;
-    box-shadow: 0 3px 10px -3px rgb(42 31 26 / 0.3);
   }
 
   /* 下载箭头（写在其它 `x svg` 规则之后，特异度才是递增的）：悬停时往下探一点，按下时跟着按钮落到底 */
@@ -1119,9 +1114,6 @@
     .hero-demo,
     .language-grid {
       display: none;
-    }
-    .site-nav svg {
-      box-shadow: none;
     }
     .hero {
       grid-template-columns: minmax(0, 1fr);
