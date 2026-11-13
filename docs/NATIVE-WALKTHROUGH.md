@@ -73,7 +73,7 @@
 
 ## 性能测量
 
-发布门槛（[PRD](PRD.md) §3.2、§8）用原生 **release** 包测，不用 debug 构建或冒烟包：`sh apps/macos/scripts/bundle.sh --version X.Y.Z` 产出的 `apps/macos/dist/umuo.app`。
+发布门槛（[PRD](PRD.md) §3.2、§8）用原生 **release** 包测，不用 debug 构建或冒烟包：`sh apps/macos/scripts/bundle.sh --version X.Y.Z` 产出的 `apps/macos/dist.noindex/umuo.app`。
 
 - **内存用 `phys_footprint`**：启动后静置 12 秒，`footprint -p <pid>`（与活动监视器一致）。不要用 `ps` 的 RSS：它把共享的系统框架页重复计入，
   会把同一个进程算大几倍。语音模型加载后另记峰值与空闲卸载后的回落。
