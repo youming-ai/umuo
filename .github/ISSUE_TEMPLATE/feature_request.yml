@@ -1,0 +1,24 @@
+name: 功能建议 · Feature request
+description: 改进现有功能或提出新想法
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        产品范围以 [docs/PRD.md](https://github.com/youming-ai/umuo/blob/main/docs/PRD.md) 为准；已退出范围的功能（收费与许可证、多模型对比、风格与术语管理、浏览器扩展等）不接受恢复。
+        Scope follows docs/PRD.md; removed features (paid licensing, multi-model comparison, style/glossary management, browser extension) won't come back.
+  - type: textarea
+    id: problem
+    attributes:
+      label: 遇到的问题 · Problem
+      description: 你在什么场景下、想做什么、现在为什么做不到
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: 建议的做法 · Proposal
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: 考虑过的替代方案 · Alternatives
