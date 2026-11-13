@@ -56,7 +56,6 @@ umuo は完全に無料で、MIT ライセンスのオープンソースです�
 - [プロダクト要件](docs/PRD.md)：現在の機能とビジネス上の線引き。
 - [初版の開発計画](docs/IMPLEMENTATION-PLAN.md)：機能の絞り込み、音声、オープンソース化、リリースの順序と完了条件。
 - [実装・受け入れチェックリスト](docs/PRD-CONFORMANCE.md)：実装済みのコード、範囲の見直し、未実装の項目、実機での受け入れ確認。
-- [Handy 音声調査](docs/research/handy-voice-analysis.md)：ソースコード上の根拠とローカルエンジンの実験方針。
 - [リリースと Sparkle の鍵](docs/SWIFTUI-MIGRATION.md)：GitHub Releases への自動リリース、失敗時の後始末、鍵の管理、将来公証に対応する手順。
 - [実機ウォークスルー](docs/NATIVE-WALKTHROUGH.md)：テキスト・スクリーンショット・音声の実機受け入れ表と、パフォーマンス計測の基準。
 - [コントリビューションガイド](CONTRIBUTING.md)：ライセンス、開発前の注意事項、PR の要件。

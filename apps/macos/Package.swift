@@ -17,7 +17,7 @@ let package = Package(
     targets: [
         .target(name: "umuo_ffiFFI"),
         // 本地语音转写引擎 transcribe.cpp v0.4.1 的官方预编译包（MIT，阶段 B 选定，见
-        // docs/research/local-transcription-engines.md）。SwiftPM 按 checksum（即 zip 的 SHA-256）校验下载，
+        // docs/archive/VERIFICATION-LOG-2026-10.md 的阶段 B 实测）。SwiftPM 按 checksum（即 zip 的 SHA-256）校验下载，
         // 与 scripts/asr-eval.ts 的 ENGINE_ARTIFACT 同一份。里面是动态的 CTranscribe.framework（`import CTranscribe`），
         // 由 scripts/bundle.sh 拷进 Contents/Frameworks，与 Sparkle 一样经 @executable_path/../Frameworks 加载。
         .binaryTarget(

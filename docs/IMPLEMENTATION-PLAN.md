@@ -4,7 +4,7 @@
 剩下的是真机走查、Developer ID 公证（暂缓）与 Homebrew，见文末「待办」。
 
 目标：在 macOS 上交付文字翻译、OCR 截图翻译、语音输入后润色/翻译，免费、MIT 开源、纯 BYOK。
-需求见 [PRD](PRD.md)，逐项进度见 [验收清单](PRD-CONFORMANCE.md)，技术参考见 [Handy 研究](research/handy-voice-analysis.md)。
+需求见 [PRD](PRD.md)，逐项进度见 [验收清单](PRD-CONFORMANCE.md)。
 
 ## 已确定与待确定
 
@@ -82,7 +82,7 @@
 
 可与阶段 A 的独立清理并行推进，候选选型先完成再绑定正式 FFI。
 
-候选调研与实测数据见 [本地转写引擎与模型选型](research/local-transcription-engines.md)（2026-10-28 已完成本机实测与选型定案）。
+2026-10-28 已完成本机实测与选型定案，实测数据见 [验证记录](archive/VERIFICATION-LOG-2026-10.md)。
 
 - [x] 优先按 Handy 所核实的引擎接口选一个多语言候选，核对版本、许可、模型来源与资源需求：选定 `transcribe.cpp` v0.4.1（MIT，官方 `TranscribeCpp.xcframework`），默认模型定为 `Qwen3-ASR-0.6B-Q4_K_M.gguf`（562.3 MiB，Apache-2.0，Hugging Face 固定 commit `7e7c69a5` + SHA-256 校验）；`SenseVoiceSmall` 仅作测速对照，不进产品。
 - [x] 用固定音频夹具比较中文、中英混说、姓名数字、否定、自我纠正、静音与噪声（`scripts/asr-fixtures.ts` + `scripts/asr-eval.ts`）：`Qwen3-ASR-0.6B-Q4_K_M` 在 15 条干净夹具与 10 dB 中文噪声上 0% 误差、静音无幻觉，16 条语音平均误差 0.67%、必保留词召回 35/37（94.59%）；真人麦克风采样在阶段 C 录音接入后补充。

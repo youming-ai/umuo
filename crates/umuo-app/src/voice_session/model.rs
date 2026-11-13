@@ -1,4 +1,4 @@
-//! 本地语音模型的固定清单与资源策略（阶段 B 定案，见 `docs/research/local-transcription-engines.md`）。
+//! 本地语音模型的固定清单与资源策略（阶段 B 定案，实测见 `docs/archive/VERIFICATION-LOG-2026-10.md`）。
 //!
 //! 下载、校验、加载与卸载是宿主（Swift）的事：网络用系统的 URLSession（沿用系统代理）、
 //! 推理用 `TranscribeCpp.xcframework`。这里只放**一份**不会漂移的事实：去哪里下、多大、哈希是多少、

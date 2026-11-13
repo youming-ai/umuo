@@ -9,7 +9,7 @@ umuo 客户端以 MIT 许可证开源；它依赖的第三方开源成果仍按�
 
 **当前状态：尚未向本仓库复制任何第三方源码。**
 
-`docs/research/luca-translate-audit.md` 完成了一次代码复用审计，结论是「不值得整体复制，
+曾对 luca-translate 做过一次代码复用审计（研究笔记已移出仓库，可在 git 历史中查到），结论是「不值得整体复制，
 但 3 个模块值得按模块搬运」。截至目前**一个模块都还没有搬**——里程碑 1 的翻译内核
 （Provider 目录、流式协议、Prompt 引擎、路由、计量）全部为本仓库原创实现。
 如果后续搬运，会在此处逐文件登记。
@@ -61,7 +61,7 @@ umuo 客户端以 MIT 许可证开源；它依赖的第三方开源成果仍按�
 | [luca-translate](https://github.com/lucaslus/luca-translate) | MIT（但 `packaging/omarchy/editor/` 为 MPL-2.0） | 架构与取舍。审计文档记录了逐模块结论：macOS 取词、截图 OCR、多渠道编排值得复用；其 Provider 层是非流式实现，umuo 的核心链路无法从中受益 |
 | [Trancy Air](https://www.trancy.org/zh-cn/trancy-air) | 专有 | 仅产品形态与默认快捷键约定（现为 ⌃⌃ / ⌥⌥ / ⌥⌘A / ⌥⌘O / ⌥P），未接触其源码 |
 
-`docs/research/trancy-extension-analysis.md` 是对 Trancy 浏览器扩展的学习笔记。当时该文档的分析对象是
+曾有一份对 Trancy 浏览器扩展的学习笔记（已移出仓库）。当时该笔记的分析对象是
 Trancy 的**已发布产物**，仅提取事实（字段名、端点形状、结构描述），未复制任何源码、素材或文案。
 
 ### MPL-2.0 警示

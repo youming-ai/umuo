@@ -54,7 +54,6 @@ Project docs (developer docs are in Simplified Chinese):
 - [Product requirements](docs/PRD.md): current features and business boundaries.
 - [First-release plan](docs/IMPLEMENTATION-PLAN.md): order and completion criteria for slimming down, voice, open-sourcing and release.
 - [Implementation and acceptance checklist](docs/PRD-CONFORMANCE.md): existing code, scope changes, what is not implemented, and on-device acceptance.
-- [Handy voice research](docs/research/handy-voice-analysis.md): source-code evidence and directions for local engine experiments.
 - [Releases and Sparkle keys](docs/SWIFTUI-MIGRATION.md): automatic GitHub Releases publishing, cleanup after failures, keys, and the steps for adding notarization later.
 - [On-device walkthrough](docs/NATIVE-WALKTHROUGH.md): on-device acceptance sheets for text, screenshot and voice, plus how performance is measured.
 - [Contributing guide](CONTRIBUTING.md): licensing, what to know before you start, and PR requirements.

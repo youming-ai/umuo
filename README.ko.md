@@ -56,7 +56,6 @@ umuo는 완전 무료이며 MIT 라이선스로 공개된 오픈소스이고, �
 - [제품 요구사항](docs/PRD.md): 현재 기능과 사업 범위.
 - [첫 버전 개발 계획](docs/IMPLEMENTATION-PLAN.md): 기능 정리, 음성, 오픈소스화, 배포의 순서와 완료 조건.
 - [구현·검수 체크리스트](docs/PRD-CONFORMANCE.md): 기존 코드, 새 범위 조정, 미구현 항목과 실기기 검수.
-- [Handy 음성 연구](docs/research/handy-voice-analysis.md): 소스 코드 근거와 로컬 엔진 실험 방향.
 - [배포와 Sparkle 키](docs/SWIFTUI-MIGRATION.md): GitHub Releases 자동 배포, 실패 시 정리, 키 관리, 향후 공증 연동 절차.
 - [실기기 점검](docs/NATIVE-WALKTHROUGH.md): 텍스트·스크린샷·음성의 실기기 검수표와 성능 측정 기준.
 - [기여 가이드](CONTRIBUTING.md): 라이선스, 개발 전 유의 사항, PR 요건.
