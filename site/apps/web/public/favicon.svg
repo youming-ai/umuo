@@ -1,6 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="-2 6.75 104 104" role="img" aria-label="umuo">
-  <!-- 实心水獭剪影：头、两只耳朵，眼睛和鼻子镂空（反向绕行），下面一道水波。
-       与 src/components/icons.tsx 的 LogoMark 是同样两条路径，__tests__/logo.test.ts 盯着两者一致。
+  <!-- 由仓库根的 scripts/make-icons.ts 生成（bun run icons），不要手改。
+       实心水獭剪影：头、两只耳朵，眼睛和鼻子镂空（反向绕行），下面一道水波；菜单栏图标与应用图标是同一张图。
+       src/components/icons.tsx 的 LogoMark 用同样两条路径，__tests__/logo.test.ts 盯着两者一致。
        墨色取 DESIGN.md 的 ink，标签栏是深色时换成深色主题的墨（奶油）。 -->
   <style>
     g { color: #2a1f1a }

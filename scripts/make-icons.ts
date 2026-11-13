@@ -1,9 +1,10 @@
 /**
- * 生成 umuo 的图标资产（应用图标 + 菜单栏图标 + .icns）。
+ * 生成 umuo 的图标资产：应用图标（.icns）、菜单栏图标（tray.png）与官网 logo（favicon.svg）。
  *
- * 三处图标是同一只水獭的三种画法：应用图标（otterTile）是蓝底彩色的，菜单栏图标是线稿，
- * 官网 logo（site/apps/web/public/favicon.svg 与 LogoMark）是手写 SVG 的实心剪影、不由本脚本生成。
- * 应用图标的坐标沿用官网 2026-11 之前那张彩色 logo（100×100 设计坐标）。
+ * 三处是同一张图——实心的水獭剪影：椭圆的头、两侧小耳朵，眼睛和鼻子镂空，下面一道水波。
+ * 几何只在这里写一份（OTTER，100×100 设计坐标）：菜单栏与应用图标由它光栅化，favicon.svg 由它
+ * 导出成路径；官网页眉的 `LogoMark` 抄的是 favicon 那两条路径，site 的 logo.test.ts 盯着两者一致。
+ * 改图形只改 OTTER，再跑一遍本脚本，然后把 favicon.svg 里的路径同步进 LogoMark（测试会提醒）。
  *
  * 为什么手写光栅化而不是引一个绘图库：图标只需要「圆、椭圆、多边形、圆头线段」，
  * 为此引入 canvas / sharp 这类依赖，会让 `bun install` 多出几十兆原生二进制，
@@ -22,22 +23,19 @@ import { type Canvas, createCanvas, encodePng, type RGB } from './png'
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const ICON_DIR = join(ROOT, 'apps/macos/packaging')
 const TRAY_DIR = join(ROOT, 'apps/macos/Sources/Umuo/Resources/Tray')
+const FAVICON = join(ROOT, 'site/apps/web/public/favicon.svg')
 
-// ---------------------------------------------------------------- 配色（应用图标）
+// ---------------------------------------------------------------- 配色（取自 site/DESIGN.md）
 
 const hex = (value: string): RGB => [
   Number.parseInt(value.slice(1, 3), 16),
   Number.parseInt(value.slice(3, 5), 16),
   Number.parseInt(value.slice(5, 7), 16),
 ]
-const BG = hex('#0A84FF')
-const FUR = hex('#A8734D')
-const FUR_DARK = hex('#7E5236')
-const CREAM = hex('#F4E6D2')
-const INK = hex('#2A1F1A')
-const WATER = hex('#5FB2FF')
-const BLUSH = hex('#FF9FB0')
-const WHITE: RGB = [255, 255, 255]
+/** 咖啡墨 ink：官网浅色主题的墨，也是 favicon 的颜色 */
+const INK = '#2a1f1a'
+/** 奶油：官网深色主题的墨，favicon 在深色标签栏上用它 */
+const CREAM = '#f4e6d2'
 const BLACK: RGB = [0, 0, 0]
 
 // ---------------------------------------------------------------- 图元（设计坐标 0..100）
@@ -79,22 +77,6 @@ function bounds(points: Pt[], pad = 0): Shape['box'] {
   ]
 }
 
-/** 奇偶规则的多边形 */
-function polygon(points: Pt[]): Shape {
-  return {
-    box: bounds(points),
-    inside: (x, y) => {
-      let hit = false
-      for (let i = 0, j = points.length - 1; i < points.length; j = i++) {
-        const [xi, yi] = points[i]
-        const [xj, yj] = points[j]
-        if (yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) hit = !hit
-      }
-      return hit
-    },
-  }
-}
-
 /** 圆头折线（SVG 的 stroke-linecap="round"），粗细为 width */
 function stroke(points: Pt[], width: number): Shape {
   const r = width / 2
@@ -131,26 +113,12 @@ function quad(from: Pt, control: Pt, to: Pt, steps = 12): Pt[] {
   return out
 }
 
-/** 绕 (cx, cy) 旋转，角度与 SVG 的 rotate() 同向（屏幕坐标系里正值为顺时针） */
-function rotate(shape: Shape, degrees: number, cx: number, cy: number): Shape {
-  const rad = (degrees * Math.PI) / 180
-  const cos = Math.cos(rad)
-  const sin = Math.sin(rad)
+/** 把图形缩放 k 倍再平移 (dx, dy)：新坐标 = 原坐标 × k + (dx, dy) */
+function place(shape: Shape, k: number, dx: number, dy: number): Shape {
   const [x0, y0, x1, y1] = shape.box
-  const corners: Pt[] = [
-    [x0, y0],
-    [x1, y0],
-    [x1, y1],
-    [x0, y1],
-  ]
-  const turned = corners.map(
-    ([x, y]): Pt => [cx + (x - cx) * cos - (y - cy) * sin, cy + (x - cx) * sin + (y - cy) * cos],
-  )
   return {
-    box: bounds(turned),
-    // 采样点反向转回去，再问原图形
-    inside: (x, y) =>
-      shape.inside(cx + (x - cx) * cos + (y - cy) * sin, cy - (x - cx) * sin + (y - cy) * cos),
+    box: [x0 * k + dx, y0 * k + dy, x1 * k + dx, y1 * k + dy],
+    inside: (x, y) => shape.inside((x - dx) / k, (y - dy) / k),
   }
 }
 
@@ -203,130 +171,117 @@ function paint(canvas: Canvas, view: View, [shape, color, alpha = 1]: Layer, cli
   }
 }
 
-// ---------------------------------------------------------------- 水獭
+// ---------------------------------------------------------------- 水獭剪影（唯一的几何来源）
 
-/** SVG 的描边居中：白边画成外扩 half 的形状，填充画成内缩 half 的形状 */
-const OUTLINE = 2
+/** 椭圆 [cx, cy, rx, ry] */
+type Oval = [number, number, number, number]
+
+const OTTER = {
+  /** 实心部分：扁宽的头，两侧偏低的小耳朵 */
+  solid: [
+    [50, 50, 44, 30],
+    [9, 38, 8, 8],
+    [91, 38, 8, 8],
+  ] as Oval[],
+  /** 镂空：两只眼睛和鼻子，透出底色 */
+  holes: [
+    [34, 46, 6.5, 7],
+    [66, 46, 6.5, 7],
+    [50, 59, 10, 6],
+  ] as Oval[],
+  /** 水波：从 x0 到 x1 的几段二次曲线，控制点在 y ∓ swing 上下交替；圆头描边，线宽 line */
+  wave: { x0: 4, x1: 96, y: 91, swing: 6, segments: 4, line: 7 },
+  /** 图形的外接范围（含描边） */
+  bounds: { x0: 0.5, y0: 20, x1: 99.5, y1: 97.5 },
+}
+const OTTER_CENTER: Pt = [
+  (OTTER.bounds.x0 + OTTER.bounds.x1) / 2,
+  (OTTER.bounds.y0 + OTTER.bounds.y1) / 2,
+]
+const WAVE_STEP = (OTTER.wave.x1 - OTTER.wave.x0) / OTTER.wave.segments
+const waveControlY = (i: number) => OTTER.wave.y + (i % 2 === 0 ? -1 : 1) * OTTER.wave.swing
+
+const oval = ([cx, cy, rx, ry]: Oval) => ellipse(cx, cy, rx, ry)
+
+/** 水波的光栅图形：曲线拆成折线再加圆头描边 */
+function waveShape(): Shape {
+  const { x0, y, segments, line } = OTTER.wave
+  const points: Pt[] = [[x0, y]]
+  for (let i = 0; i < segments; i++) {
+    const x = x0 + i * WAVE_STEP
+    points.push(...quad([x, y], [x + WAVE_STEP / 2, waveControlY(i)], [x + WAVE_STEP, y], 24))
+  }
+  return stroke(points, line)
+}
 
 /**
- * 应用图标：蓝底圆角方块，水獭从水里探出头。图层顺序与官网旧版彩色 logo 的 SVG 逐层对应；
- * 头部那一组在那张 SVG 里整体 rotate(-4 50 58)，这里对每个图元做同样的旋转。
+ * 把剪影画到画布上：设计坐标先缩放 k 倍、再平移到 (dx, dy)（都在 view 的 0..100 坐标里）。
+ * 给了 paper 就用它把眼鼻涂回底色（应用图标）；不给就挖成透明（菜单栏模板图）。
  */
-function otterTile(): { clip: Shape; layers: Layer[] } {
-  const nose = polygon([
-    [42, 58],
-    ...quad([42, 58], [50, 55], [58, 58]),
-    ...quad([58, 58], [58.5, 63.5], [50, 66]),
-    ...quad([50, 66], [41.5, 63.5], [42, 58]),
-  ])
-  const mouth: Pt[][] = [
-    [
-      [50, 66],
-      [50, 69.5],
-    ],
-    [[50, 69.5], ...quad([50, 69.5], [46, 74], [41.5, 71])],
-    [[50, 69.5], ...quad([50, 69.5], [54, 74], [58.5, 71])],
-  ]
-  const ring = (cx: number, cy: number, r: number): Layer[] => [
-    [ellipse(cx, cy, r + OUTLINE), WHITE],
-    [ellipse(cx, cy, r - OUTLINE), FUR],
-  ]
-  const head: Layer[] = [
-    ...ring(16, 41, 8),
-    ...ring(84, 41, 8),
-    [ellipse(50, 58, 39 + OUTLINE, 31 + OUTLINE), WHITE],
-    // 耳朵再铺一层，盖住头部白边伸进耳朵里的那一段
-    [ellipse(16, 41, 6), FUR],
-    [ellipse(84, 41, 6), FUR],
-    [ellipse(17, 41.5, 3.4), FUR_DARK],
-    [ellipse(83, 41.5, 3.4), FUR_DARK],
-    [ellipse(50, 58, 37, 29), FUR],
-    [ellipse(50, 67, 29, 18), CREAM],
-    [ellipse(34, 49, 5.2, 6), INK],
-    [ellipse(66, 49, 5.2, 6), INK],
-    [ellipse(35.8, 46.8, 1.9), WHITE],
-    [ellipse(67.8, 46.8, 1.9), WHITE],
-    [nose, INK],
-    ...mouth.map((line): Layer => [stroke(line, 2.6), INK]),
-    [ellipse(24, 60, 5, 3.3), BLUSH, 0.6],
-    [ellipse(76, 60, 5, 3.3), BLUSH, 0.6],
-  ]
-  // 水面：M-2 86 Q10.5 78 23 86 T48 86 …，T 是对上一个控制点的镜像，即每段控制点在 y=78 / 94 交替。
-  // 1024 px 下每个设计单位有 8 px，折线段数取多一些，波峰才不见棱角
-  const crest: Pt[] = [[-2, 86]]
-  for (let i = 0; i < 5; i++) {
-    const x = -2 + i * 25
-    crest.push(...quad([x, 86], [x + 12.5, i % 2 === 0 ? 78 : 94], [x + 25, 86], 32))
+function drawOtter(
+  canvas: Canvas,
+  view: View,
+  ink: RGB,
+  at: { k: number; dx: number; dy: number },
+  paper?: RGB,
+): void {
+  const put = (shape: Shape) => place(shape, at.k, at.dx, at.dy)
+  for (const item of OTTER.solid) paint(canvas, view, [put(oval(item)), ink])
+  const holes = OTTER.holes.map((item) => put(oval(item)))
+  if (paper) for (const hole of holes) paint(canvas, view, [hole, paper])
+  else punch(canvas, view, holes)
+  paint(canvas, view, [put(waveShape()), ink])
+}
+
+/** 让剪影在 0..100 的画面里居中、横向占 width 个单位 */
+function centered(width: number): { k: number; dx: number; dy: number } {
+  const k = width / (OTTER.bounds.x1 - OTTER.bounds.x0)
+  return { k, dx: 50 - OTTER_CENTER[0] * k, dy: 50 - OTTER_CENTER[1] * k }
+}
+
+// ---------------------------------------------------------------- 官网 logo（SVG）
+
+/** SVG 里的数字：最多两位小数 */
+const num = (value: number) => String(Math.round(value * 100) / 100)
+
+/** 一个椭圆的路径；sweep 1 顺时针（实心），0 逆时针（在 nonzero 规则下把实心挖空） */
+const ovalPath = ([cx, cy, rx, ry]: Oval, sweep: 0 | 1) =>
+  `M${num(cx - rx)} ${num(cy)}a${rx} ${ry} 0 1 ${sweep} ${num(rx * 2)} 0` +
+  `a${rx} ${ry} 0 1 ${sweep}${num(-rx * 2)} 0Z`
+
+/**
+ * favicon.svg：墨色剪影，标签栏是深色时换成奶油色。取景框是以图形为中心的正方形，四周各留 2.5 个单位。
+ * LogoMark（site/apps/web/src/components/icons.tsx）用同样的取景框、两条路径和线宽。
+ */
+function faviconSvg(): string {
+  const { x0, y, segments, line } = OTTER.wave
+  const side = OTTER.bounds.x1 - OTTER.bounds.x0 + 5
+  const viewBox = [OTTER_CENTER[0] - side / 2, OTTER_CENTER[1] - side / 2, side, side].map(num)
+  const body =
+    OTTER.solid.map((item) => ovalPath(item, 1)).join('') +
+    OTTER.holes.map((item) => ovalPath(item, 0)).join('')
+  let wave = `M${x0} ${y}`
+  for (let i = 0; i < segments; i++) {
+    const end = `${num(x0 + (i + 1) * WAVE_STEP)} ${y}`
+    // 第一段写出控制点，后面用 T：控制点自动镜像，正好一上一下
+    wave += i === 0 ? `Q${num(x0 + WAVE_STEP / 2)} ${waveControlY(0)} ${end}` : `T${end}`
   }
-
-  return {
-    clip: roundRect(0, 0, 100, 100, 22),
-    layers: [
-      [roundRect(0, 0, 100, 100, 22), BG],
-      ...head.map(([shape, color, alpha]): Layer => [rotate(shape, -4, 50, 58), color, alpha]),
-      [polygon([...crest, [123, 102], [-2, 102]]), WATER],
-      [stroke(crest, 3.5), WHITE],
-      [ellipse(35, 86, 8 + 1.5, 5.2 + 1.5), WHITE],
-      [ellipse(35, 86, 8 - 1.5, 5.2 - 1.5), FUR],
-      [ellipse(65, 85, 8 + 1.5, 5.2 + 1.5), WHITE],
-      [ellipse(65, 85, 8 - 1.5, 5.2 - 1.5), FUR],
-    ],
-  }
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${viewBox.join(' ')}" role="img" aria-label="umuo">
+  <!-- 由仓库根的 scripts/make-icons.ts 生成（bun run icons），不要手改。
+       实心水獭剪影：头、两只耳朵，眼睛和鼻子镂空（反向绕行），下面一道水波；菜单栏图标与应用图标是同一张图。
+       src/components/icons.tsx 的 LogoMark 用同样两条路径，__tests__/logo.test.ts 盯着两者一致。
+       墨色取 DESIGN.md 的 ink，标签栏是深色时换成深色主题的墨（奶油）。 -->
+  <style>
+    g { color: ${INK} }
+    @media (prefers-color-scheme: dark) { g { color: ${CREAM} } }
+  </style>
+  <g>
+    <path fill="currentColor" d="${body}" />
+    <path fill="none" stroke="currentColor" stroke-width="${line}" stroke-linecap="round" d="${wave}" />
+  </g>
+</svg>
+`
 }
-
-// ---------------------------------------------------------------- 菜单栏剪影
-//
-// 水獭的线稿版：扁宽的头、两侧偏低的小耳朵、眼睛和鼻子三个点，下面一道水波，头的下缘
-// 跟着水波裁掉，像刚从水里探出来。设计坐标 0..100 对应整张 20pt 画布（1pt = 5 个单位）：
-// 图形横向占 9.5..90.5（约 16pt），四周各留约 2pt；线宽 1.4pt，与 SF Symbols 常规字重相近。
-
-/** 头部轮廓与水波共用的线宽 */
-const TRAY_LINE = 7
-const TRAY_HEAD = { cx: 50, cy: 50, rx: 31, ry: 22 }
-/** 头部下缘与水波之间留的空隙 */
-const TRAY_GAP = 4.5
-
-/** 水波中心线：两边高、中间低，头正好浮在中间的波谷上 */
-const TRAY_WAVE: Pt[] = [[13, 70]]
-for (let i = 0; i < 3; i++) {
-  const x = 13 + (i * 74) / 3
-  TRAY_WAVE.push(...quad([x, 70], [x + 37 / 3, i % 2 === 0 ? 64 : 76], [x + 74 / 3, 70]))
-}
-
-/** 水波中心线在 x 处的高度（折线插值） */
-function trayWaveY(x: number): number {
-  for (let i = 1; i < TRAY_WAVE.length; i++) {
-    const [ax, ay] = TRAY_WAVE[i - 1]
-    const [bx, by] = TRAY_WAVE[i]
-    if (x <= bx) return x <= ax ? ay : ay + ((by - ay) * (x - ax)) / (bx - ax)
-  }
-  return TRAY_WAVE[TRAY_WAVE.length - 1][1]
-}
-
-/** 水面以上：头和耳朵只画这一部分 */
-const ABOVE_WATER: Shape = {
-  box: [0, 0, 100, 100],
-  inside: (x, y) => y <= trayWaveY(x) - TRAY_LINE / 2 - TRAY_GAP,
-}
-
-/** 头的外形：上半是椭圆，中线以下两侧竖直入水（整个椭圆的话下巴会收窄，像悬在水面上） */
-function trayDome(grow: number): Shape {
-  const { cx, cy } = TRAY_HEAD
-  const rx = TRAY_HEAD.rx + grow
-  const ry = TRAY_HEAD.ry + grow
-  return {
-    box: [cx - rx, cy - ry, cx + rx, 100],
-    inside: (x, y) =>
-      y <= cy ? ((x - cx) / rx) ** 2 + ((y - cy) / ry) ** 2 <= 1 : Math.abs(x - cx) <= rx,
-  }
-}
-
-/** 眼睛和鼻子：实心点，@2x 下各约 3px 宽，再小就糊了 */
-const TRAY_FACE = [
-  ellipse(38, 43, 4.2, 4.8),
-  ellipse(62, 43, 4.2, 4.8),
-  ellipse(50, 52.5, 5.8, 3.6),
-]
 
 function punch(canvas: Canvas, view: View, holes: Shape[]): void {
   const S = 4
@@ -351,30 +306,37 @@ function punch(canvas: Canvas, view: View, holes: Shape[]): void {
 
 // ---------------------------------------------------------------- 渲染
 
-/** macOS 应用图标：1024 画布里图标本体占 824，四周留白（Big Sur 起的图标网格） */
+/**
+ * 应用图标的配色：奶油底、墨色剪影，与 favicon 在浅色标签栏上的样子一致；边缘那一圈比底色深一档。
+ * 试过深咖底配奶油剪影：在深色桌面上方块和背景靠得太近，五官的对比也不如这一组。
+ */
+const APP_TILE = hex(CREAM)
+const APP_EDGE = hex('#d9c3a5')
+const APP_INK = hex(INK)
+
+/**
+ * macOS 应用图标：1024 画布里圆角方块本体占 824，四周留白（Big Sur 起的图标网格）。
+ * 方块外沿留一圈略深的细边，浅色桌面上不至于和背景糊在一起；剪影横向占方块的 68%。
+ */
 function renderAppIcon(size: number): Canvas {
   const SS = 2 // 再乘一层超采样，让 16px 的边缘也不毛
   const canvas = createCanvas(size * SS, size * SS)
   const inset = (100 / 1024) * size * SS
   const view = { x: inset, y: inset, size: size * SS - inset * 2 }
-  const { clip, layers } = otterTile()
-  for (const layer of layers) paint(canvas, view, layer, clip)
+  paint(canvas, view, [roundRect(0, 0, 100, 100, 22), APP_EDGE])
+  paint(canvas, view, [roundRect(0.7, 0.7, 99.3, 99.3, 21.3), APP_TILE])
+  drawOtter(canvas, view, APP_INK, centered(68), APP_TILE)
   return downsample(canvas, size)
 }
 
 /**
- * 菜单栏模板图：黑色线稿，运行时设 isTemplate，由系统按菜单栏明暗着色（菜单栏图标只有这一种样式）。
+ * 菜单栏模板图：黑色剪影、眼鼻透明，运行时设 isTemplate，由系统按菜单栏明暗着色。
+ * 20pt 的画布里剪影横向占 18.8pt、纵向约 14.7pt，比 Wi-Fi、电池这些系统符号略高一点。
+ * 图形宽高比是 99:77.5，方画布里再放大就要顶到左右两边；想更高得先把画布加宽（并改 StatusBar.swift 的尺寸）。
  */
 function renderTrayIcon(size: number): Canvas {
   const canvas = createCanvas(size, size)
-  const view = { x: 0, y: 0, size }
-  const half = TRAY_LINE / 2
-  // 先铺实心的耳朵和头，再把头的内部挖空，剩下一圈轮廓和露在外面的半个耳朵
-  const solid = [ellipse(19, 38, 6.5), ellipse(81, 38, 6.5), trayDome(half)]
-  for (const shape of solid) paint(canvas, view, [shape, BLACK], ABOVE_WATER)
-  punch(canvas, view, [trayDome(-half)])
-  for (const shape of TRAY_FACE) paint(canvas, view, [shape, BLACK])
-  paint(canvas, view, [stroke(TRAY_WAVE, TRAY_LINE), BLACK])
+  drawOtter(canvas, { x: 0, y: 0, size }, BLACK, centered(94))
   return canvas
 }
 
@@ -468,6 +430,9 @@ mkdirSync(TRAY_DIR, { recursive: true })
 const trayPng = encodePng(renderTrayIcon(40))
 writeFileSync(join(TRAY_DIR, 'tray.png'), trayPng)
 console.log(`写入 tray.png (40×40, ${trayPng.length} 字节)`)
+
+writeFileSync(FAVICON, faviconSvg())
+console.log('写入 favicon.svg')
 
 const icns = encodeIcns([
   { type: 'ic07', png: encodePng(renderAppIcon(128)) },

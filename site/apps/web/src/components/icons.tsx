@@ -29,7 +29,8 @@ function Svg({ children, className }: { children: ReactNode; className?: string 
 
 /**
  * logo：实心水獭剪影——头、两只耳朵，眼睛和鼻子镂空，下面一道水波。单色，跟随文字颜色（`currentColor`），
- * 三套主题下都是当前的墨色。与 public/favicon.svg 是同样两条路径（__tests__/logo.test.ts 盯着），改一处要同步另一处。
+ * 三套主题下都是当前的墨色。与 public/favicon.svg 是同样两条路径（__tests__/logo.test.ts 盯着）；favicon 由仓库根的 scripts/make-icons.ts 生成，
+ * 改图形先改那个脚本，再把生成的路径抄到这里。
  */
 export function LogoMark({ className }: { className?: string }) {
   return (
