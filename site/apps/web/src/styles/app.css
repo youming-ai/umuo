@@ -493,13 +493,19 @@
     top: 0;
     left: 0;
     width: max-content;
-    display: grid;
-    grid-template-columns: repeat(var(--grid-columns, 16), 6rem);
   }
 
-  .language-grid-cells > span {
+  /* 一行一个容器：增删列只动行尾，增删行只动最下面，已有的格子位置不变（hydrate 时不产生布局偏移） */
+  .language-grid-cells > div {
+    display: flex;
+  }
+
+  /* 相邻格子的边线叠在一起：横向间距 6rem，纵向间距 6rem - 1px */
+  .language-grid-cells span {
+    flex: none;
     display: grid;
     place-items: center;
+    width: calc(6rem + 1px);
     height: 6rem;
     border: 1px solid var(--rule-strong);
     margin: 0 -1px -1px 0;
@@ -537,7 +543,7 @@
     );
   }
 
-  :where(.language-grid-glow) .language-grid-cells > span {
+  :where(.language-grid-glow) .language-grid-cells span {
     color: var(--accent-strong);
     border-color: color-mix(in srgb, var(--accent) 55%, var(--rule-strong));
     background: var(--accent-soft);

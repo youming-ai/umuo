@@ -1,4 +1,4 @@
-import { type CSSProperties, useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 const GLYPHS = [
   'あ',
@@ -19,15 +19,23 @@ const GLYPHS = [
   'א',
 ]
 
-/** 两层共用同一网格，亮层只在指针附近显露；不让每次移动触发 React 渲染。 */
+/**
+ * 两层共用同一网格，亮层只在指针附近显露；不让每次移动触发 React 渲染。
+ *
+ * 格子按行排：每个字只由它的行号、列号决定，位置也只由行列决定。挂载后按视口补齐或裁掉行列时，
+ * 只在每行末尾和最下面增删格子，已经画出来的格子不动——否则预渲染的 16 列在 hydrate 时整片重排，
+ * 是一次很大的布局偏移（CLS）。
+ */
 export function LanguageGrid() {
   const ref = useRef<HTMLDivElement>(null)
   // 首次渲染固定尺寸以兼容预渲染，挂载后再按视口补齐行列。
   const [size, setSize] = useState({ columns: 16, rows: 8 })
-  const cells = Array.from({ length: size.columns * size.rows }, (_, index) => ({
-    id: index,
-    glyph: GLYPHS[(index * 7 + Math.floor(index / size.columns) * 3) % GLYPHS.length],
-  }))
+  const rows = Array.from({ length: size.rows }, (_, row) =>
+    Array.from(
+      { length: size.columns },
+      (_, column) => GLYPHS[(column * 7 + row * 3) % GLYPHS.length],
+    ),
+  )
 
   useEffect(() => {
     const resize = () => {
@@ -92,17 +100,18 @@ export function LanguageGrid() {
   }, [])
 
   return (
-    <div
-      ref={ref}
-      className="language-grid"
-      aria-hidden="true"
-      style={{ '--grid-columns': size.columns } as CSSProperties}
-    >
+    <div ref={ref} className="language-grid" aria-hidden="true">
       {['base', 'glow'].map((layer) => (
         <div key={layer} className={`language-grid-layer language-grid-${layer}`}>
           <div className="language-grid-cells">
-            {cells.map(({ id, glyph }) => (
-              <span key={id}>{glyph}</span>
+            {rows.map((glyphs, row) => (
+              // biome-ignore lint/suspicious/noArrayIndexKey: 行列就是格子的身份
+              <div key={row}>
+                {glyphs.map((glyph, column) => (
+                  // biome-ignore lint/suspicious/noArrayIndexKey: 行列就是格子的身份
+                  <span key={column}>{glyph}</span>
+                ))}
+              </div>
             ))}
           </div>
         </div>
