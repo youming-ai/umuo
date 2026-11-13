@@ -15,6 +15,7 @@ colors:
   cheek-cream: "#efd9bd"
   rule: "#e6dccf"
   rule-strong: "#cdbba7"
+  logo-water: "#0a84ff"
 typography:
   display:
     fontFamily: "Open Sans, -apple-system, PingFang SC, Hiragino Sans, Apple SD Gothic Neo, sans-serif"
@@ -102,7 +103,7 @@ components:
 官网排成一本双语对照本：暖白纸面、咖啡色墨字，原文与译文像左右两页一样并排。产品大部分时间藏在快捷键背后，
 所以页面不靠插画或渐变制造气氛，而是把**真实的键位、真实的选区、真实的前后对照**当作主角。
 
-颜色只取水獭的毛色：皮毛咖啡、耳朵深咖、眼鼻墨色、脸颊奶油；界面不用蓝。logo 是单色的水獭剪影，跟着墨色走。
+颜色只取 logo 里那只水獭：皮毛咖啡、耳朵深咖、眼鼻墨色、脸颊奶油。logo 底色的蓝只留在 logo 图里，界面不用蓝。
 组件气质是 **Mac 原生的克制**，只有桌面上的下载按钮例外：沿用「节拍」设计语言的**厚底可按压**（多邻国式）。底部是实心厚边，悬停时微微上抬，按下时下沉，一眼就知道能按。
 键帽像真键盘；分隔靠细线和装订线，不靠卡片墙。
 全站只有首页一屏、不滚动。手机上更进一步，只留文字与一个按钮（见 Layout › 手机端）。
@@ -134,9 +135,8 @@ components:
 - **细线 Rule / 粗线 Rule Strong** (`rule`, `rule-strong`)：分隔线、边框、字符网格。
 - **脸颊奶油 Cheek Cream** (`cheek-cream`)：文字选区与演示中「被选中的原文」底色。
 
-### Logo
-logo 是单色的实心水獭剪影：头、两只耳朵，眼睛和鼻子镂空，下面一道水波（`LogoMark` 与 `public/favicon.svg` 是同一张图）。它没有自己的颜色：
-页眉里用 `currentColor` 跟着 `text-primary`，三套主题下都是当前的墨色；favicon 用 `ink`，标签栏是深色时换成深色主题的墨（`#f4e6d2`）。
+### Logo only
+- **Logo 水蓝** (`logo-water`)：只存在于 logo 图（`LogoMark`、`public/favicon.svg`）。界面任何地方都不引用它。
 
 ### Themes
 深色主题把纸换成深咖啡（`#181310` 起），墨换成奶油（`#f4e6d2`），强调色提亮为 `#c48d65` / `#e0b48f`，
@@ -144,7 +144,7 @@ logo 是单色的实心水獭剪影：头、两只耳朵，眼睛和鼻子镂空
 所有颜色都通过 `apps/web/src/styles/app.css` 的语义变量（`--paper`、`--ink`、`--accent`、`--accent-strong`、`--button-fill` 等）切换，组件不写死色值。
 
 ### Named Rules
-**The No-Blue Rule.** 界面任何地方都不出现蓝色，logo 也不例外：它是墨色的剪影。
+**The No-Blue Rule.** 界面里不出现蓝色。蓝是 logo 的水，不是 umuo 的墨。
 **The One Action Color Rule.** 深咖是唯一的行动色，一屏之内实心深咖按钮只有一个。
 **The Token-Only Rule.** 组件只引用语义变量，三套主题才能同时成立。
 
@@ -177,13 +177,13 @@ logo 是单色的实心水獭剪影：头、两只耳朵，眼睛和鼻子镂空
 ### 手机端
 手机（触屏，`(hover: none) and (pointer: coarse)`，与「复制网址」出现的条件相同）只留文字与一个按钮：
 页眉 logo + 「umuo」与 GitHub 图标，主体是标题、导读、「请在 Mac 上打开 umuo.app 下载」与「复制网址」，页脚版权与语言 / 主题切换。
-演示面板与字符网格照常预渲染（桌面和手机是同一份 HTML，hydrate 才一致），手机上由 CSS 隐藏；页脚不画上边线。
+演示面板与字符网格照常预渲染（桌面和手机是同一份 HTML，hydrate 才一致），手机上由 CSS 隐藏；logo 不加投影，页脚不画上边线。
 手机端不按视口高度分档：标题 `clamp(2rem, 9.5vw, 2.5rem)`、导读 1.0625rem，间距用定值，390×844 与 375×667 都能一屏放下。
 平板（iPad）也命中这条件，同样只显示文字与按钮。
 
 ## Elevation & Depth
 
-以纸面分层为主，阴影只用在演示面板上，像纸上放着一张卡纸；手机上不用阴影。按钮的厚度不靠阴影，靠底部实心厚边（`--press-depth`）。
+以纸面分层为主，阴影只用在演示面板与桌面上的 logo，像纸上放着一张卡纸；手机上不用阴影。按钮的厚度不靠阴影，靠底部实心厚边（`--press-depth`）。
 阴影都带向下偏移和柔和模糊，色调取咖啡墨，不发光。
 
 ### Shadow Vocabulary
@@ -284,7 +284,7 @@ logo 是单色的实心水獭剪影：头、两只耳朵，眼睛和鼻子镂空
 格子按行排，每个字只由行号、列号决定：预渲染固定 16 列 8 行，挂载后按视口在行尾和底部增删格子，已有的格子不动，hydrate 不产生布局偏移。
 
 ### Navigation
-左边是 logo（墨色的水獭剪影，40px，不加底块与投影）加小写字样「umuo」，右边是 GitHub 标志图标（`GitHubIcon`，24px、44px 圆形点击区，`text-secondary`，悬停转 `text-primary`，`aria-label="GitHub"`，占原「免费与开源」的位置）；页眉高度固定 4rem。GitHub 链接只在仓库公开（`SOURCE_PUBLIC`）时出现，是站内唯一的源码入口；首页下载旁不放说明句。
+左边是 logo 加小写字样「umuo」（桌面上 logo 带一层纸上投影，手机上不带），右边是 GitHub 标志图标（`GitHubIcon`，24px、44px 圆形点击区，`text-secondary`，悬停转 `text-primary`，`aria-label="GitHub"`，占原「免费与开源」的位置）；页眉高度固定 4rem。GitHub 链接只在仓库公开（`SOURCE_PUBLIC`）时出现，是站内唯一的源码入口；首页下载旁不放说明句。
 
 ### Footer
 页脚只有一行：左边版权「© 2026 umuo」（`ink-faint` 小字），右边语言与主题切换（Ghost）。语言菜单向上展开，切换语言或主题时整页短淡化（见 Motion）。不放条款、隐私、源码与联系邮箱链接，也不重复下载 CTA。
@@ -301,7 +301,7 @@ logo 是单色的实心水獭剪影：头、两只耳朵，眼睛和鼻子镂空
 - **Do** 新增动效时只引用 `--dur-*` / `--ease-*` 令牌；位移类只动 `opacity` / `transform` / `filter`，颜色类状态变化可以过渡 `color` / `background-color` / `border-color`。
 
 ### Don't:
-- **Don't** 在界面里用蓝色，logo 也不用。
+- **Don't** 在界面里用蓝色；`#0A84FF` / `#5FB2FF` 只属于 logo 图。
 - **Don't** 加回深色光晕或渐变、胶囊形眉题标签、标题里单独上色或用渐变的某个词、`A · B · C` 式的中间点分隔。
 - **Don't** 做千篇一律的圆角卡片墙，也不要加没有信息量的 01 / 02 / 03 编号。
 - **Don't** 引入外部字体服务，也不要在 Open Sans 之外再加一款展示字体。
