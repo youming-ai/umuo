@@ -380,6 +380,7 @@ final class HotkeyEditor {
         guard let conflict else { return nil }
         switch conflict.kind {
         case .noModifier: return t("prefs.hotkey.noModifier")
+        case .unrecognized: return t("prefs.hotkey.unrecognized")
         case .duplicate: return t("prefs.hotkey.duplicate", ["name": conflict.subject ?? ""])
         case .system: return t("prefs.hotkey.system", ["name": conflict.subject.map { t($0) } ?? ""])
         }

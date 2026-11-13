@@ -7986,6 +7986,35 @@
         }
       }
     },
+    "prefs.hotkey.unrecognized": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "认不出这个写法，会改用默认快捷键。请重新录制。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "認不出這個寫法，會改用預設快捷鍵。請重新錄製。"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This shortcut isn’t recognized, so the default will be used. Record it again."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "この書き方は認識できないため、デフォルトのショートカットを使います。もう一度記録してください。"
+          }
+        }
+      }
+    },
     "prefs.hotkey.recording": {
       "extractionState": "manual",
       "localizations": {
