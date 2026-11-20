@@ -72,6 +72,16 @@ struct AppShellTests {
         #expect(values["speakHotkey"] == nil)
     }
 
+    @Test func 清空的快捷键不进注册计划_缺字段仍回落默认键() {
+        let values = HotkeyCenter.values(settingsJson: #"{"selectionHotkey":"Ctrl Ctrl","silentReplaceHotkey":"","composeHotkey":"  ","ocrHotkey":"Alt+Cmd+O"}"#)
+        // 不在计划里就不注册，`register` 也就不会把它记进失败清单
+        #expect(HotkeyCenter.plan(values).map(\.field) == ["selectionHotkey", "ocrHotkey"])
+        // 旧配置缺字段不等于清空
+        #expect(HotkeyCenter.plan([:]).map(\.action) == [.selection, .silentReplace, .compose, .ocr])
+        #expect(HotkeyCenter.isCleared(" ") && !HotkeyCenter.isCleared("Ctrl Ctrl") && !HotkeyCenter.isCleared("Ctrl+Foo"))
+        #expect(HotkeyConflict.check("", others: [(label: "撰写", value: "")]) == nil, "两行都清空不算重复")
+    }
+
     @Test func 设置JSON只取视图要的字段() {
         let object = JSONValue.object(json: #"{"theme":"dark","futureField":{"a":[1,true,null]}}"#)
         #expect(object?["theme"]?.stringValue == "dark")

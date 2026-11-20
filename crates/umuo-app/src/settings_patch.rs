@@ -520,6 +520,27 @@ mod tests {
     }
 
     #[test]
+    fn a_cleared_hotkey_round_trips_as_empty_instead_of_the_default() {
+        // 清空 = 不注册（宿主按空串跳过）：存进去、重载回来都必须还是空串，不能被默认值补回去。
+        let core = open_in("cleared-hotkey", &json!({}));
+        let (settings, effects) = core
+            .apply_settings_patch(json!({ "composeHotkey": "", "voiceHotkey": "" }))
+            .unwrap();
+        assert!(effects.hotkeys, "清空也要重注册");
+        assert_eq!(settings.compose_hotkey, "");
+        // 之后改别的设置走「合并到最新设置」那条路，清空的键不受影响
+        core.apply_settings_patch(json!({ "theme": "dark" }))
+            .unwrap();
+        let saved: serde_json::Value = serde_json::from_slice(&file_bytes(&core)).unwrap();
+        assert_eq!(saved["composeHotkey"], "");
+        assert_eq!(saved["voiceHotkey"], "");
+        let reloaded = Settings::load(&core.config_dir);
+        assert_eq!(reloaded.compose_hotkey, "");
+        assert_eq!(reloaded.voice_hotkey, "");
+        assert_eq!(reloaded.ocr_hotkey, "Alt+Cmd+O", "没动的键仍是默认值");
+    }
+
+    #[test]
     fn voice_input_device_defaults_to_system_and_saves_without_reregistering() {
         let core = open_in("voice-device", &json!({ "futureField": 1 }));
         let (settings, _) = core

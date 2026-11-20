@@ -466,6 +466,24 @@ struct HotkeyEditorTests {
         #expect(backend.patches.last == [HotkeyCenter.voiceTranslateField: .string("Ctrl+Alt+T")])
     }
 
+    @Test func 清空存空串_先结束录制_那一行不再提示() async {
+        let backend = FakeBackend(base)
+        let model = await loaded(backend)
+        model.hotkeys.toggle("selectionHotkey")
+        model.hotkeys.errors["ocrHotkey"] = "保存失败"
+        // 录着另一行时点清空：与点别的键帽一样先结束录制、恢复全局快捷键
+        try? await model.hotkeys.clear("ocrHotkey")?.value
+        #expect(model.hotkeys.recording == nil)
+        #expect(backend.recording == [true, false])
+        #expect(backend.patches.last == ["ocrHotkey": .string("")])
+        #expect(model.hotkeys.errors["ocrHotkey"] == nil)
+        #expect(model.hotkeys.message("ocrHotkey") == nil)
+        // 两行都清空不算撞键，照样能存
+        try? await model.hotkeys.clear("composeHotkey")?.value
+        #expect(backend.patches.last == ["composeHotkey": .string("")])
+        #expect(model.hotkeys.message("composeHotkey") == nil)
+    }
+
     @Test func 注册失败的行标出来连按与组合键文案不同() async {
         var settings = base
         settings["selectionHotkey"] = .string("Ctrl Ctrl")

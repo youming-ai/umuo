@@ -65,7 +65,7 @@ final class VoiceOverlayModel {
     /// 刚复制成功（按钮短暂显示「已复制」）。
     var copied = false
     var t = Translate(locale: .zhCN)
-    /// 两个语音键的显示名（「⌥⌘V」），提示文案里用。
+    /// 两个语音键的显示名（「⌥⌘V」），提示文案里用；不注册的键不在里面（`HotkeyCenter.voiceLabels`）。
     var hotkeyLabels: [VoiceTask: String] = [:]
     /// 当前会话做的是整理还是翻译（按下的是哪个键）。
     var task: VoiceTask = .tidy
@@ -73,8 +73,12 @@ final class VoiceOverlayModel {
     var preparingEngine = false
     let models: VoiceModelStore
 
-    /// 当前会话那个键的显示名。
-    var hotkeyLabel: String { hotkeyLabels[task] ?? "" }
+    /// 当前会话那个键的显示名；它不注册（清空了、设成了连按）就按 `voiceTable` 的顺序用另一个语音键，都不注册时为 nil。
+    /// 录音中按着的那个键一定还注册着（改快捷键会先取消录音），回落只影响「模型已就绪，按住 X 说话」：
+    /// `task` 只在开始录音时更新，用户清空整理键、按翻译键触发下载时，`task` 还是默认的整理。
+    var hotkeyLabel: String? {
+        hotkeyLabels[task] ?? HotkeyCenter.voiceTable.compactMap { hotkeyLabels[$0.task] }.first
+    }
 
     @ObservationIgnored var onCancel: (() -> Void)?
     @ObservationIgnored var onRetry: (() -> Void)?

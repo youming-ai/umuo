@@ -89,8 +89,11 @@ struct OnboardingView: View {
 
     /// 快捷键文字（`Alt+Cmd+O` → `⌥⌘O`）；同一格放两个功能时用「 / 」隔开。
     /// 引导里提到的键位一律读当前设置：默认键位换过一次，老用户的设置里仍是旧键位。
+    /// 清空了的键不列出，全部清空时写「未设置」（引导可以从设置的通用页重新打开，那时用户可能已经清空过）。
     private func keys(_ fields: String...) -> String {
-        fields.map { HotkeyFormat.parts(model.values.string($0)).joined() }.joined(separator: " / ")
+        let shown = fields.map { model.values.string($0) }.filter { !HotkeyCenter.isCleared($0) }
+        guard !shown.isEmpty else { return t("prefs.hotkey.unset") }
+        return shown.map { HotkeyFormat.parts($0).joined() }.joined(separator: " / ")
     }
 
     private var welcome: some View {

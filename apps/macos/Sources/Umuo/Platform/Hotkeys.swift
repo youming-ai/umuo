@@ -14,8 +14,8 @@ enum HotkeyAction: String, CaseIterable, Sendable {
 @MainActor
 final class HotkeyCenter {
     /// 一行快捷键配置：设置字段名（`settings.json` 的 camelCase 键，也是失败清单里记的名字）、
-    /// 解析失败时回落的组合键、要触发的功能。回落只用于「既不是连按、又解析不了」的值；
-    /// 连按监听起不来时不回落，而是标成失败。连按默认的两行写旧版默认 ⌥D / ⌥⇧T 占位。
+    /// 回落的组合键、要触发的功能。回落只用于缺字段、或「既不是连按、又解析不了」的值；
+    /// 清空了的不回落、不注册；连按监听起不来时也不回落，而是标成失败。连按默认的两行写旧版默认 ⌥D / ⌥⇧T 占位。
     nonisolated static let table: [(field: String, fallback: String, action: HotkeyAction)] = [
         ("selectionHotkey", "Alt+D", .selection),
         ("silentReplaceHotkey", "Alt+Shift+T", .silentReplace),
@@ -42,14 +42,6 @@ final class HotkeyCenter {
         (voiceTranslateField, voiceTranslateCombo, .translate),
     ]
 
-    /// 语音键的设置值 → 要注册的组合键；连按两下修饰键返回 nil（不能表达「按住」）。
-    nonisolated static func voicePlan(_ value: String, fallback: String) -> HotkeyCombo.Parsed? {
-        switch parseHotkey(value: value) {
-        case .doubleTap: nil
-        case let .combo(combo): HotkeyCombo.parse(combo) ?? HotkeyCombo.parse(fallback)
-        }
-    }
-
     /// 录快捷键最长持续多久。超过就当作被放弃，自动恢复全局快捷键。
     nonisolated static let recordingLimit: TimeInterval = 30
 
@@ -59,16 +51,29 @@ final class HotkeyCenter {
         case doubleTap(DoubleTap)
     }
 
-    /// 设置 → 每行的计划。纯函数：选回落、分流连按都在这里，selftest 不用真的注册就能验。
+    /// 用户清空了这个快捷键（修剪后为空）：不注册，也不算失败——划词、原地替换、撰写、截图在菜单栏还有入口，
+    /// 划词另有 PopClip；语音的按住说话只能靠快捷键，清空即关掉这个入口。
+    /// 与注册同一个修剪规则（Rust 的 `parseHotkey`），不在 Swift 里另判一次空白。
+    nonisolated static func isCleared(_ value: String) -> Bool {
+        if case .combo(value: "") = parseHotkey(value: value) { true } else { false }
+    }
+
+    /// 一个设置值 → 计划；清空了返回 nil（不注册）。缺字段（`nil`：旧配置、手写的部分设置）按默认值，
+    /// 与清空区分开：老用户的配置里没有新加的键，不能因此就没有快捷键。
+    nonisolated static func plan(_ value: String?, fallback: String) -> Plan? {
+        let value = value ?? fallback
+        if isCleared(value) { return nil }
+        return switch parseHotkey(value: value) {
+        case let .doubleTap(tap): .doubleTap(tap)
+        // 默认值都是合法组合键，回落一定解析得出来
+        case let .combo(combo): .combo(HotkeyCombo.parse(combo) ?? HotkeyCombo.parse(fallback)!)
+        }
+    }
+
+    /// 设置 → 要注册的每行计划，清空了的行不在里面。纯函数：选回落、分流连按都在这里，selftest 不用真的注册就能验。
     nonisolated static func plan(_ values: [String: String]) -> [(field: String, plan: Plan, action: HotkeyAction)] {
-        table.map { row in
-            let plan: Plan = switch parseHotkey(value: values[row.field] ?? "") {
-            case let .doubleTap(tap): .doubleTap(tap)
-            case let .combo(value):
-                // 默认值都是合法组合键，回落一定解析得出来
-                .combo(HotkeyCombo.parse(value) ?? HotkeyCombo.parse(row.fallback)!)
-            }
-            return (row.field, plan, row.action)
+        table.compactMap { row in
+            plan(values[row.field], fallback: row.fallback).map { (row.field, $0, row.action) }
         }
     }
 
@@ -79,10 +84,12 @@ final class HotkeyCenter {
         return fields.reduce(into: [:]) { values, field in values[field] = object[field] as? String }
     }
 
-    /// 语音键当前生效值的显示名（「⌥⌘V」），浮层提示用。解析不出的值实际注册的是默认键，显示也用默认键。
+    /// 语音键当前生效值的显示名（「⌥⌘V」），浮层提示用。解析不出的值实际注册的是默认键，显示也用默认键；
+    /// 不注册的键（清空了、设成了连按）没有显示名。
     nonisolated static func voiceLabels(_ values: [String: String]) -> [VoiceTask: String] {
         voiceTable.reduce(into: [:]) { labels, row in
-            let value = values[row.field] ?? ""
+            guard case .combo? = plan(values[row.field], fallback: row.fallback) else { return }
+            let value = values[row.field] ?? row.fallback
             let effective = if case .combo? = HotkeyCombo.resolve(value) {
                 value
             } else {
@@ -186,11 +193,15 @@ final class HotkeyCenter {
     private func registerVoice(_ values: [String: String]) {
         guard let voice else { return }
         for row in Self.voiceTable {
-            let value = values[row.field] ?? ""
-            guard let parsed = Self.voicePlan(value, fallback: row.fallback) else {
+            let parsed: HotkeyCombo.Parsed
+            switch Self.plan(values[row.field], fallback: row.fallback) {
+            // 清空了：不注册，也不算失败
+            case nil: continue
+            case .doubleTap?:
                 print("umuo: \(row.field) 设成了连按两下修饰键，按住说话只能用组合键")
                 failures.append(row.field)
                 continue
+            case let .combo(combo)?: parsed = combo
             }
             let task = row.task
             do {
