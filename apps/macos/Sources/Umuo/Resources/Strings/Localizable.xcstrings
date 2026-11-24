@@ -7927,6 +7927,36 @@
         }
       }
     },
+    "prefs.hotkey.clear": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "清空「%1$@」的快捷键"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "清除「%1$@」的快速鍵"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Clear Shortcut for %1$@"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "「%1$@」のショートカットを消去"
+          }
+        }
+      },
+      "comment": "placeholders: name"
+    },
     "prefs.hotkey.comboOnly": {
       "extractionState": "manual",
       "localizations": {
@@ -11122,6 +11152,35 @@
         }
       }
     },
+    "voice.escCancelHint": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Esc 取消"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Esc 取消"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Esc to cancel"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Esc でキャンセル"
+          }
+        }
+      }
+    },
     "voice.escHint": {
       "extractionState": "manual",
       "localizations": {
@@ -11443,6 +11502,35 @@
         }
       },
       "comment": "placeholders: hotkey"
+    },
+    "voice.model.readyNoHotkey": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "模型已就绪。现在没有可用的语音快捷键，请到「设置 → 翻译」的语音输入里录一个。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "模型已就緒。目前沒有可用的語音快速鍵，請到「設定 → 翻譯」的語音輸入裡錄一個。"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The model is ready. No voice shortcut is available; record one under Voice Input in Settings → Translation."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "モデルの準備ができました。使える音声ショートカットがありません。「設定 → 翻訳」の音声入力で記録してください。"
+          }
+        }
+      }
     },
     "voice.model.retry": {
       "extractionState": "manual",

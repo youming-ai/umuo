@@ -471,6 +471,14 @@ final class HotkeyEditor {
             }
         }
     }
+
+    /// 清空一行：存空串，这个功能就不注册全局快捷键（`HotkeyCenter.isCleared`）。
+    /// 与点别的键帽一样，先结束正在录的那一行。
+    @discardableResult
+    func clear(_ field: String) -> Task<Void, Error>? {
+        stop()
+        return commit(field, "")
+    }
 }
 
 // MARK: - 通用页：开机启动、配置导入导出

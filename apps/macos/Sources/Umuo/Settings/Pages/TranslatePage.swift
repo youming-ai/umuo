@@ -75,9 +75,9 @@ struct HotkeyRow: View {
 
     var body: some View {
         let t = model.t
-        PrefRow(title: title ?? t("prefs.translate.hotkey"), description: description,
-                error: model.hotkeys.message(field)) {
-            HotkeyRecorderButton(model: model, editor: model.hotkeys, field: field)
+        let title = title ?? t("prefs.translate.hotkey")
+        PrefRow(title: title, description: description, error: model.hotkeys.message(field)) {
+            HotkeyRecorderButton(model: model, editor: model.hotkeys, field: field, title: title)
         }
     }
 }
@@ -88,25 +88,39 @@ struct HotkeyRecorderButton: View {
     let model: SettingsModel
     let editor: HotkeyEditor
     let field: String
+    /// 行名：清空按钮的提示与 VoiceOver 标签带上它，各行的清空按钮才分得清
+    let title: String
 
     var body: some View {
         let t = model.t
         let recording = editor.recording == field
-        let parts = HotkeyFormat.parts(model.values.string(field), rightLabel: t("prefs.hotkey.right"))
+        let value = model.values.string(field)
+        let parts = HotkeyFormat.parts(value, rightLabel: t("prefs.hotkey.right"))
         let label = recording ? t("prefs.hotkey.recordingShort") : parts.isEmpty ? t("prefs.hotkey.unset") : parts.joined(separator: " ")
         VStack(alignment: .trailing, spacing: 4) {
-            let button = Button {
-                editor.toggle(field)
-                // 开始录制时收走文字焦点：否则停在文本框里的焦点会让第一个按键就结束录制（`yieldsToText`）
-                if editor.recording == field { NSApp.keyWindow?.makeFirstResponder(nil) }
-            } label: {
-                Text(label).monospacedDigit().lineLimit(1).frame(width: 120)
+            HStack(spacing: 6) {
+                let button = Button {
+                    editor.toggle(field)
+                    // 开始录制时收走文字焦点：否则停在文本框里的焦点会让第一个按键就结束录制（`yieldsToText`）
+                    if editor.recording == field { NSApp.keyWindow?.makeFirstResponder(nil) }
+                } label: {
+                    Text(label).monospacedDigit().lineLimit(1).frame(width: 120)
+                }
+                // 固定宽度的录键框；录制中用强调样式，与系统录键控件一致
+                Group {
+                    if recording { button.buttonStyle(.borderedProminent) } else { button.buttonStyle(.bordered) }
+                }
+                .accessibilityAddTraits(recording ? .isSelected : [])
+                // 清空：有值且不在录这一行时才出现。不出现时仍占着位置（`hidden` 不响应点击、也不给 VoiceOver 读），
+                // 各行的录键框才对得齐
+                let clear = Button { editor.clear(field) } label: {
+                    Image(systemName: "xmark.circle.fill").foregroundStyle(.secondary)
+                }
+                .buttonStyle(.borderless)
+                .help(t("prefs.hotkey.clear", ["name": title]))
+                .accessibilityLabel(t("prefs.hotkey.clear", ["name": title]))
+                if recording || HotkeyCenter.isCleared(value) { clear.hidden() } else { clear }
             }
-            // 固定宽度的录键框；录制中用强调样式，与系统录键控件一致
-            Group {
-                if recording { button.buttonStyle(.borderedProminent) } else { button.buttonStyle(.bordered) }
-            }
-            .accessibilityAddTraits(recording ? .isSelected : [])
             // 录制中的完整说明放在按钮下：120pt 的按钮放不下整句（四种语言都会被截断）。
             // 冲突提示用多色警告符号表达状态，文字保持次要色，浅色模式下橙色小字对比度不够
             if recording {

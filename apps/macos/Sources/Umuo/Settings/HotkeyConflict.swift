@@ -61,7 +61,7 @@ enum HotkeyConflict {
 
     static func check(_ candidate: String, others: [(label: String, value: String)]) -> Conflict? {
         let normalized = normalize(candidate)
-        // 留空 = 用默认值（Rust 侧解析失败时会回落到内置默认），不算冲突。
+        // 留空 = 清空了这个快捷键，不注册（`HotkeyCenter.isCleared`），不算冲突。
         if normalized.isEmpty { return nil }
 
         // 连按两下修饰键（⌃⌃）：本来就只有修饰键，不做「缺修饰键」检查；只查与别的功能是否撞上。

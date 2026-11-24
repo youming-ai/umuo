@@ -67,7 +67,7 @@ enum HotkeySelfTest {
               wrong.isEmpty ? "别名、大小写、空白与 global-hotkey 一致；空 token、多个主键、只有修饰键都不合法" : "不一致：\(wrong)")
     }
 
-    /// 回落只给「既不是连按、又解析不了」的值；连按不回落；缺字段等于空串，也回落。
+    /// 回落只给缺字段、或「既不是连按、又解析不了」的值；连按不回落；清空了的不回落、不注册（Swift Testing 覆盖）。
     static func plan(_ check: (String, Bool, String) -> Void) {
         let values = HotkeyCenter.values(settingsJson: #"""
         {"selectionHotkey":"Ctrl Ctrl","silentReplaceHotkey":"Alt Alt","composeHotkey":"Ctrl+Foo",

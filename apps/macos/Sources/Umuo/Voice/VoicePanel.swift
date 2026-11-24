@@ -163,7 +163,8 @@ struct VoiceOverlayView: View {
                             .font(.title2.monospacedDigit())
                     }
                 }
-                Text(t("voice.recordingHint", ["hotkey": model.hotkeyLabel]))
+                // 录音由语音键触发，正常总有键名；万一没有也不留空，只提示 Esc 取消录音
+                Text(model.hotkeyLabel.map { t("voice.recordingHint", ["hotkey": $0]) } ?? t("voice.escCancelHint"))
                     .foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
             }
             .font(.callout)
@@ -348,7 +349,8 @@ private struct VoiceModelSection: View {
             ProgressView().progressViewStyle(.linear)
             Text(t("voice.model.verifying")).font(.callout).foregroundStyle(.secondary)
         case .ready:
-            Text(t("voice.model.ready", ["hotkey": model.hotkeyLabel])).fixedSize(horizontal: false, vertical: true)
+            Text(model.hotkeyLabel.map { t("voice.model.ready", ["hotkey": $0]) } ?? t("voice.model.readyNoHotkey"))
+                .fixedSize(horizontal: false, vertical: true)
         case let .failed(failure):
             Text(t(Self.failureKey(failure))).fixedSize(horizontal: false, vertical: true)
             Button(t("voice.model.retry")) { store.download() }

@@ -286,6 +286,18 @@ private struct Rig {
 
 @MainActor
 struct VoiceControllerTests {
+    @Test func 浮层提示的语音键_当前键清空了用另一个_都不可用时为空() {
+        let overlay = Rig().controller.overlay
+        #expect(overlay.task == .tidy)
+        overlay.hotkeyLabels = HotkeyCenter.voiceLabels([HotkeyCenter.voiceField: "", HotkeyCenter.voiceTranslateField: "Ctrl+Cmd+V"])
+        // 清空了整理键、按翻译键触发下载：`task` 还是默认的整理，就绪提示要说还能用的翻译键
+        #expect(overlay.hotkeyLabel == "⌃⌘V")
+        overlay.hotkeyLabels = HotkeyCenter.voiceLabels([HotkeyCenter.voiceField: "", HotkeyCenter.voiceTranslateField: " "])
+        #expect(overlay.hotkeyLabel == nil)
+        overlay.hotkeyLabels = HotkeyCenter.voiceLabels([:])
+        #expect(overlay.hotkeyLabel == "⌥⌘V")
+    }
+
     @Test func 按住说话松开后转写并显示结果_音频随即删除() async {
         let rig = Rig()
         rig.controller.press()
@@ -907,17 +919,29 @@ struct VoiceRulesTests {
         let values = HotkeyCenter.values(settingsJson: #"{"voiceHotkey":"Ctrl+Alt+Space","voiceTranslateHotkey":"Ctrl Ctrl","theme":"dark"}"#)
         #expect(values[HotkeyCenter.voiceField] == "Ctrl+Alt+Space")
         #expect(values["theme"] == nil)
-        #expect(HotkeyCenter.voicePlan("Ctrl Ctrl", fallback: HotkeyCenter.voiceTranslateCombo) == nil, "按住说话不能用连按")
-        #expect(HotkeyCenter.voicePlan("Ctrl+Foo", fallback: HotkeyCenter.voiceCombo)
-            == HotkeyCombo.parse(HotkeyCenter.voiceCombo))
-        #expect(HotkeyCenter.voicePlan("", fallback: HotkeyCenter.voiceCombo) == HotkeyCombo.parse(HotkeyCenter.voiceCombo))
+        // 连按照常分流出来，由 `registerVoice` 标成失败（按住说话不能用连按）；浮层也就没有这个键可提示
+        #expect(HotkeyCenter.plan("Ctrl Ctrl", fallback: HotkeyCenter.voiceTranslateCombo) == .doubleTap(DoubleTap(kind: .ctrl, side: nil)))
+        #expect(HotkeyCenter.plan("Ctrl+Foo", fallback: HotkeyCenter.voiceCombo)
+            == HotkeyCombo.parse(HotkeyCenter.voiceCombo).map(HotkeyCenter.Plan.combo))
         let labels = HotkeyCenter.voiceLabels(values)
         #expect(labels[.tidy] == "⌃⌥Space" || labels[.tidy]?.hasPrefix("⌃⌥") == true)
+        #expect(labels[.translate] == nil)
         #expect(HotkeyCenter.voiceLabels([:])[.translate] == "⌃⌘V")
         #expect(HotkeyCenter.voiceLabels([HotkeyCenter.voiceField: "Ctrl+Foo"])[.tidy] == "⌥⌘V", "非法值显示实际注册的默认键")
-        // 注册时整体修剪过（`voicePlan`），提示也得认：单键带首尾空白时不能误显示成默认键。
-        #expect(HotkeyCenter.voicePlan(" F5 ", fallback: HotkeyCenter.voiceCombo) == HotkeyCombo.parse("F5"))
+        // 注册时整体修剪过（`HotkeyCenter.plan`），提示也得认：单键带首尾空白时不能误显示成默认键。
+        #expect(HotkeyCenter.plan(" F5 ", fallback: HotkeyCenter.voiceCombo) == HotkeyCombo.parse("F5").map(HotkeyCenter.Plan.combo))
         #expect(HotkeyCenter.voiceLabels([HotkeyCenter.voiceField: " F5 "])[.tidy] != "⌥⌘V", "带空白的单键显示它自己")
+    }
+
+    @Test func 语音键_清空了不注册也没有提示_缺字段仍用默认键() {
+        for blank in ["", "  ", "\t"] {
+            #expect(HotkeyCenter.plan(blank, fallback: HotkeyCenter.voiceCombo) == nil, "\(blank.debugDescription)")
+        }
+        #expect(HotkeyCenter.plan(nil, fallback: HotkeyCenter.voiceCombo) == HotkeyCombo.parse(HotkeyCenter.voiceCombo).map(HotkeyCenter.Plan.combo))
+        let values = HotkeyCenter.values(settingsJson: #"{"voiceHotkey":"","voiceTranslateHotkey":"Ctrl+Alt+T"}"#)
+        let labels = HotkeyCenter.voiceLabels(values)
+        #expect(labels[.tidy] == nil, "清空了不回落成默认键 ⌥⌘V")
+        #expect(labels[.translate] == "⌃⌥T")
     }
 
     @Test func 后处理结果换型_失败带说明() throws {
@@ -997,7 +1021,7 @@ struct VoiceRulesTests {
             #expect(catalog.entries[VoiceOverlayView.messageKey(kind)]?.values.count == 4, "\(kind)")
         }
         #expect(catalog.entries["voice.micUsage"]?.values.count == 4)
-        for key in ["voice.retry", "voice.truncated", "voice.preparingEngine", "voice.translating",
+        for key in ["voice.retry", "voice.truncated", "voice.preparingEngine", "voice.translating", "voice.escCancelHint",
                     "prefs.voice.tidy", "prefs.voice.translate", "prefs.hotkey.comboOnly", "history.sceneVoice"] {
             #expect(catalog.entries[key]?.values.count == 4, "\(key)")
         }
