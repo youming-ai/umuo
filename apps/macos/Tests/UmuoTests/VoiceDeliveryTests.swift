@@ -50,19 +50,19 @@ private final class FakeProbe: VoiceFocusProbing, @unchecked Sendable {
 private final class GatedProbe: VoiceFocusProbing, @unchecked Sendable {
     let inner = FakeProbe()
     private let gate = DispatchSemaphore(value: 0)
-    private let checking = DispatchSemaphore(value: 0)
+    // 异步等「核验已开始」：不能用信号量阻塞协作线程池，CI 核数少时会饿住交付任务本身，等到超时
+    private let checking = AsyncStream<Void>.makeStream()
 
     func capture(pid: pid_t?) -> VoiceTarget { inner.capture(pid: pid) }
 
     func release() { gate.signal() }
     func waitForCheck() async -> Bool {
-        await Task.detached { self.didStartCheck() }.value
+        for await _ in checking.stream { return true }
+        return false
     }
 
-    private func didStartCheck() -> Bool { checking.wait(timeout: .now() + 3) == .success }
-
     func check(_ target: VoiceTarget) -> VoiceDeliveryCheck {
-        checking.signal()
+        checking.continuation.yield()
         gate.wait()
         return inner.check(target)
     }
