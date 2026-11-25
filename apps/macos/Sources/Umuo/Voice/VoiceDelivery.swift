@@ -16,12 +16,18 @@ import UmuoCore
 /// - 切应用、同应用换框、只读、安全输入、目标退出或无法核验：不写，浮层保留结果并说明原因。
 @MainActor
 protocol VoiceDelivering: AnyObject {
-    /// 按键时记下来源应用，后台尽快捕获该应用的输入框。
+    /// 按键时记下来源应用与焦点控件，后台补齐选区和文本。
     func capture(session: UInt64)
     /// 核验录音开始时的目标并写入。nil = 写进去了；否则是拒绝原因（没有写任何东西）。
     func deliver(session: UInt64, text: String) async -> VoiceDeliveryRefusal?
     /// 放弃这一会话的交付：还没写的不再写。幂等。
     func cancel(session: UInt64)
+}
+
+/// 按键时同步取得的焦点身份，交给后台补齐上下文。
+struct VoiceFocus: @unchecked Sendable {
+    let pid: pid_t
+    let element: AXUIElement
 }
 
 /// 录音开始时记下的目标。AX 元素只在核验时与当时的焦点做 `CFEqual`，不跨会话复用。
@@ -31,6 +37,21 @@ struct VoiceTarget: @unchecked Sendable {
     let window: AXUIElement?
     var text: String? = nil
     var range: CFRange? = nil
+
+    static let unavailable = VoiceTarget(pid: nil, element: nil, window: nil)
+
+    /// 选区范围始终不可读时，以同一控件及未变的可读文本核验上下文。
+    func matchesContext(text currentText: String?, range currentRange: CFRange?) -> Bool {
+        text != nil && text == currentText && Self.sameRange(range, currentRange)
+    }
+
+    static func sameRange(_ original: CFRange?, _ current: CFRange?) -> Bool {
+        switch (original, current) {
+        case (nil, nil): true
+        case let (original?, current?): original.location == current.location && original.length == current.length
+        default: false
+        }
+    }
 }
 
 /// 交付前现查到的状态（全部是事实，判断在 `VoiceDeliveryRules.route`）。
@@ -91,10 +112,12 @@ enum VoiceDeliveryRules {
     }
 }
 
-/// 交付要的系统能力（正式实现 `AXFocusProbe`，测试使用假对象）。AX 捕获、核验与写入均在后台执行。
+/// 交付要的系统能力（正式实现 `AXFocusProbe`，测试使用假对象）。除按键时读取焦点身份外，AX 查询和写入均在后台执行。
 protocol VoiceFocusProbing: Sendable {
-    /// 录音开始时的目标。
-    func capture(pid: pid_t?) -> VoiceTarget
+    /// 按键时取得的焦点身份。
+    func captureFocus(pid: pid_t?) -> VoiceFocus?
+    /// 只为按键时取得的控件补齐上下文，期间换了焦点就丢弃。
+    func snapshot(_ focus: VoiceFocus) -> VoiceTarget
     /// 交付前现查。
     func check(_ target: VoiceTarget) -> VoiceDeliveryCheck
     /// 经 AX 把文本写进 `element` 的选区 / 光标处。返回是否成功。
@@ -106,26 +129,31 @@ protocol VoiceFocusProbing: Sendable {
 
 /// 正式实现：Accessibility + `NSRunningApplication` + `AX.isSecureInput`。线程安全的 C API，后台直接调。
 struct AXFocusProbe: VoiceFocusProbing {
-    func capture(pid: pid_t?) -> VoiceTarget {
-        let unknown = VoiceTarget(pid: nil, element: nil, window: nil)
-        guard let pid, AXIsProcessTrusted() else { return unknown }
-        let app = AXUIElementCreateApplication(pid)
-        guard AXUIElementSetMessagingTimeout(app, 0.25) == .success,
-              let element = AX.focusedElement(in: app),
-              AXUIElementSetMessagingTimeout(element, 0.25) == .success else { return unknown }
-        defer {
-            AXUIElementSetMessagingTimeout(element, 0)
-        }
+    func captureFocus(pid: pid_t?) -> VoiceFocus? {
+        guard let pid, AXIsProcessTrusted(), let element = Self.focusedElement(pid: pid) else { return nil }
         var elementPid: pid_t = 0
-        guard AXUIElementGetPid(element, &elementPid) == .success, elementPid == pid, !AX.isSecureInput(element) else {
-            return unknown
-        }
+        guard AXUIElementGetPid(element, &elementPid) == .success, elementPid == pid else { return nil }
+        return VoiceFocus(pid: pid, element: element)
+    }
+
+    /// 主线程只做一次有超时的 AX 焦点查询。后台核验也沿用同一应用的查询口径。
+    private static func focusedElement(pid: pid_t) -> AXUIElement? {
+        let app = AXUIElementCreateApplication(pid)
+        guard AXUIElementSetMessagingTimeout(app, 0.1) == .success else { return nil }
+        return AX.focusedElement(in: app)
+    }
+
+    func snapshot(_ focus: VoiceFocus) -> VoiceTarget {
+        let element = focus.element
+        guard AXUIElementSetMessagingTimeout(element, 0.25) == .success else { return .unavailable }
+        defer { AXUIElementSetMessagingTimeout(element, 0) }
+        guard !AX.isSecureInput(element) else { return .unavailable }
         let range = AX.selectedRange(element)
         let text = AX.string(element, kAXValueAttribute as CFString)
-        let confirmed = AX.focusedElement(in: app).map { CFEqual($0, element) } == true
-            && Self.sameRange(range, AX.selectedRange(element))
-        return VoiceTarget(pid: pid, element: confirmed ? element : nil, window: Self.window(element),
-                           text: text, range: range)
+        let window = Self.window(element)
+        guard VoiceTarget.sameRange(range, AX.selectedRange(element)),
+              Self.focusedElement(pid: focus.pid).map({ CFEqual($0, element) }) == true else { return .unavailable }
+        return VoiceTarget(pid: focus.pid, element: element, window: window, text: text, range: range)
     }
 
     func check(_ target: VoiceTarget) -> VoiceDeliveryCheck {
@@ -146,8 +174,9 @@ struct AXFocusProbe: VoiceFocusProbing {
         check.role = AX.string(current, kAXRoleAttribute as CFString)
         check.secureInput = AX.isSecureInput(current)
         if !check.secureInput {
-            check.sameElement = check.sameElement && Self.sameRange(target.range, AX.selectedRange(current))
-                && target.text != nil && target.text == AX.string(current, kAXValueAttribute as CFString)
+            check.sameElement = check.sameElement && target.matchesContext(
+                text: AX.string(current, kAXValueAttribute as CFString), range: AX.selectedRange(current)
+            )
         }
         let name = kAXSelectedTextAttribute as CFString
         check.settable = AX.isSettable(current, name)
@@ -160,11 +189,6 @@ struct AXFocusProbe: VoiceFocusProbing {
     }
 
     func frontmostPid() -> pid_t? { FrontmostApp.liveToken().flatMap { pid_t($0) } }
-
-    private static func sameRange(_ original: CFRange?, _ current: CFRange?) -> Bool {
-        guard let original, let current else { return false }
-        return original.location == current.location && original.length == current.length
-    }
 
     private static func window(_ element: AXUIElement) -> AXUIElement? {
         var value: CFTypeRef?
@@ -204,9 +228,11 @@ final class FocusedFieldDelivery: VoiceDelivering {
         let probe = probe
         let pid = NSWorkspace.shared.frontmostApplication?.processIdentifier
         let deadline = ContinuousClock.now + .milliseconds(250)
+        let focus = probe.captureFocus(pid: pid)
         targets = [session: Task.detached(priority: .userInitiated) {
             guard !Task.isCancelled, ContinuousClock.now < deadline else { return nil }
-            let target = probe.capture(pid: pid)
+            guard let focus else { return .unavailable }
+            let target = probe.snapshot(focus)
             guard !Task.isCancelled, ContinuousClock.now < deadline else { return nil }
             return target
         }]

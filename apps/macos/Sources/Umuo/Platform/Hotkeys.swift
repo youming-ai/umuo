@@ -114,9 +114,9 @@ final class HotkeyCenter {
     private var recordingUntil: TimeInterval?
     /// 重注册完成（失败清单可以读了）、或补启动连按监听之后调用（设置窗据此刷新失败提示）。
     var onRegistered: (@MainActor () -> Void)?
-    /// 语音快捷键的按下（带任务：整理键 / 翻译键）与松开（`VoiceController` 接上）。没接上就不注册语音键。
+    /// 语音快捷键的按下与松开都带任务，供 `VoiceController` 核对录音属于哪个键。没接上就不注册语音键。
     /// `interrupt`：组合键要被注销时调用——按住期间注销，松开事件就再也收不到了，由它取消还按着的那次录音。
-    var voice: (press: @MainActor (VoiceTask) -> Void, release: @MainActor () -> Void,
+    var voice: (press: @MainActor (VoiceTask) -> Void, release: @MainActor (VoiceTask) -> Void,
                 interrupt: @MainActor () -> Void)?
 
     init(perform: @escaping @MainActor (HotkeyAction) -> Void) {
@@ -209,7 +209,7 @@ final class HotkeyCenter {
                 try combos.register(parsed, action: { [weak self] in
                     guard let self, !self.suspended else { return }
                     voice.press(task)
-                }, onRelease: voice.release)
+                }, onRelease: { voice.release(task) })
             } catch {
                 print("umuo: \(row.field) 快捷键注册失败（可能已被其它应用占用）：\(error)")
                 failures.append(row.field)

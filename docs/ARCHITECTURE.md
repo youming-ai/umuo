@@ -126,14 +126,14 @@ Swift 处理事件更新界面。
 
 ### 3.5 语音链路
 
-1. 按下语音键：`VoiceController` 记下目标（pid、焦点元素、窗口），检查麦克风权限与模型；模型只在首次使用时下载
+1. 按下语音键：`VoiceController` 在按键回调中记下前台 pid 和当时的焦点控件。主线程只做一次 AX 焦点查询，消息超时为 0.1 s。后台读取该控件的窗口、选区范围和文本，并检查焦点仍相同；超过 0.25 s 得到的快照会丢弃。模型只在首次使用时下载
    （`VoiceModelStore`：`.partial` + Range 续传、SHA-256 校验后原子改名）。
 2. 录音：`SystemVoiceRecorder` 用 AVAudioEngine 录 16 kHz 单声道到 0600 的临时文件（`VoiceAudioFiles`，结束、取消即删，启动时清扫）。
-3. 松开：`LocalTranscriber` 在宿主进程内用 transcribe.cpp（`CTranscribe.framework`）+ Qwen3-ASR 模型转写，mmap 加载、空闲 300 s 卸载；
+3. 松开启动这次录音的语音键：`LocalTranscriber` 在宿主进程内用 transcribe.cpp（`CTranscribe.framework`）+ Qwen3-ASR 模型转写，mmap 加载、空闲 300 s 卸载；
    不走网络，不需要语音 Key。
 4. 后处理：`VoicePostProcessor` 调 `Engine.start_voice`，Rust 的 `umuo-app::voice` 用当前文字模型做同语言整理或翻译
    （指令在 `umuo-core::voice`，保留否定、数字、姓名、日期与金额）；成功且完整的结果写 `voice` 场景历史。
-5. 交付：录音开始时 `VoiceDelivery` 在处理按键的主线程上记下目标控件、选区与文本（避免后台任务把之后切入的输入框认作目标；AX 消息超时限为 0.25 s），交付时在后台依次核验权限、应用存活、前台、同一焦点元素与窗口、非安全输入；可写文本控件写 `AXSelectedText`，
+5. 交付：`VoiceDelivery` 在后台核验权限、应用存活、前台、同一焦点元素与窗口、非安全输入及文本上下文。选区范围可读时须保持一致；始终不可读时须核验可读文本未变化，此时无法判断光标是否移动。可写文本控件写 `AXSelectedText`，
    不可判定或 Electron 类走受控粘贴，等锁与快照之后再次核验同一组条件与取消状态；终端与非输入角色拒绝；不合成回车。
    拒绝或失败时结果留在浮层可复制、可重试。
 6. Esc 在录音、转写、后处理各阶段分别丢弃录音、中止转写、取消请求；迟到的结果按会话号丢弃。

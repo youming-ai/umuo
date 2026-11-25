@@ -140,7 +140,11 @@ final class VoiceController {
 
     /// 语音键按下。`task`：按的是整理键还是翻译键。
     func press(_ task: VoiceTask = .tidy) { feed(.press(modelReady: models.isReady, task: task)) }
-    func release() { feed(.release) }
+    /// 只有启动当前录音的键能结束它。第二个键按下时状态机保留原来的任务。
+    func release(_ task: VoiceTask) {
+        guard overlay.task == task else { return }
+        feed(.release)
+    }
     /// Esc 或浮层的关闭按钮。
     func cancel() { feed(.cancel) }
     /// 语音键要被注销（录快捷键、改快捷键设置）：还按着的话松开事件再也收不到，录音会一直录到上限再自动交付。
