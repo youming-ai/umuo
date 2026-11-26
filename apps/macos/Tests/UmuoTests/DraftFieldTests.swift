@@ -74,4 +74,21 @@ struct DraftFieldTests {
         await save.reject()
         #expect(text.string == "C")
     }
+
+    @Test func 编辑期间外部值变了且框里没改_不把旧值存进新上下文() {
+        var commits: [String] = []
+        let field = NSTextField()
+        let coordinator = DraftField.Coordinator(DraftField(value: "gpt-4o", onCommit: { commits.append($0); return nil }))
+        // 光标停在模型框里（框里是同步进来的旧值），这时换了供应商、外部值变成新供应商的默认模型
+        coordinator.shown = "gpt-4o"
+        field.stringValue = "gpt-4o"
+        coordinator.parent = DraftField(value: "deepseek-chat", onCommit: { commits.append($0); return nil })
+        coordinator.controlTextDidEndEditing(Notification(name: NSText.didEndEditingNotification, object: field))
+        #expect(commits.isEmpty)
+        #expect(field.stringValue == "deepseek-chat")
+        // 用户真改过就照常提交
+        field.stringValue = "deepseek-reasoner"
+        coordinator.controlTextDidEndEditing(Notification(name: NSText.didEndEditingNotification, object: field))
+        #expect(commits == ["deepseek-reasoner"])
+    }
 }

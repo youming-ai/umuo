@@ -167,6 +167,7 @@ struct ClipboardFallback {
             throw error
         }
 
+        var lastCount = cleared
         for _ in 0 ..< Self.pollAttempts {
             wait(Self.pollInterval)
             guard !watcher.wasInterrupted() else { throw interrupted() }
@@ -177,6 +178,7 @@ struct ClipboardFallback {
             // （先 clearContents 再写数据，第二步恰好落在读取时），读到的文本未必属于最新版本，下一轮重读。
             guard !watcher.wasInterrupted() else { throw interrupted() }
             guard pasteboard.changeCount == count else { continue }
+            lastCount = count
             // 应用通常先 clearContents 再写数据：计数变了但文本尚未就位时继续等，
             // 不能在两步之间恢复快照、打断它正在写入的复制。
             if let text = Self.copiedText(cleared: cleared, now: count, text: text) {
@@ -187,7 +189,9 @@ struct ClipboardFallback {
             }
         }
         if watcher.wasInterrupted() { throw interrupted() }
-        if pasteboard.changeCount == cleared { snapshot.restore(pasteboard) }
+        // 没有用户操作、且自上一轮起没再变：剪贴板仍是我们清空的，或源应用响应 ⌘C 只写了非文本（选中图片、图形）。
+        // 两种都是我们这次复制造成的，与成功路径一样还原，不能把用户原来的内容换成那张图。
+        if pasteboard.changeCount == lastCount { snapshot.restore(pasteboard) }
         throw .noSelection
     }
 

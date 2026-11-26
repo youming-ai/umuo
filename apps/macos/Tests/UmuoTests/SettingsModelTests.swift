@@ -25,6 +25,7 @@ private final class FakeBackend: SettingsBackend {
     var calls: [String] = []
     var autostartResult: Result<Bool, Error> = .success(true)
     var failures: [String] = []
+    var keyError: Error?
 
     init(_ stored: SettingsValues) { self.stored = stored }
 
@@ -51,6 +52,7 @@ private final class FakeBackend: SettingsBackend {
 
     func keyStatus(_ providerId: String) async throws -> Bool {
         keyChecks.append(providerId)
+        if let keyError { throw keyError }
         return keys[providerId] != nil
     }
 
@@ -138,6 +140,21 @@ struct SettingsModelTests {
         #expect(model.tab == .engine)
         #expect(model.keyConfigured == false)
         #expect(model.attention == [.engine])
+    }
+
+    @Test func 钥匙串读不出_显示原因而不是没配置() async {
+        let backend = FakeBackend(base)
+        backend.keyError = Rejected(message: "请在设置里重新保存 Key")
+        let model = await loaded(backend)
+        #expect(model.keyConfigured == nil)
+        #expect(model.keyStatusError == "请在设置里重新保存 Key")
+        #expect(model.tab == .engine)
+        #expect(model.attention == [.engine])
+        backend.keyError = nil
+        backend.keys["openai"] = "sk"
+        await model.refreshKeyStatus()
+        #expect(model.keyConfigured == true)
+        #expect(model.keyStatusError == nil)
     }
 
     @Test func 关掉再打开清掉各页草稿并整份重读() async {
@@ -517,6 +534,27 @@ struct SettingsEditorsTests {
         try await model.advanced.commitRetention("-3")?.value
         #expect(backend.patches.last == ["historyRetentionDays": .number(0)])
         #expect(model.advanced.commitRetention("abc") == nil)
+    }
+
+    @Test func 保留天数改短先确认_取消不保存() async throws {
+        var values = base
+        values["historyRetentionDays"] = .number(90)
+        let backend = FakeBackend(values)
+        let model = await loaded(backend)
+        var asked: [Int] = []
+        model.advanced.confirmShrink = { asked.append($0); return false }
+        // 想填 30 先敲了 3 就失焦：会删掉 3 天前的历史，必须先问
+        await #expect(throws: CancellationError.self) { try await model.advanced.commitRetention("3")?.value }
+        #expect(asked == [3])
+        #expect(backend.patches.isEmpty)
+        model.advanced.confirmShrink = { asked.append($0); return true }
+        try await model.advanced.commitRetention("30")?.value
+        #expect(backend.patches.last == ["historyRetentionDays": .number(30)])
+        // 改长、改成一直保留都不删东西，不问
+        try await model.advanced.commitRetention("365")?.value
+        try await model.advanced.commitRetention("0")?.value
+        #expect(asked == [3, 30])
+        #expect(backend.patches.last == ["historyRetentionDays": .number(0)])
     }
 
     @Test func 退役键位保留但不阻止活跃入口复用() async {

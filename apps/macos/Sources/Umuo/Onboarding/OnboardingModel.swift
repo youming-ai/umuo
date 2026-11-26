@@ -131,9 +131,16 @@ final class OnboardingModel {
             keyConfigured = true
             return
         }
-        let configured = (try? await backend.keyStatus(providerId)) ?? false
-        guard mine == keyCheck else { return }
-        keyConfigured = configured
+        do {
+            let configured = try await backend.keyStatus(providerId)
+            guard mine == keyCheck else { return }
+            keyConfigured = configured
+        } catch {
+            guard mine == keyCheck else { return }
+            keyConfigured = false
+            // 读不出（钥匙串拒绝）不等于没配：说出原因，免得用户以为 Key 丢了
+            notice = SettingsRules.message(error)
+        }
     }
 
     /// 按保存成功的引擎检查完成度，探测结果或下拉草稿都不能代替实际配置。
@@ -249,7 +256,8 @@ final class OnboardingModel {
             let requestedEngine = currentEngine
             let current = requestedEngine.providerId
             let requiresKey = providers.first { $0.id == current }?.requiresKey ?? true
-            let currentHasKey = (try? await backend.keyStatus(current)) ?? false
+            // 读不出 Key 时按「有」处理：情况不明不替用户换掉首选引擎
+            let currentHasKey = (try? await backend.keyStatus(current)) ?? true
             guard !ended, requestedEngine == currentEngine else { return }
             if let engine = Onboarding.engineForLocalModel(found.model, providerId: found.providerId,
                                                            keyConfigured: currentHasKey, requiresKey: requiresKey)
