@@ -28,7 +28,10 @@ final class PanelController: PanelBackend {
     /// 划词 / 原地替换按键的先后（见 `TriggerGate`）。只在 MainActor 上读写。
     var triggers = TriggerGate()
     /// 截图翻译的框选（`screencapture -i`）正在进行：再按一次快捷键直接忽略，不再起第二个框选。只在 MainActor 上读写。
-    var ocrInFlight = false
+    var ocrInFlight = false {
+        // 框选期间 Esc 要留给系统框选：浮窗认领着的话，第一下 Esc 只收起浮窗、作废这次截图，框完的结果被静默丢掉
+        didSet { if ocrInFlight != oldValue, window.isVisible { syncEscape() } }
+    }
     /// 看门狗的参照：浮窗出现时的前台应用（pid）。前台换成别的应用（不是它、也不是本应用）即收起。
     /// 划词与 PopClip 就是归属；截图翻译的归属是本应用自己（没有可替换的原文），参照另取当时的前台。
     /// nil = 还没取到，看门狗不收起。
@@ -117,9 +120,9 @@ final class PanelController: PanelBackend {
         stopAutoHide()
     }
 
-    /// 按 `session.capturesGlobalEscape` 同步全局 Esc：未钉住或正在流式翻译时挂载，已钉住且空闲时注销。
+    /// 按 `session.capturesGlobalEscape` 同步全局 Esc：未钉住或正在流式翻译时挂载，已钉住且空闲、或截图框选中时注销。
     func syncEscape() {
-        guard window.isVisible, session.capturesGlobalEscape else {
+        guard window.isVisible, session.capturesGlobalEscape, !ocrInFlight else {
             escape.release(.panel)
             return
         }

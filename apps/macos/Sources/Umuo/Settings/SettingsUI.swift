@@ -167,6 +167,13 @@ struct DraftField: NSViewRepresentable {
         private func commit(_ next: String, current: @escaping @MainActor () -> String,
                             editing: @escaping @MainActor () -> Bool,
                             revert: @escaping @MainActor (String) -> Void) {
+            // 框里还是编辑前同步进来的旧值、外部值在编辑期间已变（光标停在模型框里时换了供应商）：用户没改过它，
+            // 提交就会把旧值存进新上下文。对齐到新值，不提交。
+            if let shown, next == shown, shown != parent.value {
+                revert(parent.value)
+                self.shown = parent.value
+                return
+            }
             guard next != parent.value, let pending = parent.onCommit(next) else { return }
             editRevision += 1
             let mine = editRevision
