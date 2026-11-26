@@ -72,6 +72,16 @@ struct AppShellTests {
         #expect(values["speakHotkey"] == nil)
     }
 
+    @Test func 语音键主键相同_松开任一个都算松开两个任务() {
+        let tidy = HotkeyCombo.parse("Alt+Cmd+V")!, translate = HotkeyCombo.parse("Ctrl+Cmd+V")!
+        let other = HotkeyCombo.parse("Ctrl+Cmd+B")!
+        let same: [(task: VoiceTask, parsed: HotkeyCombo.Parsed)] = [(.tidy, tidy), (.translate, translate)]
+        #expect(HotkeyCenter.releasedVoiceTasks(translate, among: same) == [.tidy, .translate], "默认同为 V：按住时换修饰键再松开也要停")
+        let distinct: [(task: VoiceTask, parsed: HotkeyCombo.Parsed)] = [(.tidy, tidy), (.translate, other)]
+        #expect(HotkeyCenter.releasedVoiceTasks(other, among: distinct) == [.translate], "主键不同：只松开自己")
+        #expect(HotkeyCenter.releasedVoiceTasks(.unsupported("F24"), among: distinct).isEmpty)
+    }
+
     @Test func 清空的快捷键不进注册计划_缺字段回落兜底键() {
         let values = HotkeyCenter.values(settingsJson: #"{"selectionHotkey":"Ctrl Ctrl","silentReplaceHotkey":"","composeHotkey":"  ","ocrHotkey":"Alt+Cmd+O"}"#)
         // 不在计划里就不注册，`register` 也就不会把它记进失败清单

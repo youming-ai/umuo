@@ -14,7 +14,9 @@ private final class FakeProbe: VoiceFocusProbing, @unchecked Sendable {
     private var _check = VoiceDeliveryCheck()
     private var _inserted: [String] = []
     private var _targets: [AXUIElement] = []
+    private var _currentTarget = target
     private var _captureWasOnMainThread: Bool?
+    private var _snapshotWasOnMainThread: Bool?
     var insertSucceeds = true
     var frontmost: pid_t? = 42
 
@@ -27,13 +29,36 @@ private final class FakeProbe: VoiceFocusProbing, @unchecked Sendable {
     /// 每次 AX 写入写的是哪个元素。
     var insertedInto: [AXUIElement] { lock.withLock { _targets } }
     var captureWasOnMainThread: Bool? { lock.withLock { _captureWasOnMainThread } }
-
-    func capture(pid: pid_t?) -> VoiceTarget {
-        lock.withLock { _captureWasOnMainThread = Thread.isMainThread }
-        return target
+    var snapshotWasOnMainThread: Bool? { lock.withLock { _snapshotWasOnMainThread } }
+    var currentTarget: VoiceTarget {
+        get { lock.withLock { _currentTarget } }
+        set { lock.withLock { _currentTarget = newValue } }
     }
 
-    func check(_: VoiceTarget) -> VoiceDeliveryCheck { checkResult }
+    func captureFocus(pid: pid_t?) -> VoiceFocus? {
+        lock.withLock {
+            _captureWasOnMainThread = Thread.isMainThread
+            return VoiceFocus(pid: _currentTarget.pid!, element: _currentTarget.element!)
+        }
+    }
+
+    func snapshot(_ focus: VoiceFocus) -> VoiceTarget {
+        lock.withLock {
+            _snapshotWasOnMainThread = Thread.isMainThread
+            return VoiceTarget(pid: focus.pid, element: focus.element, window: nil,
+                               text: _currentTarget.text, range: _currentTarget.range)
+        }
+    }
+
+    func check(_ captured: VoiceTarget) -> VoiceDeliveryCheck {
+        lock.withLock {
+            var result = _check
+            result.sameElement = result.sameElement
+                && captured.element.map { CFEqual($0, _currentTarget.element!) } == true
+                && captured.matchesContext(text: _currentTarget.text, range: _currentTarget.range)
+            return result
+        }
+    }
 
     func insert(_ text: String, into element: AXUIElement) -> Bool {
         lock.withLock {
@@ -53,7 +78,8 @@ private final class GatedProbe: VoiceFocusProbing, @unchecked Sendable {
     // 异步等「核验已开始」：不能用信号量阻塞协作线程池，CI 核数少时会饿住交付任务本身，等到超时
     private let checking = AsyncStream<Void>.makeStream()
 
-    func capture(pid: pid_t?) -> VoiceTarget { inner.capture(pid: pid) }
+    func captureFocus(pid: pid_t?) -> VoiceFocus? { inner.captureFocus(pid: pid) }
+    func snapshot(_ focus: VoiceFocus) -> VoiceTarget { inner.snapshot(focus) }
 
     func release() { gate.signal() }
     func waitForCheck() async -> Bool {
@@ -98,7 +124,7 @@ private final class PasteRig: @unchecked Sendable {
 }
 
 /// 录音开始时记下的目标。元素用应用级 AX 对象代替（创建它不需要辅助功能权限，也不会去问别的进程）。
-private let target = VoiceTarget(pid: 42, element: AXUIElementCreateApplication(42), window: nil)
+private let target = VoiceTarget(pid: 42, element: AXUIElementCreateApplication(42), window: nil, text: "")
 
 private func perform(_ probe: FakeProbe, _ rig: PasteRig, cancelled: Bool = false) -> VoiceDeliveryRefusal? {
     FocusedFieldDelivery.perform("后天见。", target: target, probe: probe, paster: rig.paster()) { cancelled }
@@ -328,6 +354,32 @@ struct FocusedFieldDeliveryTests {
         #expect(rig.pasteboard.string(forType: .string) == "旧的")
     }
 
+    @Test func 无选区范围时只允许文本未变且仍在原控件的粘贴() {
+        let probe = FakeProbe()
+        probe.checkResult.selectionReadable = false
+        probe.checkResult.role = "AXGroup"
+        let rig = PasteRig()
+        #expect(perform(probe, rig) == nil)
+        #expect(rig.pastedTexts == ["后天见。"])
+
+        probe.currentTarget.text = "已编辑"
+        #expect(perform(probe, rig) == .focusChanged)
+        probe.currentTarget.text = target.text
+        probe.currentTarget.range = CFRange(location: 0, length: 0)
+        #expect(perform(probe, rig) == .focusChanged)
+        #expect(rig.pastes == 1)
+        #expect(!VoiceTarget.unavailable.matchesContext(text: nil, range: nil))
+    }
+
+    @Test func 可读的选区范围移动或消失时拒绝交付() {
+        let range = CFRange(location: 0, length: 2)
+        var captured = target
+        captured.range = range
+        #expect(captured.matchesContext(text: target.text, range: range))
+        #expect(!captured.matchesContext(text: target.text, range: CFRange(location: 1, length: 2)))
+        #expect(!captured.matchesContext(text: target.text, range: nil))
+    }
+
     @Test func AX声称可写却拒绝时退回粘贴() {
         let probe = FakeProbe()
         probe.checkResult.settable = true
@@ -394,7 +446,20 @@ struct FocusedFieldDeliveryTests {
         #expect(await delivery.deliver(session: 3, text: "迟到") == .unverifiable)
         #expect(await delivery.deliver(session: 4, text: "这一句") == nil)
         #expect(probe.inserted == ["这一句"])
-        #expect(probe.captureWasOnMainThread == false)
+        #expect(probe.snapshotWasOnMainThread == false)
+    }
+
+    @Test @MainActor func 按下后立即换输入框_不把新焦点当作目标() async {
+        let probe = FakeProbe()
+        probe.checkResult.settable = true
+        let rig = PasteRig()
+        let delivery = FocusedFieldDelivery(probe: probe, paster: rig.paster())
+        delivery.capture(session: 1)
+        #expect(probe.captureWasOnMainThread == true)
+        probe.currentTarget = VoiceTarget(pid: 42, element: AXUIElementCreateApplication(43), window: nil, text: target.text)
+        #expect(await delivery.deliver(session: 1, text: "切换前录音") == .focusChanged)
+        #expect(probe.inserted.isEmpty)
+        #expect(rig.pastes == 0)
     }
 
     @Test @MainActor func 交付途中取消_随即开始新会话_旧会话仍不交付() async {

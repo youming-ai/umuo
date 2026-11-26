@@ -278,7 +278,7 @@ private struct Rig {
         controller.press()
         await until { phase == .recording }
         let session = session
-        controller.release()
+        controller.release(.tidy)
         await until { transcriber.called(session) || !busy }
         if toEnd, !transcriber.hold { await until { !busy } }
     }
@@ -306,7 +306,7 @@ struct VoiceControllerTests {
         await until { rig.phase == .recording }
         #expect(rig.recorder.recording == 1)
         #expect(rig.files.leftovers() == 1)
-        rig.controller.release()
+        rig.controller.release(.tidy)
         await until { !rig.busy }
         #expect(rig.transcriber.audioSeen(1) == true, "转写时音频还在")
         #expect(rig.phase == .done(text: "今天下午三点开会", transcript: "今天下午三点开会", truncated: false))
@@ -325,10 +325,22 @@ struct VoiceControllerTests {
         #expect(rig.phase == .needsModel)
         #expect(rig.recorder.recording == nil)
         #expect(rig.presenter.visible)
-        rig.controller.release()
+        rig.controller.release(.tidy)
         #expect(rig.phase == .needsModel)
         rig.controller.cancel()
         #expect(!rig.presenter.visible)
+    }
+
+    @Test func 松开未启动录音的语音键_继续录音() async {
+        let rig = Rig()
+        rig.controller.press(.translate)
+        await until { rig.phase == .recording }
+        rig.controller.press(.tidy)
+        rig.controller.release(.tidy)
+        #expect(rig.phase == .recording)
+        rig.controller.release(.translate)
+        #expect(rig.phase == .transcribing)
+        await until { !rig.busy }
     }
 
     @Test func 录音中Esc_停麦并删除音频() async {
@@ -342,7 +354,7 @@ struct VoiceControllerTests {
         #expect(rig.files.leftovers() == 0)
         #expect(!rig.presenter.visible)
         // 取消后的松开什么都不做
-        rig.controller.release()
+        rig.controller.release(.tidy)
         await settle()
         #expect(rig.phase == .cancelled)
     }
@@ -399,7 +411,7 @@ struct VoiceControllerTests {
         await until { rig.transcriber.pending == 0 }
         await settle()
         #expect(rig.phase == .recording, "旧会话的迟到结果不能把新会话改成完成")
-        rig.controller.release()
+        rig.controller.release(.tidy)
         await until { rig.transcriber.called(2) }
         rig.transcriber.finish(2, with: "这一句")
         await until { !rig.busy }
@@ -436,7 +448,7 @@ struct VoiceControllerTests {
         rig.recorder.holdStart = true
         rig.controller.press()
         await until { rig.recorder.waitingAtGate }
-        rig.controller.release()
+        rig.controller.release(.tidy)
         #expect(rig.phase == .cancelled)
         rig.recorder.releaseGate()
         await until { rig.recorder.discarded.count >= 2 }
@@ -515,7 +527,7 @@ struct VoiceControllerTests {
         rig.controller.press(.translate)
         #expect(rig.controller.overlay.task == .translate)
         await until { rig.phase == .recording }
-        rig.controller.release()
+        rig.controller.release(.translate)
         await until { !rig.busy }
         #expect(post.calls.map(\.task) == [.tidy, .translate])
         #expect(rig.phase == .done(text: "Meeting at 3 pm today.", transcript: "今天下午三点开会", truncated: false))
@@ -528,7 +540,7 @@ struct VoiceControllerTests {
         rig.controller.postProcessor = post
         rig.controller.press(.translate)
         await until { rig.phase == .recording }
-        rig.controller.release()
+        rig.controller.release(.translate)
         await until { !rig.busy }
         #expect(rig.phase == .done(text: "Meeting at", transcript: "今天下午三点开会", truncated: true))
         #expect(rig.presenter.visible)
