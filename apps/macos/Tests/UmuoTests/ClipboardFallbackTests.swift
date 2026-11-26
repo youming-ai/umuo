@@ -162,3 +162,31 @@ struct ClipboardFallbackTests {
         #expect(board.string(forType: .string) == "之后复制的")
     }
 }
+
+struct SelectionOwnerTests {
+    @Test func 划词_AX取不到前台时退回NSWorkspace() {
+        let r = Selection.resolveOwner(axFront: nil, workspaceFront: "42", elementPid: nil, hasElement: false, lenient: true)
+        #expect(r.owner == "42")
+        #expect(r.problem != nil, "放宽要留日志")
+    }
+
+    @Test func 划词_焦点控件不属于前台应用时不读它_改走前台的复制() {
+        let r = Selection.resolveOwner(axFront: "42", workspaceFront: "42", elementPid: "77", hasElement: true, lenient: true)
+        #expect(r.owner == "42")
+        #expect(!r.useElement)
+    }
+
+    @Test func 原地替换仍然严格() {
+        #expect(Selection.resolveOwner(axFront: nil, workspaceFront: "42", elementPid: nil, hasElement: false,
+                                       lenient: false).owner == nil)
+        #expect(Selection.resolveOwner(axFront: "42", workspaceFront: "42", elementPid: "77", hasElement: true,
+                                       lenient: false).owner == nil)
+        let ok = Selection.resolveOwner(axFront: "42", workspaceFront: "42", elementPid: "42", hasElement: true, lenient: false)
+        #expect(ok.owner == "42" && ok.useElement && ok.problem == nil)
+    }
+
+    @Test func 两边都取不到前台_两种模式都拒绝() {
+        #expect(Selection.resolveOwner(axFront: nil, workspaceFront: nil, elementPid: nil, hasElement: false,
+                                       lenient: true).owner == nil)
+    }
+}
