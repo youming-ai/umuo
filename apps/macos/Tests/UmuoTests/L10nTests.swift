@@ -89,6 +89,8 @@ struct CatalogTests {
             "ocr.invalidImage", "ocr.emptyImage", "ocr.visionFailed", "keychain.unavailable", "keychain.resaveKey",
             "autostart.writeFailed", "autostart.devBuild", "app.engineStarting", "app.engineFailed", "app.noHome",
             "prefs.settingsInvalid", "onboarding.modelWithProvider", "common.nothingToTranslate",
+            "prefs.permissions.inputMonitoring", "prefs.permissions.inputMonitoringHint",
+            "onboarding.inputMonitoring", "onboarding.inputMonitoringDesc",
         ]
         for key in keys {
             #expect(catalog.entries[key]?.values.count == 4, "缺文案：\(key)")

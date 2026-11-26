@@ -180,6 +180,8 @@ struct OnboardingTests {
         // 屏幕录制只影响截图；因为用户暂时不想授权就卡住引导，是本末倒置。
         #expect(!OnboardingStep.permissions.isSatisfied(OnboardingState(screenRecordingGranted: true)))
         #expect(OnboardingStep.permissions.isSatisfied(OnboardingState(accessibilityTrusted: true)))
+        // 配了连按键（默认 ⌃⌃）却缺输入监控：划词按了没反应，这一步不算完成
+        #expect(!OnboardingStep.permissions.isSatisfied(OnboardingState(accessibilityTrusted: true, inputMonitoringReady: false)))
         #expect(OnboardingStep.practice.isSatisfied(OnboardingState(practiced: true)))
         let done = OnboardingState(targetLang: "zh-CN", keyConfigured: true, accessibilityTrusted: true,
                                    screenRecordingGranted: true, practiced: true)

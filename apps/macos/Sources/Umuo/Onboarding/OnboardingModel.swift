@@ -92,7 +92,9 @@ final class OnboardingModel {
     var state: OnboardingState {
         OnboardingState(targetLang: values.string("targetLang"), keyConfigured: configuredEngine == currentEngine,
                         accessibilityTrusted: permissions.accessibility == true,
-                        screenRecordingGranted: permissions.screenRecording == true, practiced: practiced)
+                        screenRecordingGranted: permissions.screenRecording == true,
+                        inputMonitoringReady: !permissions.needsInputMonitoring || permissions.inputMonitoring == true,
+                        practiced: practiced)
     }
 
     var draftDetail: ProviderDetail? { providers.first { $0.id == draftProvider } }

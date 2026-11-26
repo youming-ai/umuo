@@ -47,6 +47,17 @@ struct SettingsTabsTests {
         #expect(SettingsTabs.missingPermission(true, true) == false)
         #expect(SettingsTabs.missingPermission(true, nil) == nil)
     }
+
+    @Test func 输入监控只在配了连按键时算缺() {
+        var status = PermissionStatus(accessibility: true, screenRecording: true, inputMonitoring: false)
+        #expect(status.missing == false, "没配连按键：输入监控用不到")
+        status.needsInputMonitoring = true
+        #expect(status.missing == true)
+        status.inputMonitoring = nil
+        #expect(status.missing == nil)
+        status.inputMonitoring = true
+        #expect(status.missing == false)
+    }
 }
 
 @Suite("录键：按键 → 快捷键字符串")

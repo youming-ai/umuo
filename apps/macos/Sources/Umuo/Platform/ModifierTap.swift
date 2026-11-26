@@ -7,7 +7,7 @@ import UmuoCore
 ///
 /// 系统的全局快捷键只能注册「修饰键 + 主键」，⌃⌃ 这种只按修饰键的组合注册不了，
 /// 所以这里开一个**只读**的事件监听（CGEventTap，ListenOnly）：只看、不拦、不改，按键照常送到前台应用。
-/// 创建它需要「输入监控」（或「辅助功能」）权限。
+/// 需要「输入监控」权限：缺这项时 `tapCreate` 照样返回端口，只是系统把它停用，所以启用后要核对 `tapIsEnabled`。
 ///
 /// 监听跑在自己的线程上，带一个 CFRunLoop。macOS 在回调太慢或用户输入特殊情况下会
 /// 自动停用监听（TapDisabledByTimeout / ByUserInput），收到这两个通知时立刻重新启用——
@@ -23,7 +23,7 @@ enum ModifierTap {
 
         var description: String {
             switch self {
-            case .permissionDenied: "缺少「辅助功能」或「输入监控」权限"
+            case .permissionDenied: "缺少「输入监控」权限"
             case let .other(message): message
             }
         }
@@ -143,9 +143,18 @@ enum ModifierTap {
                 ready.signal()
                 return
             }
-            context.port = port
             CFRunLoopAddSource(CFRunLoopGetCurrent(), source, .commonModes)
             CGEvent.tapEnable(tap: port, enable: true)
+            // 缺输入监控时系统建出端口却不启用：当成功的话连按静默失灵，也不会在授权后重试
+            guard CGEvent.tapIsEnabled(tap: port) else {
+                CFRunLoopRemoveSource(CFRunLoopGetCurrent(), source, .commonModes)
+                CFMachPortInvalidate(port)
+                Unmanaged<Context>.fromOpaque(userInfo).release()
+                outcome.withLock { $0 = .failure(.permissionDenied) }
+                ready.signal()
+                return
+            }
+            context.port = port
             outcome.withLock { $0 = .success(()) }
             ready.signal()
             CFRunLoopRun()

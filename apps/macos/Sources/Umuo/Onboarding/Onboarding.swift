@@ -21,7 +21,8 @@ enum OnboardingStep: String, CaseIterable, Sendable {
         case .languages: !state.targetLang.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         case .model: state.hasUsableEngine
         // 辅助功能是取词的必需项；屏幕录制只影响截图，不阻塞这一步的完成。
-        case .permissions: state.accessibilityTrusted
+        // 配了连按快捷键时输入监控同样必需：缺它 ⌃⌃ 划词按了没反应。
+        case .permissions: state.accessibilityTrusted && state.inputMonitoringReady
         case .practice: state.practiced
         }
     }
@@ -36,6 +37,8 @@ struct OnboardingState: Equatable, Sendable {
     var localModelFound = false
     var accessibilityTrusted = false
     var screenRecordingGranted = false
+    /// 输入监控已授权，或没配连按快捷键、用不到它。
+    var inputMonitoringReady = true
     /// 在引导里真的翻过一次。
     var practiced = false
 
