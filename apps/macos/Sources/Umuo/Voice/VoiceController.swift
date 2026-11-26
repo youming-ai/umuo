@@ -140,7 +140,7 @@ final class VoiceController {
 
     /// 语音键按下。`task`：按的是整理键还是翻译键。
     func press(_ task: VoiceTask = .tidy) { feed(.press(modelReady: models.isReady, task: task)) }
-    /// 只有启动当前录音的键能结束它。第二个键按下时状态机保留原来的任务。
+    /// 只有启动当前录音的键能结束它。`overlay.task` 只在按下真正开始录音时写入，录音中按另一个键不会改它。
     func release(_ task: VoiceTask) {
         guard overlay.task == task else { return }
         feed(.release)

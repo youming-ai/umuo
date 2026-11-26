@@ -193,27 +193,40 @@ final class HotkeyCenter {
     /// 松开被吞掉的话录音就停不下来（状态机会忽略没有录音时的松开）。
     private func registerVoice(_ values: [String: String]) {
         guard let voice else { return }
+        var rows: [(field: String, task: VoiceTask, parsed: HotkeyCombo.Parsed)] = []
         for row in Self.voiceTable {
-            let parsed: HotkeyCombo.Parsed
             switch Self.plan(values[row.field], fallback: row.fallback) {
             // 清空了：不注册，也不算失败
             case nil: continue
             case .doubleTap?:
                 print("umuo: \(row.field) 设成了连按两下修饰键，按住说话只能用组合键")
                 failures.append(row.field)
-                continue
-            case let .combo(combo)?: parsed = combo
+            case let .combo(parsed)?: rows.append((row.field, row.task, parsed))
             }
+        }
+        for row in rows {
             let task = row.task
+            let released = Self.releasedVoiceTasks(row.parsed, among: rows.map { ($0.task, $0.parsed) })
             do {
-                try combos.register(parsed, action: { [weak self] in
+                try combos.register(row.parsed, action: { [weak self] in
                     guard let self, !self.suspended else { return }
                     voice.press(task)
-                }, onRelease: { voice.release(task) })
+                }, onRelease: { released.forEach(voice.release) })
             } catch {
                 print("umuo: \(row.field) 快捷键注册失败（可能已被其它应用占用）：\(error)")
                 failures.append(row.field)
             }
+        }
+    }
+
+    /// 一个语音键松开时，算作松开的任务：主键相同的语音键一并算上。
+    /// 两个语音键默认同为 V（⌥⌘V / ⌃⌘V），按住时换修饰键再松开，Carbon 可能把松开记在另一个键上；
+    /// 主键已经抬起，用它的组合键都不再按着，不能因此让录音一直录到上限。
+    nonisolated static func releasedVoiceTasks(_ parsed: HotkeyCombo.Parsed,
+                                               among rows: [(task: VoiceTask, parsed: HotkeyCombo.Parsed)]) -> [VoiceTask] {
+        guard case let .combo(combo) = parsed else { return [] }
+        return rows.compactMap { row in
+            if case let .combo(other) = row.parsed, other.keyCode == combo.keyCode { row.task } else { nil }
         }
     }
 
