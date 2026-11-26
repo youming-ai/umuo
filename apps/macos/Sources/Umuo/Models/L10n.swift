@@ -28,7 +28,7 @@ enum AppLocale: String, CaseIterable, Sendable {
 
     /// 设置里的语言值 + 系统语言偏好 → 真正使用的语言。
     ///
-    /// 明选的语言优先；认不出来的值当作「跟随系统」——手改过的配置文件不该让界面变成一种不存在的语言。
+    /// 明选的语言优先；认不出来的值当作「跟随系统」，系统语言也认不出时用英文——手改过的配置文件不该让界面变成一种不存在的语言。
     /// 系统偏好里繁体地区（台湾、香港、澳门、显式 Hant）认成繁体：只按 `zh` 前缀判断会让繁体用户看到简体。
     static func resolve(setting: String, systemLanguages: [String] = Locale.preferredLanguages) -> AppLocale {
         let wanted = setting.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -45,7 +45,8 @@ enum AppLocale: String, CaseIterable, Sendable {
             if tag.hasPrefix("ja") { return .ja }
             if tag.hasPrefix("en") { return .en }
         }
-        return source
+        // 系统语言不在四种界面语言里（韩语、法语等）：英文比源语言简体中文更可能读得懂。文案表缺词仍回落源语言。
+        return .en
     }
 }
 

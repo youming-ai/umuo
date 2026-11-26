@@ -5994,6 +5994,94 @@
         }
       }
     },
+    "prefs.advanced.retentionConfirm": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "只保留最近 %1$@ 天的历史？"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "只保留最近 %1$@ 天的歷史？"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keep only the last %1$@ days of history?"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "直近 %1$@ 日分の履歴だけを残しますか？"
+          }
+        }
+      },
+      "comment": "placeholders: days"
+    },
+    "prefs.advanced.retentionConfirmDetail": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "更早的记录会立即删除，无法恢复。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "更早的紀錄會立即刪除，無法復原。"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Older entries will be deleted right away and can’t be recovered."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "それより古い記録はすぐに削除され、元に戻せません。"
+          }
+        }
+      }
+    },
+    "prefs.advanced.retentionConfirmAction": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "删除并保存"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "刪除並儲存"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Delete and Save"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "削除して保存"
+          }
+        }
+      }
+    },
     "prefs.engine.apiKey": {
       "extractionState": "manual",
       "localizations": {

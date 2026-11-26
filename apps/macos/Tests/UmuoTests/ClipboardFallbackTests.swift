@@ -125,6 +125,30 @@ struct ClipboardFallbackTests {
         #expect(Pasteboard.Snapshot.take(board) == snapshot)
     }
 
+    @Test func 源应用只复制了图片_超时后仍还原原内容() {
+        let board = FakePasteboard("旧内容")
+        let watch = CopyWatch()
+        let image = [FakePasteboard.Entry(type: "public.png", data: Data(count: 8))]
+        let fallback = ClipboardFallback(pasteboard: board, copy: { board.writeItems([image]) },
+                                         beginWatching: { watch }, wait: { _ in })
+        #expect(throws: SelectionError.noSelection) { try fallback.read() }
+        #expect(board.string(forType: .string) == "旧内容")
+    }
+
+    @Test func 超时前一刻剪贴板还在变_不覆盖() {
+        let board = FakePasteboard("旧内容")
+        let watch = CopyWatch()
+        var polls = 0
+        let fallback = ClipboardFallback(pasteboard: board, copy: {}, beginWatching: { watch }, wait: { _ in
+            polls += 1
+            // 最后一轮读完之后又有写入（来源不明）：不能拿旧快照盖掉
+            if polls == ClipboardFallback.pollAttempts { board.writeItems([[.init(type: "public.png", data: Data(count: 1))]]) }
+        })
+        board.onString = { if polls == ClipboardFallback.pollAttempts { board.writeItems([[.init(type: "public.tiff", data: Data(count: 1))]]) } }
+        #expect(throws: SelectionError.noSelection) { try fallback.read() }
+        #expect(board.string(forType: .string) == nil)
+    }
+
     @Test func 超时后不再观察和覆盖后来的复制() {
         let board = FakePasteboard("旧内容")
         let watch = CopyWatch()

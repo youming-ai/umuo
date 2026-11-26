@@ -28,7 +28,8 @@ struct PanelView: View {
         .accessibilityLabel(t("panel.resultAria"))
         // 浮窗不抢焦点，读屏焦点留在源应用里：译文出来或出错时主动播报一次，否则读屏用户收不到结果
         .onChange(of: state.status) { _, status in
-            let text = status == .done ? state.translation : status == .error ? session.errorText : nil
+            let text = status == .done ? (state.card?.spoken ?? state.translation)
+                : status == .error ? session.errorText : nil
             if let text, !text.isEmpty { AccessibilityNotification.Announcement(text).post() }
         }
     }

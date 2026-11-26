@@ -56,6 +56,8 @@ final class ComposeController: ComposeBackend {
             await MainActor.run {
                 guard self.openGeneration == generation else { return }
                 self.session.owner = owner(frontmost)
+                // 成功提交时窗口已收起，那句「已复制」没人看到；重新唤出不再挂着上一次的结果
+                self.session.notice = nil
                 self.show()
                 then?()
             }

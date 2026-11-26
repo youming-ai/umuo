@@ -25,9 +25,10 @@ struct ResolveLocaleTests {
         #expect(AppLocale.resolve(setting: "system", systemLanguages: ["zh-CN"]) == .zhCN)
     }
 
-    @Test func 认不出来的偏好回落到源语言() {
-        #expect(AppLocale.resolve(setting: "system", systemLanguages: ["ko-KR", "th-TH"]) == AppLocale.source)
-        #expect(AppLocale.resolve(setting: "system", systemLanguages: []) == AppLocale.source)
+    @Test func 认不出来的偏好回落到英文() {
+        #expect(AppLocale.resolve(setting: "system", systemLanguages: ["ko-KR", "th-TH"]) == .en)
+        #expect(AppLocale.resolve(setting: "system", systemLanguages: []) == .en)
+        #expect(AppLocale.resolve(setting: "system", systemLanguages: ["ko-KR", "ja-JP"]) == .ja, "后面有认得的语言就用它")
     }
 
     @Test func 设置里写了不认识的值时当作跟随系统() {
@@ -91,6 +92,7 @@ struct CatalogTests {
             "prefs.settingsInvalid", "onboarding.modelWithProvider", "common.nothingToTranslate",
             "prefs.permissions.inputMonitoring", "prefs.permissions.inputMonitoringHint",
             "onboarding.inputMonitoring", "onboarding.inputMonitoringDesc",
+            "prefs.advanced.retentionConfirm", "prefs.advanced.retentionConfirmDetail", "prefs.advanced.retentionConfirmAction",
         ]
         for key in keys {
             #expect(catalog.entries[key]?.values.count == 4, "缺文案：\(key)")

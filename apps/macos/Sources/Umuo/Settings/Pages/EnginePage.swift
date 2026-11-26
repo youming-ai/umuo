@@ -26,8 +26,9 @@ struct EnginePage: View {
 
                 if let provider, provider.requiresKey {
                     PrefRow(title: t("prefs.engine.apiKey"),
-                            note: model.keyConfigured == true ? t("prefs.engine.keyConfigured") : t("prefs.engine.keyMissing"),
-                            error: engine.keyError) {
+                            note: model.keyStatusError != nil ? nil
+                                : model.keyConfigured == true ? t("prefs.engine.keyConfigured") : t("prefs.engine.keyMissing"),
+                            error: engine.keyError ?? model.keyStatusError) {
                         SecureField(t("prefs.engine.apiKey"), text: $engine.apiKey,
                                     prompt: Text(model.keyConfigured == true ? t("prefs.engine.keyKeep") : t("prefs.engine.keyPaste")))
                             .textFieldStyle(.roundedBorder).labelsHidden().multilineTextAlignment(.leading).frame(width: 240)
@@ -35,7 +36,8 @@ struct EnginePage: View {
                         PrefButton(title: t("prefs.engine.keySave"), disabled: !engine.canSaveKey) {
                             Task { await engine.saveKey() }
                         }
-                        if model.keyConfigured == true {
+                        // 读不出来的旧条目也要能清掉
+                        if model.keyConfigured == true || model.keyStatusError != nil {
                             PrefButton(title: t("prefs.engine.keyClear"), danger: true) {
                                 Task { await engine.clearKey() }
                             }

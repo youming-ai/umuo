@@ -32,7 +32,12 @@ final class ComposeSession {
 
     /// 输入框。改了就重新计时防抖（关掉自动翻译时不计）。
     var input = "" {
-        didSet { if input != oldValue { scheduleDebounce() } }
+        didSet {
+            guard input != oldValue else { return }
+            // 上一次提交的提示属于上一段内容：一改原文就撤掉
+            notice = nil
+            scheduleDebounce()
+        }
     }
 
     var autoTranslate = true {

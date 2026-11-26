@@ -30,6 +30,11 @@ private func run(_ actions: PanelAction..., from state: PanelState = .initial) -
 
 @Suite("panel reducer")
 struct PanelReducerTests {
+    @Test func 词卡给读屏的播报带单词与第一条释义() {
+        #expect(card.spoken == "hello, int., 你好")
+        #expect(WordCard(word: "hi", phonetic: nil, senses: []).spoken == "hi")
+    }
+
     @Test func startResetsEverythingFromThePreviousTranslation() {
         // 上一次的译文残留在这一次里，是浮窗最容易被漏掉的 bug。
         let fresh = run(.start(start), .delta(requestId: 1, text: "你好"), .start(with(start) { $0.text = "Another sentence" }))

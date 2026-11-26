@@ -18,6 +18,8 @@ final class SettingsModel {
     private(set) var providers: [ProviderDetail] = []
     /// 当前供应商是否已配 Key。nil = 还没读出来 / 读不到。本机模型（不需要 Key）算已配。
     private(set) var keyConfigured: Bool?
+    /// 读 Key 出错的原因（多见于自签名版本升级后钥匙串拒绝读取）。与「没配」分开：没配让人去填，读不出要让人重存或清除。
+    private(set) var keyStatusError: String?
     private(set) var permissions = PermissionStatus()
     /// 开机启动以磁盘上的 LaunchAgent 为准；nil = 还没读出来。
     private(set) var autostart: Bool?
@@ -64,7 +66,7 @@ final class SettingsModel {
 
     var attention: Set<SettingsTab> {
         SettingsTabs.attention(SettingsAttentionInput(
-            keyConfigured: keyConfigured,
+            keyConfigured: keyStatusError == nil ? keyConfigured : false,
             permissionMissing: permissions.missing
         ))
     }
@@ -87,14 +89,18 @@ final class SettingsModel {
             adopt(current)
         }
 
-        let key = try? await backend.keyStatus(current.string("providerId"))
+        let key: Bool?
+        do { key = try await backend.keyStatus(current.string("providerId")); keyStatusError = nil } catch {
+            key = nil
+            keyStatusError = SettingsRules.message(error)
+        }
         let perms = await backend.permissions()
         permissions = perms
         let needsKey = providers.first { $0.id == current.string("providerId") }?.requiresKey ?? true
         keyConfigured = needsKey ? key : true
         keyCheckedProvider = current.string("providerId")
         tab = SettingsTabs.initial(SettingsAttentionInput(
-            keyConfigured: keyConfigured,
+            keyConfigured: keyStatusError == nil ? keyConfigured : false,
             permissionMissing: perms.missing
         ))
 
@@ -207,11 +213,16 @@ final class SettingsModel {
         // 本机模型不需要 Key：与首次载入时同一条规则。
         if !(providers.first { $0.id == id }?.requiresKey ?? true) {
             keyConfigured = true
+            keyStatusError = nil
             return
         }
-        let configured = try? await backend.keyStatus(id)
+        let result: Result<Bool, Error>
+        do { result = .success(try await backend.keyStatus(id)) } catch { result = .failure(error) }
         guard mine == keyCheck else { return }
-        keyConfigured = configured
+        switch result {
+        case let .success(configured): keyConfigured = configured; keyStatusError = nil
+        case let .failure(error): keyConfigured = nil; keyStatusError = SettingsRules.message(error)
+        }
     }
 
     /// 存 / 删 Key 之后，由引擎页告诉外层（不必再查一遍）。
@@ -219,6 +230,7 @@ final class SettingsModel {
         guard providerId == self.providerId else { return }
         let needsKey = providers.first { $0.id == providerId }?.requiresKey ?? true
         keyConfigured = needsKey ? configured : true
+        keyStatusError = nil
     }
 
     /// 开机启动：磁盘写得成不成功只有实现知道，以它返回的状态为准；被拒绝时把原因摆出来，不能只是开关弹回去。
@@ -556,8 +568,18 @@ final class AdvancedEditor {
     var pendingCustom = false
     var proxyError: String?
     var retentionError: String?
+    /// 保留期改短前请用户确认（会当场删掉更早的历史），返回是否继续。测试换成直接回答。
+    @ObservationIgnored var confirmShrink: @MainActor (_ days: Int) async -> Bool
 
-    init(_ model: SettingsModel) { self.model = model }
+    init(_ model: SettingsModel) {
+        self.model = model
+        confirmShrink = { [unowned model] days in
+            await PrefConfirm.ask(model.t("prefs.advanced.retentionConfirm", ["days": String(days)]),
+                                  detail: model.t("prefs.advanced.retentionConfirmDetail"),
+                                  confirm: model.t("prefs.advanced.retentionConfirmAction"),
+                                  cancel: model.t("common.cancel"))
+        }
+    }
 
     func reset() {
         pendingCustom = false
@@ -596,6 +618,16 @@ final class AdvancedEditor {
             return nil
         }
         retentionError = nil
-        return model.commit(["historyRetentionDays": .number(Double(SettingsRules.retentionDays(text)))])
+        let days = SettingsRules.retentionDays(text)
+        let patch: SettingsValues = ["historyRetentionDays": .number(Double(days))]
+        // 改短（含从「一直保留」改成有限天数）保存即删掉更早的历史：失焦就存，半截输入（想填 30 先敲了 3）也会触发，先确认
+        let current = Int(model.values.number("historyRetentionDays"))
+        guard days > 0, current == 0 || days < current else { return model.commit(patch) }
+        let confirm = confirmShrink
+        return Task { @MainActor [model] in
+            // 取消：抛错让输入框退回已存的值
+            guard await confirm(days) else { throw CancellationError() }
+            try await model.commit(patch).value
+        }
     }
 }

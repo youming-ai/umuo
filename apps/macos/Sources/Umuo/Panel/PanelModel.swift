@@ -36,6 +36,12 @@ struct WordCard: Equatable {
     let word: String
     let phonetic: String?
     let senses: [Sense]
+
+    /// 给读屏播报的一句：单词加第一条释义（词卡模式没有逐字译文，只播 `translation` 会什么都听不到）。
+    var spoken: String {
+        guard let first = senses.first else { return word }
+        return [word, first.partOfSpeech, first.definition].filter { !$0.isEmpty }.joined(separator: ", ")
+    }
 }
 
 struct PanelStart: Equatable {
