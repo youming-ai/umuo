@@ -2598,25 +2598,83 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "用来读取你选中的文字。没有它，划词翻译无法工作——这是唯一一项「必需」的权限。"
+            "value": "用来读取你选中的文字。没有它，划词翻译无法工作。"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "用來讀取你選取的文字。沒有它，劃詞翻譯無法運作——這是唯一一項「必需」的權限。"
+            "value": "用來讀取你選取的文字。沒有它，劃詞翻譯無法運作。"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Used to read the text you select. Without it, selection translation won’t work — this is the only required permission."
+            "value": "Used to read the text you select. Without it, selection translation won’t work."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "選択したテキストを読み取るために使用します。これが無いと選択翻訳は動作しません（唯一の必須権限です）。"
+            "value": "選択したテキストを読み取るために使用します。これが無いと選択翻訳は動作しません。"
+          }
+        }
+      }
+    },
+    "onboarding.inputMonitoring": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "输入监控"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "輸入監控"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Input Monitoring"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "入力監視"
+          }
+        }
+      }
+    },
+    "onboarding.inputMonitoringDesc": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "连按修饰键的快捷键（如 ⌃⌃ 划词）要靠它。没有它，按了没有反应；改用普通组合键则不需要。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "連按修飾鍵的快速鍵（如 ⌃⌃ 劃詞）要靠它。沒有它，按了沒有反應；改用一般組合鍵則不需要。"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Double-tap modifier shortcuts (such as ⌃⌃ for selection translation) rely on it. Without it they do nothing; regular key combos don’t need it."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "修飾キーの連打ショートカット（⌃⌃ で選択翻訳など）に必要です。許可しないと押しても反応しません。通常のキーの組み合わせなら不要です。"
           }
         }
       }
@@ -8632,25 +8690,25 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "连按快捷键没能启用：需要在「系统设置 → 隐私与安全性」的「辅助功能」或「输入监控」里允许 umuo。"
+            "value": "连按快捷键没能启用：需要在「系统设置 → 隐私与安全性 → 输入监控」里允许 umuo，再到设置的权限页重新检查。"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "連按快速鍵沒能啟用：需要在「系統設定 → 隱私權與安全性」的「輔助使用」或「輸入監控」裡允許 umuo。"
+            "value": "連按快速鍵沒能啟用：需要在「系統設定 → 隱私權與安全性 → 輸入監控」裡允許 umuo，再到設定的權限頁重新檢查。"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Double-tap shortcuts couldn’t start: allow umuo under Accessibility or Input Monitoring in System Settings → Privacy & Security."
+            "value": "Double-tap shortcuts couldn’t start: allow umuo under System Settings → Privacy & Security → Input Monitoring, then recheck on the Permissions page."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "連打ショートカットを有効にできませんでした。「システム設定 → プライバシーとセキュリティ」の「アクセシビリティ」または「入力監視」で umuo を許可してください。"
+            "value": "連打ショートカットを有効にできませんでした。「システム設定 → プライバシーとセキュリティ → 入力監視」で umuo を許可し、設定の「権限」ページで再確認してください。"
           }
         }
       }
@@ -8796,6 +8854,64 @@
           "stringUnit": {
             "state": "translated",
             "value": "選択した文字を読み取り、訳文を入力欄に書き戻すために必要です。"
+          }
+        }
+      }
+    },
+    "prefs.permissions.inputMonitoring": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "输入监控"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "輸入監控"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Input Monitoring"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "入力監視"
+          }
+        }
+      }
+    },
+    "prefs.permissions.inputMonitoringHint": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "连按修饰键的快捷键（如 ⌃⌃ 划词）需要这项权限。授权后回到这里即可生效，不用重启。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "連按修飾鍵的快速鍵（如 ⌃⌃ 劃詞）需要這項權限。授權後回到這裡即可生效，不用重新啟動。"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Needed for double-tap modifier shortcuts (such as ⌃⌃ for selection translation). Takes effect when you come back here — no restart needed."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "修飾キーの連打ショートカット（⌃⌃ で選択翻訳など）に必要です。許可した後ここに戻ると有効になり、再起動は不要です。"
           }
         }
       }

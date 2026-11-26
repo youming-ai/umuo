@@ -12,6 +12,15 @@ struct PendingImport: Sendable {
 struct PermissionStatus: Equatable, Sendable {
     var accessibility: Bool?
     var screenRecording: Bool?
+    /// 输入监控：连按修饰键（⌃⌃ 等）的监听要它。
+    var inputMonitoring: Bool? = nil
+    /// 配了连按快捷键时才需要输入监控；不需要时界面不列这一项，也不算缺权限。
+    var needsInputMonitoring = false
+
+    /// 有没有缺的权限（nil = 还没读全）。
+    var missing: Bool? {
+        SettingsTabs.missingPermission(accessibility, screenRecording, needsInputMonitoring ? inputMonitoring : true)
+    }
 }
 
 /// 设置窗往外要做的事：Engine（设置、Key 状态、模型列表、导入导出）、Keychain、权限、
@@ -120,11 +129,14 @@ final class EngineSettingsBackend: SettingsBackend {
     }
 
     func permissions() async -> PermissionStatus {
-        let status = await Task.detached {
-            PermissionStatus(accessibility: AXIsProcessTrusted(), screenRecording: ScreenCapture.hasPermission())
+        let needsInputMonitoring = app.registersHotkeys && app.hotkeys.usesDoubleTap
+        var status = await Task.detached {
+            PermissionStatus(accessibility: AXIsProcessTrusted(), screenRecording: ScreenCapture.hasPermission(),
+                             inputMonitoring: CGPreflightListenEventAccess())
         }.value
-        // 刚授完权：之前因缺权限没起来的连按快捷键（新装默认的 ⌃⌃）现在补上
-        if status.accessibility == true, app.registersHotkeys { app.hotkeys.retryStart() }
+        status.needsInputMonitoring = needsInputMonitoring
+        // 刚授完权：之前因缺输入监控没起来的连按快捷键（新装默认的 ⌃⌃）现在补上，不用重启
+        if needsInputMonitoring, status.inputMonitoring == true { app.hotkeys.retryStart() }
         return status
     }
 
@@ -134,8 +146,7 @@ final class EngineSettingsBackend: SettingsBackend {
     }
 
     func openSystemSettings(_ permission: PermissionKind) {
-        let pane = permission == .screenRecording ? "Privacy_ScreenCapture" : "Privacy_Accessibility"
-        if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?\(pane)") {
+        if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?\(permission.settingsPane)") {
             NSWorkspace.shared.open(url)
         }
     }

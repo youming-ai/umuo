@@ -65,7 +65,7 @@ final class SettingsModel {
     var attention: Set<SettingsTab> {
         SettingsTabs.attention(SettingsAttentionInput(
             keyConfigured: keyConfigured,
-            permissionMissing: SettingsTabs.missingPermission(permissions.accessibility, permissions.screenRecording)
+            permissionMissing: permissions.missing
         ))
     }
 
@@ -95,7 +95,7 @@ final class SettingsModel {
         keyCheckedProvider = current.string("providerId")
         tab = SettingsTabs.initial(SettingsAttentionInput(
             keyConfigured: keyConfigured,
-            permissionMissing: SettingsTabs.missingPermission(perms.accessibility, perms.screenRecording)
+            permissionMissing: perms.missing
         ))
 
         // 下面这些都是参考信息：读不到不该拖垮设置窗。

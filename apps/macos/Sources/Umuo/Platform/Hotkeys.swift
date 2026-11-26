@@ -239,8 +239,8 @@ final class HotkeyCenter {
 
     /// 之前因缺权限没启动起来、现在用户授了权：补启动监听，并把连按那几行的失败标记清掉。
     ///
-    /// 新装用户的默认划词键就是 ⌃⌃——启动时多半还没授权，监听起不来；授完权不补这一下，
-    /// 就得改一次快捷键或重启客户端才能用。由「检查辅助功能权限」的入口在授权后调用。
+    /// 新装用户的默认划词键就是 ⌃⌃——启动时多半还没授「输入监控」，监听起不来；授完权不补这一下，
+    /// 就得改一次快捷键或重启客户端才能用。由设置窗与首次引导「检查权限」时调用。
     func retryStart() {
         let fields = doubleTaps.fields
         guard !fields.isEmpty, !doubleTaps.started else { return }
@@ -248,6 +248,9 @@ final class HotkeyCenter {
         failures.removeAll { fields.contains($0) }
         onRegistered?()
     }
+
+    /// 配了连按快捷键：只有这时才需要「输入监控」，权限页与首次引导据此决定是否列出这一项。
+    var usesDoubleTap: Bool { !doubleTaps.fields.isEmpty }
 
     /// 设置窗开始 / 结束「录快捷键」。
     ///

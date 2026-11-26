@@ -324,8 +324,7 @@ final class PanelController: PanelBackend {
     func openSettings() { app.openSettings() }
 
     func openSystemSettings(_ permission: PermissionKind) {
-        let pane = permission == .screenRecording ? "Privacy_ScreenCapture" : "Privacy_Accessibility"
-        if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?\(pane)") {
+        if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?\(permission.settingsPane)") {
             NSWorkspace.shared.open(url)
         }
     }

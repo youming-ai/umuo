@@ -3,7 +3,7 @@ import SwiftUI
 /// 权限：每一项都如实显示状态，并能「重新检查」——用户多半是从系统设置切回来的，
 /// 窗口重新成为 key 时外层也会自动再查一次。
 ///
-/// 只列辅助功能与屏幕录制两项。连按修饰键要的「输入监控」没有单列：系统把辅助功能也算作可以监听。
+/// 辅助功能与屏幕录制总是列出；「输入监控」只在配了连按修饰键（⌃⌃ 等）时列出——缺它时监听会被系统停用，辅助功能代替不了。
 /// 麦克风不在这里：语音输入第一次按键时才申请，被拒时由语音浮层给出去系统设置的入口。
 struct PermissionsPage: View {
     let model: SettingsModel
@@ -16,6 +16,15 @@ struct PermissionsPage: View {
                           granted: model.permissions.accessibility) {
                 PrefButton(title: t("prefs.permissions.openSettings")) {
                     model.backend.openSystemSettings(.accessibility)
+                }
+            }
+            if model.permissions.needsInputMonitoring {
+                PermissionRow(t: t, title: t("prefs.permissions.inputMonitoring"),
+                              description: t("prefs.permissions.inputMonitoringHint"),
+                              granted: model.permissions.inputMonitoring) {
+                    PrefButton(title: t("prefs.permissions.openSettings")) {
+                        model.backend.openSystemSettings(.inputMonitoring)
+                    }
                 }
             }
             PermissionRow(t: t, title: t("prefs.permissions.screen"), description: t("prefs.permissions.screenHint"),

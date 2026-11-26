@@ -17,7 +17,16 @@ enum PanelMode: String, Equatable, Sendable {
 
 /// 缺的是哪一个权限——浮窗据此把用户送去正确的设置面板。
 enum PermissionKind: String, Equatable, Sendable {
-    case accessibility, screenRecording
+    case accessibility, screenRecording, inputMonitoring
+
+    /// 「隐私与安全性」里对应的面板。
+    var settingsPane: String {
+        switch self {
+        case .accessibility: "Privacy_Accessibility"
+        case .screenRecording: "Privacy_ScreenCapture"
+        case .inputMonitoring: "Privacy_ListenEvent"
+        }
+    }
 }
 
 /// 单词词卡（PRD §5.2）。

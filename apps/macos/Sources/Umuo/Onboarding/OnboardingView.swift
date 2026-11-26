@@ -208,6 +208,15 @@ struct OnboardingView: View {
                     model.backend.openSystemSettings(.accessibility)
                 }
             }
+            if model.permissions.needsInputMonitoring {
+                PermissionRow(t: t, title: t("onboarding.inputMonitoring"),
+                              description: t("onboarding.inputMonitoringDesc"),
+                              granted: model.permissions.inputMonitoring) {
+                    PrefButton(title: t("onboarding.openSystemSettings")) {
+                        model.backend.openSystemSettings(.inputMonitoring)
+                    }
+                }
+            }
             PermissionRow(t: t, title: t("onboarding.screenRecording"),
                           description: t("onboarding.screenRecordingDesc", ["keys": keys("ocrHotkey")]),
                           granted: model.permissions.screenRecording) {
