@@ -108,6 +108,8 @@ struct OnboardingView: View {
             (t("onboarding.read"), keys("selectionHotkey"), t("onboarding.readDesc")),
             (t("onboarding.write"), keys("composeHotkey", "silentReplaceHotkey"), t("onboarding.writeDesc")),
             (t("onboarding.see"), keys("ocrHotkey"), t("onboarding.seeDesc")),
+            (t("onboarding.speak"), keys(HotkeyCenter.voiceField, HotkeyCenter.voiceTranslateField),
+             t("onboarding.speakDesc")),
         ]
         return Section {
             ForEach(items, id: \.0) { kind, keys, description in
@@ -125,16 +127,19 @@ struct OnboardingView: View {
         }
     }
 
+    /// 两行的标题、说明与设置里同名的两行一致（目标语言在通用页，第二目标语言在翻译页）。
     private var languages: some View {
-        let options = Languages.all.map { ($0.code, $0.label) }
-        return Section {
-            PrefRow(title: t("onboarding.primaryTarget")) {
-                PrefPicker(label: t("onboarding.primaryTarget"), value: model.values.string("targetLang"),
-                           options: options) { model.commit(["targetLang": .string($0)]) }
+        Section {
+            PrefRow(title: t("prefs.general.targetLang"), description: t("prefs.general.targetLangHint")) {
+                LanguagePicker(label: t("prefs.general.targetLang"), value: model.values.string("targetLang")) {
+                    model.commit(["targetLang": .string($0)])
+                }
             }
-            PrefRow(title: t("onboarding.secondaryTarget")) {
-                PrefPicker(label: t("onboarding.secondaryTarget"), value: model.values.string("secondaryTargetLang"),
-                           options: options) { model.commit(["secondaryTargetLang": .string($0)]) }
+            PrefRow(title: t("prefs.translate.secondaryLang"), description: t("prefs.translate.secondaryLangHint")) {
+                LanguagePicker(label: t("prefs.translate.secondaryLang"),
+                               value: model.values.string("secondaryTargetLang")) {
+                    model.commit(["secondaryTargetLang": .string($0)])
+                }
             }
         } header: {
             lead(t("onboarding.languagesLead"))
@@ -144,10 +149,13 @@ struct OnboardingView: View {
     }
 
     @ViewBuilder private var engine: some View {
+        let local = model.draftDetail.map { !$0.requiresKey } ?? false
         Section {
-            PrefRow(title: t("onboarding.provider")) {
-                PrefPicker(label: t("onboarding.provider"), value: model.draftProvider,
-                           options: model.providers.map { ($0.id, $0.label) }) { model.draftProvider = $0 }
+            // 本机供应商只是草稿：真正改首选要靠下面的「检测本机模型」，它会挑一个装好的模型
+            PrefRow(title: t("prefs.engine.provider"), description: local ? t("onboarding.localProviderHint") : nil) {
+                PrefPicker(label: t("prefs.engine.provider"), value: model.draftProvider, options: model.providers.map {
+                    ($0.id, $0.local ? t("prefs.engine.localLabel", ["name": $0.label]) : $0.label)
+                }) { model.draftProvider = $0 }
             }
             // Azure 与自定义端点：先填地址与模型，Key 才有地方用（与设置的引擎页同一组文案与设置键）
             if model.needsEndpoint {
@@ -157,29 +165,31 @@ struct OnboardingView: View {
                         description: t(azure ? "prefs.engine.azureEndpointHint" : "prefs.engine.customBaseUrlHint")) {
                     DraftField(value: model.draftEndpoint,
                                placeholder: azure ? "https://<name>.openai.azure.com" : "https://gateway.internal/v1",
-                               width: 240, label: endpointTitle) { model.saveEndpoint($0) }
+                               width: 280, label: endpointTitle) { model.saveEndpoint($0) }
                 }
                 PrefRow(title: t("prefs.engine.model"),
                         description: t(azure ? "prefs.engine.modelAzureHint" : "prefs.engine.modelHint")) {
                     TextField(t("prefs.engine.model"), text: $model.draftModel,
                               prompt: Text(model.draftDetail?.defaultModel ?? ""))
-                        .textFieldStyle(.roundedBorder).labelsHidden().frame(width: 240)
+                        .textFieldStyle(.roundedBorder).labelsHidden().frame(width: 280)
                 }
             }
-            PrefRow(title: t("onboarding.apiKey")) {
-                SecureField(t("onboarding.apiKey"), text: $model.draftKey,
-                            prompt: Text(model.keyConfigured ? t("onboarding.keyPlaceholderConfigured")
-                                : t("onboarding.keyPlaceholderEmpty")))
-                    .textFieldStyle(.roundedBorder).labelsHidden().frame(width: 240)
-                    .onSubmit { Task { await model.saveKey() } }
-                PrefButton(title: t("onboarding.save"),
-                           disabled: model.draftKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty) {
-                    Task { await model.saveKey() }
-                }
-            } extra: {
-                if let detail = model.draftDetail, !detail.keysUrl.isEmpty {
-                    Button(t("onboarding.getKey", ["provider": detail.label])) { model.backend.openURL(detail.keysUrl) }
-                        .buttonStyle(.link).font(.callout)
+            if !local {
+                PrefRow(title: t("prefs.engine.apiKey"),
+                        note: model.keyConfigured ? t("prefs.engine.keyConfigured") : t("prefs.engine.keyMissing")) {
+                    SecureField(t("prefs.engine.apiKey"), text: $model.draftKey,
+                                prompt: Text(model.keyConfigured ? t("prefs.engine.keyKeep") : t("prefs.engine.keyPaste")))
+                        .textFieldStyle(.roundedBorder).labelsHidden().frame(width: 240)
+                        .onSubmit { Task { await model.saveKey() } }
+                    PrefButton(title: t("prefs.engine.keySave"),
+                               disabled: model.draftKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty) {
+                        Task { await model.saveKey() }
+                    }
+                } extra: {
+                    if let detail = model.draftDetail, !detail.keysUrl.isEmpty {
+                        Button(t("prefs.engine.getKey", ["name": detail.label])) { model.backend.openURL(detail.keysUrl) }
+                            .buttonStyle(.link).font(.callout)
+                    }
                 }
             }
         } header: {
@@ -207,28 +217,29 @@ struct OnboardingView: View {
 
     private var permissions: some View {
         Section {
-            PermissionRow(t: t, title: t("onboarding.accessibility"), description: t("onboarding.accessibilityDesc"),
+            PermissionRow(t: t, title: t("prefs.permissions.accessibility"),
+                          description: t("prefs.permissions.accessibilityHint"),
                           granted: model.permissions.accessibility) {
-                PrefButton(title: t("onboarding.openSystemSettings")) {
+                PrefButton(title: t("prefs.permissions.openSettings")) {
                     model.backend.openSystemSettings(.accessibility)
                 }
             }
             if model.permissions.needsInputMonitoring {
-                PermissionRow(t: t, title: t("onboarding.inputMonitoring"),
-                              description: t("onboarding.inputMonitoringDesc"),
+                PermissionRow(t: t, title: t("prefs.permissions.inputMonitoring"),
+                              description: t("prefs.permissions.inputMonitoringHint"),
                               granted: model.permissions.inputMonitoring) {
-                    PrefButton(title: t("onboarding.openSystemSettings")) {
+                    PrefButton(title: t("prefs.permissions.openSettings")) {
                         model.backend.openSystemSettings(.inputMonitoring)
                     }
                 }
             }
-            PermissionRow(t: t, title: t("onboarding.screenRecording"),
+            PermissionRow(t: t, title: t("prefs.permissions.screen"),
                           description: t("onboarding.screenRecordingDesc", ["keys": keys("ocrHotkey")]),
                           granted: model.permissions.screenRecording) {
-                PrefButton(title: t("onboarding.requestPermission")) {
+                PrefButton(title: t("prefs.permissions.request")) {
                     Task { await model.requestScreenRecording() }
                 }
-                PrefButton(title: t("onboarding.openSystemSettings")) {
+                PrefButton(title: t("prefs.permissions.openSettings")) {
                     model.backend.openSystemSettings(.screenRecording)
                 }
             }
@@ -238,7 +249,7 @@ struct OnboardingView: View {
             HStack(alignment: .firstTextBaseline) {
                 note(t("onboarding.systemDialogOnce"))
                 Spacer(minLength: 8)
-                PrefButton(title: t("onboarding.recheck")) { Task { await model.recheckPermissions() } }
+                PrefButton(title: t("prefs.permissions.recheck")) { Task { await model.recheckPermissions() } }
             }
         }
     }
