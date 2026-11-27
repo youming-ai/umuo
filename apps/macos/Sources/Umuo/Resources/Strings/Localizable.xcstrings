@@ -2592,151 +2592,6 @@
       },
       "comment": "placeholders: reason"
     },
-    "onboarding.accessibility": {
-      "extractionState": "manual",
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "辅助功能"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "輔助使用"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Accessibility"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "アクセシビリティ"
-          }
-        }
-      }
-    },
-    "onboarding.accessibilityDesc": {
-      "extractionState": "manual",
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "用来读取你选中的文字。没有它，划词翻译无法工作。"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "用來讀取你選取的文字。沒有它，劃詞翻譯無法運作。"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Used to read the text you select. Without it, selection translation won’t work."
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "選択したテキストを読み取るために使用します。これが無いと選択翻訳は動作しません。"
-          }
-        }
-      }
-    },
-    "onboarding.inputMonitoring": {
-      "extractionState": "manual",
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "输入监控"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "輸入監控"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Input Monitoring"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "入力監視"
-          }
-        }
-      }
-    },
-    "onboarding.inputMonitoringDesc": {
-      "extractionState": "manual",
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "连按修饰键的快捷键（如 ⌃⌃ 划词）要靠它。没有它，按了没有反应；改用普通组合键则不需要。"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "連按修飾鍵的快速鍵（如 ⌃⌃ 劃詞）要靠它。沒有它，按了沒有反應；改用一般組合鍵則不需要。"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Double-tap modifier shortcuts (such as ⌃⌃ for selection translation) rely on it. Without it they do nothing; regular key combos don’t need it."
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "修飾キーの連打ショートカット（⌃⌃ で選択翻訳など）に必要です。許可しないと押しても反応しません。通常のキーの組み合わせなら不要です。"
-          }
-        }
-      }
-    },
-    "onboarding.apiKey": {
-      "extractionState": "manual",
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "API Key"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "API Key"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "API key"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "API キー"
-          }
-        }
-      }
-    },
     "onboarding.detectLocal": {
       "extractionState": "manual",
       "localizations": {
@@ -2825,36 +2680,6 @@
         }
       }
     },
-    "onboarding.getKey": {
-      "extractionState": "manual",
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "去 %1$@ 申请 Key"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "去 %1$@ 申請 Key"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Get a %1$@ key"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%1$@ でキーを取得"
-          }
-        }
-      },
-      "comment": "placeholders: provider"
-    },
     "onboarding.intro": {
       "extractionState": "manual",
       "localizations": {
@@ -2880,64 +2705,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "umuo はメニューバーに常駐します。モデルの利用枠は売りません——自分の API キー（BYOK）を使い、リクエストはこの Mac からプロバイダーへ直接。ローカルの Ollama / LM Studio を繋いでオフラインで使うこともできます。"
-          }
-        }
-      }
-    },
-    "onboarding.keyPlaceholderConfigured": {
-      "extractionState": "manual",
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "已配置（重新填写可替换）"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "已設定（重新填寫可取代）"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Configured (paste to replace)"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "設定済み（貼り直せば置き換わります）"
-          }
-        }
-      }
-    },
-    "onboarding.keyPlaceholderEmpty": {
-      "extractionState": "manual",
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "粘贴你的 Key"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "貼上你的 Key"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Paste your key"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "キーを貼り付け"
           }
         }
       }
@@ -3007,25 +2774,25 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "改完会立刻保存。之后在「设置 → 翻译」里随时能改。"
+            "value": "改完会立刻保存。之后在「设置 → 通用」（目标语言）和「设置 → 翻译」（第二目标语言）里随时能改。"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "改完會立刻儲存。之後在「設定 → 翻譯」裡隨時能改。"
+            "value": "改完會立刻儲存。之後在「設定 → 一般」（目標語言）與「設定 → 翻譯」（第二目標語言）裡隨時能改。"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Saved immediately. You can change it any time under Settings → Translation."
+            "value": "Saved immediately. Change them any time under Settings → General (target language) and Settings → Translation (second target language)."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "変更はすぐ保存されます。後から「設定 → 翻訳」でいつでも変えられます。"
+            "value": "変更はすぐ保存されます。後から「設定 → 一般」（訳文の言語）と「設定 → 翻訳」（第二の訳文言語）でいつでも変えられます。"
           }
         }
       }
@@ -3234,31 +3001,31 @@
         }
       }
     },
-    "onboarding.openSystemSettings": {
+    "onboarding.localProviderHint": {
       "extractionState": "manual",
       "localizations": {
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "打开系统设置"
+            "value": "本机模型，不需要 Key，内容不出这台电脑。还没配云端 Key 时，点下面的「检测本机模型」会改用它；已有 Key 想换成本机模型，请到「设置 → 引擎」切换。"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "開啟系統設定"
+            "value": "本機模型，不需要 Key，內容不出這台電腦。還沒設定雲端 Key 時，點下面的「偵測本機模型」會改用它；已有 Key 想換成本機模型，請到「設定 → 引擎」切換。"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Open System Settings"
+            "value": "A local model: no key needed, and nothing leaves this Mac. Without a cloud key, “Detect local models” below switches to it; if you already have a key, switch under Settings → Engines."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "システム設定を開く"
+            "value": "ローカルモデルです。キーは不要で、内容はこの Mac から出ません。クラウドのキーが未設定なら、下の「ローカルモデルを検出」で切り替わります。キーがある場合は「設定 → エンジン」で切り替えてください。"
           }
         }
       }
@@ -3269,25 +3036,25 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "两项权限都只在本机生效，随时可以在系统设置里撤销。"
+            "value": "这些权限都只在本机生效，随时可以在系统设置里撤销。"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "兩項權限都只在本機生效，隨時可以在系統設定裡撤銷。"
+            "value": "這些權限都只在本機生效，隨時可以在系統設定裡撤銷。"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Both permissions only apply on this machine and can be revoked in System Settings at any time."
+            "value": "These permissions only apply on this Mac and can be revoked in System Settings at any time."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "2つの権限はこの Mac 内でのみ有効で、システム設定でいつでも取り消せます。"
+            "value": "これらの権限はこの Mac 内でのみ有効で、システム設定でいつでも取り消せます。"
           }
         }
       }
@@ -3437,35 +3204,6 @@
         }
       }
     },
-    "onboarding.primaryTarget": {
-      "extractionState": "manual",
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "第一目标语言"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "第一目標語言"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Primary target language"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "第一訳文の言語"
-          }
-        }
-      }
-    },
     "onboarding.progress": {
       "extractionState": "manual",
       "localizations": {
@@ -3521,35 +3259,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "完了"
-          }
-        }
-      }
-    },
-    "onboarding.provider": {
-      "extractionState": "manual",
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "供应商"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "供應商"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Provider"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "プロバイダー"
           }
         }
       }
@@ -3641,180 +3350,35 @@
         }
       }
     },
-    "onboarding.recheck": {
-      "extractionState": "manual",
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "重新检测"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "重新偵測"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Check again"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "再確認"
-          }
-        }
-      }
-    },
-    "onboarding.requestPermission": {
-      "extractionState": "manual",
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "请求授权"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "請求授權"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Request access"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "許可を求める"
-          }
-        }
-      }
-    },
-    "onboarding.save": {
-      "extractionState": "manual",
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "保存"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "儲存"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Save"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "保存"
-          }
-        }
-      }
-    },
-    "onboarding.screenRecording": {
-      "extractionState": "manual",
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "屏幕录制"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "螢幕錄製"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Screen recording"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "画面収録"
-          }
-        }
-      }
-    },
     "onboarding.screenRecordingDesc": {
       "extractionState": "manual",
       "localizations": {
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "只在用截图 OCR（%1$@）时需要。不用截图功能就可以不授权，那时系统不会问、我们也不申请。"
+            "value": "只在用截图 OCR（%1$@）时需要。不用截图功能就可以不授权，那时系统不会问、我们也不申请。授权后通常需要重启 umuo 才能生效。"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "只在用截圖 OCR（%1$@）時需要。不用截圖功能就可以不授權，那時系統不會問、我們也不申請。"
+            "value": "只在用截圖 OCR（%1$@）時需要。不用截圖功能就可以不授權，那時系統不會問、我們也不申請。授權後通常需要重新啟動 umuo 才能生效。"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Only needed for screenshot OCR (%1$@). If you don’t use screenshots you can skip it — the system won’t ask, and neither will we."
+            "value": "Only needed for screenshot OCR (%1$@). If you don’t use screenshots you can skip it — the system won’t ask, and neither will we. After granting, you usually need to restart umuo."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "スクリーンショット OCR（%1$@）でのみ必要です。スクリーンショット機能を使わない場合は許可しなくても問題ありません。システムから確認されることも、アプリから要求することもありません。"
+            "value": "スクリーンショット OCR（%1$@）でのみ必要です。スクリーンショット機能を使わない場合は許可しなくても問題ありません。システムから確認されることも、アプリから要求することもありません。許可後は通常 umuo の再起動が必要です。"
           }
         }
       },
       "comment": "placeholders: keys"
-    },
-    "onboarding.secondaryTarget": {
-      "extractionState": "manual",
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "第二目标语言（原文已经是第一目标语言时用它，例如中 ↔ 英）"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "第二目標語言（原文已經是第一目標語言時用它，例如中 ↔ 英）"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Secondary target language (used when the source already is the primary, e.g. zh ↔ en)"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "第二訳文の言語（原文が第一と同じときに使います。例：中 ↔ 英）"
-          }
-        }
-      }
     },
     "onboarding.see": {
       "extractionState": "manual",
@@ -3870,6 +3434,64 @@
           "stringUnit": {
             "state": "translated",
             "value": "画面の範囲を囲み、文字をローカルで認識して翻訳"
+          }
+        }
+      }
+    },
+    "onboarding.speak": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "说"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "說"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Speak"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "話す"
+          }
+        }
+      }
+    },
+    "onboarding.speakDesc": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "按住说话，松开后整理成文字写进输入框，或直接译成目标语言"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "按住說話，放開後整理成文字寫進輸入框，或直接譯成目標語言"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hold to talk; on release it’s tidied into text in the input field, or translated into your target language"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "押している間に話し、離すと整えた文字を入力欄に書き込みます。訳文の言語に翻訳することもできます"
           }
         }
       }

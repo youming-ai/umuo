@@ -91,7 +91,7 @@ struct CatalogTests {
             "autostart.writeFailed", "autostart.devBuild", "app.engineStarting", "app.engineFailed", "app.noHome",
             "prefs.settingsInvalid", "onboarding.modelWithProvider", "common.nothingToTranslate",
             "prefs.permissions.inputMonitoring", "prefs.permissions.inputMonitoringHint",
-            "onboarding.inputMonitoring", "onboarding.inputMonitoringDesc",
+            "onboarding.speak", "onboarding.speakDesc", "onboarding.localProviderHint",
             "error.selectionTargetChanged", "prefs.advanced.retentionConfirm", "prefs.advanced.retentionConfirmDetail", "prefs.advanced.retentionConfirmAction",
         ]
         for key in keys {
