@@ -26,7 +26,8 @@ extension PanelController {
             let blockNotice = { (owner: String) throws(SelectionError) -> String? in
                 guard let pid = pid_t(owner), let app = NSRunningApplication(processIdentifier: pid),
                       let name = app.localizedName ?? app.bundleIdentifier else {
-                    throw .other(UserText("error.targetChanged"))
+                    throw Selection.refuse("前台进程 \(owner) 已不在或没有名字",
+                                           key: silent ? "error.targetChanged" : Selection.selectionChanged)
                 }
                 return engine.selectionBlockNotice(appName: name)
             }

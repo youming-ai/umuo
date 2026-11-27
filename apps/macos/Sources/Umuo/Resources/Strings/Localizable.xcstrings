@@ -1159,6 +1159,35 @@
         }
       }
     },
+    "error.selectionTargetChanged": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "目标应用已切换，已停止取词"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "目標應用程式已切換，已停止取詞"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You switched to another app, so the selection wasn’t read"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "別のアプリに切り替わったため、選択テキストの読み取りを中止しました"
+          }
+        }
+      }
+    },
     "error.writeRejected": {
       "extractionState": "manual",
       "localizations": {

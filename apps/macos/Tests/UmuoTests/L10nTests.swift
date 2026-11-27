@@ -92,7 +92,7 @@ struct CatalogTests {
             "prefs.settingsInvalid", "onboarding.modelWithProvider", "common.nothingToTranslate",
             "prefs.permissions.inputMonitoring", "prefs.permissions.inputMonitoringHint",
             "onboarding.inputMonitoring", "onboarding.inputMonitoringDesc",
-            "prefs.advanced.retentionConfirm", "prefs.advanced.retentionConfirmDetail", "prefs.advanced.retentionConfirmAction",
+            "error.selectionTargetChanged", "prefs.advanced.retentionConfirm", "prefs.advanced.retentionConfirmDetail", "prefs.advanced.retentionConfirmAction",
         ]
         for key in keys {
             #expect(catalog.entries[key]?.values.count == 4, "缺文案：\(key)")

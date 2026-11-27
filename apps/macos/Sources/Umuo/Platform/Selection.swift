@@ -1,5 +1,6 @@
 import AppKit
 import ApplicationServices
+import os
 import UmuoCore
 
 /// 静默翻译读到的文本连同它的来源：读的是整个输入框，写回就必须替换整个输入框（PRD §5.4）。
@@ -45,8 +46,10 @@ enum Selection {
     ) throws(SelectionError) -> FocusText {
         guard AXIsProcessTrusted() else { throw .permissionDenied }
         let probe = AXTextProbe()
-        let element = probe.focusedElement()
-        let owner = try checkedOwner(of: element, blockNotice: blockNotice)
+        let focused = probe.focusedElement()
+        let (owner, usable) = try checkedOwner(of: focused, lenient: true, blockNotice: blockNotice)
+        // 焦点控件不属于前台应用（如浏览器把网页交给别的进程托管）：不读它，改向前台应用发 ⌘C
+        let element = usable ? focused : nil
         if probe.secureInput(element) { throw .other(UserText("error.secureInput")) }
         let target = probe.targetToken(element, requiresRange: true)
         if let text = element.flatMap({ AX.string($0, kAXSelectedTextAttribute as CFString) }),
@@ -56,10 +59,13 @@ enum Selection {
             return FocusText(text: text, source: .selection, writeTarget: confirmed ? target : nil, owner: owner)
         }
         // 无法证明选区身份时仍可翻译，但该结果没有写回目标。
-        guard let pid = pid_t(owner) else { throw .other(UserText("error.targetChanged")) }
+        guard let pid = pid_t(owner) else { throw refuse("前台标识不是 pid：\(owner)", key: selectionChanged) }
         let fallback = ClipboardFallback(copy: { () throws(SelectionError) in try KeyEvent.copy(to: pid) })
         let text = try fallback.read { () throws(SelectionError) in
-            guard FrontmostApp.liveToken() == owner else { throw .other(UserText("error.targetChanged")) }
+            let now = currentOwner()
+            guard now == owner else {
+                throw refuse("⌘C 期间前台变了：\(describe(owner)) → \(describe(now))", key: selectionChanged)
+            }
             if AX.isSecureInput(AX.focusedElement()) { throw .other(UserText("error.secureInput")) }
         }
         return FocusText(text: text, source: .selection, owner: owner)
@@ -74,7 +80,7 @@ enum Selection {
     ) throws(SelectionError) -> FocusText {
         guard AXIsProcessTrusted() else { throw .permissionDenied }
         let element = AX.focusedElement()
-        let owner = try checkedOwner(of: element, blockNotice: blockNotice)
+        let (owner, _) = try checkedOwner(of: element, lenient: false, blockNotice: blockNotice)
         // 密码框一个字都不读：读出来的可能是掩码，发给供应商之后还会被写回、覆盖密码。
         if AX.isSecureInput(element) { throw .other(UserText("error.secureInput")) }
 
@@ -104,18 +110,65 @@ enum Selection {
         return FocusText(text: text, source: .wholeField, writeTarget: target, owner: owner)
     }
 
-    /// 用即将读取的 AX 元素核对来源。没有元素时，复制降级只发给这次核准的进程。
-    private static func checkedOwner(of element: AXUIElement?,
-                                     blockNotice: (String) throws(SelectionError) -> String?) throws(SelectionError) -> String {
-        guard let owner = FrontmostApp.liveToken() else { throw .other(UserText("error.targetChanged")) }
-        if let element {
-            var pid: pid_t = 0
-            guard AXUIElementGetPid(element, &pid) == .success, String(pid) == owner else {
-                throw .other(UserText("error.targetChanged"))
-            }
+    /// 划词读取失败时给用户看的那句（不提「替换」：划词本来就不替换）。
+    static let selectionChanged = "error.selectionTargetChanged"
+
+    private static let log = Logger(subsystem: "app.umuo.desktop", category: "selection")
+
+    /// 拒绝并把原因写进系统日志（`log show --predicate 'subsystem == "app.umuo.desktop"'`）：
+    /// 几处检查对用户是同一句话，不留原因就分不清是哪一处拦下的。只记 pid 与应用标识，不记文本。
+    static func refuse(_ reason: String, key: String = "error.targetChanged") -> SelectionError {
+        log.error("取词被拒（\(key, privacy: .public)）：\(reason, privacy: .public)")
+        return .other(UserText(key))
+    }
+
+    /// 此刻的前台应用：优先 AX 现查；AX 问不出来（应用忙、尚未建好无障碍树）时退回 NSWorkspace 的记录。
+    static func currentOwner() -> String? {
+        FrontmostApp.liveToken() ?? NSWorkspace.shared.frontmostApplication.map { String($0.processIdentifier) }
+    }
+
+    static func describe(_ token: String?) -> String {
+        guard let token, let pid = pid_t(token) else { return token ?? "nil" }
+        return "\(pid) \(NSRunningApplication(processIdentifier: pid)?.bundleIdentifier ?? "?")"
+    }
+
+    /// 前台应用与焦点控件的归属判定（纯规则，测试直接喂值）。
+    /// - `strict`（原地替换）：AX 问不出前台、或焦点控件不属于前台应用，都拒绝——接下来要往这个控件里写。
+    /// - 宽松（划词只读）：前台退回 NSWorkspace；焦点控件归属对不上时不读它（`useElement == false`），
+    ///   改向前台应用发 ⌘C。黑名单与 ⌘C 仍只认前台应用。
+    static func resolveOwner(axFront: String?, workspaceFront: String?, elementPid: String?, hasElement: Bool,
+                             lenient: Bool) -> (owner: String?, useElement: Bool, problem: String?) {
+        guard let owner = axFront ?? (lenient ? workspaceFront : nil) else {
+            return (nil, false, "AX 与 NSWorkspace 都取不到前台应用")
+        }
+        let note = axFront == nil ? "AX 取不到前台，退回 NSWorkspace" : nil
+        guard hasElement else { return (owner, false, note) }
+        if elementPid == owner { return (owner, true, note) }
+        let mismatch = "焦点控件属于 \(elementPid ?? "未知进程")，前台是 \(owner)"
+        return lenient ? (owner, false, mismatch) : (nil, false, mismatch)
+    }
+
+    /// 用即将读取的 AX 元素核对来源，返回前台应用与这个元素能不能用。没有元素时，复制降级只发给这次核准的进程。
+    private static func checkedOwner(of element: AXUIElement?, lenient: Bool,
+                                     blockNotice: (String) throws(SelectionError) -> String?)
+        throws(SelectionError) -> (owner: String, useElement: Bool)
+    {
+        var pid: pid_t = 0
+        let elementPid = element.flatMap { AXUIElementGetPid($0, &pid) == .success ? String(pid) : nil }
+        let axFront = FrontmostApp.liveToken()
+        let workspace = NSWorkspace.shared.frontmostApplication.map { String($0.processIdentifier) }
+        let result = resolveOwner(axFront: axFront, workspaceFront: workspace, elementPid: elementPid,
+                                  hasElement: element != nil, lenient: lenient)
+        let key = lenient ? selectionChanged : "error.targetChanged"
+        guard let owner = result.owner else {
+            throw refuse("\(result.problem ?? "") [AX=\(describe(axFront)) NSWorkspace=\(describe(workspace)) 控件=\(describe(elementPid))]",
+                         key: key)
+        }
+        if let problem = result.problem {
+            log.notice("取词放宽：\(problem, privacy: .public) [控件=\(describe(elementPid), privacy: .public) 前台=\(describe(owner), privacy: .public)]")
         }
         if let message = try blockNotice(owner) { throw .blocked(message) }
-        return owner
+        return (owner, result.useElement)
     }
 
     private static func checkWritable(_ source: FocusSource, _ element: AXUIElement?) throws(SelectionError) {
