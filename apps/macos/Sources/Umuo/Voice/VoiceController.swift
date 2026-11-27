@@ -163,6 +163,8 @@ final class VoiceController {
         let step = session.handle(input: input)
         overlay.phase = step.phase
         if case .starting = step.phase { overlay.copied = false }
+        // 重试会换成新结果：「已复制」属于旧文本，留着会让人以为新结果已在剪贴板里
+        if case .retry = input { overlay.copied = false }
         if case let .press(_, task) = input, step.effects.contains(where: Self.startsRecording) { overlay.task = task }
         switch input {
         case .transcribed, .transcriptionFailed, .cancel, .press: overlay.preparingEngine = false
@@ -290,8 +292,11 @@ final class VoiceController {
     }
 
     private func copy(_ text: String) {
+        let shown = overlay.phase
         Task {
             let failure = await copyText(text)
+            // 复制回来时已经换了结果（重试、新会话）：不给新结果标「已复制」
+            guard overlay.phase == shown else { return }
             overlay.copied = failure == nil
         }
     }

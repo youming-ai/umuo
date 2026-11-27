@@ -130,9 +130,9 @@ final class PanelSession {
 
     // MARK: - 操作
 
-    /// 是否需要全局拦截 Esc：未钉住时按 Esc 收起浮窗，流式翻译中按 Esc 取消请求；
+    /// 是否需要全局拦截 Esc：未钉住时按 Esc 收起浮窗，翻译中（含等 Start）按 Esc 取消请求；
     /// 已钉住且不在流式请求中时不抢全局 Esc，避免吞掉其他前台应用的 Esc 或误关已钉住的浮窗。
-    var capturesGlobalEscape: Bool { !pinned || state.status == .streaming }
+    var capturesGlobalEscape: Bool { !pinned || inFlight }
 
     /// 还有没出结果的请求：流式中，或已开始翻译、Start 还没到（这时状态仍是上一次的）。
     private var inFlight: Bool { state.status == .streaming || pendingStart != nil }

@@ -44,6 +44,8 @@ struct OnboardingView: View {
                         .font(current ? .subheadline.weight(.semibold) : .subheadline)
                         .foregroundStyle(current ? Color.primary : Color.secondary)
                         .frame(maxWidth: .infinity)
+                        // 完成与否只靠图标区分，读屏读不出来
+                        .accessibilityValue(satisfied ? t("onboarding.stepDone") : "")
                         .accessibilityAddTraits(current ? .isSelected : [])
                 }
             }
@@ -94,7 +96,10 @@ struct OnboardingView: View {
     private func keys(_ fields: String...) -> String {
         let values = fields.map { model.values.string($0) }
         if values.allSatisfy({ HotkeyCenter.isCleared($0) }) { return t("prefs.hotkey.unset") }
-        return values.map { HotkeyCenter.isCleared($0) ? t("prefs.hotkey.unset") : HotkeyFormat.parts($0).joined() }
+        return values.map {
+            HotkeyCenter.isCleared($0) ? t("prefs.hotkey.unset")
+                : HotkeyFormat.parts($0, rightLabel: t("prefs.hotkey.right")).joined()
+        }
             .joined(separator: " / ")
     }
 

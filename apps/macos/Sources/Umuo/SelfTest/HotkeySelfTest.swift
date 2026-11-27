@@ -173,8 +173,11 @@ enum HotkeySelfTest {
               "2 个注册成功；与上一行重复的、没有键码的按字段名记失败：\(center.failures)；没有连按就不开监听")
 
         center.paused = true
-        let pausedBlocks = center.suspended
+        // 暂停时组合键一并注销（把冲突的键让给别的应用），取消暂停按原设置注册回来并通知
+        let pausedBlocks = center.suspended && center.registeredCombos == 0
         center.paused = false
+        let resumed = center.registeredCombos == 2 && notified == 1
+        notified = 0
         center.setRecording(true)
         // 录键期间设置变了（导入配置、另一行改了快捷键）：只记下新设置，不把组合键注册回来抢录键器的按键
         center.reregister(values)
@@ -186,8 +189,8 @@ enum HotkeySelfTest {
         // 收尾：注销全部，不留任何全局快捷键
         center.unregisterAll()
         let clean = center.registeredCombos == 0
-        check("HotkeyCenter.suspend", pausedBlocks && recording && restored && reregistered && clean,
-              "暂停与录键期间不响应；录键时注销全部组合键、期间的重注册只记设置，结束后按设置重注册并通知；重注册不累积失败")
+        check("HotkeyCenter.suspend", pausedBlocks && resumed && recording && restored && reregistered && clean,
+              "暂停时注销组合键、取消暂停注册回来；暂停与录键期间不响应；录键时注销全部组合键、期间的重注册只记设置，结束后按设置重注册并通知；重注册不累积失败")
     }
 
     /// 修饰键监听：没有「输入监控」权限就跳过，不去建监听（建监听本身可能弹授权）。

@@ -116,6 +116,9 @@ final class AppModel {
     }
 
     /// 设置里选的麦克风 UID；没读到设置或没选时为空串（系统默认）。
+    /// 语音选用的麦克风（空 = 跟随系统默认）。内核打开、保存设置、导入配置时更新；设置只经这几条路径改这一项。
+    private var voiceInputDevice = ""
+
     nonisolated static func voiceInputDevice(settingsJson: String?) -> String {
         guard let data = settingsJson?.data(using: .utf8),
               let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
@@ -135,9 +138,8 @@ final class AppModel {
         let models = VoiceModelStore(spec: spec, fetcher: URLSessionModelFetcher())
         let transcriber = LocalTranscriber(modelPath: info.path, idleUnload: TimeInterval(info.idleUnloadSecs))
         let controller = VoiceController(
-            recorder: SystemVoiceRecorder(inputDevice: { [weak self] in
-                AppModel.voiceInputDevice(settingsJson: self?.engine?.settingsJson())
-            }), transcriber: transcriber, models: models, files: files,
+            // 读缓存：按下语音键在主线程上，同步问内核会等设置锁（保存设置时它跨磁盘读写）
+            recorder: SystemVoiceRecorder(inputDevice: { [weak self] in self?.voiceInputDevice ?? "" }), transcriber: transcriber, models: models, files: files,
             maxRecordingMs: info.maxRecordingMs,
             copyText: { text in await Task.detached { Pasteboard.copy(text) }.value?.key }
         )
@@ -162,6 +164,7 @@ final class AppModel {
             engineState = .ready
             if let settingsJson {
                 applyLocale(settingsJson)
+                voiceInputDevice = Self.voiceInputDevice(settingsJson: settingsJson)
                 voice?.overlay.hotkeyLabels = HotkeyCenter.voiceLabels(HotkeyCenter.values(settingsJson: settingsJson))
                 registerHotkeys(HotkeyCenter.values(settingsJson: settingsJson))
             }
@@ -196,6 +199,7 @@ final class AppModel {
     /// `settingsJson` 是 `SettingsUpdate.settingsJson` / `ImportResult.settingsJson`，已在后台拿到。
     func settingsApplied(settingsJson: String, hotkeysChanged: Bool) {
         applyLocale(settingsJson)
+        voiceInputDevice = Self.voiceInputDevice(settingsJson: settingsJson)
         ThemeChoice.apply(settingsJson: settingsJson)
         if hotkeysChanged {
             voice?.overlay.hotkeyLabels = HotkeyCenter.voiceLabels(HotkeyCenter.values(settingsJson: settingsJson))

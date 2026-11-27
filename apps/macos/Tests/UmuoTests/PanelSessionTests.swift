@@ -381,6 +381,11 @@ struct PanelSessionTests {
         #expect(session.capturesGlobalEscape, "钉住状态下流式翻译进行中仍可按 Esc 取消")
         session.apply(route: route(1), event: doneEvent)
         #expect(!session.capturesGlobalEscape, "流式翻译完成后再次释放全局 Esc")
+        session.pendingStart = 2
+        #expect(session.capturesGlobalEscape, "钉住时已发请求、Start 还没到，也要能按 Esc 取消")
+        session.apply(route: route(2), event: start(2))
+        session.apply(route: route(2), event: doneEvent)
+        #expect(session.pendingStart == nil)
         session.togglePin()
         #expect(!session.pinned)
         #expect(session.capturesGlobalEscape)

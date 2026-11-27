@@ -42,6 +42,8 @@ extension NSPasteboard: PasteboardAccess {
 /// 都接一个剪贴板参数（正式路径是 `NSPasteboard.general`）：selftest 换成私有命名剪贴板、单元测试换成假剪贴板，
 /// 整个事务都能在不碰用户剪贴板的前提下跑一遍。
 enum Pasteboard {
+    /// 临时内容标记：Maccy、Raycast、Paste 等剪贴板管理器见到它就不记历史。
+    static let transientType = "org.nspasteboard.TransientType"
     /// 动剪贴板的操作互斥：⌘C 取词降级（快照 → 清空 → ⌘C → 轮询 → 恢复 → 观察迟到的复制）是一整个事务，
     /// 期间别的线程写剪贴板，要么被它的恢复盖掉，要么被它当成原内容存下来。
     /// 连按两次快捷键时，第二次的快照拿到的会是第一次清空后的空剪贴板，最后用空串盖掉用户的内容。

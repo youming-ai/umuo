@@ -64,10 +64,13 @@ enum Autostart {
         return temporary ? UserText("autostart.temporaryLocation") : nil
     }
 
-    static func isEnabled(home: URL) -> Bool {
+    /// 给了 `program`（当前运行的可执行文件）时，登录项还得指向它：指向 ~/Downloads 里那份旧拷贝时开关显示为关，
+    /// 用户再打开一次就改写成当前这份，免得登录时拉起旧版。
+    static func isEnabled(home: URL, program current: String? = nil) -> Bool {
         guard let text = try? String(contentsOf: plistURL(home: home), encoding: .utf8),
               let program = program(inPlist: text)
         else { return false }
+        if let current, program != current { return false }
         return FileManager.default.fileExists(atPath: program)
     }
 
@@ -87,7 +90,7 @@ enum Autostart {
                 throw Failure(text: UserText("autostart.writeFailed", ["reason": error.localizedDescription]))
             }
         }
-        return isEnabled(home: home)
+        return isEnabled(home: home, program: enabled ? program : nil)
     }
 
     struct Failure: UserFacingError {
