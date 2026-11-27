@@ -23,7 +23,9 @@ final class ClipboardCopyGuard: ClipboardCopyWatching {
             tap: .cgSessionEventTap, place: .headInsertEventTap, options: .listenOnly,
             eventsOfInterest: mask,
             callback: { _, type, event, pointer in
-                if let pointer,
+                // 按住划词组合键的自动重复不是新操作：算成干预的话，慢应用里按久一点取词就报「剪贴板已变化」
+                let autorepeat = type == .keyDown && event.getIntegerValueField(.keyboardEventAutorepeat) != 0
+                if let pointer, !autorepeat,
                    type == .tapDisabledByTimeout || type == .tapDisabledByUserInput
                        || event.getIntegerValueField(.eventSourceUserData) != KeyEvent.ownEventTag {
                     Unmanaged<State>.fromOpaque(pointer).takeUnretainedValue().interrupted = true

@@ -248,6 +248,9 @@ final class PanelController: PanelBackend {
             return
         }
         let ticketId = ticketId ?? engine.beginRequest(surface: Self.surface)
+        // 每条入口（重试、截图、引导练习、外部链接）都记下「等 Start」：否则 Start 到之前 Esc / ✕ 只收窗，请求照发照计费
+        session.pendingStart = ticketId
+        syncEscape()
         let (stream, continuation) = AsyncStream.makeStream(of: PanelStreamSink.Item.self)
         let sink = PanelStreamSink(continuation)
         Task {

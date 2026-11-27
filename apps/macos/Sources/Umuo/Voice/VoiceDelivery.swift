@@ -227,8 +227,9 @@ final class FocusedFieldDelivery: VoiceDelivering {
         for task in targets.values { task.cancel() }
         let probe = probe
         let pid = NSWorkspace.shared.frontmostApplication?.processIdentifier
-        let deadline = ContinuousClock.now + .milliseconds(250)
         let focus = probe.captureFocus(pid: pid)
+        // 截止时间从同步取焦点之后算：慢应用里那次查询本身最多 100 ms，算进去后台快照更容易超时、报「无法核验」
+        let deadline = ContinuousClock.now + .milliseconds(250)
         targets = [session: Task.detached(priority: .userInitiated) {
             guard !Task.isCancelled, ContinuousClock.now < deadline else { return nil }
             guard let focus else { return .unavailable }

@@ -124,7 +124,10 @@ struct VoiceOverlayView: View {
         .accessibilityElement(children: .contain)
         // 浮层不抢焦点：录音、处理、完成、失败各播报一次，读屏用户才知道进行到哪一步
         .onChange(of: title) { _, title in
-            if !title.isEmpty { AccessibilityNotification.Announcement(title).post() }
+            guard !title.isEmpty else { return }
+            // 没交付、失败时连原因一起读：只读「未能输入」「失败」，读屏用户不知道为什么、下一步该做什么
+            let reason = announcedReason.map { "\(title)。\($0)" } ?? title
+            AccessibilityNotification.Announcement(reason).post()
         }
     }
 
@@ -240,6 +243,15 @@ struct VoiceOverlayView: View {
             model.onCopy?(text)
         }
         .floatingControl("voice.copy")
+    }
+
+    /// 终态播报时跟在标题后面的原因。
+    private var announcedReason: String? {
+        switch model.phase {
+        case let .undelivered(_, _, reason): t(Self.refusalKey(reason))
+        case let .failed(failure, _): t(Self.messageKey(failure.kind))
+        default: nil
+        }
     }
 
     private var title: String {

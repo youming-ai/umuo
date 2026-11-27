@@ -328,6 +328,20 @@ struct AutostartTests {
         #expect(!Autostart.isEnabled(home: dir))
     }
 
+    @Test func 登录项指向别处的旧拷贝_对当前程序算关() throws {
+        let dir = try home("other")
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let old = dir.appendingPathComponent("Downloads/umuo"), current = dir.appendingPathComponent("Applications/umuo")
+        for exec in [old, current] {
+            try FileManager.default.createDirectory(at: exec.deletingLastPathComponent(), withIntermediateDirectories: true)
+            try Data().write(to: exec)
+        }
+        #expect(try Autostart.setEnabled(true, home: dir, program: old.path))
+        #expect(Autostart.isEnabled(home: dir, program: old.path))
+        #expect(!Autostart.isEnabled(home: dir, program: current.path))
+        #expect(try Autostart.setEnabled(true, home: dir, program: current.path), "再打开一次改写成当前这份")
+    }
+
     @Test func 临时位置被拒绝且不留文件() throws {
         let dir = try home("translocated")
         defer { try? FileManager.default.removeItem(at: dir) }

@@ -158,7 +158,8 @@ final class EngineSettingsBackend: SettingsBackend {
     private nonisolated static var home: URL { FileManager.default.homeDirectoryForCurrentUser }
 
     func autostartStatus() async -> Bool? {
-        await Task.detached { Autostart.isEnabled(home: Self.home) }.value
+        let program = Bundle.main.executablePath ?? CommandLine.arguments[0]
+        return await Task.detached { Autostart.isEnabled(home: Self.home, program: program) }.value
     }
 
     func setAutostart(_ enabled: Bool) async throws -> Bool {

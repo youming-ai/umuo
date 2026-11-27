@@ -53,8 +53,10 @@ struct ControlledPaste: @unchecked Sendable {
         // proceed 可能阻塞在 AX；返回 false 时也得先识别新复制，避免撰写窗的 skipped 兜底覆盖它。
         guard pasteboard.changeCount == original else { return .clipboardChanged }
         guard shouldProceed else { return .skipped }
-        pasteboard.clearContents()
-        guard pasteboard.setString(text, forType: .string) else {
+        // 标成临时内容（nspasteboard.org 约定）：剪贴板管理器不把这次借用记进历史
+        pasteboard.writeItems([[.init(type: NSPasteboard.PasteboardType.string.rawValue, data: Data(text.utf8)),
+                                .init(type: Pasteboard.transientType, data: Data())]])
+        guard pasteboard.string(forType: .string) == text else {
             snapshot.restore(pasteboard)
             return .failed(UserText("error.clipboardUnavailable"))
         }

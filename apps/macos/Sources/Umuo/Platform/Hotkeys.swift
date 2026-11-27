@@ -108,8 +108,21 @@ final class HotkeyCenter {
 
     /// 注册失败的设置字段名（界面按它把失败标在对应那一行上）。
     private(set) var failures: [String] = []
-    /// 用户点了「暂停」。
-    var paused = false
+    /// 用户点了「暂停」。暂停期间连组合键也注销：只在回调里拦的话，系统照样把按键截给 umuo，
+    /// 用户想借暂停把冲突的键让给别的应用也让不出去。连按是只读监听，靠 `suspended` 拦即可。
+    var paused = false {
+        didSet {
+            guard paused != oldValue, hasRegistered, recordingUntil == nil else { return }
+            if paused {
+                unregisterCombos("暂停时注销全局快捷键失败")
+            } else {
+                register(values)
+                onRegistered?()
+            }
+        }
+    }
+    /// 注册过（正式包启动时）：开发构建与测试进程从不注册，取消暂停时也不能凭空注册默认键。
+    private var hasRegistered = false
     /// 录键截止时刻（单调时钟秒，同 Rust 的 Instant，不受改系统时间影响）。
     private var recordingUntil: TimeInterval?
     /// 重注册完成（失败清单可以读了）、或补启动连按监听之后调用（设置窗据此刷新失败提示）。
@@ -136,8 +149,8 @@ final class HotkeyCenter {
     /// 清掉全部旧注册、按新设置重注册，**不用重启**。只在快捷键真的变了时调（`SettingsUpdate.hotkeysChanged`）：
     /// 每拨一个开关都重注册一遍会白白清空又重建失败记录。
     func reregister(_ values: [String: String]) {
-        // 正在录快捷键：组合键此刻是故意注销的（否则录键器收不到）。只记下新设置，录键结束或超时后再按它注册
-        guard recordingUntil == nil else {
+        // 正在录快捷键或已暂停：组合键此刻是故意注销的。只记下新设置，录键结束 / 取消暂停后再按它注册
+        guard recordingUntil == nil, !paused else {
             self.values = values
             return
         }
@@ -159,6 +172,7 @@ final class HotkeyCenter {
     /// 失败记进 `failures`，而不只是打日志（PRD §7.2 的冲突提示）。
     func register(_ values: [String: String]) {
         self.values = values
+        hasRegistered = true
         // 每次注册前清空：旧的失败记录已经过期。
         failures = []
         var taps: [DoubleTapRouter.Binding] = []
