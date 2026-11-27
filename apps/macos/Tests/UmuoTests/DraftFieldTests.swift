@@ -91,4 +91,13 @@ struct DraftFieldTests {
         coordinator.controlTextDidEndEditing(Notification(name: NSText.didEndEditingNotification, object: field))
         #expect(commits == ["deepseek-reasoner"])
     }
+
+    @Test func 保存成功但规范化后没变_框里对齐已存值() async {
+        let field = NSTextField()
+        let coordinator = DraftField.Coordinator(DraftField(value: "90", onCommit: { _ in Task {} }))
+        field.stringValue = "90.9"
+        coordinator.controlTextDidEndEditing(Notification(name: NSText.didEndEditingNotification, object: field))
+        for _ in 0 ..< 30 { await Task.yield() }
+        #expect(field.stringValue == "90")
+    }
 }

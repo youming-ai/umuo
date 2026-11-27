@@ -178,11 +178,13 @@ struct DraftField: NSViewRepresentable {
             editRevision += 1
             let mine = editRevision
             Task { @MainActor in
-                if (try? await pending.value) == nil {
-                    guard self.editRevision == mine, current() == next, !editing() else { return }
-                    revert(self.parent.value)
-                    self.shown = self.parent.value
-                }
+                let saved = (try? await pending.value) != nil
+                guard self.editRevision == mine, current() == next, !editing() else { return }
+                // 失败退回已存值；成功但规范化后与原值相同（保留天数填「90.9」存成 90、模型名带空格）时，
+                // 外部值没变、`updateNSView` 不会重设，框里会一直留着用户敲的原样——也对齐到已存值
+                guard !saved || next != self.parent.value else { return }
+                revert(self.parent.value)
+                self.shown = self.parent.value
             }
         }
     }
