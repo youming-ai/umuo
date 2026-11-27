@@ -37,6 +37,9 @@ final class HistoryModel {
     private(set) var privacyMode = false
     /// 页头的一行状态（已清除、错误原因）。
     var status: String?
+    /// 重载自己设的「读不出来」提示：重载成功只撤这一句。删除、清空的失败原因留着——确认框收起时窗口重新成为 key
+    /// 会触发一次重载，抹掉的话那句原因一闪而过。
+    private var reloadStatus: String?
     /// 列表里选中的那一条：右键菜单与 Delete 键作用于它。
     var selection: Int64?
     /// 已经读了几页。「显示更多」就是多读一页，整页重读时按页逐个读。
@@ -103,10 +106,12 @@ final class HistoryModel {
                 self.selection = nil
             }
             privacyMode = privacy
-            status = nil
+            if status == reloadStatus { status = nil }
+            reloadStatus = nil
         } catch {
             guard mine == generation else { return }
             status = t("history.unavailable", ["reason": SettingsRules.message(error)])
+            reloadStatus = status
         }
     }
 

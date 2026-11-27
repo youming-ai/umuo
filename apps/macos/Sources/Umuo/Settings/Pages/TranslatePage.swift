@@ -110,6 +110,9 @@ struct HotkeyRecorderButton: View {
                 Group {
                     if recording { button.buttonStyle(.borderedProminent) } else { button.buttonStyle(.bordered) }
                 }
+                // 只读键位的话六行分不清是哪个功能：名字是行名，值是键位
+                .accessibilityLabel(title)
+                .accessibilityValue(label)
                 .accessibilityAddTraits(recording ? .isSelected : [])
                 // 清空：有值且不在录这一行时才出现。不出现时仍占着位置（`hidden` 不响应点击、也不给 VoiceOver 读），
                 // 各行的录键框才对得齐

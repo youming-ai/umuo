@@ -226,6 +226,10 @@ struct DraftField: NSViewRepresentable {
     }
 
     func updateNSView(_ view: NSView, context: Context) {
+        // 切换界面语言后标签要跟着变，否则 VoiceOver 一直读创建时的语言
+        if let scroll = view as? NSScrollView { scroll.documentView?.setAccessibilityLabel(label) } else {
+            view.setAccessibilityLabel(label)
+        }
         let previous = context.coordinator.parent.suggestions
         context.coordinator.parent = self
         if let box = view as? NSComboBox, let suggestions, suggestions != previous {

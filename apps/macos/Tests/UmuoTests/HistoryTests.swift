@@ -258,6 +258,21 @@ struct HistoryModelTests {
         #expect(model.status == "历史不可用：数据库坏了")
     }
 
+    @Test func 重载成功只撤自己的不可用提示_不抹掉删除失败的原因() async {
+        let backend = FakeHistory()
+        let model = HistoryModel(backend: backend, sleep: instant)
+        model.t = t
+        backend.fail = true
+        await model.reload()
+        backend.fail = false
+        await model.reload()
+        #expect(model.status == nil, "数据库恢复后不再说不可用")
+        // 删除失败的原因不能被确认框收起时那次重载抹掉
+        model.status = "删除失败：磁盘只读"
+        await model.reload()
+        #expect(model.status == "删除失败：磁盘只读")
+    }
+
     @Test func 清空先确认取消时什么都不删() async {
         let backend = FakeHistory()
         backend.confirm = false

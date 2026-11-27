@@ -120,6 +120,10 @@ final class SettingsModel {
             guard let self, values.string("providerId") != shownProvider else { return }
             shownProvider = values.string("providerId")
             engine.reset()
+            // 端点、模型那两行的错误属于上一个供应商（Azure 端点存失败后切到自定义端点，错误不该挂到新那一行上）
+            rowErrors["endpoint"] = nil
+            rowErrors["model"] = nil
+            keyStatusError = nil
         }
         self.queue = queue
     }
